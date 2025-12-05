@@ -1,5 +1,13 @@
 name: Build Windows EXE
 
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+  packages: write
+  # specifically needed for releases
+  deployments: write
+
 on:
   push:
     branches: [ main ]
