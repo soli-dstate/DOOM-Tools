@@ -1,12 +1,16 @@
 import os
 import logging
-import sys
 from datetime import datetime
 import zipfile
 import glob
 import requests
-import subprocess
 import platform
+import pygame
+import customtkinter
+
+pygame.init()
+
+pygame.mixer.init(channels=4096)
 
 version = "0.0.0"
 
@@ -101,13 +105,6 @@ folders = [
     "logs",
 ]
 
-for folder in folders:
-    if not os.path.exists(folder):
-        os.makedirs(folder)
-        logging.info(f"Created missing folder: {folder}")
-    with open('.gitignore', 'a') as gitignore:
-        gitignore.write(f'/{folder}/\n')
-
 ide_indicators = [
     'PYCHARM_HOSTED',
     'VSCODE_PID',
@@ -135,3 +132,47 @@ if any(indicator in os.environ for indicator in ide_indicators):
     else:
         logging.info("IDE environment detected, but development mode is already True.")
     logging.info(f"Trigger: {[key for key in os.environ if key in ide_indicators]}")
+    for folder in folders:
+        if not os.path.exists(folder):
+            os.makedirs(folder)
+            logging.info(f"Created missing folder: {folder}")
+        with open('.gitignore', 'a') as gitignore:
+            gitignore.write(f'/{folder}/\n')
+
+currentsave = None
+
+class App:
+    def __init__(self):
+        customtkinter.set_appearance_mode("dark")
+        customtkinter.set_default_color_theme("dark-blue")
+        self.root = customtkinter.CTk()
+        self.root.title("DOOM Tools")
+        self.root.geometry("1280x720")
+        self.root.minsize(960, 600)
+        self._build_main_menu()
+        self.root.mainloop()
+    def _build_main_menu(self):
+        self.root.grid_rowconfigure(0, weight=1)
+        self.root.grid_columnconfigure(0, weight=1)
+        main_frame = customtkinter.CTkFrame(self.root)
+        main_frame.grid(row=0, column=0, sticky="nsew")
+        title_label = customtkinter.CTkLabel(main_frame, text="DOOM Tools", font=customtkinter.CTkFont(size=24, weight="bold"))
+        title_label.pack(pady=20)
+        version_label = customtkinter.CTkLabel(main_frame, text=f"Version: {version}", font=customtkinter.CTkFont(size=16))
+        version_label.pack()
+        loot_button = customtkinter.CTkButton(main_frame, text="Loot", command=self._open_loot_tool, width=500, height=50, font=customtkinter.CTkFont(size=16), state="disabled" if currentsave is None else "normal")
+        loot_button.pack(pady=10)
+        business_button = customtkinter.CTkButton(main_frame, text="Businesses", command=self._open_business_tool, width=500, height=50, font=customtkinter.CTkFont(size=16), state="disabled" if currentsave is None else "normal")
+        business_button.pack(pady=10)
+        inventoryman_button = customtkinter.CTkButton(main_frame, text="Inventory Manager", command=self._open_inventory_manager_tool, width=500, height=50, font=customtkinter.CTkFont(size=16))
+        inventoryman_button.pack(pady=10)
+        combatmode_button = customtkinter.CTkButton(main_frame, text="Combat Mode", width=500, height=50, font=customtkinter.CTkFont(size=16), state="disabled" if currentsave is None else "normal")
+        combatmode_button.pack(pady=10)
+    def _open_loot_tool(self):
+        pass
+    def _open_business_tool(self):
+        pass
+    def _open_inventory_manager_tool(self):
+        pass
+if __name__ == "__main__":
+    app = App()
