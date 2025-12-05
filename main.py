@@ -137,7 +137,18 @@ if any(indicator in os.environ for indicator in ide_indicators):
             os.makedirs(folder)
             logging.info(f"Created missing folder: {folder}")
         with open('.gitignore', 'a') as gitignore:
-            gitignore.write(f'/{folder}/\n')
+            existing_gitignore = set()
+            try:
+                with open('.gitignore', 'r') as read_gitignore:
+                    existing_gitignore = set(line.strip() for line in read_gitignore)
+            except FileNotFoundError:
+                pass
+            entry = f'/{folder}/'
+            if entry not in existing_gitignore:
+                gitignore.write(f'{entry}\n')
+                logging.info(f"Added '{entry}' to .gitignore")
+            else:
+                logging.info(f"'{entry}' already exists in .gitignore")
 
 currentsave = None
 

@@ -61,4 +61,7 @@ env/
 # OS
 .DS_Store
 Thumbs.db
+
+# automatically added by program
+
 /logs/
