@@ -149,6 +149,25 @@ if any(indicator in os.environ for indicator in ide_indicators):
                 logging.info(f"Added '{entry}' to .gitignore")
             else:
                 logging.info(f"'{entry}' already exists in .gitignore")
+    try:
+        import subprocess
+        result = subprocess.run([os.sys.executable, '-m', 'pip', 'freeze'], capture_output=True, text=True)
+        current_packages = set(result.stdout.strip().split('\n'))
+        
+        existing_packages = set()
+        try:
+            with open('requirements.txt', 'r') as f:
+                existing_packages = set(line.strip() for line in f if line.strip())
+        except FileNotFoundError:
+            pass
+        all_packages = existing_packages | current_packages
+        all_packages.discard('')
+        with open('requirements.txt', 'w') as f:
+            for package in sorted(all_packages):
+                f.write(f'{package}\n')
+        logging.info(f"Updated requirements.txt with {len(all_packages)} packages")
+    except Exception as e:
+        logging.warning(f"Failed to update requirements.txt: {e}")
 
 currentsave = None
 
