@@ -5,8 +5,8 @@ permissions:
   issues: write
   pull-requests: write
   packages: write
-  # specifically needed for releases
   deployments: write
+  id-token: write
 
 on:
   push:
@@ -67,10 +67,22 @@ jobs:
           name: ${{ env.APP_NAME }}-windows
           path: ./release-assets
 
+      - name: Check if prerelease
+        id: check-prerelease
+        run: |
+          if [[ "${{ github.ref }}" =~ alpha|beta|rc|dev ]]; then
+            echo "is_prerelease=true" >> $GITHUB_OUTPUT
+          else
+            echo "is_prerelease=false" >> $GITHUB_OUTPUT
+          fi
+        shell: bash
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
             release-assets/${{ env.APP_NAME }}.exe
+          draft: false
+          prerelease: ${{ steps.check-prerelease.outputs.is_prerelease }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
