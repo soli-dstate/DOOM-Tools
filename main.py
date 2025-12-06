@@ -7,6 +7,7 @@ import requests
 import platform
 import pygame
 import customtkinter
+import base64
 
 pygame.init()
 
@@ -128,7 +129,7 @@ if global_variables["debugmode"]["value"]:
 appearance_settings = {
     "appearance_mode": "system",
     "color_theme": "dark-blue",
-    "resolution": "1280x720",
+    "resolution": "1920x1080",
     "fullscreen": False,
     "borderless": False
 }
@@ -158,17 +159,7 @@ ide_indicators = [
     'VSCODE_INJECTION'
 ]
 
-dm_users = ["lily", "jaczi", "phone"]
-
-for user in dm_users:
-    if user in os.getlogin().lower():
-        if not global_variables["dmmode"]["value"] and not global_variables["dmmode"]["forced"]:
-            global_variables["dmmode"]["value"] = True
-            logging.info(f"DM user '{user}' detected. DM mode toggled on.")
-        elif global_variables["dmmode"]["value"]:
-            logging.info(f"DM user '{user}' detected. DM mode already active.")
-        else:
-            logging.info(f"DM user '{user}' detected. DM mode is forced off.")\
+dm_users = ["bGlseQ==", "amFjemk=", "cGhvbmU="]
 
 if any(indicator in os.environ for indicator in ide_indicators):
     if not global_variables["devmode"]["value"] and not global_variables["devmode"]["forced"]:
@@ -251,16 +242,31 @@ emptysave = {
     }
 }
 
+dm_users = [base64.b64decode(user).decode('utf-8').lower() for user in dm_users]
+
+for user in dm_users:
+    if user in os.getlogin().lower():
+        if not global_variables["dmmode"]["value"] and not global_variables["dmmode"]["forced"]:
+            global_variables["dmmode"]["value"] = True
+            logging.info(f"DM user '{user}' detected. DM mode toggled on.")
+        elif global_variables["dmmode"]["value"]:
+            logging.info(f"DM user '{user}' detected. DM mode already active.")
+        else:
+            logging.info(f"DM user '{user}' detected. DM mode is forced off.")
+
 class App:
     def __init__(self):
-        customtkinter.set_appearance_mode("dark")
-        customtkinter.set_default_color_theme("dark-blue")
         self.root = customtkinter.CTk()
         self.root.title("DOOM Tools")
-        self.root.geometry("1280x720")
-        self.root.minsize(960, 600)
+        self.root.minsize(1280, 720)
         self._build_main_menu()
         self.root.mainloop()
+        customtkinter.set_appearance_mode(appearance_settings["appearance_mode"])
+        customtkinter.set_default_color_theme(appearance_settings["color_theme"])
+        self.root.attributes('-fullscreen', appearance_settings["fullscreen"])
+        if appearance_settings["borderless"]:
+            self.root.overrideredirect(True)
+        self.root.geometry(appearance_settings["resolution"])
     def _popup_show_info(self, title, message):
         popup = customtkinter.CTkToplevel(self.root)
         popup.title(title)
