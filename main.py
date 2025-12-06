@@ -318,6 +318,17 @@ else:
 
 os.makedirs(saves_folder, exist_ok=True)
 
+# Load appearance settings from file after saves_folder is defined
+try:
+    appearance_settings_path = os.path.join(saves_folder, "appearance_settings.sldsv")
+    if os.path.exists(appearance_settings_path):
+        with open(appearance_settings_path, 'r') as f:
+            loaded_settings = json.load(f)
+        appearance_settings.update(loaded_settings)
+        logging.info(f"Appearance settings loaded from {appearance_settings_path}")
+except Exception as e:
+    logging.warning(f"Failed to load appearance settings: {e}")
+
 currentsave = None
 
 emptysave = {
@@ -386,6 +397,17 @@ for user in dm_users:
             logging.info(f"DM user '{user}' detected. DM mode is forced off.")
 
 class App:
+    def _save_persistent_data(self):
+        """Persist metadata like last_loaded_save and UUID map."""
+        try:
+            persistent_path = os.path.join(saves_folder, "persistent_data.sldsv")
+            pickled_persistent = pickle.dumps(persistentdata)
+            encoded_persistent = base64.b85encode(pickled_persistent).decode('utf-8')
+            with open(persistent_path, 'w') as f:
+                f.write(encoded_persistent)
+            logging.info(f"Persistent data saved to {persistent_path}")
+        except Exception as e:
+            logging.error(f"Failed to save persistent data: {e}")
     def _save_file(self, data):
         if currentsave is None:
             logging.error("No current save file to save data to.")
@@ -404,15 +426,7 @@ class App:
                 logging.info(f"Data saved to {save_path}")
             except Exception as e:
                 logging.error(f"Failed to save data to {currentsave}: {e}")
-        try:
-            persistent_path = os.path.join(saves_folder, "persistent_data.sldsv")
-            pickled_persistent = pickle.dumps(persistentdata)
-            encoded_persistent = base64.b85encode(pickled_persistent).decode('utf-8')
-            with open(persistent_path, 'w') as f:
-                f.write(encoded_persistent)
-            logging.info(f"Persistent data saved to {persistent_path}")
-        except Exception as e:
-            logging.error(f"Failed to save persistent data: {e}")
+        self._save_persistent_data()
     def _load_file(self, save_filename):
         # Load persistent data (base85+pickle) first
         try:
@@ -471,6 +485,7 @@ class App:
         self.root.title("DOOM Tools")
         self.root.geometry(appearance_settings["resolution"])
         self.root.minsize(1280, 720)
+        self.root.resizable(False, False)
         if appearance_settings["borderless"]:
             self.root.overrideredirect(True)
         self.root.attributes('-fullscreen', appearance_settings["fullscreen"])
@@ -478,20 +493,25 @@ class App:
         if persistentdata.get("last_loaded_save"):
             last_save_uuid = persistentdata["last_loaded_save"]
             last_save_name = persistentdata.get("save_uuids", {}).get(last_save_uuid)
+            if not last_save_name:
+                # Fallback: find a matching file on disk
+                pattern = os.path.join(saves_folder, f"*_{last_save_uuid}.sldsv")
+                matches = glob.glob(pattern)
+                if matches:
+                    last_save_name = os.path.basename(matches[0]).replace(f"_{last_save_uuid}.sldsv", "")
+                    persistentdata["save_uuids"][last_save_uuid] = last_save_name
+                    self._save_persistent_data()
+                else:
+                    logging.warning(f"Last save UUID {last_save_uuid} not found in save_uuids")
             if last_save_name:
-                # Normalize name to avoid double extensions
-                if last_save_name.endswith(".sldsv"):
-                    last_save_name = last_save_name.replace(".sldsv", "")
                 save_filename = f"{last_save_name}_{last_save_uuid}.sldsv"
                 loaded_data = self._load_file(save_filename)
                 if loaded_data:
                     global currentsave
-                    currentsave = save_filename
+                    currentsave = save_filename.replace(".sldsv", "")
                     logging.info(f"Automatically loaded last save: {save_filename}")
                 else:
                     logging.warning(f"Failed to load last save: {save_filename}")
-            else:
-                logging.warning(f"Last save UUID {last_save_uuid} not found in save_uuids") 
         self._build_main_menu()
         self.root.mainloop()
     def _play_ui_sound(self, sound_filename):
@@ -589,6 +609,8 @@ class App:
         title_label.pack(pady=20)
         version_label = customtkinter.CTkLabel(main_frame, text=f"Version: {version}", font=customtkinter.CTkFont(size=16))
         version_label.pack()
+        current_character = customtkinter.CTkLabel(main_frame, text=f"Current Character: {currentsave if currentsave else 'None'}", font=customtkinter.CTkFont(size=14))
+        current_character.pack(pady=10)
         loot_button = self._create_sound_button(main_frame, "Looting", self._open_loot_tool, width=500, height=50, font=customtkinter.CTkFont(size=16), state="disabled" if currentsave is None else "normal")
         loot_button.pack(pady=10)
         business_button = self._create_sound_button(main_frame, "Businesses", self._open_business_tool, width=500, height=50, font=customtkinter.CTkFont(size=16), state="disabled" if currentsave is None else "normal")
@@ -664,8 +686,135 @@ class App:
             ) else "normal"
         )
         load_existing_character_button.pack(pady=20)
+        
+        view_stats_button = self._create_sound_button(
+            self.root,
+            "View Loaded Character Stats",
+            self._view_character_stats,
+            width=500,
+            height=50,
+            font=customtkinter.CTkFont(size=16),
+            state="disabled" if currentsave is None else "normal"
+        )
+        view_stats_button.pack(pady=20)
+        
         return_button = self._create_sound_button(self.root, "Return to Inventory Manager", lambda: [self._clear_window(), self._open_inventory_manager_tool()], width=500, height=50, font=customtkinter.CTkFont(size=16))
         return_button.pack(pady=20)
+    
+    def _view_character_stats(self):
+        logging.info("View Character Stats called")
+        
+        if currentsave is None:
+            self._popup_show_info("Error", "No character loaded.", sound="error")
+            return
+        
+        save_filename = currentsave + ".sldsv"
+        save_data = self._load_file(save_filename)
+        
+        if save_data is None:
+            self._popup_show_info("Error", "Failed to load character data.", sound="error")
+            return
+        
+        # Calculate encumbrance status
+        encumbrance_info = self._calculate_encumbrance_status(save_data)
+        
+        self._clear_window()
+        
+        self.root.grid_rowconfigure(0, weight=1)
+        self.root.grid_columnconfigure(0, weight=1)
+        
+        main_frame = customtkinter.CTkFrame(self.root)
+        main_frame.grid(row=0, column=0, sticky="nsew", padx=20, pady=20)
+        main_frame.grid_rowconfigure(1, weight=1)
+        main_frame.grid_columnconfigure(0, weight=1)
+        
+        title = customtkinter.CTkLabel(main_frame, text=f"Character: {save_data.get('charactername', 'Unknown')}", font=customtkinter.CTkFont(size=24, weight="bold"))
+        title.grid(row=0, column=0, pady=(0, 20))
+        
+        scroll = customtkinter.CTkScrollableFrame(main_frame, width=800, height=500)
+        scroll.grid(row=1, column=0, sticky="nsew", padx=10, pady=10)
+        scroll.grid_columnconfigure(0, weight=1)
+        
+        # Stats section
+        stats_label = customtkinter.CTkLabel(scroll, text="Base Stats", font=customtkinter.CTkFont(size=16, weight="bold"))
+        stats_label.pack(pady=(10, 15), anchor="w", padx=20)
+        
+        stats = save_data.get("stats", {})
+        for stat_name, stat_value in stats.items():
+            # Calculate agility penalty based on encumbrance
+            display_value = stat_value
+            agility_penalty_text = ""
+            
+            if stat_name == "Agility" and encumbrance_info["encumbrance_level"] > 0:
+                display_value = stat_value - encumbrance_info["encumbrance_level"]
+                agility_penalty_text = f" (Base: {stat_value}, Penalty: -{encumbrance_info['encumbrance_level']})"
+            
+            stat_frame = customtkinter.CTkFrame(scroll, fg_color="transparent")
+            stat_frame.pack(fill="x", pady=5, padx=30)
+            
+            stat_label = customtkinter.CTkLabel(
+                stat_frame,
+                text=f"{stat_name}: {display_value:+d}{agility_penalty_text}",
+                font=customtkinter.CTkFont(size=12),
+                anchor="w"
+            )
+            stat_label.pack(fill="x")
+        
+        # Encumbrance section
+        enc_label = customtkinter.CTkLabel(scroll, text="Encumbrance Status", font=customtkinter.CTkFont(size=16, weight="bold"))
+        enc_label.pack(pady=(20, 15), anchor="w", padx=20)
+        
+        enc_items = [
+            ("Total Weight", self._format_weight(encumbrance_info["total_weight"])),
+            ("Raw Encumbrance", self._format_weight(encumbrance_info['raw_encumbrance'])),
+            ("Encumbrance Threshold", self._format_weight(encumbrance_info['threshold'])),
+            ("Encumbrance Level", f"{encumbrance_info['encumbrance_level']}"),
+            ("Status", "Encumbered" if encumbrance_info["is_encumbered"] else "Not Encumbered")
+        ]
+        
+        for label_text, value_text in enc_items:
+            enc_frame = customtkinter.CTkFrame(scroll, fg_color="transparent")
+            enc_frame.pack(fill="x", pady=3, padx=30)
+            
+            label = customtkinter.CTkLabel(
+                enc_frame,
+                text=f"{label_text}: {value_text}",
+                font=customtkinter.CTkFont(size=12),
+                anchor="w"
+            )
+            label.pack(fill="x")
+        
+        # Other info
+        other_label = customtkinter.CTkLabel(scroll, text="Other Info", font=customtkinter.CTkFont(size=16, weight="bold"))
+        other_label.pack(pady=(20, 15), anchor="w", padx=20)
+        
+        other_items = [
+            ("Money", f"${save_data.get('money', 0)}"),
+            ("Equipment Slots", f"{len([s for s in save_data.get('equipment', {}).values() if s is not None])}/{len(save_data.get('equipment', {}))}"),
+            ("Storage Items", f"{len(save_data.get('storage', []))}")
+        ]
+        
+        for label_text, value_text in other_items:
+            other_frame = customtkinter.CTkFrame(scroll, fg_color="transparent")
+            other_frame.pack(fill="x", pady=3, padx=30)
+            
+            label = customtkinter.CTkLabel(
+                other_frame,
+                text=f"{label_text}: {value_text}",
+                font=customtkinter.CTkFont(size=12),
+                anchor="w"
+            )
+            label.pack(fill="x")
+        
+        # Back button
+        back_button = self._create_sound_button(
+            main_frame,
+            "Back",
+            lambda: [self._clear_window(), self._open_character_management()],
+            width=200,
+            height=40
+        )
+        back_button.grid(row=2, column=0, pady=10)
     def _create_new_character(self):
         import uuid
         import json
@@ -825,6 +974,7 @@ class App:
                     json.dump(new_save, f, indent=4)
                 persistentdata["save_uuids"][char_uuid] = char_name
                 persistentdata["last_loaded_save"] = char_uuid
+                self._save_persistent_data()
                 logging.info(f"Character '{char_name}' created successfully with UUID: {char_uuid}")
                 self._popup_show_info("Success", f"Character '{char_name}' created successfully!", sound="success")
                 self._clear_window()
@@ -920,7 +1070,9 @@ class App:
             global currentsave
             try:
                 currentsave = save_info["filename"].replace(".sldsv", "")
+                persistentdata["save_uuids"].setdefault(save_info["uuid"], save_info["character_name"])
                 persistentdata["last_loaded_save"] = save_info["uuid"]
+                self._save_persistent_data()
                 logging.info(f"Loaded character '{save_info['character_name']}' with UUID: {save_info['uuid']}")
                 self._popup_show_info("Success", f"Character '{save_info['character_name']}' loaded successfully!", sound="success")
                 self._clear_window()
@@ -1044,6 +1196,45 @@ class App:
         else:
             return f"{weight_kg:.2f} kg"
     
+    def _calculate_encumbrance_status(self, save_data):
+        """Calculate total encumbrance and encumbered status (excluding storage)"""
+        total_weight = 0.0
+        
+        # NOTE: Storage items do NOT count towards encumbrance
+        
+        # Hands weight
+        for item in save_data.get("hands", {}).get("items", []):
+            total_weight += item.get("weight", 0) * item.get("quantity", 1)
+        
+        # Equipment weight
+        for slot, item in save_data.get("equipment", {}).items():
+            if item and isinstance(item, dict):
+                item_weight = item.get("weight", 0)
+                total_weight += item_weight
+                # Add items inside equipped containers
+                for contained_item in item.get("items", []):
+                    total_weight += contained_item.get("weight", 0) * contained_item.get("quantity", 1)
+        
+        threshold = save_data.get("encumbered_threshold", 50)
+        encumbrance_reduction = save_data.get("hands", {}).get("encumbrance_modifier", 0.5)
+        
+        # Calculate raw encumbrance (total weight / encumbrance modifier)
+        raw_encumbrance = total_weight / encumbrance_reduction if encumbrance_reduction > 0 else total_weight
+        
+        # Calculate encumbrance level (how much over threshold)
+        encumbrance_level = 0
+        if raw_encumbrance > threshold:
+            overflow_percent = (raw_encumbrance - threshold) / threshold
+            encumbrance_level = int(overflow_percent * 10)  # Each 10% = 1 level
+        
+        return {
+            "total_weight": total_weight,
+            "raw_encumbrance": raw_encumbrance,
+            "threshold": threshold,
+            "encumbrance_level": encumbrance_level,
+            "is_encumbered": encumbrance_level > 0
+        }
+    
     def _transfer_player(self):
         import json
         import base64
@@ -1079,6 +1270,58 @@ class App:
         money_entry = customtkinter.CTkEntry(money_frame, placeholder_text="0", width=150)
         money_entry.pack(side="left", padx=5)
         
+        # Items selection
+        items_label = customtkinter.CTkLabel(export_frame, text="Select items to export from storage:", font=customtkinter.CTkFont(size=13))
+        items_label.pack(pady=(10, 5))
+        
+        items_scroll = customtkinter.CTkScrollableFrame(export_frame, width=700, height=200)
+        items_scroll.pack(pady=5, padx=10)
+        
+        selected_items = []  # Will store indices of selected items
+        
+        def refresh_export_items():
+            for widget in items_scroll.winfo_children():
+                widget.destroy()
+            selected_items.clear()
+            
+            save_path = os.path.join(saves_folder, currentsave + ".sldsv")
+            try:
+                with open(save_path, 'r') as f:
+                    save_data = json.load(f)
+                
+                storage_items = save_data.get("storage", [])
+                
+                if not storage_items:
+                    empty_label = customtkinter.CTkLabel(items_scroll, text="No items in storage", text_color="gray")
+                    empty_label.pack(pady=20)
+                    return
+                
+                for idx, item in enumerate(storage_items):
+                    item_frame = customtkinter.CTkFrame(items_scroll)
+                    item_frame.pack(fill="x", pady=2, padx=5)
+                    
+                    var = customtkinter.BooleanVar(value=False)
+                    
+                    def on_check(index=idx, var_ref=var):
+                        if var_ref.get():
+                            if index not in selected_items:
+                                selected_items.append(index)
+                        else:
+                            if index in selected_items:
+                                selected_items.remove(index)
+                    
+                    checkbox = customtkinter.CTkCheckBox(
+                        item_frame,
+                        text=f"{item.get('name', 'Unknown')} x{item.get('quantity', 1)}",
+                        variable=var,
+                        command=on_check
+                    )
+                    checkbox.pack(side="left", padx=10, pady=5)
+            except Exception as e:
+                logging.error(f"Failed to load items: {e}")
+        
+        refresh_export_items()
+        
         def create_export():
             try:
                 save_path = os.path.join(saves_folder, currentsave + ".sldsv")
@@ -1091,16 +1334,27 @@ class App:
                     self._popup_show_info("Error", "Not enough money!", sound="error")
                     return
                 
+                # Get selected items from storage
+                storage_items = save_data.get("storage", [])
+                items_to_export = [storage_items[i] for i in sorted(selected_items) if i < len(storage_items)]
+                
                 # Create transfer package
                 transfer_data = {
                     "money": money_amount,
-                    "items": [],
+                    "items": items_to_export,
                     "timestamp": datetime.now().isoformat(),
                     "from_character": save_data.get("charactername", "Unknown")
                 }
                 
                 # Deduct money
                 save_data["money"] = save_data.get("money", 0) - money_amount
+                
+                # Remove exported items from storage (in reverse order to maintain indices)
+                for idx in sorted(selected_items, reverse=True):
+                    if idx < len(storage_items):
+                        storage_items.pop(idx)
+                
+                save_data["storage"] = storage_items
                 
                 # Save character
                 with open(save_path, 'w') as f:
@@ -1114,8 +1368,9 @@ class App:
                 with open(transfer_filename, 'w') as f:
                     f.write(encoded_data)
                 
-                self._popup_show_info("Success", f"Transfer file created: {transfer_filename}", sound="success")
+                self._popup_show_info("Success", f"Exported {len(items_to_export)} items and ${money_amount}!", sound="success")
                 logging.info(f"Created transfer file: {transfer_filename}")
+                refresh_export_items()
             except Exception as e:
                 logging.error(f"Export failed: {e}")
                 self._popup_show_info("Error", f"Export failed: {e}", sound="error")
@@ -1244,11 +1499,21 @@ class App:
         
         main_frame = customtkinter.CTkFrame(self.root)
         main_frame.grid(row=0, column=0, sticky="nsew", padx=20, pady=20)
-        main_frame.grid_rowconfigure(2, weight=1)
-        main_frame.grid_columnconfigure((0, 1), weight=1)
+        main_frame.grid_rowconfigure(1, weight=1)
+        main_frame.grid_columnconfigure(0, weight=1)
         
         title = customtkinter.CTkLabel(main_frame, text="Manage Containers & Transfer Items", font=customtkinter.CTkFont(size=20, weight="bold"))
-        title.grid(row=0, column=0, columnspan=2, pady=(0, 20))
+        title.grid(row=0, column=0, pady=(0, 10))
+        
+        # Create tabview
+        tabview = customtkinter.CTkTabview(main_frame, width=1000, height=600)
+        tabview.grid(row=1, column=0, sticky="nsew", pady=10)
+        
+        # Add tabs
+        tabview.add("View Inventory")
+        tabview.add("Transfer Items")
+        # CTkTabview doesn't support tkinter-style bind; use the command callback instead
+        tabview.configure(command=lambda value=None: refresh_enc_info())
         
         # Build list of all containers
         def get_containers():
@@ -1270,48 +1535,8 @@ class App:
             return containers
         
         containers = get_containers()
-        
-        # Info label
-        info_label = customtkinter.CTkLabel(main_frame, text="Select source and destination containers to move items:", font=customtkinter.CTkFont(size=13))
-        info_label.grid(row=1, column=0, columnspan=2, pady=10)
-        
-        container_frame = customtkinter.CTkFrame(main_frame)
-        container_frame.grid(row=2, column=0, columnspan=2, sticky="nsew", pady=10)
-        container_frame.grid_rowconfigure(0, weight=1)
-        container_frame.grid_columnconfigure((0, 1), weight=1)
-        
-        # Source container
-        source_frame = customtkinter.CTkFrame(container_frame)
-        source_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
-        source_frame.grid_rowconfigure(2, weight=1)
-        source_frame.grid_columnconfigure(0, weight=1)
-        
-        source_label = customtkinter.CTkLabel(source_frame, text="Source Container", font=customtkinter.CTkFont(size=16, weight="bold"))
-        source_label.grid(row=0, column=0, pady=10)
-        
-        source_selector = customtkinter.CTkComboBox(source_frame, values=[c["name"] for c in containers], width=300)
-        source_selector.grid(row=1, column=0, pady=5)
-        source_selector.set(containers[1]["name"] if len(containers) > 1 else containers[0]["name"])  # Default to Hands
-        
-        source_scroll = customtkinter.CTkScrollableFrame(source_frame, width=350, height=400)
-        source_scroll.grid(row=2, column=0, sticky="nsew", padx=10, pady=10)
-        
-        # Destination container
-        dest_frame = customtkinter.CTkFrame(container_frame)
-        dest_frame.grid(row=0, column=1, sticky="nsew", padx=(10, 0))
-        dest_frame.grid_rowconfigure(2, weight=1)
-        dest_frame.grid_columnconfigure(0, weight=1)
-        
-        dest_label = customtkinter.CTkLabel(dest_frame, text="Destination Container", font=customtkinter.CTkFont(size=16, weight="bold"))
-        dest_label.grid(row=0, column=0, pady=10)
-        
-        dest_selector = customtkinter.CTkComboBox(dest_frame, values=[c["name"] for c in containers], width=300)
-        dest_selector.grid(row=1, column=0, pady=5)
-        dest_selector.set(containers[0]["name"])  # Default to Storage
-        
-        dest_scroll = customtkinter.CTkScrollableFrame(dest_frame, width=350, height=400)
-        dest_scroll.grid(row=2, column=0, sticky="nsew", padx=10, pady=10)
-        
+
+        # Helper functions for getting/setting container items
         def get_container_items(location):
             """Get items from a container location"""
             if location == "storage":
@@ -1335,6 +1560,239 @@ class App:
                 slot = location.split(".")[1]
                 if slot in save_data["equipment"] and save_data["equipment"][slot]:
                     save_data["equipment"][slot]["items"] = items
+
+        def get_container_weight(location):
+            """Total weight of all items in the container (kg)."""
+            items = get_container_items(location)
+            return sum(i.get("weight", 0) * i.get("quantity", 1) for i in items)
+
+        def rebuild_container_labels():
+            """Build display labels with weight usage and capacity for view dropdown."""
+            labels = []
+            for c in containers:
+                # Compute weight usage
+                total_weight = get_container_weight(c["location"])
+                # Determine capacity text
+                if c["location"] == "hands":
+                    capacity = save_data.get("hands", {}).get("capacity", None)
+                elif c["location"].startswith("equipment."):
+                    slot = c["location"].split(".")[1]
+                    equip = save_data.get("equipment", {}).get(slot)
+                    capacity = equip.get("capacity") if equip else None
+                else:
+                    capacity = None  # storage or unknown -> show infinity
+                capacity_text = self._format_weight(capacity) if capacity is not None else "∞"
+                c["label"] = f"{c['name']} ({self._format_weight(total_weight)}/{capacity_text})"
+                labels.append(c["label"])
+            return labels
+
+        labels = rebuild_container_labels()
+        
+        # === VIEW INVENTORY TAB ===
+        view_tab = tabview.tab("View Inventory")
+        view_tab.grid_rowconfigure(1, weight=1)
+        view_tab.grid_columnconfigure(0, weight=1)
+        
+        # Encumbrance info frame
+        enc_info_frame = customtkinter.CTkFrame(view_tab, fg_color=("gray90", "gray20"))
+        enc_info_frame.grid(row=0, column=0, sticky="ew", padx=10, pady=10)
+        enc_info_frame.grid_columnconfigure(0, weight=1)
+        
+        enc_info_label = customtkinter.CTkLabel(enc_info_frame, font=customtkinter.CTkFont(size=12), anchor="w")
+        enc_info_label.grid(row=0, column=0, sticky="ew", padx=15, pady=10)
+
+        def refresh_enc_info():
+            encumbrance_info = self._calculate_encumbrance_status(save_data)
+            enc_info_label.configure(
+                text=(
+                    f"Total Weight: {self._format_weight(encumbrance_info['total_weight'])} | "
+                    f"Total Felt Encumbrance: {self._format_weight(encumbrance_info['raw_encumbrance'])} / {self._format_weight(encumbrance_info['threshold'])} | "
+                    f"Encumbrance level: {encumbrance_info['encumbrance_level']} | "
+                    f"Status: {'ENCUMBERED' if encumbrance_info['is_encumbered'] else 'OK'}"
+                )
+            )
+
+        refresh_enc_info()
+        
+        view_frame = customtkinter.CTkFrame(view_tab)
+        view_frame.grid(row=1, column=0, sticky="nsew", padx=10, pady=10)
+        view_frame.grid_rowconfigure(1, weight=1)
+        view_frame.grid_columnconfigure(0, weight=1)
+        
+        container_selector = customtkinter.CTkOptionMenu(
+            view_frame,
+            values=labels,
+            width=300,
+            font=customtkinter.CTkFont(size=14)
+        )
+        container_selector.grid(row=0, column=0, pady=10)
+        container_selector.set(labels[0] if labels else "")
+        
+        view_scroll = customtkinter.CTkScrollableFrame(view_frame, width=900, height=450)
+        view_scroll.grid(row=1, column=0, sticky="nsew", padx=10, pady=10)
+        
+        def refresh_view():
+            # Refresh labels to keep counts/capacity current
+            current_label = container_selector.get()
+            new_labels = rebuild_container_labels()
+            container_selector.configure(values=new_labels)
+            if current_label in new_labels:
+                container_selector.set(current_label)
+            elif new_labels:
+                container_selector.set(new_labels[0])
+            refresh_enc_info()
+            for widget in view_scroll.winfo_children():
+                widget.destroy()
+            
+            selected_label = container_selector.get()
+            selected_container = next((c for c in containers if c.get("label") == selected_label), None)
+            
+            if not selected_container:
+                return
+            
+            location = selected_container["location"]
+            items = get_container_items(location)
+            
+            if not items:
+                empty_label = customtkinter.CTkLabel(view_scroll, text="Container is empty", font=customtkinter.CTkFont(size=14), text_color="gray")
+                empty_label.pack(pady=30)
+                return
+            
+            def show_item_details(item_data):
+                detail_window = customtkinter.CTkToplevel(self.root)
+                detail_window.title("Item Details")
+                detail_window.geometry("500x600")
+                detail_window.transient(self.root)
+                
+                scroll = customtkinter.CTkScrollableFrame(detail_window, width=450, height=550)
+                scroll.pack(pady=10, padx=10, fill="both", expand=True)
+                
+                title = customtkinter.CTkLabel(scroll, text=item_data.get("name", "Unknown"), font=customtkinter.CTkFont(size=18, weight="bold"))
+                title.pack(pady=(10, 20))
+                
+                # Display all item properties
+                for key, value in item_data.items():
+                    if key == "name":
+                        continue
+                    
+                    prop_frame = customtkinter.CTkFrame(scroll, fg_color="transparent")
+                    prop_frame.pack(fill="x", pady=2, padx=10)
+                    
+                    key_label = customtkinter.CTkLabel(
+                        prop_frame,
+                        text=f"{key.replace('_', ' ').title()}:",
+                        font=customtkinter.CTkFont(size=12, weight="bold"),
+                        anchor="w",
+                        width=150
+                    )
+                    key_label.pack(side="left", padx=5)
+                    
+                    # Format value based on type
+                    if isinstance(value, (list, dict)):
+                        value_text = json.dumps(value, indent=2)
+                    else:
+                        value_text = str(value)
+                    
+                    value_label = customtkinter.CTkLabel(
+                        prop_frame,
+                        text=value_text,
+                        font=customtkinter.CTkFont(size=11),
+                        anchor="w",
+                        wraplength=250
+                    )
+                    value_label.pack(side="left", padx=5, fill="x", expand=True)
+                
+                close_button = self._create_sound_button(scroll, "Close", detail_window.destroy, width=120, height=35)
+                close_button.pack(pady=20)
+                
+                detail_window.update_idletasks()
+                detail_window.deiconify()
+                detail_window.grab_set()
+            
+            for item in items:
+                item_frame = customtkinter.CTkFrame(view_scroll)
+                item_frame.pack(fill="x", pady=5, padx=10)
+                item_frame.grid_columnconfigure(0, weight=1)
+                
+                item_name = item.get("name", "Unknown")
+                item_qty = item.get("quantity", 1)
+                item_weight = item.get("weight", 0) * item_qty
+                item_value = item.get("value", 0)
+                
+                name_label = customtkinter.CTkLabel(
+                    item_frame,
+                    text=f"{item_name} x{item_qty}",
+                    font=customtkinter.CTkFont(size=14, weight="bold"),
+                    anchor="w"
+                )
+                name_label.grid(row=0, column=0, sticky="w", padx=15, pady=(10, 2))
+                
+                info_label = customtkinter.CTkLabel(
+                    item_frame,
+                    text=f"Weight: {self._format_weight(item_weight)} | Value: ${item_value}",
+                    font=customtkinter.CTkFont(size=11),
+                    text_color="gray",
+                    anchor="w"
+                )
+                info_label.grid(row=1, column=0, sticky="w", padx=15, pady=(0, 10))
+                
+                details_button = self._create_sound_button(
+                    item_frame,
+                    "View Details",
+                    lambda it=item: show_item_details(it),
+                    width=120,
+                    height=35,
+                    font=customtkinter.CTkFont(size=12)
+                )
+                details_button.grid(row=0, column=1, rowspan=2, padx=15, pady=10)
+        
+        container_selector.configure(command=lambda _: refresh_view())
+        refresh_view()
+        
+        # === TRANSFER ITEMS TAB ===
+        transfer_tab = tabview.tab("Transfer Items")
+        transfer_tab.grid_rowconfigure(1, weight=1)
+        transfer_tab.grid_columnconfigure((0, 1), weight=1)
+        
+        info_label = customtkinter.CTkLabel(transfer_tab, text="Select source and destination containers to move items:", font=customtkinter.CTkFont(size=13))
+        info_label.grid(row=0, column=0, columnspan=2, pady=10)
+        
+        container_frame = customtkinter.CTkFrame(transfer_tab)
+        container_frame.grid(row=1, column=0, columnspan=2, sticky="nsew", pady=10)
+        container_frame.grid_rowconfigure(0, weight=1)
+        container_frame.grid_columnconfigure((0, 1), weight=1)
+        
+        # Source container
+        source_frame = customtkinter.CTkFrame(container_frame)
+        source_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
+        source_frame.grid_rowconfigure(2, weight=1)
+        source_frame.grid_columnconfigure(0, weight=1)
+        
+        source_label = customtkinter.CTkLabel(source_frame, text="Source Container", font=customtkinter.CTkFont(size=16, weight="bold"))
+        source_label.grid(row=0, column=0, pady=10)
+        
+        source_selector = customtkinter.CTkOptionMenu(source_frame, values=[c["name"] for c in containers], width=300)
+        source_selector.grid(row=1, column=0, pady=5)
+        source_selector.set(containers[1]["name"] if len(containers) > 1 else containers[0]["name"])  # Default to Hands
+        
+        source_scroll = customtkinter.CTkScrollableFrame(source_frame, width=350, height=400)
+        source_scroll.grid(row=2, column=0, sticky="nsew", padx=10, pady=10)
+        
+        # Destination container
+        dest_frame = customtkinter.CTkFrame(container_frame)
+        dest_frame.grid(row=0, column=1, sticky="nsew", padx=(10, 0))
+        dest_frame.grid_rowconfigure(2, weight=1)
+        dest_frame.grid_columnconfigure(0, weight=1)
+        
+        dest_label = customtkinter.CTkLabel(dest_frame, text="Destination Container", font=customtkinter.CTkFont(size=16, weight="bold"))
+        dest_label.grid(row=0, column=0, pady=10)
+        
+        dest_selector = customtkinter.CTkOptionMenu(dest_frame, values=[c["name"] for c in containers], width=300)
+        dest_selector.grid(row=1, column=0, pady=5)
+        dest_selector.set(containers[0]["name"])  # Default to Storage
+        
+        dest_scroll = customtkinter.CTkScrollableFrame(dest_frame, width=350, height=400)
+        dest_scroll.grid(row=2, column=0, sticky="nsew", padx=10, pady=10)
         
         def refresh_containers():
             # Clear displays
@@ -1346,6 +1804,20 @@ class App:
             # Get selected containers
             source_name = source_selector.get()
             dest_name = dest_selector.get()
+
+            # If source and destination are the same, swap them; if still the same, pick the first different container
+            if source_name == dest_name:
+                source_selector.set(dest_name)
+                dest_selector.set(source_name)
+                source_name = source_selector.get()
+                dest_name = dest_selector.get()
+                if source_name == dest_name:
+                    # find first different container for dest
+                    for c in containers:
+                        if c["name"] != source_name:
+                            dest_selector.set(c["name"])
+                            dest_name = c["name"]
+                            break
             
             source_container = next((c for c in containers if c["name"] == source_name), None)
             dest_container = next((c for c in containers if c["name"] == dest_name), None)
@@ -1418,12 +1890,11 @@ class App:
                 
                 # Check capacity of destination
                 if dest_location == "hands":
-                    current_encumbrance = save_data["hands"].get("encumbrance", 0)
                     capacity = save_data["hands"].get("capacity", 50)
-                    if current_encumbrance + item_weight > capacity:
+                    current_dest_weight = sum(i.get("weight", 0) * i.get("quantity", 1) for i in dest_items)
+                    if current_dest_weight + item_weight > capacity:
                         self._popup_show_info("Error", "Not enough capacity in destination!", sound="error")
                         return
-                    save_data["hands"]["encumbrance"] = current_encumbrance + item_weight
                 elif dest_location.startswith("equipment."):
                     slot = dest_location.split(".")[1]
                     if slot in save_data["equipment"] and save_data["equipment"][slot]:
@@ -1440,14 +1911,15 @@ class App:
                 set_container_items(source_location, source_items)
                 set_container_items(dest_location, dest_items)
                 
-                # If moving from hands, update encumbrance
-                if source_location == "hands":
-                    save_data["hands"]["encumbrance"] = max(0, save_data["hands"].get("encumbrance", 0) - item_weight)
+                # Update global encumbrance (total weight in kg)
+                encumbrance_info = self._calculate_encumbrance_status(save_data)
+                save_data["encumbrance"] = encumbrance_info["total_weight"]
                 
                 # Save to file using _save_file
                 self._save_file(save_data)
                 
                 refresh_containers()
+                refresh_enc_info()
                 self._play_ui_sound("success")
             except Exception as e:
                 logging.error(f"Move failed: {e}")
@@ -1458,7 +1930,7 @@ class App:
         
         refresh_containers()
         
-        # Back button
+        # Back button (outside tabview)
         back_button = self._create_sound_button(
             main_frame,
             "Back",
@@ -1466,7 +1938,7 @@ class App:
             width=200,
             height=40
         )
-        back_button.grid(row=3, column=0, columnspan=2, pady=10)
+        back_button.grid(row=2, column=0, pady=10)
     
     def _open_item_equipping(self):
 
@@ -1726,6 +2198,17 @@ class App:
                     customtkinter.set_default_color_theme(fallback)
                 except Exception as e2:
                     logging.error(f"Fallback theme load failed: {e2}")
+            # Save appearance settings
+            try:
+                appearance_settings_path = os.path.join(saves_folder, "appearance_settings.sldsv")
+                with open(appearance_settings_path, 'w') as f:
+                    json.dump(appearance_settings, f, indent=4)
+                logging.info(f"Appearance settings saved to {appearance_settings_path}")
+            except Exception as e:
+                logging.error(f"Failed to save appearance settings: {e}")
+            # Rebuild settings UI to immediately reflect the theme change
+            self._clear_window()
+            self._open_settings()
             try:
                 self.root.geometry(appearance_settings["resolution"])
             except Exception as e:
@@ -1902,9 +2385,231 @@ class App:
             height=40
         )
         back_button.grid(row=2, column=0, columnspan=2, pady=(10,0))
+    def _open_add_item_by_id_tool(self):
+        logging.info("Add Item By ID definition called")
+        
+        if currentsave is None:
+            self._popup_show_info("Error", "No character loaded.", sound="error")
+            return
+        
+        # Load table data
+        try:
+            table_files = glob.glob(os.path.join("tables", "*.sldtbl"))
+            if not table_files:
+                self._popup_show_info("Error", "No table files found.", sound="error")
+                return
+            
+            with open(table_files[0], 'r') as f:
+                table_data = json.load(f)
+            
+            # Collect all items from all tables
+            all_items = []
+            for table_name, items in table_data.get("tables", {}).items():
+                for item in items:
+                    item_copy = item.copy()
+                    item_copy["table_category"] = table_name
+                    all_items.append(item_copy)
+            
+            if not all_items:
+                self._popup_show_info("Error", "No items found in table.", sound="error")
+                return
+        except Exception as e:
+            logging.error(f"Failed to load table: {e}")
+            self._popup_show_info("Error", f"Failed to load table: {e}", sound="error")
+            return
+        
+        # Build UI
+        self._clear_window()
+        
+        self.root.grid_rowconfigure(0, weight=1)
+        self.root.grid_columnconfigure(0, weight=1)
+        
+        main_frame = customtkinter.CTkFrame(self.root)
+        main_frame.grid(row=0, column=0, sticky="nsew", padx=20, pady=20)
+        main_frame.grid_rowconfigure(2, weight=1)
+        main_frame.grid_columnconfigure(0, weight=1)
+        
+        title = customtkinter.CTkLabel(main_frame, text="Add Item to Inventory By ID", font=customtkinter.CTkFont(size=20, weight="bold"))
+        title.grid(row=0, column=0, pady=(0, 10))
+        
+        # Search frame
+        search_frame = customtkinter.CTkFrame(main_frame, fg_color="transparent")
+        search_frame.grid(row=1, column=0, sticky="ew", pady=10)
+        search_frame.grid_columnconfigure(1, weight=1)
+        
+        search_label = customtkinter.CTkLabel(search_frame, text="Search (ID or Name):", font=customtkinter.CTkFont(size=13))
+        search_label.grid(row=0, column=0, padx=(0, 10), sticky="w")
+        
+        search_entry = customtkinter.CTkEntry(search_frame, placeholder_text="Enter item ID or name...")
+        search_entry.grid(row=0, column=1, sticky="ew", padx=(0, 10))
+        
+        # Scrollable item list
+        scroll_frame = customtkinter.CTkScrollableFrame(main_frame, width=900, height=500)
+        scroll_frame.grid(row=2, column=0, sticky="nsew", pady=10)
+        scroll_frame.grid_columnconfigure(0, weight=1)
+        
+        def filter_and_display_items(search_term=""):
+            # Clear existing items
+            for widget in scroll_frame.winfo_children():
+                widget.destroy()
+            
+            # Filter items
+            search_lower = search_term.lower().strip()
+            filtered_items = []
+            
+            if search_lower:
+                for item in all_items:
+                    item_id = str(item.get("id", ""))
+                    item_name = item.get("name", "").lower()
+                    if search_lower in item_id or search_lower in item_name:
+                        filtered_items.append(item)
+            else:
+                filtered_items = all_items
+            
+            # Sort by ID
+            filtered_items.sort(key=lambda x: x.get("id", 999999))
+            
+            if not filtered_items:
+                no_results = customtkinter.CTkLabel(scroll_frame, text="No items found.", font=customtkinter.CTkFont(size=14), text_color="gray")
+                no_results.pack(pady=20)
+                return
+            
+            def add_item_to_inventory(item):
+                try:
+                    save_path = os.path.join(saves_folder, currentsave + ".sldsv")
+                    with open(save_path, 'r') as f:
+                        save_data = json.load(f)
+                    
+                    # Create a clean copy of the item (remove table_category)
+                    item_to_add = {k: v for k, v in item.items() if k != "table_category"}
+                    
+                    # Add to storage
+                    save_data["storage"].append(item_to_add)
+                    
+                    # Save
+                    with open(save_path, 'w') as f:
+                        json.dump(save_data, f, indent=4)
+                    
+                    logging.info(f"Added item ID {item.get('id')} ({item.get('name')}) to storage")
+                    self._popup_show_info("Success", f"Added '{item.get('name')}' to storage!", sound="success")
+                except Exception as e:
+                    logging.error(f"Failed to add item: {e}")
+                    self._popup_show_info("Error", f"Failed to add item: {e}", sound="error")
+            
+            # Display filtered items
+            for i, item in enumerate(filtered_items):
+                item_frame = customtkinter.CTkFrame(scroll_frame)
+                item_frame.pack(fill="x", pady=5, padx=10)
+                item_frame.grid_columnconfigure(1, weight=1)
+                
+                # ID badge
+                id_label = customtkinter.CTkLabel(
+                    item_frame,
+                    text=f"ID: {item.get('id', 'N/A')}",
+                    font=customtkinter.CTkFont(size=12, weight="bold"),
+                    width=80,
+                    fg_color=("gray75", "gray25"),
+                    corner_radius=6
+                )
+                id_label.grid(row=0, column=0, padx=10, pady=10, sticky="w")
+                
+                # Item details
+                details_frame = customtkinter.CTkFrame(item_frame, fg_color="transparent")
+                details_frame.grid(row=0, column=1, sticky="ew", padx=10, pady=10)
+                
+                name_label = customtkinter.CTkLabel(
+                    details_frame,
+                    text=item.get("name", "Unknown"),
+                    font=customtkinter.CTkFont(size=14, weight="bold"),
+                    anchor="w"
+                )
+                name_label.pack(anchor="w")
+                
+                category_label = customtkinter.CTkLabel(
+                    details_frame,
+                    text=f"Category: {item.get('table_category', 'N/A')} | Rarity: {item.get('rarity', 'N/A')} | Value: ${item.get('value', 0)}",
+                    font=customtkinter.CTkFont(size=11),
+                    text_color="gray",
+                    anchor="w"
+                )
+                category_label.pack(anchor="w", pady=(2, 0))
+                
+                if "description" in item and item["description"]:
+                    desc_label = customtkinter.CTkLabel(
+                        details_frame,
+                        text=item["description"][:100] + ("..." if len(item["description"]) > 100 else ""),
+                        font=customtkinter.CTkFont(size=10),
+                        text_color="gray",
+                        anchor="w",
+                        wraplength=500
+                    )
+                    desc_label.pack(anchor="w", pady=(2, 0))
+                
+                # Add button
+                add_button = self._create_sound_button(
+                    item_frame,
+                    "Add to Storage",
+                    lambda it=item: add_item_to_inventory(it),
+                    width=150,
+                    height=35,
+                    font=customtkinter.CTkFont(size=12)
+                )
+                add_button.grid(row=0, column=2, padx=10, pady=10)
+        
+        # Search callback
+        def on_search_change(*args):
+            filter_and_display_items(search_entry.get())
+        
+        search_entry.bind("<KeyRelease>", on_search_change)
+        
+        # Initial display
+        filter_and_display_items()
+        
+        # Button frame
+        button_frame = customtkinter.CTkFrame(main_frame, fg_color="transparent")
+        button_frame.grid(row=3, column=0, pady=10)
+        
+        back_button = self._create_sound_button(
+            button_frame,
+            "Back",
+            lambda: [self._clear_window(), self._open_modify_save_data_tool()],
+            width=200,
+            height=40,
+            font=customtkinter.CTkFont(size=14)
+        )
+        back_button.pack()
+    def _open_modify_save_data_tool(self):
+        logging.info("Modify Save Data definition called")
+        self._clear_window()
+        main_frame = customtkinter.CTkFrame(self.root)
+        main_frame.pack(fill="both", expand=True, padx=20, pady=20)
+        add_item_button = self._create_sound_button(main_frame, "Add Item to Inventory By ID", self._open_add_item_by_id_tool, width=500, height=50, font=customtkinter.CTkFont(size=16))
+        add_item_button.pack(pady=10)
+        back_button = self._create_sound_button(
+            main_frame,
+            "Back",
+            lambda: [self._clear_window(), self._open_dev_tools()],
+            width=200,
+            height=40
+        )
+        back_button.pack(pady=10)
     def _open_dev_tools(self):
         logging.info("Developer Tools definition called")
-        self._popup_show_info("Developer Tools", "Developer Tools are under development.")
+        self._clear_window()
+        main_frame = customtkinter.CTkFrame(self.root)
+        main_frame.pack(fill="both", expand=True, padx=20, pady=20)
+        title_label = customtkinter.CTkLabel(main_frame, text="Developer Tools", font=customtkinter.CTkFont(size=20, weight="bold"))
+        title_label.pack(pady=20)
+        modify_data = self._create_sound_button(main_frame, "Modify Data", self._open_modify_save_data_tool, width=500, height=50, font=customtkinter.CTkFont(size=16))
+        modify_data.pack(pady=10)
+        back_button = self._create_sound_button(
+            main_frame,
+            "Back",
+            lambda: [self._clear_window(), self._build_main_menu()],
+            width=200,
+            height=40
+        )
+        back_button.pack(pady=10)
     def _open_dm_tools(self):
         logging.info("DM Tools definition called")
         self._popup_show_info("DM Tools", "DM Tools are under development.")
