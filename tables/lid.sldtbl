@@ -1,0 +1,743 @@
+{
+    "prettyname": "Light in Darkness",
+    "filename": "lid.sldtbl",
+    "version": "1.0.0",
+    "additional_settings": {
+        "bonus_clamp": 6,
+        "stat_clamp": 4,
+        "slot_disable_points": 1,
+        "style": "classic"
+    },
+    "rarity_weights": {
+        "Common": 40,
+        "Uncommon": 30,
+        "Rare": 15,
+        "Legendary": 10,
+        "Mythic": 5,
+        "Special Chance": 1,
+        "Luck Effect": 1.5
+    },
+    "tables": {
+        "rifles": [
+            {
+                "name": "Colt M4A1 Carbine",
+                "value": 1500,
+                "description": "Versatile carbine, once standard issue for the LEDF, now adopted by the Kyntarians. Chambered in 5.56x45mm NATO, featuring many picatinny rails for attachments.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 2.9,
+                "id": 0,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "AR-15",
+                "caliber": ["5.56x45mm NATO"],
+                "action": ["Semi", "Auto"],
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 900,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "STANAG 4179",
+                "jamrate": 0.01,
+                "accessories": [
+                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": null},
+                    {"name": "Picatinny Rail (Handguard Top)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Left)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Right)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_556", "current": null}
+                ],
+                "can_stack": false
+            }
+        ],
+        "submachine_guns": [
+            {
+                "name": "Heckler & Koch UMP-45",
+                "value": 1200,
+                "description": "A lightweight successor to the MP5, chambered in .45 ACP. Developed for law enforcement, but never used.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 2.5,
+                "id": 1,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "smg",
+                "platform": "UMP",
+                "caliber": [".45 ACP"],
+                "action": ["Semi", "Burst", "Auto"],
+                "burst_count": 2,
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 600,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "UMP-45",
+                "jamrate": 0.015,
+                "accessories": [
+                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": null},
+                    {"name": "Picatinny Rail (Handguard Top)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Left)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Right)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom_nounderbarrel", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_45", "current": null}
+                ],
+                "can_stack": false
+            }
+        ],
+        "shotguns": [
+            {
+                "name": "Benelli M1014",
+                "value": 1000,
+                "description": "Semi-automatic shotgun once used by the LEDF, now popular among the Kyntarians. Chambered in 12 gauge, known for its reliability and quick follow-up shots.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 3.82,
+                "id": 2,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "shotgun",
+                "platform": "M1014",
+                "caliber": ["12 Gauge"],
+                "action": ["Semi"],
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 300,
+                "magazinetype": "Internal tube",
+                "capacity": 7,
+                "can_chamber_extra": true,
+                "jamrate": 0.02,
+                "accessories": [
+                    {"name": "Picatinny Rail Optic", "slot": "picatinny_optic", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_12g", "current": null}
+                ],
+                "can_stack": false
+            }
+        ],
+        "machine_guns": [
+            {
+                "name": "FN M249 SAW",
+                "value": 2500,
+                "description": "Light machine gun once used by the LEDF, now adopted by the Kyntarians. Chambered in 5.56x45mm NATO, capable of sustained fire with a high-capacity belt-fed system and the ability to accept STANAG magazines.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 7.5,
+                "id": 3,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "mg",
+                "platform": "M249",
+                "caliber": ["5.56x45mm NATO"],
+                "action": ["Auto"],
+                "bolt": "open",
+                "bolt_catch": false,
+                "cyclic": 750,
+                "magazinetype": "Belt",
+                "submagazinetype": "Detachable box",
+                "magazinesystem": "STANAG 4179",
+                "beltlink": "M27",
+                "jamrate": 0.025,
+                "accessories": [
+                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": null},
+                    {"name": "Picatinny Rail (Handguard Top)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Left)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Right)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_556", "current": null, "conflicts_with": "bayonet_mount_ar15"},
+                    {"name": "Bayonet Mount", "slot": "bayonet_mount_ar15", "current": null, "conflicts_with": "muzzle_556"}
+                ],
+                "can_stack": false
+            }
+        ],
+        "pistols": [
+            {
+                "name": "Beretta M9",
+                "value": 800,
+                "description": "Durable duty pistol once used by the LEDF, now popular among the Kyntarians. Chambered in 9x19mm Parabellum, known for its reliability and ease of use.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.95,
+                "id": 4,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "pistol",
+                "platform": "92FS",
+                "caliber": ["9x19mm Parabellum"],
+                "action": ["Semi"],
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 400,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "Beretta 92",
+                "jamrate": 0.01,
+                "accessories": [
+                    {"name": "M9 Iron Sight Mount", "slot": "m9_iron_sight", "current": null},
+                    {"name": "Pistol Picatinny Rail", "slot": "pistol_picatinny", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_9mm", "current": null}
+                ],
+                "can_stack": false
+            }
+        ],
+        "attachments": [
+            {
+                "name": "ACOG Scope",
+                "value": 800,
+                "description": "Fixed magnification optic providing enhanced target acquisition at medium ranges. Mounts to a picatinny rail.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 0.5,
+                "id": 5,
+                "attachment": true,
+                "slot": "picatinny_optic",
+                "modifiers": {"stats": {"aim": 2}},
+                "magnified": true,
+                "variable": false,
+                "night_vision_compatible": false,
+                "can_stack": false
+            },
+            {
+                "name": "Elcan SpecterDR LPVO",
+                "value": 1000,
+                "description": "Low power variable optic providing both close-quarters and medium-range capabilities. Mounts to a picatinny rail.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 0.6,
+                "id": 6,
+                "attachment": true,
+                "slot": "picatinny_optic",
+                "modifiers": {"stats": {"aim": 1}},
+                "magnified": true,
+                "night_vision_compatible": false,
+                "variable": {"min": 1, "max": 4},
+                "can_stack": false
+            },
+            {
+                "name": "Knight's Armament QDSS-NT4 Suppressor",
+                "value": 1200,
+                "description": "5.56mm suppressor that hides muzzle flash and dampens sound.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 0.4,
+                "id": 7,
+                "attachment": true,
+                "slot": "muzzle_556",
+                "suppressor": true,
+                "modifiers": {"stats": {"stealth": 2}},
+                "can_stack": false
+            },
+            {
+                "name": "Insight/L3Harris AN/PEQ-16 LAM",
+                "value": 2000,
+                "description": "Combination flashlight, IR laser/illuminator, and visible laser designator. Mounts to a picatinny rail.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 0.3,
+                "id": 8,
+                "attachment": true,
+                "slot": "picatinny_rifle",
+                "modifiers": null,
+                "electronic": true,
+                "battery_type": "CR123A",
+                "battery_life": 4,
+                "can_stack": false,
+                "modes": [
+                    {"name": "Visible light", "type": "flashlight", "usage": 4, "modifiers": {"stats": {"perception": 1, "stealth": -1}}},
+                    {"name": "IR laser", "type": "ir_laser", "usage": 2, "modifiers": {"stats": {"aim": 1}}},
+                    {"name": "Visible laser", "type": "visible_laser", "usage": 2, "modifiers": {"stats": {"aim": 1, "stealth": -1}}},
+                    {"name": "IR illuminator", "type": "ir_illuminator", "usage": 3, "modifiers": {"stats": {"perception": 1}}}
+                ]
+            },
+            {
+                "name": "Knight's Armament VFG Vertical Foregrip",
+                "value": 600,
+                "description": "Vertical foregrip that improves weapon handling and reduces recoil. Mounts to a picatinny rail.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.2,
+                "id": 9,
+                "attachment": true,
+                "slot": "picatinny_bottom",
+                "modifiers": {"stats": {"aim": 1}},
+                "can_stack": false
+            }
+        ],
+        "ammunition": [
+            {
+                "name": "5.56x45mm NATO",
+                "value": 0.4,
+                "description": "Used to be the standard issue round for the LEDF and is still widely used by the Kyntarians. Known for its versatility and effectiveness at close-medium ranges.",
+                "rarity": "Uncommon",
+                "random_quantity": {"min": 20, "max": 200},
+                "weight": 0.012,
+                "id": 10,
+                "caliber": "5.56x45mm NATO",
+                "variants": [
+                    {
+                        "name": "M855 Ball",
+                        "type": "FMJ",
+                        "pen": "III",
+                        "modifiers": null,
+                        "rarity": "Common",
+                        "tip": "#33852a"
+                    },
+                    {
+                        "name": "M855A1 EPR",
+                        "type": "FMJ",
+                        "pen": "III",
+                        "modifiers": null,
+                        "rarity": "Uncommon",
+                        "tip": null
+                    },
+                    {
+                        "name": "M856 Tracer",
+                        "type": "Tracer",
+                        "pen": "III",
+                        "modifiers": {"stats": {"aim": 1, "stealth": -1}},
+                        "rarity": "Rare",
+                        "tip": "#ff4500"
+                    },
+                    {
+                        "name": "M856A1 Tracer",
+                        "type": "Tracer",
+                        "pen": "III",
+                        "modifiers": {"stats": {"aim": 1, "stealth": -1}},
+                        "rarity": "Rare",
+                        "tip": "#ff6347"
+                    },
+                    {
+                        "name": "M995 Armor-Piercing",
+                        "type": "AP",
+                        "pen": "IV",
+                        "modifiers": null,
+                        "rarity": "Legendary",
+                        "tip": null
+                    },
+                    {
+                        "name": "XM996 Dim Tracer",
+                        "type": "Tracer",
+                        "pen": "III",
+                        "modifiers": {"stats": {"aim": 1}},
+                        "rarity": "Mythic",
+                        "tip": "#754338"
+                    }
+                ]
+            },
+            {
+                "name": "12 Gauge NATO",
+                "value": 2,
+                "description": "Standard shotgun shell used by the LEDF and Kyntarians. Effective at close ranges for both breaching and combat.",
+                "rarity": "Common",
+                "random_quantity": {"min": 10, "max": 100},
+                "weight": 0.03,
+                "id": 11,
+                "caliber": "12 Gauge",
+                "variants": [
+                    {
+                        "name": "AA60 No. 00 Buckshot",
+                        "type": "Buckshot",
+                        "pen": "II",
+                        "modifiers": null,
+                        "rarity": "Common",
+                        "tip": null
+                    },
+                    {
+                        "name": "A023 Rifled Slug",
+                        "type": "Slug",
+                        "pen": "III",
+                        "modifiers": {"stats": {"aim": 1}},
+                        "rarity": "Uncommon",
+                        "tip": null
+                    },
+                    {
+                        "name": "Frangible Breaching Slug",
+                        "type": "Breaching",
+                        "pen": "I",
+                        "modifiers": {"stats": {"aim": -1}},
+                        "rarity": "Rare",
+                        "tip": null
+                    },
+                    {
+                        "name": "AA51 Beanbag",
+                        "type": "Less-Lethal",
+                        "pen": null,
+                        "modifiers": null,
+                        "rarity": "Legendary",
+                        "tip": null
+                    },
+                    {
+                        "name": "FRAG-12 High-Explosive",
+                        "type": "HE",
+                        "pen": "IV",
+                        "modifiers": null,
+                        "rarity": "Mythic",
+                        "tip": null
+                    }
+                ]
+            },
+            {
+                "name": ".45 ACP",
+                "value": 0.5,
+                "description": "Popular pistol and submachine gun round, used to be semi-standard issue for the LEDF and is still widely used by the Kyntarians. Known for its stopping power at close ranges.",
+                "rarity": "Common",
+                "random_quantity": {"min": 20, "max": 150},
+                "weight": 0.015,
+                "id": 12,
+                "caliber": ".45 ACP",
+                "variants": [
+                    {
+                        "name": "FMJ",
+                        "type": "FMJ",
+                        "pen": "I",
+                        "modifiers": null,
+                        "rarity": "Common",
+                        "tip": null
+                    },
+                    {
+                        "name": "JHP",
+                        "type": "Hollow Point",
+                        "pen": "I",
+                        "modifiers": {"stats": {"aim": 1}},
+                        "rarity": "Uncommon",
+                        "tip": null
+                    },
+                    {
+                        "name": "Tracer",
+                        "type": "Tracer",
+                        "pen": "I",
+                        "modifiers": {"stats": {"aim": 1, "stealth": -1}},
+                        "rarity": "Rare",
+                        "tip": "#ff4500"
+                    }
+                ]
+            }
+        ],
+        "magazines": [
+            {
+                "name": "Colt USGI 30-Round stamped steel STANAG magazine",
+                "value": 60,
+                "description": "Standard 30-round magazine for 5.56x45mm NATO chambered rifles accepting the STANAG 4179 magazine standard.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.25,
+                "id": 13,
+                "caliber": ["5.56x45mm NATO"],
+                "capacity": 30,
+                "magazinesystem": "STANAG 4179",
+                "can_stack": false
+            },
+            {
+                "name": "H&K UMP-45 ACP 25-Round polymer magazine",
+                "value": 70,
+                "description": "Standard 25-round magazine for .45 ACP chambered UMP submachine guns.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.3,
+                "id": 14,
+                "caliber": [".45 ACP"],
+                "capacity": 25,
+                "magazinesystem": "UMP-45",
+                "can_stack": false
+            },
+            {
+                "name": "Beretta USGI 15-Round steel M9 magazine",
+                "value": 50,
+                "description": "Standard 15-round magazine for 9x19mm Parabellum chambered Beretta M9 pistols.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.2,
+                "id": 15,
+                "caliber": ["9x19mm Parabellum"],
+                "capacity": 15,
+                "magazinesystem": "Beretta 92",
+                "can_stack": false
+            },
+            {
+                "name": "M27 Disintegrating link belt",
+                "value": 100,
+                "description": "Belt link for 5.56x45mm NATO chambered light machine guns.",
+                "rarity": "Uncommon",
+                "random_quantity": {"min": 50, "max": 1000},
+                "weight": 0.001,
+                "id": 22,
+                "caliber": ["5.56x45mm NATO"],
+                "beltlink": "M27",
+                "can_stack": false
+            }
+        ],
+        "melee": [
+            {
+                "name": "KA-BAR Fighting Knife",
+                "value": 150,
+                "description": "Durable fixed-blade combat knife used by the LEDF and Kyntarians for close-quarters combat and utility tasks.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.35,
+                "id": 16,
+                "melee": true,
+                "type": "single handed"
+            },
+            {
+                "name": "M9 Bayonet",
+                "value": 200,
+                "description": "Multi-purpose bayonet that can be attached to rifles or used as a combat knife. Issued to LEDF soldiers and Kyntarian forces.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 0.5,
+                "id": 17,
+                "melee": true,
+                "type": "single handed",
+                "attachment": true,
+                "slot": "bayonet_mount_ar15"
+            }
+        ],
+        "throwables": [
+            {
+                "name": "M67 Fragmentation Grenade",
+                "value": 300,
+                "description": "Standard issue fragmentation grenade used by the LEDF and Kyntarians. Effective against personnel in open areas.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 0.4,
+                "id": 18,
+                "throwable": true,
+                "type": "fragmentation",
+                "fuse_time": 4
+            },
+            {
+                "name": "M18 Smoke Grenade",
+                "value": 250,
+                "description": "Smoke grenade used for signaling and concealment by the LEDF and Kyntarians. Emits a dense cloud of smoke upon detonation.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.35,
+                "id": 19,
+                "throwable": true,
+                "type": "smoke",
+                "fuse_time": 1.5
+            },
+            {
+                "name": "M84 Stun Grenade",
+                "value": 350,
+                "description": "Non-lethal stun grenade used to disorient and incapacitate targets. Emits a loud bang and bright flash upon detonation.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 0.45,
+                "id": 20,
+                "throwable": true,
+                "type": "stun",
+                "fuse_time": 1.5
+            },
+            {
+                "name": "CTS 7290-9 9-Bang",
+                "value": 400,
+                "description": "Multi-bang stun grenade that emits a series of loud bangs and bright flashes to disorient multiple targets in enclosed spaces.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 0.5,
+                "id": 21,
+                "throwable": true,
+                "type": "9-bang",
+                "fuse_time": 1.5
+            }
+        ],
+        "consumables": [
+            {
+                "name": "IFAK III",
+                "value": 500,
+                "description": "Individual First Aid Kit (IFAK) containing advanced medical supplies for treating combat injuries in the field.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 0.8,
+                "id": 23,
+                "consumable": true,
+                "type": "ifak",
+                "uses_left": 3
+            }
+        ],
+        "special_items": [
+            {
+                "name": "GIAT Famas G2",
+                "value": 15000,
+                "description": "Eugh... ugh... gah... French!",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 3.61,
+                "id": 24,
+                "firearm": true,
+                "subtype": "rifle",
+                "platform": "FAMAS",
+                "caliber": ["5.56x45mm NATO"],
+                "action": ["Semi", "Burst", "Auto"],
+                "burst_count": 3,
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 900,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "STANAG 4179",
+                "jamrate": 0.01,
+                "accessories": null,
+                "can_stack": false,
+                "infinite_ammo": true,
+                "custom_equip_sound": "sounds/firearms/weaponsounds/famas/french.ogg"
+            }
+        ],
+        "enemy_drops": [],
+        "equipment": [
+            {
+                "name": "ACH Helmet",
+                "value": 1000,
+                "description": "Advanced Combat Helmet (ACH) providing ballistic protection for the head. Standard issue for LEDF soldiers and Kyntarian forces.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 1.5,
+                "id": 25,
+                "equippable": true,
+                "encumbrance_reduction": 1.5,
+                "slot": "head",
+                "subslots": [
+                    {"name": "Dovetail NVG Mount", "slot": "nvg_mount", "current": null},
+                    {"name": "NVG battery pack", "slot": "nvg_battery", "current": null}
+                ]
+            },
+            {
+                "name": "IOTV Plate Carrier",
+                "value": 1500,
+                "description": "Improved Outer Tactical Vest (IOTV) providing enhanced ballistic protection for the torso. Standard issue for LEDF soldiers and Kyntarian forces.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 4.0,
+                "id": 26,
+                "equippable": true,
+                "encumbrance_reduction": 3.0,
+                "slot": "torso",
+                "subslots": [
+                    {"name": "Front Armor Slot", "slot": "front_armor", "current": null},
+                    {"name": "Back Armor Slot", "slot": "back_armor", "current": null},
+                    {"name": "Left 6x6 Armor Slot", "slot": "6x6_armor", "current": null},
+                    {"name": "Right 6x6 Armor Slot", "slot": "6x6_armor", "current": null},
+                    {"name": "MOLLE Webbing front", "slot": "molle_front", "current": null},
+                    {"name": "MOLLE Webbing back", "slot": "molle_back", "current": null},
+                    {"name": "MOLLE Webbing left side", "slot": "molle_side", "current": null},
+                    {"name": "MOLLE Webbing right side", "slot": "molle_side", "current": null}
+                ]
+            },
+            {
+                "name": "Mechanix Original Tactical Gloves",
+                "value": 200,
+                "description": "Durable tactical gloves providing protection and improved grip for handling firearms and equipment. (full set provides +1 aim passively)",
+                "rarity": "Common",
+                "random_quantity": {"min": 1, "max": 2},
+                "weight": 0.3,
+                "id": 27,
+                "equippable": true,
+                "encumbrance_reduction": 3.0,
+                "slot": ["left hand", "right hand"],
+                "set_bonus": {"stats": {"aim": 1}, "requires": [{"slot": "left hand", "id": 27}, {"slot": "right hand", "id": 27}]}
+            },
+            {
+                "name": "ESAPI Level IV Ceramic Plate",
+                "value": 800,
+                "description": "Enhanced Small Arms Protective Insert (ESAPI) Level IV ceramic plate providing maximum ballistic protection. Used in conjunction with plate carriers like the IOTV.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 2.5,
+                "id": 28,
+                "equippable": true,
+                "encumbrance_reduction": 0.0,
+                "slot": ["front_armor", "back_armor"],
+                "protection": "IV",
+                "material": "ceramic",
+                "hits_left": 10
+            },
+            {
+                "name": "FSAPI Level IV Female Ceramic Plate",
+                "value": 800,
+                "description": "Female Specific Small Arms Protective Insert (FSAPI) Level IV ceramic plate providing maximum ballistic protection. Designed to accommodate the female torso shape. Used in conjunction with plate carriers like the IOTV.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 2.5,
+                "id": 29,
+                "equippable": true,
+                "encumbrance_reduction": 0.0,
+                "slot": ["front_armor"],
+                "female_fit": true,
+                "protection": "IV",
+                "material": "ceramic",
+                "hits_left": 10
+            },
+            {
+                "name": "ESBI Level IV 6x6 Ceramic Side Plate",
+                "value": 600,
+                "description": "Enhanced Small Arms Ballistic Insert (ESBI) Level IV ceramic side plate providing maximum ballistic protection for the sides of the torso. Used in conjunction with plate carriers like the IOTV.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 1.5,
+                "id": 30,
+                "equippable": true,
+                "encumbrance_reduction": 0.0,
+                "slot": ["6x6_armor"],
+                "protection": "IV",
+                "material": "ceramic",
+                "hits_left": 10
+            },
+            {
+                "name": "MOLLE Magazine Pouch",
+                "value": 100,
+                "description": "Modular Lightweight Load-carrying Equipment (MOLLE) magazine pouch for carrying extra magazines. Attaches to MOLLE webbing on plate carriers and tactical vests.",
+                "rarity": "Common",
+                "random_quantity": {"min": 1, "max": 4},
+                "weight": 0.2,
+                "id": 31,
+                "equippable": true,
+                "encumbrance_reduction": 2,
+                "magazine_holder": true,
+                "slot": ["molle_front", "molle_side"],
+                "magazine_capacity": 2
+            },
+            {
+                "name": "MOLLE Admin Pouch",
+                "value": 80,
+                "description": "Modular Lightweight Load-carrying Equipment (MOLLE) admin pouch for carrying small items and accessories. Attaches to MOLLE webbing on plate carriers and tactical vests.",
+                "rarity": "Common",
+                "random_quantity": {"min": 1, "max": 2},
+                "weight": 0.15,
+                "id": 32,
+                "equippable": true,
+                "encumbrance_reduction": 1.5,
+                "container": true,
+                "capacity": 5,
+                "items": [],
+                "slot": ["molle_front", "molle_back", "molle_side"]
+            },
+            {
+                "name": "MOLLE Rucksack Large",
+                "value": 300,
+                "description": "Large Modular Lightweight Load-carrying Equipment (MOLLE) rucksack for carrying additional gear and supplies. Attaches to MOLLE webbing on plate carriers and tactical vests.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 1.0,
+                "id": 33,
+                "equippable": true,
+                "encumbrance_reduction": 5,
+                "container": true,
+                "capacity": 50,
+                "items": [],
+                "slot": ["molle_back"]
+            },
+            {
+                "name": "MOLLE Rucksack Medium",
+                "value": 200,
+                "description": "Medium Modular Lightweight Load-carrying Equipment (MOLLE) rucksack for carrying additional gear and supplies. Attaches to MOLLE webbing on plate carriers and tactical vests.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.8,
+                "id": 34,
+                "equippable": true,
+                "encumbrance_reduction": 3,
+                "container": true,
+                "capacity": 30,
+                "items": [],
+                "slot": ["molle_back"]
+            }
+        ],
+        "lootcrates": []
+    }
+}
