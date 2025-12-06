@@ -98,11 +98,44 @@ logging.info(f"RAM: {round(os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGE
 logging.info(f"Python Implementation: {platform.python_implementation()}")
 
 global_variables = {
-    "devmode": False,
+    "devmode": {"value": False, "forced": False},
+    "dmmode": {"value": False, "forced": False},
+    "debugmode": {"value": False, "forced": False},
+}
+
+possible_flags = ["--dev", "--dm", "--debug", "--force"]
+
+for flag in possible_flags:
+    if flag in os.sys.argv:
+        if flag == "--dev":
+            global_variables["devmode"]["value"] = True
+            logging.info("Development mode activated via command-line flag.")
+        elif flag == "--dm":
+            global_variables["dmmode"]["value"] = True
+            logging.info("DM mode activated via command-line flag.")
+        elif flag == "--debug":
+            global_variables["debugmode"]["value"] = True
+            logging.info("Debug mode activated via command-line flag.")
+        elif flag == "--force":
+            for var in global_variables:
+                global_variables[var]["forced"] = True
+            logging.info("Force flag applied to all modes.")
+
+if global_variables["debugmode"]["value"]:
+    logging.getLogger().setLevel(logging.DEBUG)
+    logging.info("Debug mode enabled. Logging level set to DEBUG.")
+
+appearance_settings = {
+    "appearance_mode": "system",
+    "color_theme": "dark-blue",
+    "resolution": "1280x720",
+    "fullscreen": False,
+    "borderless": False
 }
 
 folders = [
     "logs",
+    "sounds",
 ]
 
 ide_indicators = [
@@ -125,12 +158,26 @@ ide_indicators = [
     'VSCODE_INJECTION'
 ]
 
+dm_users = ["lily", "jaczi", "phone"]
+
+for user in dm_users:
+    if user in os.getlogin().lower():
+        if not global_variables["dmmode"]["value"] and not global_variables["dmmode"]["forced"]:
+            global_variables["dmmode"]["value"] = True
+            logging.info(f"DM user '{user}' detected. DM mode toggled on.")
+        elif global_variables["dmmode"]["value"]:
+            logging.info(f"DM user '{user}' detected. DM mode already active.")
+        else:
+            logging.info(f"DM user '{user}' detected. DM mode is forced off.")\
+
 if any(indicator in os.environ for indicator in ide_indicators):
-    if not global_variables["devmode"]:
-        global_variables["devmode"] = True
+    if not global_variables["devmode"]["value"] and not global_variables["devmode"]["forced"]:
+        global_variables["devmode"]["value"] = True
         logging.info("Development mode activated due to IDE environment detection.")
+    elif global_variables["devmode"]["value"]:
+        logging.info("IDE environment detected, but development mode is already set.")
     else:
-        logging.info("IDE environment detected, but development mode is already True.")
+        logging.info("IDE environment detected, but development mode is forced off.")
     logging.info(f"Trigger: {[key for key in os.environ if key in ide_indicators]}")
     for folder in folders:
         if not os.path.exists(folder):
@@ -169,7 +216,40 @@ if any(indicator in os.environ for indicator in ide_indicators):
     except Exception as e:
         logging.warning(f"Failed to update requirements.txt: {e}")
 
+if not global_variables["devmode"]["value"]:
+    logging.info("Running in production mode.")
+    if os.name == 'nt':  # Windows
+        saves_folder = os.path.join(os.getenv('LOCALAPPDATA'), 'DOOM Tools', 'saves')
+    else:  # Unix-based systems
+        saves_folder = os.path.expanduser('~/.local/share/DOOM Tools/saves')
+else:
+    logging.info("Running in development mode.")
+    saves_folder = "saves"
+    folders.append(saves_folder)
+    with open('.gitignore', 'a') as gitignore:
+        existing_gitignore = set()
+        try:
+            with open('.gitignore', 'r') as read_gitignore:
+                existing_gitignore = set(line.strip() for line in read_gitignore)
+        except FileNotFoundError:
+            pass
+        entry = '/saves/'
+        if entry not in existing_gitignore:
+            gitignore.write(f'{entry}\n')
+            logging.info(f"Added '{entry}' to .gitignore")
+        else:
+            logging.info(f"'{entry}' already exists in .gitignore")
+
+os.makedirs(saves_folder, exist_ok=True)
+
 currentsave = None
+
+emptysave = {
+    "charactername": "",
+    "stats": {
+        ""
+    }
+}
 
 class App:
     def __init__(self):
@@ -181,6 +261,14 @@ class App:
         self.root.minsize(960, 600)
         self._build_main_menu()
         self.root.mainloop()
+    def _popup_show_info(self, title, message):
+        popup = customtkinter.CTkToplevel(self.root)
+        popup.title(title)
+        popup.geometry("400x200")
+        label = customtkinter.CTkLabel(popup, text=message, wraplength=380)
+        label.pack(pady=20, padx=20)
+        ok_button = customtkinter.CTkButton(popup, text="OK", command=popup.destroy)
+        ok_button.pack(pady=10)
     def _build_main_menu(self):
         self.root.grid_rowconfigure(0, weight=1)
         self.root.grid_columnconfigure(0, weight=1)
@@ -190,19 +278,50 @@ class App:
         title_label.pack(pady=20)
         version_label = customtkinter.CTkLabel(main_frame, text=f"Version: {version}", font=customtkinter.CTkFont(size=16))
         version_label.pack()
-        loot_button = customtkinter.CTkButton(main_frame, text="Loot", command=self._open_loot_tool, width=500, height=50, font=customtkinter.CTkFont(size=16), state="disabled" if currentsave is None else "normal")
+        loot_button = customtkinter.CTkButton(main_frame, text="Looting", command=self._open_loot_tool, width=500, height=50, font=customtkinter.CTkFont(size=16), state="disabled" if currentsave is None else "normal")
         loot_button.pack(pady=10)
         business_button = customtkinter.CTkButton(main_frame, text="Businesses", command=self._open_business_tool, width=500, height=50, font=customtkinter.CTkFont(size=16), state="disabled" if currentsave is None else "normal")
         business_button.pack(pady=10)
         inventoryman_button = customtkinter.CTkButton(main_frame, text="Inventory Manager", command=self._open_inventory_manager_tool, width=500, height=50, font=customtkinter.CTkFont(size=16))
         inventoryman_button.pack(pady=10)
-        combatmode_button = customtkinter.CTkButton(main_frame, text="Combat Mode", width=500, height=50, font=customtkinter.CTkFont(size=16), state="disabled" if currentsave is None else "normal")
+        combatmode_button = customtkinter.CTkButton(main_frame, text="Combat Mode", command=self._open_combat_mode_tool, width=500, height=50, font=customtkinter.CTkFont(size=16), state="disabled" if currentsave is None else "normal")
         combatmode_button.pack(pady=10)
+        exitb_button = customtkinter.CTkButton(main_frame, text="Exit", command=self._safe_exit, width=500, height=50, font=customtkinter.CTkFont(size=16))
+        exitb_button.pack(pady=10)
+        settings_button = customtkinter.CTkButton(main_frame, text="Settings", command=self._open_settings, width=500, height=50, font=customtkinter.CTkFont(size=16), state="disabled" if currentsave is None else "normal")
+        settings_button.pack(pady=10)
+        if global_variables["devmode"]["value"]:
+            devtools_button = customtkinter.CTkButton(main_frame, text="Developer Tools", command=self._open_dev_tools, width=500, height=50, font=customtkinter.CTkFont(size=16), state="disabled" if currentsave is None else "normal")
+            devtools_button.pack(pady=10)
+        else:
+            devtools_button = customtkinter.CTkButton(main_frame, text="Developer Tools", width=500, height=50, font=customtkinter.CTkFont(size=16), state="disabled")
+            devtools_button.pack(pady=10)
+        if global_variables["dmmode"]["value"]:
+            dmmode_button = customtkinter.CTkButton(main_frame, text="DM Tools", command=self._open_dm_tools, width=500, height=50, font=customtkinter.CTkFont(size=16), state="disabled" if currentsave is None else "normal")
+            dmmode_button.pack(pady=10)
+        else:
+            dmmode_button = customtkinter.CTkButton(main_frame, text="DM Tools", width=500, height=50, font=customtkinter.CTkFont(size=16), state="disabled")
+            dmmode_button.pack(pady=10)
+        if currentsave is None:
+            currentsave_label = customtkinter.CTkLabel(main_frame, text="No save loaded. Please load a save to enable tools.", font=customtkinter.CTkFont(size=14), text_color="red")
+            currentsave_label.pack(pady=20)
     def _open_loot_tool(self):
-        pass
+        self._popup_show_info("Looting", "Looting is under development.")
     def _open_business_tool(self):
-        pass
+        self._popup_show_info("Businesses", "Businesses are under development.")
     def _open_inventory_manager_tool(self):
+        self._popup_show_info("Inventory Manager", "Inventory Manager is under development.")
+    def _open_combat_mode_tool(self):
+        self._popup_show_info("Combat Mode", "Combat Mode is under development.")
+    def _safe_exit(self):
+        # once save functionality is added, implement save on exit
+        logging.info("Program exited safely.")
+        self.root.quit()
+    def _open_settings(self):
+        pass
+    def _open_dev_tools(self):
+        pass
+    def _open_dm_tools(self):
         pass
 if __name__ == "__main__":
     app = App()
