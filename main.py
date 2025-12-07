@@ -13,6 +13,7 @@ import base64
 import pickle
 import json
 import shutil
+import psutil
 
 pygame.init()
 
@@ -110,7 +111,7 @@ if platform.system() == "Linux":
     except Exception as e:
         logging.warning(f"Failed to read Linux distribution info: {e}")
 logging.info(f"Architecture: {platform.architecture()[0]}")
-logging.info(f"RAM: {round(os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES') / (1024. ** 2), 2)} MB")
+logging.info(f"RAM: {round(psutil.virtual_memory().total / (1024. ** 2), 2)} MB")
 logging.info(f"Python Implementation: {platform.python_implementation()}")
 
 global_variables = {
