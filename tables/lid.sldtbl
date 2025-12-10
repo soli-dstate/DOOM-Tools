@@ -257,6 +257,25 @@
                 "slot": "picatinny_bottom",
                 "modifiers": {"stats": {"aim": 1}},
                 "can_stack": false
+            },
+            {
+                "name": "AAI M203A3 Underbarrel Grenade Launcher",
+                "value": 2500,
+                "description": "40mm underbarrel grenade launcher designed to implement with the USSOCOM CSAD system. Mounts to a picatinny rail.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 1.5,
+                "id": 38,
+                "attachment": true,
+                "slot": "picatinny_bottom",
+                "modifiers": null,
+                "underbarrel_weapon": true,
+                "underbarrel_type": "grenade_launcher",
+                "underbarrel_platform": "M203",
+                "caliber": "40x46mm",
+                "capacity": 1,
+                "can_chamber_extra": false,
+                "can_stack": false
             }
         ],
         "ammunition": [
@@ -269,6 +288,7 @@
                 "weight": 0.012,
                 "id": 10,
                 "caliber": "5.56x45mm NATO",
+                "sounds": "556",
                 "variants": [
                     {
                         "name": "M855 Ball",
@@ -329,6 +349,7 @@
                 "weight": 0.03,
                 "id": 11,
                 "caliber": "12 Gauge",
+                "sounds": "12gauge",
                 "variants": [
                     {
                         "name": "AA60 No. 00 Buckshot",
@@ -381,6 +402,44 @@
                 "weight": 0.015,
                 "id": 12,
                 "caliber": ".45 ACP",
+                "sounds": "45acp",
+                "variants": [
+                    {
+                        "name": "FMJ",
+                        "type": "FMJ",
+                        "pen": "I",
+                        "modifiers": null,
+                        "rarity": "Common",
+                        "tip": null
+                    },
+                    {
+                        "name": "JHP",
+                        "type": "Hollow Point",
+                        "pen": "I",
+                        "modifiers": {"stats": {"aim": 1}},
+                        "rarity": "Uncommon",
+                        "tip": null
+                    },
+                    {
+                        "name": "Tracer",
+                        "type": "Tracer",
+                        "pen": "I",
+                        "modifiers": {"stats": {"aim": 1, "stealth": -1}},
+                        "rarity": "Rare",
+                        "tip": "#ff4500"
+                    }
+                ]
+            },
+            {
+                "name": "9x19mm Parabellum",
+                "value": 0.3,
+                "description": "Widely used pistol and submachine gun round, standard issue for the LEDF and Kyntarians. Known for its balance of recoil, capacity, and effectiveness.",
+                "rarity": "Common",
+                "random_quantity": {"min": 30, "max": 200},
+                "weight": 0.01,
+                "id": 39,
+                "caliber": "9x19mm Parabellum",
+                "sounds": "9x19",
                 "variants": [
                     {
                         "name": "FMJ",
@@ -579,7 +638,6 @@
                 "custom_equip_sound": "sounds/firearms/weaponsounds/famas/french.ogg"
             }
         ],
-        "enemy_drops": [],
         "equipment": [
             {
                 "name": "ACH Helmet",
@@ -594,7 +652,8 @@
                 "slot": "head",
                 "subslots": [
                     {"name": "Dovetail NVG Mount", "slot": "nvg_mount", "current": null},
-                    {"name": "NVG battery pack", "slot": "nvg_battery", "current": null}
+                    {"name": "NVG battery pack", "slot": "nvg_battery", "current": null},
+                    {"name": "Ear protection", "slot": "ear_protection", "current": null}
                 ]
             },
             {
@@ -614,7 +673,7 @@
                     {"name": "Left 6x6 Armor Slot", "slot": "6x6_armor", "current": null},
                     {"name": "Right 6x6 Armor Slot", "slot": "6x6_armor", "current": null},
                     {"name": "MOLLE Webbing front", "slot": "molle_front", "current": null},
-                    {"name": "MOLLE Webbing back", "slot": "molle_back", "current": null},
+                    {"name": "MOLLE Webbing back", "slot": "molle_back", "current": null, "conflicts_with": {"type": "main", "slot": "back"}},
                     {"name": "MOLLE Webbing left side", "slot": "molle_side", "current": null},
                     {"name": "MOLLE Webbing right side", "slot": "molle_side", "current": null}
                 ]
@@ -713,31 +772,139 @@
                 "description": "Large Modular Lightweight Load-carrying Equipment (MOLLE) rucksack for carrying additional gear and supplies. Attaches to MOLLE webbing on plate carriers and tactical vests.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
-                "weight": 1.0,
-                "id": 33,
-                "equippable": true,
-                "encumbrance_reduction": 5,
-                "container": true,
-                "capacity": 50,
-                "items": [],
-                "slot": ["molle_back"]
-            },
-            {
-                "name": "MOLLE Rucksack Medium",
-                "value": 200,
-                "description": "Medium Modular Lightweight Load-carrying Equipment (MOLLE) rucksack for carrying additional gear and supplies. Attaches to MOLLE webbing on plate carriers and tactical vests.",
-                "rarity": "Common",
-                "random_quantity": false,
                 "weight": 0.8,
-                "id": 34,
+                "id": 33,
                 "equippable": true,
                 "encumbrance_reduction": 3,
                 "container": true,
                 "capacity": 30,
                 "items": [],
                 "slot": ["molle_back"]
+            },
+            {
+                "name": "Magpul MS1 Sling",
+                "value": 150,
+                "description": "Two-point sling for carrying and stabilizing firearms. Compatible with various attachment points on rifles and submachine guns.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.17,
+                "id": 34,
+                "equippable": true,
+                "encumbrance_reduction": 2,
+                "slot": ["chest","back","left shoulder","right shoulder"],
+                "holster_sling": true,
+                "weapon_types": ["rifle", "smg", "shotgun", "mg"],
+                "subslots": [
+                    {"name": "Weapon", "slot": "weapon_slot", "current": null}
+                ]
+            },
+            {
+                "name": "Safariland 6304RDS ALS Holster",
+                "value": 200,
+                "description": "Automatic Locking System (ALS) holster for securely carrying pistols. Compatible with various attachment points on tactical vests and belts.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.5,
+                "id": 35,
+                "equippable": true,
+                "encumbrance_reduction": 2,
+                "slot": ["chest","back","left leg","right leg","molle_front","molle_side"],
+                "holster_sling": true,
+                "weapon_types": ["pistol"],
+                "subslots": [
+                    {"name": "Weapon", "slot": "weapon_slot", "current": null}
+                ]
+            },
+            {
+                "name": "Lanyard",
+                "value": 15,
+                "description": "A lanyard for holding your keys or your ID badge- aaand you're attaching it to a pistol. Great job.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.05,
+                "id": 36,
+                "equippable": true,
+                "encumbrance_reduction": 0,
+                "slot": "neck",
+                "holster_sling": true,
+                "weapon_types": ["pistol"],
+                "subslots": [
+                    {"name": "Weapon", "slot": "weapon_slot", "current": null}
+                ]
+            },
+            {
+                "name": "USSOCOM CSAD HMD",
+                "value": 9500,
+                "description": "The USSOCOM Combat Situational Awareness Display is an HMD that provides a minimap, night vision + thermal imaging (only available with sensor pack), a crosshair overlay, and a round counter (last two only available with connected gunlink).",
+                "rarity": "Legendary",
+                "random_quantity": false,
+                "weight": 1.2,
+                "id": 37,
+                "equippable": true,
+                "encumbrance_reduction": 1,
+                "slot": "CSAD",
+                "flashbang_goggle": true,
+                "hud": true,
+                "electronic": true,
+                "battery_type": "Rechargeable",
+                "battery_life": 8
             }
         ],
-        "lootcrates": []
+        "enemy_drops": [
+            {
+                "name": "Example Enemy",
+                "difficulty": "Easy",
+                "items": [
+                    {"type": "table", "table": "pistols", "guaranteed": true},
+                    {"type": "table", "table": "magazines", "rarity": "Common"},
+                    {"type": "id", "id": 18, "rarity": "Uncommon"}
+                ]
+            }
+        ],
+        "lootcrates": [
+            {
+                "name": "Debug Lootbox",
+                "description": "A debug lootbox for testing. Contains random items.",
+                "rarity": "Common",
+                "locked": false,
+                "pulls": 3,
+                "loot_table": [
+                    {"type": "table", "table": "rifles", "rarity": "Common"},
+                    {"type": "table", "table": "pistols", "rarity": "Common"}
+                ]
+            },
+            {
+                "name": "Debug Locked Lootbox",
+                "description": "A locked debug lootbox for testing lockpicking",
+                "rarity": "Uncommon",
+                "locked": true,
+                "pulls": {"min": 2, "max": 4},
+                "loot_table": [
+                    {"type": "id", "id": 4, "rarity": "Common"}
+                ]
+            },
+            {
+                "name": "Rare Equipment Cache",
+                "description": "A cache of rare equipment.",
+                "rarity": "Rare",
+                "locked": false,
+                "pulls": {"min": 3, "max": 5},
+                "loot_table": [
+                    {"type": "table", "table": "equipment", "rarity": "Rare"},
+                    {"type": "table", "table": "attachments", "rarity": "Uncommon"}
+                ]
+            },
+            {
+                "name": "Basic Crate",
+                "description": "A basic crate with some common items.",
+                "rarity": "Common",
+                "locked": false,
+                "pulls": 2,
+                "loot_table": [
+                    {"type": "id", "id": 10, "rarity": "Common"},
+                    {"type": "id", "id": 23, "rarity": "Uncommon"}
+                ]
+            }
+        ]
     }
 }
