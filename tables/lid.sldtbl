@@ -99,6 +99,70 @@
                     {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
                 ],
                 "can_stack": false
+            },
+            {
+                "name": "Colt M8 Carbine",
+                "value": 2500,
+                "description": "Replacement for the standard issue M4A1 carbine. Fires 6.5x45mm Colt with an 11.5 inch barrel.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 3.1,
+                "id": 64,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "M17",
+                "caliber": ["6.5x45mm Colt"],
+                "action": ["Semi", "Burst", "Auto"],
+                "burst_count": 3,
+                "burst_cyclic": 2000,
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 750,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "STANAG 8556",
+                "jamrate": 0.001,
+                "accessories": [
+                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": null},
+                    {"name": "Picatinny Rail (Handguard Top)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "MLOK Mounts (Handguard Left)", "slot": "mlok_rifle", "current": null},
+                    {"name": "MLOK Mounts (Handguard Right)", "slot": "mlok_rifle", "current": null},
+                    {"name": "MLOK Mounts (Handguard Bottom)", "slot": "mlok_bottom", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_65", "current": null}
+                ],
+                "can_stack": false
+            },
+            {
+                "name": "Colt M17 Rifle",
+                "value": 2500,
+                "description": "Replacement for the standard issue M16A4. Fires 6.5x45mm Colt with a 20 inch barrel.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 3.1,
+                "id": 65,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "M17",
+                "caliber": ["6.5x45mm Colt"],
+                "action": ["Semi", "Burst", "Auto"],
+                "burst_count": 3,
+                "burst_cyclic": 2000,
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 750,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "STANAG 8556",
+                "jamrate": 0.001,
+                "accessories": [
+                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": null},
+                    {"name": "Picatinny Rail (Handguard Top)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "MLOK Mounts (Handguard Left)", "slot": "mlok_rifle", "current": null},
+                    {"name": "MLOK Mounts (Handguard Right)", "slot": "mlok_rifle", "current": null},
+                    {"name": "MLOK Mounts (Handguard Bottom)", "slot": "mlok_bottom", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_65", "current": null}
+                ],
+                "can_stack": false
             }
         ],
         "submachine_guns": [
@@ -130,6 +194,70 @@
                     {"name": "Picatinny Rail (Handguard Right)", "slot": "picatinny_rifle", "current": null},
                     {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom_nounderbarrel", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_45", "current": null}
+                ],
+                "can_stack": false
+            },
+            {
+                "name": "Colt M9 PDW",
+                "value": 2500,
+                "description": "Replacement for the MP7 and GAU-5A, firing a rifle cartridge out of a PDW platform.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 2,
+                "id": 66,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "M17",
+                "caliber": ["6.5x45mm Colt"],
+                "action": ["Semi", "Burst", "Auto"],
+                "burst_count": 3,
+                "burst_cyclic": 2000,
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 750,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "STANAG 8556",
+                "jamrate": 0.001,
+                "accessories": [
+                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": null},
+                    {"name": "Picatinny Rail (Handguard Top)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "MLOK Mounts (Handguard Left)", "slot": "mlok_rifle", "current": null},
+                    {"name": "MLOK Mounts (Handguard Right)", "slot": "mlok_rifle", "current": null},
+                    {"name": "MLOK Mounts (Handguard Bottom)", "slot": "mlok_bottom", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_65", "current": null}
+                ],
+                "can_stack": false
+            },
+            {
+                "name": "Colt M9L PDW",
+                "value": 2500,
+                "description": "Replacement for the MP7 and GAU-5A, firing a pistol caliber cartridge.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 2,
+                "id": 67,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "M9L",
+                "caliber": ["5.7x28mm NATO"],
+                "action": ["Semi", "Burst", "Auto"],
+                "burst_count": 3,
+                "burst_cyclic": 2000,
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 1300,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "M9L",
+                "jamrate": 0.001,
+                "accessories": [
+                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": null},
+                    {"name": "Picatinny Rail (Handguard Top)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "MLOK Mounts (Handguard Left)", "slot": "mlok_rifle", "current": null},
+                    {"name": "MLOK Mounts (Handguard Right)", "slot": "mlok_rifle", "current": null},
+                    {"name": "MLOK Mounts (Handguard Bottom)", "slot": "mlok_bottom", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_65", "current": null}
                 ],
                 "can_stack": false
             }
@@ -279,6 +407,173 @@
                     {"name": "Muzzle Device", "slot": "muzzle_9mm", "current": null}
                 ],
                 "can_stack": false
+            },
+            {
+                "name": "Steyr TMP",
+                "value": 1200,
+                "description": "Compact submachine gun known for its high rate of fire and ease of control. Chambered in 9x19mm Parabellum.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 1.3,
+                "id": 47,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "pistol",
+                "platform": "TMP",
+                "caliber": ["9x19mm Parabellum"],
+                "action": ["Auto", "Semi"],
+                "bolt": "open",
+                "bolt_catch": true,
+                "cyclic": 900,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "TMP",
+                "jamrate": 0.02,
+                "accessories": [
+                    {"name": "Pistol Picatinny Rail", "slot": "pistol_picatinny", "current": null},
+                    {"name": "Picatinny Rail (top)", "slot": "picatinny_optic", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_9mm", "current": null}
+                ],
+                "can_stack": false
+            },
+            {
+                "name": "Glock 17 Gen 5 MOS",
+                "value": 900,
+                "description": "Modern 9x19mm Parabellum pistol with modular optics system, known for reliability and ease of use.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.9,
+                "id": 50,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "pistol",
+                "platform": "Glock",
+                "caliber": ["9x19mm Parabellum"],
+                "action": ["Semi"],
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 400,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "Glock 9x19mm Parabellum",
+                "jamrate": 0.01,
+                "accessories": [
+                    {"name": "Pistol Picatinny Rail", "slot": "pistol_picatinny", "current": null},
+                    {"name": "MOS Mount", "slot": "pistol_optic_mount", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_9mm", "current": null},
+                    {"name": "Auto Sear", "slot": "glock_auto_sear", "current": null}
+                ],
+                "can_stack": false
+            },
+            {
+                "name": "Glock 19X",
+                "value": 950,
+                "description": "Crossover pistol combining the full-size Glock 17 frame with the compact Glock 19 slide, chambered in 9x19mm Parabellum.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.95,
+                "id": 51,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "pistol",
+                "platform": "Glock",
+                "caliber": ["9x19mm Parabellum"],
+                "action": ["Semi"],
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 400,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "Glock 9x19mm Parabellum",
+                "jamrate": 0.01,
+                "accessories": [
+                    {"name": "Pistol Picatinny Rail", "slot": "pistol_picatinny", "current": null},
+                    {"name": "MOS Mount", "slot": "pistol_optic_mount", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_9mm", "current": null},
+                    {"name": "Auto Sear", "slot": "glock_auto_sear", "current": null}
+                ],
+                "can_stack": false
+            },
+            {
+                "name": "Glock 20 Gen 5 MOS",
+                "value": 1000,
+                "description": "Full-size 10mm Auto pistol with modular optics system, known for reliability and stopping power.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 1.1,
+                "id": 52,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "pistol",
+                "platform": "Glock",
+                "caliber": ["10mm Auto"],
+                "action": ["Semi"],
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 400,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "Glock 10mm Auto",
+                "jamrate": 0.01,
+                "accessories": [
+                    {"name": "Pistol Picatinny Rail", "slot": "pistol_picatinny", "current": null},
+                    {"name": "MOS Mount", "slot": "pistol_optic_mount", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_10mm", "current": null},
+                    {"name": "Auto Sear", "slot": "glock_auto_sear", "current": null}
+                ],
+                "can_stack": false
+            },
+            {
+                "name": "Glock 21 Gen 5 MOS",
+                "value": 1000,
+                "description": "Full-size .45 ACP pistol with modular optics system, known for reliability and stopping power.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 1.1,
+                "id": 53,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "pistol",
+                "platform": "Glock",
+                "caliber": [".45 ACP"],
+                "action": ["Semi"],
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 400,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "Glock .45 ACP",
+                "jamrate": 0.01,
+                "accessories": [
+                    {"name": "Pistol Picatinny Rail", "slot": "pistol_picatinny", "current": null},
+                    {"name": "MOS Mount", "slot": "pistol_optic_mount", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_45acp", "current": null},
+                    {"name": "Auto Sear", "slot": "glock_auto_sear", "current": null}
+                ],
+                "can_stack": false
+            },
+            {
+                "name": "Glock 18C",
+                "value": 1200,
+                "description": "Full-size 9x19mm Parabellum pistol with selective fire capability, known for reliability and high rate of fire.",
+                "rarity": "Mythic",
+                "random_quantity": false,
+                "weight": 1.1,
+                "id": 60,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "pistol",
+                "platform": "Glock",
+                "caliber": ["9x19mm Parabellum"],
+                "action": ["Semi", "Auto"],
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 1200,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "Glock 9x19mm Parabellum",
+                "jamrate": 0.02,
+                "accessories": [
+                    {"name": "Pistol Picatinny Rail", "slot": "pistol_picatinny", "current": null},
+                    {"name": "MOS Mount", "slot": "pistol_optic_mount", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_9mm", "current": null},
+                    {"name": "Auto Sear", "slot": "glock_auto_sear", "current": null}
+                ],
+                "can_stack": false
             }
         ],
         "attachments": [
@@ -380,6 +675,22 @@
                 "caliber": "40x46mm",
                 "capacity": 1,
                 "can_chamber_extra": false,
+                "can_stack": false
+            },
+            {
+                "name": "Glock Auto Sear",
+                "value": 1500,
+                "description": "Device that allows a Glock pistol to fire fully automatically. Requires installation in a compatible Glock model.",
+                "rarity": "Legendary",
+                "random_quantity": false,
+                "weight": 0.1,
+                "id": 59,
+                "attachment": true,
+                "slot": "glock_auto_sear",
+                "overrides": {
+                    "action": ["Auto"],
+                    "cyclic": 1200
+                },
                 "can_stack": false
             }
         ],
@@ -632,6 +943,226 @@
                         "tip": "#ffd700"
                     }
                 ]
+            },
+            {
+                "name": "10mm Auto",
+                "value": 0.9,
+                "description": "High-powered pistol round known for its stopping power and versatility in both self-defense and hunting applications.",
+                "rarity": "Uncommon",
+                "random_quantity": {"min": 10, "max": 100},
+                "weight": 0.02,
+                "id": 54,
+                "caliber": "10mm Auto",
+                "sounds": "45acp",
+                "variants": [
+                    {
+                        "name": "FMJ",
+                        "type": "Full Metal Jacket",
+                        "pen": "II",
+                        "modifiers": null,
+                        "rarity": "Common",
+                        "tip": null
+                    },
+                    {
+                        "name": "JHP",
+                        "type": "Hollow Point",
+                        "pen": "II",
+                        "modifiers": {"stats": {"aim": 1}},
+                        "rarity": "Uncommon",
+                        "tip": null
+                    },
+                    {
+                        "name": "Tracer",
+                        "type": "Tracer",
+                        "pen": "II",
+                        "modifiers": {"stats": {"aim": 1, "stealth": -1}},
+                        "rarity": "Rare",
+                        "tip": "#ff4500"
+                    }
+                ]
+            },
+            {
+                "name": "40x46mm",
+                "value": 1.5,
+                "description": "Standard 40x46mm grenade for launchers.",
+                "rarity": "Rare",
+                "random_quantity": {"min": 1, "max": 10},
+                "weight": 0.25,
+                "id": 61,
+                "caliber": "40x46mm",
+                "sounds": "40mm_grenade",
+                "variants": [
+                    {
+                        "name": "M441 HE",
+                        "type": "High-Explosive",
+                        "pen": "IV",
+                        "modifiers": null,
+                        "rarity": "Common",
+                        "tip": "#ff0000"
+                    },
+                    {
+                        "name": "M397 Air Burst",
+                        "type": "Air Burst",
+                        "pen": "IV",
+                        "modifiers": null,
+                        "rarity": "Mythic",
+                        "tip": "#ff0000"
+                    },
+                    {
+                        "name": "M433E1 HEDP",
+                        "type": "High-Explosive Dual Purpose",
+                        "pen": "IV",
+                        "modifiers": null,
+                        "rarity": "Mythic",
+                        "tip": "#ff0000"
+                    },
+                    {
+                        "name": "M576 MP-APERS",
+                        "type": "APERS",
+                        "pen": "IV",
+                        "modifiers": null,
+                        "rarity": "Epic",
+                        "tip": "#ff0000"
+                    },
+                    {
+                        "name": "M713 Red Smoke",
+                        "type": "Smoke",
+                        "pen": null,
+                        "modifiers": null,
+                        "rarity": "Uncommon",
+                        "tip": "#ff0000"
+                    },
+                    {
+                        "name": "M714 White Smoke",
+                        "type": "Smoke",
+                        "pen": null,
+                        "modifiers": null,
+                        "rarity": "Uncommon",
+                        "tip": "#ff0000"
+                    },
+                    {
+                        "name": "M715 Green Smoke",
+                        "type": "Smoke",
+                        "pen": null,
+                        "modifiers": null,
+                        "rarity": "Uncommon",
+                        "tip": "#ff0000"
+                    },
+                    {
+                        "name": "M716 Yellow Smoke",
+                        "type": "Smoke",
+                        "pen": null,
+                        "modifiers": null,
+                        "rarity": "Uncommon",
+                        "tip": "#ff0000"
+                    },
+                    {
+                        "name": "M651 CS Gas",
+                        "type": "Gas",
+                        "pen": null,
+                        "modifiers": null,
+                        "rarity": "Uncommon",
+                        "tip": "#ff0000"
+                    },
+                    {
+                        "name": "XM1060 Thermobaric",
+                        "type": "Thermobaric",
+                        "pen": "IV",
+                        "modifiers": null,
+                        "rarity": "Mythic",
+                        "tip": "#ff0000"
+                    }
+                ]
+            },
+            {
+                "name": "6.5x45mm Colt",
+                "value": 0.5,
+                "description": "New standard-issue rifle round for the LEDF. Hybrid steel-brass casing for more chamber pressure.",
+                "rarity": "Common",
+                "random_quantity": {"min": 10, "max": 100},
+                "weight": 0.012,
+                "id": 62,
+                "caliber": ["6.5x45mm Colt"],
+                "sounds": "277baker",
+                "variants": [
+                    {
+                        "name": "M185 Ball",
+                        "type": "Ball",
+                        "pen": "III",
+                        "modifiers": null,
+                        "rarity": "Common",
+                        "tip": null
+                    },
+                    {
+                        "name": "M186 Ball-Tracer",
+                        "type": "Tracer",
+                        "pen": "III",
+                        "modifiers": {"stats": {"aim": 1, "stealth": -1}},
+                        "rarity": "Uncommon",
+                        "tip": null
+                    },
+                    {
+                        "name": "M193 SLAP",
+                        "type": "AP",
+                        "pen": "IV",
+                        "modifiers": null,
+                        "rarity": "Rare",
+                        "tip": null
+                    },
+                    {
+                        "name": "M199 Subsonic",
+                        "type": "Ball",
+                        "pen": "II",
+                        "modifiers": {"stats": {"stealth": 1}},
+                        "rarity": "Uncommon",
+                        "tip": null
+                    },
+                    {
+                        "name": "XM187 Frangible Unarmored Target",
+                        "type": "Hollow Point",
+                        "pen": "II",
+                        "modifiers": null,
+                        "rarity": "Mythic",
+                        "tip": null
+                    }
+                ]
+            },
+            {
+                "name": "5.7x28mm NATO",
+                "value": 0.4,
+                "description": "Standard-issue handgun round for the LEDF. Designed to penetrate soft body armor.",
+                "rarity": "Common",
+                "random_quantity": {"min": 10, "max": 100},
+                "weight": 0.008,
+                "id": 63,
+                "caliber": ["5.7x28mm NATO"],
+                "sounds": "224baker",
+                "variants": [
+                    {
+                        "name": "SS190 AP",
+                        "type": "AP",
+                        "pen": "IIIa",
+                        "modifiers": null,
+                        "rarity": "Common",
+                        "tip": null
+                    },
+                    {
+                        "name": "L191 Tracer",
+                        "type": "Tracer",
+                        "pen": "IIIa",
+                        "modifiers": {"stats": {"aim": 1, "stealth": -1}},
+                        "rarity": "Uncommon",
+                        "tip": null
+                    },
+                    {
+                        "name": "FR199 Frangible",
+                        "type": "Hollow Point",
+                        "pen": "II",
+                        "modifiers": null,
+                        "rarity": "Rare",
+                        "tip": null
+                    }
+                ]
             }
         ],
         "magazines": [
@@ -697,6 +1228,136 @@
                 "caliber": ["7.62x51mm NATO"],
                 "capacity": 10,
                 "magazinesystem": "AICS",
+                "can_stack": false
+            },
+            {
+                "name": "Steyr TMP 15-Round 9x19mm Parabellum magazine",
+                "value": 60,
+                "description": "Standard 15-round magazine for 9x19mm Parabellum chambered Steyr TMP submachine guns.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.25,
+                "id": 48,
+                "caliber": ["9x19mm Parabellum"],
+                "capacity": 15,
+                "magazinesystem": "TMP",
+                "can_stack": false
+            },
+            {
+                "name": "Steyr TMP 30-Round 9x19mm Parabellum magazine",
+                "value": 70,
+                "description": "Standard 30-round magazine for 9x19mm Parabellum chambered Steyr TMP submachine guns.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.3,
+                "id": 49,
+                "caliber": ["9x19mm Parabellum"],
+                "capacity": 30,
+                "magazinesystem": "TMP",
+                "can_stack": false
+            },
+            {
+                "name": "Glock 17 17-Round 9x19mm Parabellum magazine",
+                "value": 60,
+                "description": "Standard 17-round magazine for 9x19mm Parabellum chambered Glock pistols.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.25,
+                "id": 55,
+                "caliber": ["9x19mm Parabellum"],
+                "capacity": 17,
+                "magazinesystem": "Glock 9x19mm Parabellum",
+                "can_stack": false
+            },
+            {
+                "name": "Glock 33-Round 9x19mm Parabellum magazine",
+                "value": 70,
+                "description": "Extended 33-round magazine for 9x19mm Parabellum chambered Glock pistols.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 0.35,
+                "id": 56,
+                "caliber": ["9x19mm Parabellum"],
+                "capacity": 33,
+                "magazinesystem": "Glock 9x19mm Parabellum",
+                "can_stack": false
+            },
+            {
+                "name": "Glock 21 13-Round .45 ACP magazine",
+                "value": 65,
+                "description": "Standard 13-round magazine for .45 ACP chambered Glock 21 pistols.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.3,
+                "id": 57,
+                "caliber": [".45 ACP"],
+                "capacity": 13,
+                "magazinesystem": "Glock .45 ACP",
+                "can_stack": false
+            },
+            {
+                "name": "Glock 20 15-Round 10mm Auto magazine",
+                "value": 70,
+                "description": "Standard 15-round magazine for 10mm Auto chambered Glock 20 pistols.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.35,
+                "id": 58,
+                "caliber": ["10mm Auto"],
+                "capacity": 15,
+                "magazinesystem": "Glock 10mm Auto",
+                "can_stack": false
+            },
+            {
+                "name": "Colt USGI 25-Round polymer 6.5x45mm Colt STANAG magazine",
+                "value": 75,
+                "description": "Standard 25-round magazine for 6.5x45mm Colt chambered rifles.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.4,
+                "id": 68,
+                "caliber": ["6.5x45mm Colt"],
+                "capacity": 25,
+                "magazinesystem": "STANAG 8556",
+                "can_stack": false
+            },
+            {
+                "name": "Colt USGI 30-Round polymer 6.5x45mm Colt STANAG magazine",
+                "value": 80,
+                "description": "Extended 30-round magazine for 6.5x45mm Colt chambered rifles.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 0.45,
+                "id": 69,
+                "caliber": ["6.5x45mm Colt"],
+                "capacity": 30,
+                "magazinesystem": "STANAG 8556",
+                "can_stack": false
+            },
+            {
+                "name": "Colt USGI 50-Round polymer 5.7x28mm NATO STANAG magazine",
+                "value": 90,
+                "description": "Extended 50-round magazine for the M9L PDW.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 0.5,
+                "id": 70,
+                "caliber": ["5.7x28mm NATO"],
+                "capacity": 50,
+                "magazinesystem": "M9L",
+                "can_stack": false
+            },
+            {
+                "name": "Colt USGI 90-Round polymer 5.7x28mm NATO STANAG drum",
+                "value": 120,
+                "description": "High-capacity 90-round drum magazine for the M9L PDW.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 0.75,
+                "id": 71,
+                "caliber": ["5.7x28mm NATO"],
+                "capacity": 90,
+                "magazinesystem": "M9L",
                 "can_stack": false
             }
         ],
