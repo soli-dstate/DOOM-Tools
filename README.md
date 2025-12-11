@@ -8,6 +8,7 @@ Open source software was used in the making of this program, as follows;
 
 pygame (https://github.com/pygame/pygame)
 customtkinter (https://github.com/TomSchimansky/CustomTkinter)
+pyperclip (https://github.com/asweigart/pyperclip)
 
 Other miscellaneous files were derived from open sources, as follows;
 
