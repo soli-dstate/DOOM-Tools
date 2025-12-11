@@ -18,6 +18,13 @@ import locale
 import random
 import math
 import time
+import secrets
+try:
+    import pyperclip
+    PYPERCLIP_AVAILABLE = True
+except ImportError:
+    PYPERCLIP_AVAILABLE = False
+    logging.warning("pyperclip not installed - clipboard functionality disabled")
 
 pygame.init()
 
@@ -353,57 +360,78 @@ except Exception as e:
 
 # Validate table IDs are sequential
 def validate_table_ids():
-    """Check each .sldtbl file for sequential IDs across all subtables."""
+    """Validate IDs in table files.
+
+    - Ensures IDs within each table file are sequential (where applicable).
+    - Detects duplicate IDs across all tables/files and aborts startup if any are found.
+    """
     tables_dir = "tables"
     if not os.path.isdir(tables_dir):
         logging.warning(f"Tables directory '{tables_dir}' not found, skipping validation.")
         return
-    
+
     table_files = [f for f in os.listdir(tables_dir) if f.endswith(".sldtbl")]
-    
     if not table_files:
         logging.info("No table files found to validate.")
         return
-    
+
+    # Global map of id -> list of (table_file, subtable_name, item_name_or_index)
+    global_id_map = {}
+
     for table_file in sorted(table_files):
+        table_path = os.path.join(tables_dir, table_file)
         try:
-            table_path = os.path.join(tables_dir, table_file)
-            with open(table_path, 'r') as f:
+            with open(table_path, 'r', encoding='utf-8') as f:
                 table_data = json.load(f)
-            
+
             table_name = table_data.get("prettyname", table_file)
             tables = table_data.get("tables", {})
-            
-            # Extract ALL IDs from all subtables in this file
-            all_ids = []
+
+            # Collect IDs for per-file sequential check
+            file_ids = []
+
             for subtable_name, items in tables.items():
                 if not isinstance(items, list):
                     continue
-                for item in items:
+                for idx, item in enumerate(items):
                     if isinstance(item, dict) and "id" in item:
-                        all_ids.append(item["id"])
-            
-            if not all_ids:
+                        item_id = item["id"]
+                        file_ids.append(item_id)
+
+                        # Record in global map for duplicate detection
+                        entry = (table_file, subtable_name, item.get("name") or f"index_{idx}")
+                        global_id_map.setdefault(item_id, []).append(entry)
+
+            if not file_ids:
                 logging.info(f"Table '{table_name}': No items with IDs found.")
                 continue
-            
-            all_ids.sort()
-            min_id = all_ids[0]
-            max_id = all_ids[-1]
+
+            file_ids.sort()
+            min_id = file_ids[0]
+            max_id = file_ids[-1]
             next_id = max_id + 1
-            
-            # Check for sequential IDs across all subtables
+
             expected_ids = set(range(min_id, max_id + 1))
-            actual_ids = set(all_ids)
-            
+            actual_ids = set(file_ids)
             if expected_ids == actual_ids:
                 logging.info(f"Table '{table_name}': IDs valid (sequential from {min_id} to {max_id}). Next ID: {next_id}")
             else:
                 missing_ids = sorted(expected_ids - actual_ids)
                 logging.error(f"Table '{table_name}': ID sequence broken! Missing IDs: {missing_ids}. Last ID: {max_id}, Next ID: {next_id}")
-        
+
         except Exception as e:
             logging.error(f"Failed to validate table '{table_file}': {e}")
+
+    # After processing all files, check for duplicate IDs across files/subtables
+    duplicates = {i: locs for i, locs in global_id_map.items() if len(locs) > 1}
+    if duplicates:
+        for dup_id, locations in duplicates.items():
+            loc_str = "; ".join([f"{f}:{sub}:{name}" for f, sub, name in locations])
+            logging.error(f"Duplicate ID detected: {dup_id} used in: {loc_str}")
+
+        # Fail fast: IDs must be unique across all tables for program correctness
+        raise SystemExit("Duplicate table IDs detected; aborting startup. Fix your .sldtbl files.")
+
 
 validate_table_ids()
 
@@ -693,6 +721,7 @@ class App:
         # If no specific save requested, we're done
         if save_filename is None:
             return None
+    # (Normalization helper moved to class method below)
 
         # Build absolute path and ensure extension
         if os.path.isabs(save_filename):
@@ -722,10 +751,114 @@ class App:
             data = populate_equipment_with_subslots(data)
             # Update item keys from table (preserve variable keys)
             data = update_item_keys_from_table(data)
+            # Normalize legacy or malformed entries (strings used for rounds/items) into dicts
+            try:
+                data = self._normalize_save_data(data)
+            except Exception as e:
+                logging.warning(f"Failed to normalize save data: {e}")
             return data
         except Exception as e:
             logging.error(f"Failed to load data from '{save_path}': {e}")
             return None
+    def _normalize_save_data(self, data):
+        """Normalize legacy save entries so code can assume item/round objects are dicts.
+
+        Converts string rounds/chambered entries into dicts and wraps string items
+        found in containers into simple dicts with a `name` key.
+        """
+        def normalize_round(r):
+            if isinstance(r, dict):
+                return r
+            if isinstance(r, str):
+                parts = r.split(" | ", 1)
+                if len(parts) == 2:
+                    caliber, variant = parts
+                    return {"name": r, "caliber": caliber, "variant": variant}
+                return {"name": r}
+            return {"name": str(r)}
+
+        def normalize_mag(mag):
+            if not isinstance(mag, dict):
+                return {"name": str(mag), "rounds": []}
+            if "rounds" in mag and isinstance(mag["rounds"], list):
+                mag["rounds"] = [normalize_round(rr) for rr in mag["rounds"]]
+            return mag
+
+        # Normalize weapons in equipment
+        for slot_name, item in (data.get("equipment") or {}).items():
+            if not isinstance(item, dict):
+                continue
+            # loaded magazine
+            if item.get("loaded"):
+                item["loaded"] = normalize_mag(item["loaded"])
+            # internal rounds
+            if item.get("rounds") and isinstance(item.get("rounds"), list):
+                item["rounds"] = [normalize_round(rr) for rr in item.get("rounds", [])]
+            # chambered
+            if item.get("chambered") and isinstance(item.get("chambered"), str):
+                item["chambered"] = normalize_round(item.get("chambered"))
+            # subslots
+            if "subslots" in item and isinstance(item["subslots"], list):
+                for sub in item["subslots"]:
+                    curr = sub.get("current")
+                    if isinstance(curr, dict):
+                        if curr.get("loaded"):
+                            curr["loaded"] = normalize_mag(curr["loaded"])
+                        if curr.get("rounds") and isinstance(curr.get("rounds"), list):
+                            curr["rounds"] = [normalize_round(rr) for rr in curr.get("rounds", [])]
+                        if curr.get("chambered") and isinstance(curr.get("chambered"), str):
+                            curr["chambered"] = normalize_round(curr.get("chambered"))
+
+        # Normalize hands container
+        hands = data.get("hands") or {}
+        if isinstance(hands, dict) and isinstance(hands.get("items"), list):
+            new_items = []
+            for it in hands.get("items", []):
+                if isinstance(it, dict):
+                    if it.get("rounds") and isinstance(it.get("rounds"), list):
+                        it["rounds"] = [normalize_round(rr) for rr in it.get("rounds", [])]
+                    new_items.append(it)
+                elif isinstance(it, str):
+                    new_items.append({"name": it})
+                else:
+                    new_items.append({"name": str(it)})
+            hands["items"] = new_items
+
+        # Normalize equipment containers' item lists
+        for slot_name, item in (data.get("equipment") or {}).items():
+            if not isinstance(item, dict):
+                continue
+            if "items" in item and isinstance(item["items"], list):
+                new_items = []
+                for it in item["items"]:
+                    if isinstance(it, dict):
+                        if it.get("rounds") and isinstance(it.get("rounds"), list):
+                            it["rounds"] = [normalize_round(rr) for rr in it.get("rounds", [])]
+                        new_items.append(it)
+                    elif isinstance(it, str):
+                        new_items.append({"name": it})
+                    else:
+                        new_items.append({"name": str(it)})
+                item["items"] = new_items
+
+        # Normalize storage containers if present
+        storage = data.get("storage") or {}
+        if isinstance(storage, dict):
+            for k, v in storage.items():
+                if isinstance(v, list):
+                    new_items = []
+                    for it in v:
+                        if isinstance(it, dict):
+                            if it.get("rounds") and isinstance(it.get("rounds"), list):
+                                it["rounds"] = [normalize_round(rr) for rr in it.get("rounds", [])]
+                            new_items.append(it)
+                        elif isinstance(it, str):
+                            new_items.append({"name": it})
+                        else:
+                            new_items.append({"name": str(it)})
+                    storage[k] = new_items
+
+        return data
     def __init__(self):
         customtkinter.set_appearance_mode(appearance_settings["appearance_mode"])
         
@@ -750,6 +883,9 @@ class App:
         if appearance_settings["borderless"]:
             self.root.overrideredirect(True)
         self.root.attributes('-fullscreen', appearance_settings["fullscreen"])
+        # Sound cache to reduce repeated disk I/O for frequently played sounds
+        self._sound_cache = {}
+
         self._load_file(None)
         if persistentdata.get("last_loaded_save"):
             last_save_uuid = persistentdata["last_loaded_save"]
@@ -799,43 +935,193 @@ class App:
                 self._play_ui_sound("hover")
         button.bind("<Enter>", on_hover)
         return button
-    def _safe_sound_play(self, directory, sound_filename):
-        """Play a sound safely. Accepts either a bare name (without extension) or a full path."""
+    def _safe_sound_play(self, directory, sound_filename, block=False):
+        """Play a sound safely. Accepts either a bare name (without extension) or a full path.
+
+        If `block` is True, the function will sleep for the sound's duration
+        to ensure sequential playback.
+        """
         # If a full path with extension is passed, use it directly
         if os.path.isabs(sound_filename) or sound_filename.endswith((".wav", ".ogg")):
             sound_path = sound_filename
         else:
             sound_path = os.path.join("sounds", directory, sound_filename + ".ogg")
 
+        # Debug: log resolved path and existence to help diagnose missing/overridden sounds
+        try:
+            exists = os.path.exists(sound_path)
+        except Exception:
+            exists = False
+        logging.debug(f"_safe_sound_play: resolved '{sound_filename}' -> '{sound_path}', exists={exists}, block={block}")
+
         if os.path.exists(sound_path):
             try:
-                sound = pygame.mixer.Sound(sound_path)
-                sound.play()
-                logging.debug(f"Played sound file: {sound_path}")
+                # Use a cache of pygame Sound objects to avoid repeated disk I/O
+                if not hasattr(self, "_sound_cache"):
+                    self._sound_cache = {}
+                cache = self._sound_cache
+                sound = cache.get(sound_path)
+                if sound is None:
+                    try:
+                        sound = pygame.mixer.Sound(sound_path)
+                    except Exception as e:
+                        logging.warning(f"Failed to load sound '{sound_path}': {e}")
+                        return
+                    cache[sound_path] = sound
+
+                # Ensure volume is reasonable
+                try:
+                    sound.set_volume(1.0)
+                except Exception:
+                    pass
+
+                # Try to play and ensure we get a channel; retry with find_channel if needed
+                try:
+                    ch = sound.play()
+                    if ch is None:
+                        # No free channel returned; force-allocate one
+                        ch = pygame.mixer.find_channel(True)
+                        if ch:
+                            ch.play(sound)
+                            logging.debug(f"Played sound (forced channel) file: {sound_path}")
+                        else:
+                            logging.warning(f"No channel available to play sound: {sound_path}")
+                    else:
+                        logging.debug(f"Played sound file: {sound_path}")
+
+                    # If requested, block until sound finishes (use get_length as fallback)
+                    if block:
+                        try:
+                            length = sound.get_length()
+                        except Exception:
+                            length = None
+                        if length and length > 0:
+                            time.sleep(length)
+                        else:
+                            # As a fallback, poll channel if available
+                            try:
+                                if ch:
+                                    while ch.get_busy():
+                                        time.sleep(0.01)
+                            except Exception:
+                                pass
+                except Exception as e:
+                    logging.warning(f"Failed to play sound '{sound_path}': {e}")
             except Exception as e:
                 logging.warning(f"Failed to play sound '{sound_path}': {e}")
     def _popup_show_info(self, title, message, sound="popup"):
         self._play_ui_sound(sound)
-        popup = customtkinter.CTkToplevel(self.root)
+        # Apply theme colors from ThemeManager so popup matches global appearance
+        try:
+            theme = customtkinter.ThemeManager.theme
+            toplevel_fg = theme.get("CTkToplevel", {}).get("fg_color")
+            label_text_color = theme.get("CTkLabel", {}).get("text_color")
+            button_fg = theme.get("CTkButton", {}).get("fg_color")
+            button_text = theme.get("CTkButton", {}).get("text_color")
+        except Exception:
+            toplevel_fg = None
+            label_text_color = None
+            button_fg = None
+            button_text = None
+
+        if toplevel_fg:
+            popup = customtkinter.CTkToplevel(self.root, fg_color=toplevel_fg)
+        else:
+            popup = customtkinter.CTkToplevel(self.root)
         popup.title(title)
         popup.geometry("450x200")
         popup.transient(self.root)
         
-        label = customtkinter.CTkLabel(popup, text=message, wraplength=400, font=customtkinter.CTkFont(size=13))
+        label_kwargs = {"text": message, "wraplength": 400, "font": customtkinter.CTkFont(size=13)}
+        if label_text_color:
+            label_kwargs["text_color"] = label_text_color
+        label = customtkinter.CTkLabel(popup, **label_kwargs)
         label.pack(pady=30, padx=20)
         
         def close_popup():
             self._play_ui_sound("click")
             popup.destroy()
         
-        ok_button = customtkinter.CTkButton(popup, text="OK", command=close_popup, width=120, height=35)
+        btn_kwargs = {"text": "OK", "command": close_popup, "width": 120, "height": 35}
+        if button_fg:
+            btn_kwargs["fg_color"] = button_fg
+        if button_text:
+            btn_kwargs["text_color"] = button_text
+        ok_button = customtkinter.CTkButton(popup, **btn_kwargs)
         ok_button.pack(pady=10)
         
         popup.update_idletasks()
+        # Center popup on screen
+        popup_width = popup.winfo_reqwidth()
+        popup_height = popup.winfo_reqheight()
+        screen_width = popup.winfo_screenwidth()
+        screen_height = popup.winfo_screenheight()
+        x = (screen_width // 2) - (popup_width // 2)
+        y = (screen_height // 2) - (popup_height // 2)
+        popup.geometry(f"+{x}+{y}")
         popup.deiconify()
         popup.grab_set()
         popup.lift()
         popup.focus()
+
+    def _popup_progress(self, title, message):
+        """Create a non-modal progress popup and return update/close helpers.
+
+        Returns a dict with 'update' and 'close' callables.
+        """
+        self._play_ui_sound("popup")
+        try:
+            theme = customtkinter.ThemeManager.theme
+            toplevel_fg = theme.get("CTkToplevel", {}).get("fg_color")
+            label_text_color = theme.get("CTkLabel", {}).get("text_color")
+        except Exception:
+            toplevel_fg = None
+            label_text_color = None
+
+        if toplevel_fg:
+            popup = customtkinter.CTkToplevel(self.root, fg_color=toplevel_fg)
+        else:
+            popup = customtkinter.CTkToplevel(self.root)
+        popup.title(title)
+        popup.geometry("450x120")
+        popup.transient(self.root)
+
+        label_kwargs = {"text": message, "wraplength": 400, "font": customtkinter.CTkFont(size=13)}
+        if label_text_color:
+            label_kwargs["text_color"] = label_text_color
+        label = customtkinter.CTkLabel(popup, **label_kwargs)
+        label.pack(pady=20, padx=20)
+
+        def update(text):
+            try:
+                label.configure(text=text)
+                popup.update_idletasks()
+            except Exception:
+                pass
+
+        def close():
+            try:
+                self._play_ui_sound("click")
+            except Exception:
+                pass
+            try:
+                popup.destroy()
+            except Exception:
+                pass
+
+        # Center popup but do not grab focus so it can be updated
+        popup.update_idletasks()
+        popup_width = popup.winfo_reqwidth()
+        popup_height = popup.winfo_reqheight()
+        screen_width = popup.winfo_screenwidth()
+        screen_height = popup.winfo_screenheight()
+        x = (screen_width // 2) - (popup_width // 2)
+        y = (screen_height // 2) - (popup_height // 2)
+        popup.geometry(f"+{x}+{y}")
+        popup.deiconify()
+        popup.lift()
+
+        return {"update": update, "close": close, "popup": popup}
     
     def _popup_confirm(self, title, message, on_confirm):
         self._play_ui_sound("popup")
@@ -865,6 +1151,14 @@ class App:
         no_button.pack(side="left", padx=10)
         
         popup.update_idletasks()
+        # Center popup on screen
+        popup_width = popup.winfo_reqwidth()
+        popup_height = popup.winfo_reqheight()
+        screen_width = popup.winfo_screenwidth()
+        screen_height = popup.winfo_screenheight()
+        x = (screen_width // 2) - (popup_width // 2)
+        y = (screen_height // 2) - (popup_height // 2)
+        popup.geometry(f"+{x}+{y}")
         popup.deiconify()
         popup.grab_set()
         popup.lift()
@@ -1579,28 +1873,19 @@ class App:
             logging.warning(f"Failed to load table settings, using default clamp: {e}")
         self.root.grid_rowconfigure(0, weight=1)
         self.root.grid_columnconfigure(0, weight=1)
-        main_container = customtkinter.CTkFrame(self.root)
-        main_container.grid(row=0, column=0, sticky="nsew", padx=20, pady=20)
-        main_container.grid_rowconfigure(0, weight=1)
-        main_container.grid_columnconfigure(0, weight=1)
-        canvas_bg = customtkinter.ThemeManager.theme["CTkFrame"]["fg_color"][1]
-        canvas = customtkinter.CTkCanvas(main_container, bg=canvas_bg, highlightthickness=0)
-        canvas.grid(row=0, column=0, sticky="nsew")
-        frame = customtkinter.CTkFrame(canvas, width=650)
-        def center_window(event=None):
-            canvas_width = canvas.winfo_width()
-            canvas_height = canvas.winfo_height()
-            canvas.create_window(canvas_width/2, canvas_height/2, window=frame, anchor="center")
-        canvas.bind("<Configure>", center_window)
-        main_container.update_idletasks()
-        frame.grid_columnconfigure(0, weight=1)
-        title = customtkinter.CTkLabel(frame, text="Create New Character", font=customtkinter.CTkFont(size=24, weight="bold"))
+        
+        # Create scrollable frame for character creation
+        scrollable_frame = customtkinter.CTkScrollableFrame(self.root, width=650, height=700)
+        scrollable_frame.grid(row=0, column=0, sticky="nsew", padx=20, pady=20)
+        scrollable_frame.grid_columnconfigure(0, weight=1)
+        
+        title = customtkinter.CTkLabel(scrollable_frame, text="Create New Character", font=customtkinter.CTkFont(size=24, weight="bold"))
         title.grid(row=0, column=0, pady=(0, 20))
-        name_label = customtkinter.CTkLabel(frame, text="Character Name:", font=customtkinter.CTkFont(size=14))
+        name_label = customtkinter.CTkLabel(scrollable_frame, text="Character Name:", font=customtkinter.CTkFont(size=14))
         name_label.grid(row=1, column=0, sticky="w", pady=5)
-        name_entry = customtkinter.CTkEntry(frame, placeholder_text="Enter character name")
+        name_entry = customtkinter.CTkEntry(scrollable_frame, placeholder_text="Enter character name")
         name_entry.grid(row=2, column=0, sticky="ew", pady=(0, 15), padx=10)
-        stats_frame = customtkinter.CTkFrame(frame)
+        stats_frame = customtkinter.CTkFrame(scrollable_frame)
         stats_frame.grid(row=3, column=0, sticky="ew", pady=10, padx=10)
         stats_frame.grid_columnconfigure((1, 2, 3), weight=1)
         stats_label = customtkinter.CTkLabel(stats_frame, text="Initial Stats (Sum must be ≤ 0)", font=customtkinter.CTkFont(size=14, weight="bold"))
@@ -1638,7 +1923,7 @@ class App:
             range_label.grid(row=i+1, column=3, sticky="w", padx=(10, 0), pady=8)
         
         # Equipment Slots Section
-        equipment_frame = customtkinter.CTkFrame(frame)
+        equipment_frame = customtkinter.CTkFrame(scrollable_frame)
         equipment_frame.grid(row=4, column=0, sticky="ew", pady=10, padx=10)
         equipment_frame.grid_columnconfigure((0, 1, 2), weight=1)
         
@@ -1661,7 +1946,7 @@ class App:
             checkbox.grid(row=row, column=col, sticky="w", padx=10, pady=5)
             slot_checkboxes[slot] = checkbox
         
-        sum_frame = customtkinter.CTkFrame(frame)
+        sum_frame = customtkinter.CTkFrame(scrollable_frame)
         sum_frame.grid(row=5, column=0, sticky="ew", pady=15, padx=10)
         sum_frame.grid_columnconfigure(1, weight=1)
         sum_label = customtkinter.CTkLabel(sum_frame, text="Total Points:", font=customtkinter.CTkFont(size=12, weight="bold"))
@@ -1693,7 +1978,7 @@ class App:
         for slot in equipment_slots:
             slot_checkboxes[slot].configure(command=update_sum)
         
-        button_frame = customtkinter.CTkFrame(frame, fg_color="transparent")
+        button_frame = customtkinter.CTkFrame(scrollable_frame, fg_color="transparent")
         button_frame.grid(row=6, column=0, sticky="ew", pady=(20, 0), padx=10)
         button_frame.grid_columnconfigure((0, 1), weight=1)
         
@@ -2281,7 +2566,32 @@ class App:
         # Add tabs
         tabview.add("View Inventory")
         tabview.add("Transfer Items")
-        # CTkTabview doesn't support tkinter-style bind; use the command callback instead
+        
+        # === VIEW INVENTORY TAB ===
+        view_tab = tabview.tab("View Inventory")
+        view_tab.grid_rowconfigure(1, weight=1)
+        view_tab.grid_columnconfigure(0, weight=1)
+        
+        # Encumbrance info frame
+        enc_info_frame = customtkinter.CTkFrame(view_tab, fg_color=("gray90", "gray20"))
+        enc_info_frame.grid(row=0, column=0, sticky="ew", padx=10, pady=10)
+        enc_info_frame.grid_columnconfigure(0, weight=1)
+        
+        enc_info_label = customtkinter.CTkLabel(enc_info_frame, font=customtkinter.CTkFont(size=12), anchor="w")
+        enc_info_label.grid(row=0, column=0, sticky="ew", padx=15, pady=10)
+
+        def refresh_enc_info():
+            encumbrance_info = self._calculate_encumbrance_status(save_data)
+            enc_info_label.configure(
+                text=(
+                    f"Total Weight: {self._format_weight(encumbrance_info['total_weight'])} | "
+                    f"Encumbrance: {self._format_weight(encumbrance_info['encumbrance'])} / {self._format_weight(encumbrance_info['threshold'])} | "
+                    f"Encumbrance level: {encumbrance_info['encumbrance_level']} | "
+                    f"Status: {'ENCUMBERED' if encumbrance_info['is_encumbered'] else 'OK'}"
+                )
+            )
+        
+        # Configure tabview callback now that refresh_enc_info is defined
         tabview.configure(command=lambda value=None: refresh_enc_info())
         
         # Build list of all containers
@@ -2364,7 +2674,7 @@ class App:
         def get_container_weight(location):
             """Total weight of all items in the container (kg)."""
             items = get_container_items(location)
-            return sum(i.get("weight", 0) * i.get("quantity", 1) for i in items)
+            return sum(i.get("weight", 0) * i.get("quantity", 1) for i in items if isinstance(i, dict))
 
         def get_container_capacity(location):
             """Return capacity (kg) for the given container location, or None if unlimited."""
@@ -2421,31 +2731,13 @@ class App:
 
         labels = rebuild_container_labels()
         
+        # Initial call to refresh encumbrance info
+        refresh_enc_info()
+        
         # === VIEW INVENTORY TAB ===
         view_tab = tabview.tab("View Inventory")
         view_tab.grid_rowconfigure(1, weight=1)
         view_tab.grid_columnconfigure(0, weight=1)
-        
-        # Encumbrance info frame
-        enc_info_frame = customtkinter.CTkFrame(view_tab, fg_color=("gray90", "gray20"))
-        enc_info_frame.grid(row=0, column=0, sticky="ew", padx=10, pady=10)
-        enc_info_frame.grid_columnconfigure(0, weight=1)
-        
-        enc_info_label = customtkinter.CTkLabel(enc_info_frame, font=customtkinter.CTkFont(size=12), anchor="w")
-        enc_info_label.grid(row=0, column=0, sticky="ew", padx=15, pady=10)
-
-        def refresh_enc_info():
-            encumbrance_info = self._calculate_encumbrance_status(save_data)
-            enc_info_label.configure(
-                text=(
-                    f"Total Weight: {self._format_weight(encumbrance_info['total_weight'])} | "
-                    f"Encumbrance: {self._format_weight(encumbrance_info['encumbrance'])} / {self._format_weight(encumbrance_info['threshold'])} | "
-                    f"Encumbrance level: {encumbrance_info['encumbrance_level']} | "
-                    f"Status: {'ENCUMBERED' if encumbrance_info['is_encumbered'] else 'OK'}"
-                )
-            )
-
-        refresh_enc_info()
         
         view_frame = customtkinter.CTkFrame(view_tab)
         view_frame.grid(row=1, column=0, sticky="nsew", padx=10, pady=10)
@@ -2665,6 +2957,9 @@ class App:
             
             # Display source items
             for i, item in enumerate(source_items):
+                if not isinstance(item, dict):
+                    continue
+                    
                 item_frame = customtkinter.CTkFrame(source_scroll)
                 item_frame.pack(fill="x", pady=2)
                 
@@ -2693,15 +2988,24 @@ class App:
             
             # Display destination items
             for item in dest_items:
+                if not isinstance(item, dict):
+                    continue
+                    
                 item_frame = customtkinter.CTkFrame(dest_scroll)
                 item_frame.pack(fill="x", pady=2)
-                
-                item_name = item.get("name", "Unknown")
-                item_weight = item.get("weight", 0) * item.get("quantity", 1)
-                
+
+                # Some legacy or malformed saves may have strings or non-dict entries
+                if not isinstance(item, dict):
+                    item_obj = {"name": str(item), "weight": 0, "quantity": 1}
+                else:
+                    item_obj = item
+
+                item_name = item_obj.get("name", "Unknown")
+                item_weight = item_obj.get("weight", 0) * item_obj.get("quantity", 1)
+
                 item_label = customtkinter.CTkLabel(
                     item_frame,
-                    text=f"{item_name} x{item.get('quantity', 1)} ({self._format_weight(item_weight)})",
+                    text=f"{item_name} x{item_obj.get('quantity', 1)} ({self._format_weight(item_weight)})",
                     anchor="w"
                 )
                 item_label.pack(side="left", padx=10, pady=5)
@@ -2719,6 +3023,9 @@ class App:
                     return
                 
                 item = source_items[item_idx]
+                # Defensive fallback for malformed entries saved as strings
+                if not isinstance(item, dict):
+                    item = {"name": str(item), "weight": 0, "quantity": 1}
                 item_weight = item.get("weight", 0) * item.get("quantity", 1)
                 
                 # Check capacity of destination (supports subslot containers)
@@ -3097,7 +3404,47 @@ class App:
 
                     self._save_file(save_data)
                     refresh_display()
-                    self._play_ui_sound("success")
+                    # Play appropriate equip sound for holster vs sling/waistband
+                    try:
+                        played = False
+                        # Waistband explicitly maps to sling sound
+                        if choice.get("slot") == "waistband":
+                            logging.debug("Playing slingequip for waistband equip: sounds/firearms/universal/slingequip.ogg")
+                            # Equip sounds should not block the program
+                            self._safe_sound_play("", "sounds/firearms/universal/slingequip.ogg", block=False)
+                            played = True
+                        elif choice.get("parent_slot"):
+                            parent = save_data.get("equipment", {}).get(choice.get("parent_slot"))
+                            if parent and isinstance(parent, dict):
+                                pname = parent.get("name", "").lower()
+                                ptypes = [pt.lower() for pt in parent.get("weapon_types", []) if isinstance(pt, str)]
+                                # Heuristic: pistols/holsters -> holster sound; otherwise sling
+                                if "pistol" in ptypes or "holster" in pname:
+                                    logging.debug("Playing holsterequip for holster equip: sounds/firearms/universal/holsterequip.ogg")
+                                    # Equip sounds should not block the program
+                                    self._safe_sound_play("", "sounds/firearms/universal/holsterequip.ogg", block=False)
+                                    played = True
+                                else:
+                                    logging.debug("Playing slingequip for sling equip: sounds/firearms/universal/slingequip.ogg")
+                                    self._safe_sound_play("", "sounds/firearms/universal/slingequip.ogg", block=False)
+                                    played = True
+                        if not played:
+                            # Default to generic success UI sound
+                            self._play_ui_sound("success")
+                    except Exception:
+                        try:
+                            self._play_ui_sound("success")
+                        except Exception:
+                            pass
+
+                    # Also trigger the per-item equip sound (if any). This ensures
+                    # container-based sounds (sling/holster) and the item's
+                    # custom equip sound both play when equipping.
+                    try:
+                        logging.debug("apply_choice: about to play per-item equip sound for %s", removed_item.get("name"))
+                        self._play_firearm_sound(removed_item, "equip")
+                    except Exception:
+                        logging.exception("Failed to play per-item equip sound")
 
                 # If only one option, auto-equip
                 if len(choices) == 1:
@@ -3118,6 +3465,43 @@ class App:
 
                 choice_menu = customtkinter.CTkOptionMenu(popup, values=choice_labels, variable=selection)
                 choice_menu.pack(pady=10, padx=20, fill="x")
+
+                # Play container equip sound when the user changes the selection in the UI
+                def _on_equip_selection_change(*a):
+                    try:
+                        label = selection.get()
+                        chosen = next((c for c in choices if c["label"] == label), None)
+                        if not chosen:
+                            return
+                        # Only play the container sound as feedback for selection
+                        if chosen.get("slot") == "waistband":
+                            self._safe_sound_play("", "sounds/firearms/universal/slingequip.ogg")
+                        elif chosen.get("parent_slot"):
+                            parent = save_data.get("equipment", {}).get(chosen.get("parent_slot"))
+                            if parent and isinstance(parent, dict):
+                                pname = parent.get("name", "").lower()
+                                ptypes = [pt.lower() for pt in parent.get("weapon_types", []) if isinstance(pt, str)]
+                                if "pistol" in ptypes or "holster" in pname:
+                                    self._safe_sound_play("", "sounds/firearms/universal/holsterequip.ogg")
+                                else:
+                                    self._safe_sound_play("", "sounds/firearms/universal/slingequip.ogg")
+                        else:
+                            # Generic UI feedback when no specific container
+                            try:
+                                self._play_ui_sound("hover")
+                            except Exception:
+                                pass
+                    except Exception:
+                        pass
+
+                try:
+                    # Prefer modern trace_add if available
+                    selection.trace_add("write", _on_equip_selection_change)
+                except Exception:
+                    try:
+                        selection.trace("w", lambda *a: _on_equip_selection_change())
+                    except Exception:
+                        pass
 
                 button_frame = customtkinter.CTkFrame(popup, fg_color="transparent")
                 button_frame.pack(pady=15)
@@ -3152,6 +3536,31 @@ class App:
                     return
                 
                 # Move to storage
+                # Determine whether this was a holster/sling weapon removal or equipment removal
+                # If this slot is a waistband, treat as sling unequip
+                played = False
+                try:
+                    if slot == "waistband":
+                        logging.debug("Playing slingunequip for waistband unequip: sounds/firearms/universal/slingunequip.ogg")
+                        # Unequip should block program flow until finished
+                        self._safe_sound_play("", "sounds/firearms/universal/slingunequip.ogg", block=True)
+                        played = True
+                    else:
+                        parent = save_data.get("equipment", {}).get(slot)
+                        if parent and isinstance(parent, dict):
+                            pname = parent.get("name", "").lower()
+                            ptypes = [pt.lower() for pt in parent.get("weapon_types", []) if isinstance(pt, str)]
+                            if "pistol" in ptypes or "holster" in pname:
+                                logging.debug("Playing holsterunequip: sounds/firearms/universal/holsterunequip.ogg")
+                                self._safe_sound_play("", "sounds/firearms/universal/holsterunequip.ogg", block=True)
+                                played = True
+                            elif parent.get("holster_sling"):
+                                logging.debug("Playing slingunequip: sounds/firearms/universal/slingunequip.ogg")
+                                self._safe_sound_play("", "sounds/firearms/universal/slingunequip.ogg", block=True)
+                                played = True
+                except Exception:
+                    played = False
+
                 save_data["storage"].append(item)
                 save_data["equipment"][slot] = None
 
@@ -3159,7 +3568,8 @@ class App:
                 self._save_file(save_data)
                 
                 refresh_display()
-                self._play_ui_sound("success")
+                if not played:
+                    self._play_ui_sound("success")
             except Exception as e:
                 logging.error(f"Unequip failed: {e}")
                 self._popup_show_info("Error", f"Unequip failed: {e}", sound="error")
@@ -3169,16 +3579,35 @@ class App:
                 current_item = subslot_data.get("current")
                 if not current_item:
                     return
-                
+                # Determine whether this was a holster or sling and play appropriate unequip sound
+                played = False
+                try:
+                    parent = save_data.get("equipment", {}).get(parent_slot)
+                    if parent and isinstance(parent, dict):
+                        pname = parent.get("name", "").lower()
+                        ptypes = [pt.lower() for pt in parent.get("weapon_types", []) if isinstance(pt, str)]
+                        if parent_slot == "waistband" or (parent.get("holster_sling") and any(pt in ("rifle","smg","shotgun","mg") for pt in ptypes)):
+                            # Unequip should block program flow until finished
+                            self._safe_sound_play("", "sounds/firearms/universal/slingunequip.ogg", block=True)
+                            played = True
+                        else:
+                            # Default to holster unequip if it looks like a pistol holster
+                            if "pistol" in ptypes or "holster" in pname:
+                                self._safe_sound_play("", "sounds/firearms/universal/holsterunequip.ogg", block=True)
+                                played = True
+                except Exception:
+                    played = False
+
                 # Move to storage
                 save_data["storage"].append(current_item)
                 subslot_data["current"] = None
 
                 # Save using _save_file
                 self._save_file(save_data)
-                
+
                 refresh_display()
-                self._play_ui_sound("success")
+                if not played:
+                    self._play_ui_sound("success")
             except Exception as e:
                 logging.error(f"Unequip from subslot failed: {e}")
                 self._popup_show_info("Error", f"Unequip failed: {e}", sound="error")
@@ -3313,7 +3742,8 @@ class App:
                 "current_weapon_index": 0,  # Index into available weapons list
                 "barrel_temperatures": {},  # weapon_id: temperature
                 "barrel_cleanliness": {},  # weapon_id: cleanliness (0-100)
-                "ambient_temperature": 70  # Fahrenheit
+                "ambient_temperature": 70,  # Fahrenheit
+                "weapon_last_used": {}  # weapon_id: timestamp of last use
             }
         
         combat_state = save_data["combat_state"]
@@ -3329,23 +3759,38 @@ class App:
         if combat_state["current_weapon_index"] >= len(equipped_weapons):
             combat_state["current_weapon_index"] = 0
 
-        # Passive barrel cooldown based on elapsed time since last update
+        # Passive barrel cooldown using Newton's Law of Cooling
+        # dT/dt = -k(T - T_ambient)
+        # T(t) = T_ambient + (T_0 - T_ambient) * e^(-kt)
+        # where k is the cooling constant (0.01 for steel rifle barrel ~10 min half-life)
         now_ts = time.time()
-        last_ts = combat_state.get("last_temp_update", now_ts)
-        elapsed = max(0.0, now_ts - last_ts)
         ambient = combat_state.get("ambient_temperature", 70)
-        if elapsed > 0:
-            cooldown_rate = 12.0  # degrees F per second toward ambient
-            for wpn in equipped_weapons:
-                weapon_id = str(wpn["item"].get("id"))
-                temp_map = combat_state.setdefault("barrel_temperatures", {})
-                current_temp = temp_map.get(weapon_id, ambient)
-                # cool toward ambient
-                delta = cooldown_rate * elapsed
-                if current_temp > ambient:
-                    current_temp = max(ambient, current_temp - delta)
-                temp_map[weapon_id] = current_temp
-        combat_state["last_temp_update"] = now_ts
+        
+        for wpn in equipped_weapons:
+            weapon_id = str(wpn["item"].get("id"))
+            temp_map = combat_state.setdefault("barrel_temperatures", {})
+            last_used_map = combat_state.setdefault("weapon_last_used", {})
+            
+            current_temp = temp_map.get(weapon_id, ambient)
+            last_used = last_used_map.get(weapon_id, now_ts)
+            
+            # Calculate elapsed time since last use
+            elapsed = max(0.0, now_ts - last_used)
+            
+            if elapsed > 0 and current_temp > ambient:
+                # Newton's law of cooling: k ≈ 0.01 for slow cooling (10-min half-life)
+                k = 0.01
+                new_temp = ambient + (current_temp - ambient) * (2.71828 ** (-k * elapsed))
+                # Don't go below ambient
+                new_temp = max(ambient, new_temp)
+                temp_map[weapon_id] = new_temp
+                logging.debug(
+                    "Weapon %s cooling: was %.1f°F, now %.1f°F after %.1f seconds",
+                    weapon_id,
+                    current_temp,
+                    new_temp,
+                    elapsed
+                )
 
         logging.info(
             "Combat UI init: %s weapons, current index=%s (%s)",
@@ -3403,7 +3848,71 @@ class App:
                 combat_state["current_weapon_index"],
                 len(equipped_weapons)
             )
+            # Play unequip sound for the currently equipped weapon before changing
+            try:
+                cur_idx = combat_state.get("current_weapon_index", 0)
+                if 0 <= cur_idx < len(equipped_weapons):
+                    cur_entry = equipped_weapons[cur_idx]
+                    cur_slot = cur_entry.get("slot", "")
+                    # Determine parent slot for subslots
+                    parent_slot = None
+                    if cur_slot == "Hands":
+                        parent_slot = None
+                    elif "->" in cur_slot:
+                        parent_slot = cur_slot.split("->")[0].strip()
+                    else:
+                        parent_slot = cur_slot
+
+                    if parent_slot == "waistband":
+                        self._safe_sound_play("", "sounds/firearms/universal/slingunequip.ogg", block=True)
+                    elif parent_slot:
+                        parent = save_data.get("equipment", {}).get(parent_slot)
+                        if parent and isinstance(parent, dict):
+                            pname = parent.get("name", "").lower()
+                            ptypes = [pt.lower() for pt in parent.get("weapon_types", []) if isinstance(pt, str)]
+                            if "pistol" in ptypes or "holster" in pname:
+                                self._safe_sound_play("", "sounds/firearms/universal/holsterunequip.ogg", block=True)
+                            else:
+                                self._safe_sound_play("", "sounds/firearms/universal/slingunequip.ogg", block=True)
+            except Exception:
+                pass
+
             combat_state["current_weapon_index"] = (combat_state["current_weapon_index"] - 1) % len(equipped_weapons)
+            # Play container (sling/holster) sound then per-item equip sound for the newly selected weapon
+            try:
+                new_idx = combat_state["current_weapon_index"]
+                new_entry = equipped_weapons[new_idx]
+                new_weapon = new_entry["item"]
+                slot_info = new_entry.get("slot", "")
+                try:
+                    # Determine parent slot (handle subslot format "parent -> subslot")
+                    parent_slot = None
+                    if slot_info == "Hands":
+                        parent_slot = None
+                    elif "->" in slot_info:
+                        parent_slot = slot_info.split("->")[0].strip()
+                    else:
+                        parent_slot = slot_info
+
+                    if parent_slot == "waistband":
+                        # Equip sounds should not block program execution
+                        self._safe_sound_play("", "sounds/firearms/universal/slingequip.ogg", block=False)
+                    elif parent_slot:
+                        parent = save_data.get("equipment", {}).get(parent_slot)
+                        if parent and isinstance(parent, dict):
+                            pname = parent.get("name", "").lower()
+                            ptypes = [pt.lower() for pt in parent.get("weapon_types", []) if isinstance(pt, str)]
+                            if "pistol" in ptypes or "holster" in pname:
+                                self._safe_sound_play("", "sounds/firearms/universal/holsterequip.ogg", block=False)
+                            else:
+                                self._safe_sound_play("", "sounds/firearms/universal/slingequip.ogg", block=False)
+                except Exception:
+                    pass
+
+                # Now play the per-item equip sound (this will play custom equip if present)
+                self._play_firearm_sound(new_weapon, "equip")
+            except Exception:
+                pass
             refresh_weapon_display()
         
         def select_next():
@@ -3412,7 +3921,68 @@ class App:
                 combat_state["current_weapon_index"],
                 len(equipped_weapons)
             )
+            # Play unequip sound for the currently equipped weapon before changing
+            try:
+                cur_idx = combat_state.get("current_weapon_index", 0)
+                if 0 <= cur_idx < len(equipped_weapons):
+                    cur_entry = equipped_weapons[cur_idx]
+                    cur_slot = cur_entry.get("slot", "")
+                    parent_slot = None
+                    if cur_slot == "Hands":
+                        parent_slot = None
+                    elif "->" in cur_slot:
+                        parent_slot = cur_slot.split("->")[0].strip()
+                    else:
+                        parent_slot = cur_slot
+
+                    if parent_slot == "waistband":
+                        self._safe_sound_play("", "sounds/firearms/universal/slingunequip.ogg", block=True)
+                    elif parent_slot:
+                        parent = save_data.get("equipment", {}).get(parent_slot)
+                        if parent and isinstance(parent, dict):
+                            pname = parent.get("name", "").lower()
+                            ptypes = [pt.lower() for pt in parent.get("weapon_types", []) if isinstance(pt, str)]
+                            if "pistol" in ptypes or "holster" in pname:
+                                self._safe_sound_play("", "sounds/firearms/universal/holsterunequip.ogg", block=True)
+                            else:
+                                self._safe_sound_play("", "sounds/firearms/universal/slingunequip.ogg", block=True)
+            except Exception:
+                pass
+
             combat_state["current_weapon_index"] = (combat_state["current_weapon_index"] + 1) % len(equipped_weapons)
+            # Play container (sling/holster) sound then per-item equip sound for the newly selected weapon
+            try:
+                new_idx = combat_state["current_weapon_index"]
+                new_entry = equipped_weapons[new_idx]
+                new_weapon = new_entry["item"]
+                slot_info = new_entry.get("slot", "")
+                try:
+                    parent_slot = None
+                    if slot_info == "Hands":
+                        parent_slot = None
+                    elif "->" in slot_info:
+                        parent_slot = slot_info.split("->")[0].strip()
+                    else:
+                        parent_slot = slot_info
+
+                    if parent_slot == "waistband":
+                        self._safe_sound_play("", "sounds/firearms/universal/slingequip.ogg", block=True)
+                    elif parent_slot:
+                        parent = save_data.get("equipment", {}).get(parent_slot)
+                        if parent and isinstance(parent, dict):
+                            pname = parent.get("name", "").lower()
+                            ptypes = [pt.lower() for pt in parent.get("weapon_types", []) if isinstance(pt, str)]
+                            if "pistol" in ptypes or "holster" in pname:
+                                self._safe_sound_play("", "sounds/firearms/universal/holsterequip.ogg", block=True)
+                            else:
+                                self._safe_sound_play("", "sounds/firearms/universal/slingequip.ogg", block=True)
+                except Exception:
+                    pass
+
+                # Now play the per-item equip sound (this will play custom equip if present)
+                self._play_firearm_sound(new_weapon, "equip")
+            except Exception:
+                pass
             refresh_weapon_display()
         
         # Bind keyboard shortcut for weapon switching
@@ -3438,7 +4008,12 @@ class App:
         # Weapon indicator
         current_weapon_data = equipped_weapons[combat_state["current_weapon_index"]]
         current_weapon = current_weapon_data["item"]
-        current_weapon_state = {"weapon": current_weapon}  # mutable ref for inline updates
+        current_weapon_state = {
+            "weapon": current_weapon,
+            "ammo_label_ref": None,  # Will be set by _display_weapon_details
+            "original_ammo_text": "",  # Store original text for restoration
+            "clean_label_ref": None  # Will be set by _display_weapon_details
+        }  # mutable ref for inline updates
         weapon_name_label = customtkinter.CTkLabel(
             weapon_switch_frame,
             text=f"Selected: {current_weapon.get('name', 'Unknown')}",
@@ -3458,7 +4033,7 @@ class App:
         details_frame = customtkinter.CTkFrame(main_frame)
         details_frame.pack(fill="both", expand=True, pady=(0, 20))
         
-        self._display_weapon_details(details_frame, current_weapon, combat_state, save_data, table_data)
+        self._display_weapon_details(details_frame, current_weapon, combat_state, save_data, table_data, current_weapon_state)
 
         def update_weapon_view():
             """Update labels/details without rebuilding the whole UI."""
@@ -3466,7 +4041,7 @@ class App:
             weapon_name_label.configure(text=f"Selected: {wpn.get('name', 'Unknown')}")
             for child in details_frame.winfo_children():
                 child.destroy()
-            self._display_weapon_details(details_frame, wpn, combat_state, save_data, table_data)
+            self._display_weapon_details(details_frame, wpn, combat_state, save_data, table_data, current_weapon_state)
             self._save_combat_state(save_data)
         
         # Actions section with sliders
@@ -3504,17 +4079,27 @@ class App:
         )
         rounds_slider.pack(side="left", padx=10, expand=True, fill="x")
         
-        # Fire mode selector (only the weapon's supported actions)
+        # Fire mode selector (rotatable dial with 5 positions: Safe, Semi, Auto, Burst, Bolt)
         firemode_label_frame = customtkinter.CTkFrame(actions_frame)
-        firemode_label_frame.pack(fill="x", padx=10, pady=5)
+        firemode_label_frame.pack(side="left", padx=10, pady=10)
 
         customtkinter.CTkLabel(
             firemode_label_frame,
             text="Fire Mode:",
             font=customtkinter.CTkFont(size=12)
-        ).pack(side="left", padx=10)
+        ).pack(side="top", padx=5, pady=2)
 
-        supported_modes = current_weapon.get("action", ["Semi"])
+        # Normalize supported fire modes to Title case for consistent display
+        raw_modes = current_weapon.get("action", ["Semi"]) or ["Semi"]
+        supported_modes = []
+        for m in raw_modes:
+            try:
+                if isinstance(m, str):
+                    supported_modes.append(m.title())
+                else:
+                    supported_modes.append(str(m))
+            except Exception:
+                pass
         if not supported_modes:
             supported_modes = ["Semi"]
 
@@ -3525,19 +4110,172 @@ class App:
         if initial_mode not in supported_modes:
             initial_mode = supported_modes[0]
 
+        # Fire mode dial positions: 0=Safe (left), 90=Semi (top), 180=Auto (right), 270=Burst (bottom), 315=Bolt (bottom-left)
+        mode_angles = {
+            "Safe": 0,
+            "Semi": 90,
+            "Auto": 180,
+            "Burst": 270,
+            "Bolt": 315,
+            # Pump is distinct from Bolt; place it between Safe and Semi
+            "Pump": 45
+        }
+        
         firemode_var = customtkinter.StringVar(value=initial_mode)
-
-        firemode_menu = customtkinter.CTkOptionMenu(
+        
+        def play_fireselector_sound():
+            self._safe_sound_play("firearms/universal", "fireselector")
+        
+        def on_firemode_change(new_mode):
+            selected_modes[weapon_id] = new_mode
+            play_fireselector_sound()
+        
+        # Create dial canvas (larger size)
+        import math
+        dial_canvas = customtkinter.CTkCanvas(
             firemode_label_frame,
-            values=supported_modes,
-            variable=firemode_var,
-            width=160
+            width=140,
+            height=140,
+            bg="#212121",
+            highlightthickness=0
         )
-        firemode_menu.pack(side="left", padx=10)
-
-        def on_firemode_change(choice):
-            selected_modes[weapon_id] = choice
-        firemode_menu.configure(command=on_firemode_change)
+        dial_canvas.pack(side="top", padx=5, pady=5)
+        
+        # Dial state
+        dial_state = {"current_angle": mode_angles.get(initial_mode, 90), "dragging": False}
+        
+        def draw_dial():
+            dial_canvas.delete("all")
+            center_x, center_y = 70, 70
+            radius = 35
+            
+            # Draw dial background circle
+            dial_canvas.create_oval(
+                center_x - radius, center_y - radius,
+                center_x + radius, center_y + radius,
+                fill="#333333", outline="#555555", width=2
+            )
+            
+            # Draw position markers and labels
+            labels = {
+                0: "SAFE",
+                45: "PUMP",
+                90: "SEMI",
+                180: "AUTO",
+                270: "BURST",
+                315: "BOLT"
+            }
+            
+            for mode, angle in mode_angles.items():
+                if mode not in supported_modes:
+                    continue
+                rad = math.radians(angle)
+                
+                # Draw tick mark
+                x1 = center_x + (radius - 8) * math.cos(rad)
+                y1 = center_y + (radius - 8) * math.sin(rad)
+                x2 = center_x + radius * math.cos(rad)
+                y2 = center_y + radius * math.sin(rad)
+                dial_canvas.create_line(x1, y1, x2, y2, fill="#888888", width=3)
+                
+                # Draw labels around the dial
+                label_dist = radius + 14
+                label_x = center_x + label_dist * math.cos(rad)
+                label_y = center_y + label_dist * math.sin(rad)
+                dial_canvas.create_text(
+                    label_x, label_y,
+                    text=labels.get(angle, mode),
+                    fill="#AAAAAA",
+                    font=("Arial", 9, "bold")
+                )
+            
+            # Draw pointer (indicator needle)
+            current_angle = dial_state["current_angle"]
+            rad = math.radians(current_angle)
+            pointer_x = center_x + 28 * math.cos(rad)
+            pointer_y = center_y + 28 * math.sin(rad)
+            dial_canvas.create_line(center_x, center_y, pointer_x, pointer_y, fill="#FF4444", width=4)
+            
+            # Draw center knob
+            knob_radius = 6
+            dial_canvas.create_oval(
+                center_x - knob_radius, center_y - knob_radius,
+                center_x + knob_radius, center_y + knob_radius,
+                fill="#FF4444", outline="#FFFFFF", width=2
+            )
+            
+            # Draw current mode text at top
+            dial_canvas.create_text(
+                center_x, 10,
+                text=firemode_var.get(),
+                fill="#00FF00",
+                font=("Arial", 11, "bold")
+            )
+        
+        def get_angle_from_point(x, y):
+            """Calculate angle from center to point on canvas."""
+            center_x, center_y = 70, 70
+            dx = x - center_x
+            dy = y - center_y
+            angle = math.degrees(math.atan2(dy, dx)) % 360
+            return angle
+        
+        def snap_to_nearest_mode(angle):
+            """Snap angle to nearest supported fire mode."""
+            best_mode = None
+            best_diff = 360
+            
+            for mode, mode_angle in mode_angles.items():
+                if mode not in supported_modes:
+                    continue
+                diff = min(abs(angle - mode_angle), 360 - abs(angle - mode_angle))
+                if diff < best_diff:
+                    best_diff = diff
+                    best_mode = mode
+            
+            return best_mode, mode_angles.get(best_mode, angle)
+        
+        def on_mouse_down(event):
+            center_x, center_y = 70, 70
+            dx = event.x - center_x
+            dy = event.y - center_y
+            distance = math.sqrt(dx**2 + dy**2)
+            
+            # Only drag if clicking near the dial
+            if distance < 40:
+                dial_state["dragging"] = True
+        
+        def on_mouse_move(event):
+            if not dial_state["dragging"]:
+                return
+            
+            angle = get_angle_from_point(event.x, event.y)
+            dial_state["current_angle"] = angle
+            draw_dial()
+        
+        def on_mouse_up(event):
+            if not dial_state["dragging"]:
+                return
+            
+            dial_state["dragging"] = False
+            
+            # Snap to nearest mode
+            best_mode, snapped_angle = snap_to_nearest_mode(dial_state["current_angle"])
+            if best_mode:
+                dial_state["current_angle"] = snapped_angle
+                firemode_var.set(best_mode)
+                on_firemode_change(best_mode)
+                draw_dial()
+        
+        dial_canvas.bind("<Button-1>", on_mouse_down)
+        dial_canvas.bind("<B1-Motion>", on_mouse_move)
+        dial_canvas.bind("<ButtonRelease-1>", on_mouse_up)
+        
+        # Disable dial if only one mode
+        if len(supported_modes) == 1:
+            dial_canvas.configure(state="disabled")
+        
+        draw_dial()  # Initial draw
         
         def fire_weapon():
             wpn = current_weapon_state["weapon"]
@@ -3560,9 +4298,29 @@ class App:
         def reload_weapon():
             wpn = current_weapon_state["weapon"]
             logging.info("Reload requested for %s", wpn.get("name", "Unknown"))
-            result = self._reload_weapon(wpn, save_data)
-            self._popup_show_info("Reload Result", result)
-            update_weapon_view()
+            magazine_system = wpn.get("magazinesystem")
+            magazine_type = wpn.get("magazinetype", "").lower()
+
+            # If weapon has infinite_ammo, handle reload directly (no selection)
+            if wpn.get("infinite_ammo"):
+                result = self._reload_weapon(wpn, save_data)
+                self._popup_show_info("Reload Result", result)
+                update_weapon_view()
+                return
+
+            # Handle internal/revolver reloads directly (no magazine selection needed)
+            if "internal" in magazine_type or "revolver" in wpn.get("platform", "").lower() or "cylinder" in magazine_type:
+                result = self._reload_weapon(wpn, save_data)
+                self._popup_show_info("Reload Result", result)
+                update_weapon_view()
+                return
+
+            # For detachable magazines, show selection menu
+            if magazine_system:
+                self._show_magazine_selection_menu(wpn, save_data, table_data, current_weapon_state, update_weapon_view)
+            else:
+                self._popup_show_info("Reload", "Weapon doesn't use magazines.")
+                update_weapon_view()
         
         def clean_weapon():
             wpn = current_weapon_state["weapon"]
@@ -3578,6 +4336,161 @@ class App:
         
         self.root.bind("<space>", on_spacebar)
         
+        # Bind R key for reload (single tap = menu, double tap = auto-reload with drop)
+        reload_last_press_time = [0]  # Use list to allow modification in nested function
+        reload_pending_id = [None]
+        
+        def on_r_press(event):
+            """Handle R key press for reload with single/double tap detection."""
+            current_time = time.time()
+            time_since_last = current_time - reload_last_press_time[0]
+            reload_last_press_time[0] = current_time
+            
+            # Cancel pending single-tap action if exists
+            if reload_pending_id[0]:
+                self.root.after_cancel(reload_pending_id[0])
+                reload_pending_id[0] = None
+            
+            # Double tap detection (within 400ms)
+            if time_since_last < 0.4:
+                logging.debug("R double-tapped - auto-reload with drop")
+                reload_auto_drop()
+            else:
+                # Schedule single-tap action with delay to detect double-tap
+                reload_pending_id[0] = self.root.after(400, lambda: reload_weapon())
+        
+        self.root.bind("r", on_r_press)
+        self.root.bind("R", on_r_press)
+        
+        def reload_auto_drop():
+            """Auto-reload with the most-loaded magazine and drop current magazine."""
+            wpn = current_weapon_state["weapon"]
+            # If weapon has infinite_ammo, handle reload directly (no inventory scans)
+            if wpn.get("infinite_ammo"):
+                result = self._reload_weapon(wpn, save_data)
+                self._popup_show_info("Auto-Reload", result)
+                update_weapon_view()
+                return
+            
+            # Check if weapon uses detachable magazines
+            magazine_system = wpn.get("magazinesystem")
+            if not magazine_system:
+                self._popup_show_info("Auto-Reload", "Weapon doesn't use detachable magazines")
+                return
+            
+            # Find all magazines in inventory (hands, equipment)
+            all_magazines = []
+            
+            # Check hands
+            for item in save_data.get("hands", {}).get("items", []):
+                if item and isinstance(item, dict) and item.get("magazinesystem") == magazine_system:
+                    all_magazines.append(("hands", item))
+            
+            # Check equipment containers and subslots
+            for slot_name, eq_item in save_data.get("equipment", {}).items():
+                if eq_item and isinstance(eq_item, dict):
+                    if "items" in eq_item and isinstance(eq_item["items"], list):
+                        for item in eq_item["items"]:
+                            if item and isinstance(item, dict) and item.get("magazinesystem") == magazine_system:
+                                all_magazines.append(("equipment", item))
+                    if "subslots" in eq_item:
+                        for subslot in eq_item["subslots"]:
+                            if subslot.get("current"):
+                                curr = subslot["current"]
+                                if "items" in curr and isinstance(curr["items"], list):
+                                    for item in curr["items"]:
+                                        if item and isinstance(item, dict) and item.get("magazinesystem") == magazine_system:
+                                            all_magazines.append(("equipment", item))
+            
+            if not all_magazines:
+                self._popup_show_info("Auto-Reload", "No compatible magazines in inventory!")
+                return
+            
+            # Find magazine with most rounds
+            best_mag_idx = 0
+            best_round_count = len(all_magazines[0][1].get("rounds", []))
+            
+            for idx, (location, mag_item) in enumerate(all_magazines):
+                round_count = len(mag_item.get("rounds", []))
+                if round_count > best_round_count:
+                    best_round_count = round_count
+                    best_mag_idx = idx
+            
+            location, mag_item = all_magazines[best_mag_idx]
+            
+            # Determine if gun is empty
+            current_mag = wpn.get("loaded")
+            chambered = wpn.get("chambered")
+            is_gun_empty = not chambered and (not current_mag or not current_mag.get("rounds", []))
+            
+            # Play reload sequence with mag drop sounds (0.75-1s timing)
+            import random as rand_module
+            # Only play magout if there is a magazine loaded to drop
+            if current_mag:
+                self._play_weapon_action_sound(wpn, "magout")
+                time.sleep(0.9)
+            
+            # Play random magdrop sound
+            magdrop_sound = f"magdrop{rand_module.randint(0, 1)}"
+            self._safe_sound_play("", f"sounds/firearms/universal/{magdrop_sound}.ogg")
+            time.sleep(0.85)
+            
+            self._safe_sound_play("", "sounds/firearms/universal/pouchout.ogg")
+            time.sleep(0.8)
+            
+            # Only play magin for detachable-mag weapons
+            mag_type = wpn.get("magazinetype", "").lower()
+            platform = wpn.get("platform", "").lower()
+            if not any(k in mag_type for k in ("internal", "tube", "cylinder")) and "revolver" not in platform:
+                self._play_weapon_action_sound(wpn, "magin")
+            time.sleep(0.75)
+            
+            # Bolt sounds if gun was empty
+            if is_gun_empty:
+                if not wpn.get("bolt_catch"):
+                    self._play_weapon_action_sound(wpn, "boltback")
+                    time.sleep(0.9)
+                    self._play_weapon_action_sound(wpn, "boltforward")
+                else:
+                    self._play_weapon_action_sound(wpn, "boltforward")
+                time.sleep(0.75)
+            
+            # Drop current magazine (don't keep it)
+            if current_mag:
+                pass  # Just discard it, don't add to inventory
+            
+            # Load the magazine
+            wpn["loaded"] = mag_item
+            wpn["chambered"] = None
+            
+            # Chamber a round if gun was empty
+            if is_gun_empty and mag_item.get("rounds", []):
+                wpn["chambered"] = mag_item["rounds"].pop(0)
+            
+            # Remove magazine from source
+            if location == "hands":
+                if mag_item in save_data.get("hands", {}).get("items", []):
+                    save_data["hands"]["items"].remove(mag_item)
+            elif location == "equipment":
+                for slot_name, eq_item in save_data.get("equipment", {}).items():
+                    if eq_item:
+                        if "items" in eq_item and isinstance(eq_item["items"], list):
+                            if mag_item in eq_item["items"]:
+                                eq_item["items"].remove(mag_item)
+                        if "subslots" in eq_item:
+                            for subslot in eq_item["subslots"]:
+                                if subslot.get("current"):
+                                    curr = subslot["current"]
+                                    if "items" in curr and isinstance(curr["items"], list):
+                                        if mag_item in curr["items"]:
+                                            curr["items"].remove(mag_item)
+            
+            mag_name = mag_item.get("name", "magazine")
+            rounds = len(mag_item.get("rounds", []))
+            chambered_info = " +1 in chamber" if is_gun_empty and wpn.get("chambered") else ""
+            self._popup_show_info("Auto-Reload", f"Loaded {mag_name} ({rounds}{chambered_info} rounds)!")
+            update_weapon_view()
+        
         self._create_sound_button(
             actions_frame,
             text="Fire (Press SPACE)",
@@ -3589,7 +4502,7 @@ class App:
         
         self._create_sound_button(
             actions_frame,
-            text="Reload",
+            text="Reload (Press R)",
             command=reload_weapon,
             width=150,
             height=50,
@@ -3607,6 +4520,26 @@ class App:
             hover_color="#228B22"
         ).pack(side="left", padx=10, pady=10)
 
+        def cycle_bolt():
+            wpn = current_weapon_state["weapon"]
+            logging.info("Cycle bolt requested for %s", wpn.get("name", "Unknown"))
+            result = self._cycle_bolt(wpn)
+            self._popup_show_info("Bolt Cycle", result)
+            update_weapon_view()
+        
+        # Only show Cycle Bolt button for bolt-action weapons
+        if "Bolt" in current_weapon.get("action", []):
+            self._create_sound_button(
+                actions_frame,
+                text="Cycle Bolt",
+                command=cycle_bolt,
+                width=150,
+                height=50,
+                font=customtkinter.CTkFont(size=14),
+                fg_color="#8B4513",
+                hover_color="#A0522D"
+            ).pack(side="left", padx=10, pady=10)
+
         # Attachment management
         def manage_attachments():
             wpn = current_weapon_state["weapon"]
@@ -3621,15 +4554,23 @@ class App:
             popup.transient(self.root)
 
             rows = []
-            storage = save_data.get("storage", [])
 
             def candidates_for_slot(slot_req):
                 matches = []
-                for itm in list(storage):
-                    if itm and itm.get("attachment"):
+                # Check hands for attachments
+                for itm in save_data.get("hands", {}).get("items", []):
+                    if itm and isinstance(itm, dict) and itm.get("attachment"):
                         slot_field = itm.get("slot")
                         if slot_field == slot_req or (isinstance(slot_field, list) and slot_req in slot_field):
                             matches.append(itm)
+                # Check equipment containers for attachments
+                for slot_name, eq_item in save_data.get("equipment", {}).items():
+                    if eq_item and "items" in eq_item:
+                        for itm in eq_item["items"]:
+                            if itm and isinstance(itm, dict) and itm.get("attachment"):
+                                slot_field = itm.get("slot")
+                                if slot_field == slot_req or (isinstance(slot_field, list) and slot_req in slot_field):
+                                    matches.append(itm)
                 return matches
 
             for acc in accessories:
@@ -3653,21 +4594,287 @@ class App:
                         if lbl == chosen_label:
                             chosen_item = itm
                             break
-                    # Put existing back to storage if being replaced/removed
+                    # Put existing back to hands if being replaced/removed
                     if acc.get("current"):
-                        storage.append(acc["current"])
+                        save_data.get("hands", {}).get("items", []).append(acc["current"])
                     if chosen_item is None:
                         acc["current"] = None
                     else:
-                        # remove chosen_item from storage by identity
-                        if chosen_item in storage:
-                            storage.remove(chosen_item)
+                        # remove chosen_item from hands
+                        hands_items = save_data.get("hands", {}).get("items", [])
+                        if chosen_item in hands_items:
+                            hands_items.remove(chosen_item)
+                        # remove from equipment containers
+                        for slot_name, eq_item in save_data.get("equipment", {}).items():
+                            if eq_item and "items" in eq_item:
+                                if chosen_item in eq_item["items"]:
+                                    eq_item["items"].remove(chosen_item)
                         acc["current"] = chosen_item
                 popup.destroy()
                 update_weapon_view()
 
             apply_btn = customtkinter.CTkButton(popup, text="Apply", command=apply_changes, width=120)
             apply_btn.pack(pady=10)
+
+        def check_magazine():
+            import time
+            wpn = current_weapon_state["weapon"]
+            loaded_mag = wpn.get("loaded")
+            
+            if not loaded_mag:
+                ammo_label_ref = current_weapon_state.get("ammo_label_ref")
+                if ammo_label_ref:
+                    ammo_label_ref.configure(text="Ammo: No magazine loaded")
+                    self.root.update()
+                return
+            
+            rounds = loaded_mag.get("rounds", [])
+            round_count = len(rounds)
+            capacity = loaded_mag.get("capacity", "Unknown")
+            
+            # Play magout sound
+            self._play_weapon_action_sound(wpn, "magout")
+            
+            # Update label to show checking status
+            ammo_label_ref = current_weapon_state.get("ammo_label_ref")
+            
+            if ammo_label_ref:
+                ammo_label_ref.configure(text="Checking magazine...")
+                self.root.update()  # Force immediate UI update
+            
+            # Wait 2-3 seconds for user to "estimate" magazine contents
+            time.sleep(2.5)
+            
+            # Create estimation based on fullness level
+            if capacity != "Unknown" and capacity > 0:
+                fill_ratio = round_count / capacity
+                if fill_ratio == 0:
+                    estimation = "Ammo: Empty"
+                elif fill_ratio < 0.5:
+                    estimation = "Ammo: Less than halfway full"
+                elif fill_ratio == 0.5:
+                    estimation = "Ammo: Halfway full"
+                elif fill_ratio < 1.0:
+                    estimation = "Ammo: More than halfway full"
+                else:
+                    estimation = "Ammo: Full"
+            else:
+                estimation = "Ammo: Unknown capacity"
+            
+            # Play magin sound
+            self._play_weapon_action_sound(wpn, "magin")
+            
+            # Display estimation on label
+            if ammo_label_ref:
+                ammo_label_ref.configure(text=estimation)
+                self.root.update()  # Force immediate UI update
+        
+        def reload_magazine():
+            """Show menu to select a magazine to reload with rounds."""
+            # Find all magazines in inventory (hands, equipment)
+            all_magazines = []
+            
+            # Check hands
+            for item in save_data.get("hands", {}).get("items", []):
+                if item and "magazinesystem" in item and "capacity" in item:
+                    all_magazines.append(("hands", item))
+            
+            # Check equipment containers and subslots
+            for slot_name, eq_item in save_data.get("equipment", {}).items():
+                if eq_item:
+                    if "items" in eq_item and isinstance(eq_item["items"], list):
+                        for item in eq_item["items"]:
+                            if item and "magazinesystem" in item and "capacity" in item:
+                                all_magazines.append(("equipment", item))
+                    
+                    if "subslots" in eq_item:
+                        for subslot in eq_item["subslots"]:
+                            if subslot.get("current"):
+                                curr = subslot["current"]
+                                if "items" in curr and isinstance(curr["items"], list):
+                                    for item in curr["items"]:
+                                        if item and "magazinesystem" in item and "capacity" in item:
+                                            all_magazines.append(("equipment", item))
+            
+            # Check loaded magazine
+            wpn = current_weapon_state["weapon"]
+            loaded_mag = wpn.get("loaded")
+            if loaded_mag and "magazinesystem" in loaded_mag and "capacity" in loaded_mag:
+                all_magazines.append(("loaded", loaded_mag))
+            
+            if not all_magazines:
+                self._popup_show_info("Reload Magazine", "No magazines found in inventory!")
+                return
+            
+            # Create popup for magazine selection
+            popup = customtkinter.CTkToplevel(self.root)
+            popup.title("Select Magazine to Reload")
+            popup.geometry("550x500")
+            popup.transient(self.root)
+            
+            label = customtkinter.CTkLabel(
+                popup,
+                text="Select a magazine to reload with rounds:",
+                font=customtkinter.CTkFont(size=13),
+                wraplength=500
+            )
+            label.pack(pady=10, padx=20)
+            
+            scroll_frame = customtkinter.CTkScrollableFrame(popup, fg_color="transparent")
+            scroll_frame.pack(fill="both", expand=True, padx=10, pady=10)
+            
+            selected_mag = customtkinter.StringVar(value="0")
+            
+            for idx, (location, mag_item) in enumerate(all_magazines):
+                mag_name = mag_item.get("name", "Unknown Magazine")
+                capacity = mag_item.get("capacity", "?")
+                rounds = len(mag_item.get("rounds", []))
+                mag_system = mag_item.get("magazinesystem", "Unknown")
+                
+                radio_frame = customtkinter.CTkFrame(scroll_frame, fg_color="transparent")
+                radio_frame.pack(fill="x", pady=5, padx=5)
+                
+                radio_text = f"{mag_name} ({rounds}/{capacity}) - {mag_system} - {location}"
+                radio = customtkinter.CTkRadioButton(
+                    radio_frame,
+                    text=radio_text,
+                    variable=selected_mag,
+                    value=str(idx),
+                    font=customtkinter.CTkFont(size=11)
+                )
+                radio.pack(anchor="w")
+            
+            def reload_selected():
+                if not selected_mag.get():
+                    self._popup_show_info("Reload Magazine", "Please select a magazine!")
+                    return
+                
+                idx = int(selected_mag.get())
+                location, mag_item = all_magazines[idx]
+                
+                capacity = mag_item.get("capacity", 0)
+                current_rounds = len(mag_item.get("rounds", []))
+                
+                if current_rounds >= capacity:
+                    self._popup_show_info("Reload Magazine", f"Magazine is already full ({current_rounds}/{capacity})")
+                    return
+                
+                popup.destroy()
+                result = self._reload_magazine(mag_item, save_data)
+                self._popup_show_info("Reload Magazine", result)
+                update_weapon_view()
+            
+            button_frame = customtkinter.CTkFrame(popup, fg_color="transparent")
+            button_frame.pack(fill="x", padx=10, pady=10)
+            
+            reload_btn = customtkinter.CTkButton(
+                button_frame,
+                text="Reload Selected",
+                command=reload_selected,
+                width=150,
+                height=40
+            )
+            reload_btn.pack(side="left", padx=5)
+            
+            cancel_btn = customtkinter.CTkButton(
+                button_frame,
+                text="Cancel",
+                command=popup.destroy,
+                width=150,
+                height=40,
+                fg_color="#444444",
+                hover_color="#555555"
+            )
+            cancel_btn.pack(side="left", padx=5)
+            
+            popup.update_idletasks()
+            popup_width = popup.winfo_reqwidth()
+            popup_height = popup.winfo_reqheight()
+            screen_width = popup.winfo_screenwidth()
+            screen_height = popup.winfo_screenheight()
+            x = (screen_width // 2) - (popup_width // 2)
+            y = (screen_height // 2) - (popup_height // 2)
+            popup.geometry(f"+{x}+{y}")
+            popup.deiconify()
+            popup.grab_set()
+            popup.lift()
+            popup.focus()
+        
+        def check_cleanliness():
+            import time
+            wpn = current_weapon_state["weapon"]
+            wpn_id = str(wpn.get("id"))
+            cleanliness = combat_state.get("barrel_cleanliness", {}).get(wpn_id, 100.0)
+            
+            # Play bolt back sound
+            self._play_weapon_action_sound(wpn, "boltback")
+            time.sleep(0.3)
+            
+            # Update label to show checking status
+            clean_label_ref = current_weapon_state.get("clean_label_ref")
+            
+            if clean_label_ref:
+                clean_label_ref.configure(text="Inspecting barrel...")
+                self.root.update()  # Force immediate UI update
+            
+            # Wait 2.5 seconds for inspection
+            time.sleep(2.5)
+            
+            # Create estimation based on cleanliness level
+            if cleanliness >= 90:
+                estimation = "Cleanliness: Pristine"
+            elif cleanliness >= 70:
+                estimation = "Cleanliness: Clean"
+            elif cleanliness >= 50:
+                estimation = "Cleanliness: Dirty"
+            elif cleanliness >= 30:
+                estimation = "Cleanliness: Very dirty"
+            else:
+                estimation = "Cleanliness: Fouled"
+            
+            # Play bolt forward sound
+            self._play_weapon_action_sound(wpn, "boltforward")
+            time.sleep(0.2)
+            
+            # Remove a round if magazine present
+            loaded_mag = wpn.get("loaded")
+            if loaded_mag and loaded_mag.get("rounds"):
+                removed_round = loaded_mag["rounds"].pop(0)
+                logging.info(f"Removed round during inspection: {removed_round}")
+            
+            # Display estimation on label
+            if clean_label_ref:
+                clean_label_ref.configure(text=estimation)
+                self.root.update()  # Force immediate UI update
+        
+        self._create_sound_button(
+            actions_frame,
+            text="Check Cleanliness",
+            command=check_cleanliness,
+            width=150,
+            height=50,
+            font=customtkinter.CTkFont(size=14)
+        ).pack(side="left", padx=10, pady=10)
+        
+        self._create_sound_button(
+            actions_frame,
+            text="Check Magazine",
+            command=check_magazine,
+            width=150,
+            height=50,
+            font=customtkinter.CTkFont(size=14)
+        ).pack(side="left", padx=10, pady=10)
+
+        self._create_sound_button(
+            actions_frame,
+            text="Reload Magazine",
+            command=reload_magazine,
+            width=150,
+            height=50,
+            font=customtkinter.CTkFont(size=14),
+            fg_color="#1a4d1a",
+            hover_color="#2d7a2d"
+        ).pack(side="left", padx=10, pady=10)
 
         self._create_sound_button(
             actions_frame,
@@ -3694,7 +4901,7 @@ class App:
                 choices = []
                 caliber_list = current_weapon_state["weapon"].get("caliber", []) or []
                 cal = caliber_list[0] if caliber_list else None
-                ammo_tables = table_data.get("tables", {}).get("ammo", []) if table_data else []
+                ammo_tables = table_data.get("tables", {}).get("ammunition", []) if table_data else []
                 for ammo in ammo_tables:
                     if ammo.get("caliber") == cal:
                         for var in ammo.get("variants", []) or []:
@@ -3721,12 +4928,15 @@ class App:
                     capacity = current_weapon.get("capacity", 30)
 
                     # Create a fresh loaded mag with dummy rounds tagged to variant
-                    dummy_round = f"{current_weapon.get('caliber', ['rnd'])[0]} | {variant_var.get()}"
+                    caliber_name = current_weapon.get('caliber', ['rnd'])[0]
+                    variant_name = variant_var.get()
+                    # Store rounds as dicts to preserve fields and avoid legacy string issues
+                    dummy_round = {"name": f"{caliber_name} | {variant_name}", "caliber": caliber_name, "variant": variant_name}
                     loaded_mag = {
                         "magazinetype": mag_type,
                         "magazinesystem": current_weapon.get("magazinesystem"),
                         "capacity": capacity,
-                        "rounds": [dummy_round for _ in range(capacity)]
+                        "rounds": [dict(dummy_round) for _ in range(capacity)]
                     }
                     current_weapon["loaded"] = loaded_mag
 
@@ -3759,10 +4969,224 @@ class App:
                 except Exception as e:
                     self._popup_show_info("DevMode Error", str(e))
             
+            def add_individual_rounds():
+                """Add 500 rounds for the gun to the least full container (besides storage)."""
+                try:
+                    current_weapon = current_weapon_state["weapon"]
+                    caliber_list = current_weapon.get("caliber", []) or []
+                    caliber = caliber_list[0] if caliber_list else "Unknown"
+                    
+                    # Find ammunition definition in table
+                    ammo_tables = table_data.get("tables", {}).get("ammunition", []) if table_data else []
+                    ammo_def = next((a for a in ammo_tables if a.get("caliber") == caliber), None)
+                    
+                    if not ammo_def:
+                        self._popup_show_info("DevMode Error", f"No ammunition definition found for {caliber}")
+                        return
+                    
+                    # Create ammunition item object (not strings!)
+                    variant_name = variant_var.get()
+                    ammo_item = {
+                        "name": ammo_def.get("name", caliber),
+                        "caliber": caliber,
+                        "variant": variant_name,
+                        "quantity": 500,
+                        "weight": ammo_def.get("weight", 0.01),
+                        "value": ammo_def.get("value", 0),
+                        "sounds": ammo_def.get("sounds", ""),
+                        "description": f"{caliber} - {variant_name}"
+                    }
+                    
+                    # Find all containers except storage (hands, equipment containers)
+                    containers = []
+                    
+                    # Check equipment containers and subslots
+                    for slot_name, item in save_data.get("equipment", {}).items():
+                        if item:
+                            # Check if item is a container
+                            if "items" in item and isinstance(item["items"], list):
+                                fill_ratio = len(item["items"]) / item.get("capacity", 1)
+                                containers.append(("equipment_container", item, fill_ratio))
+                            
+                            # Check subslots
+                            if "subslots" in item:
+                                for subslot in item["subslots"]:
+                                    if subslot.get("current"):
+                                        curr = subslot["current"]
+                                        if "items" in curr and isinstance(curr["items"], list):
+                                            fill_ratio = len(curr["items"]) / curr.get("capacity", 1)
+                                            containers.append(("subslot_container", curr, fill_ratio))
+                    
+                    # Check hands
+                    hands = save_data.get("hands", {})
+                    if "items" in hands and isinstance(hands["items"], list):
+                        fill_ratio = len(hands["items"]) / hands.get("capacity", 1)
+                        containers.append(("hands", hands, fill_ratio))
+                    
+                    if not containers:
+                        self._popup_show_info("DevMode Error", "No containers found (besides storage)")
+                        return
+                    
+                    # Find least full container
+                    least_full = min(containers, key=lambda x: x[2])
+                    container_type, container, _ = least_full
+                    
+                    # Add ammunition item to container
+                    container["items"].append(ammo_item)
+                    added_location = container_type.replace("_", " ")
+                    
+                    self._popup_show_info("DevMode Ammo", f"Added 500 rounds to {added_location}")
+                    update_weapon_view()
+                except Exception as e:
+                    logging.error(f"Error adding rounds: {e}")
+                    self._popup_show_info("DevMode Error", str(e))
+            
+            def add_individual_magazine():
+                """Add a magazine from the table compatible with the current gun."""
+                try:
+                    current_weapon = current_weapon_state["weapon"]
+                    mag_system = current_weapon.get("magazinesystem")
+                    caliber_list = current_weapon.get("caliber", []) or []
+                    caliber = caliber_list[0] if caliber_list else "Unknown"
+                    
+                    if not mag_system:
+                        self._popup_show_info("DevMode Error", "Weapon doesn't use detachable magazines")
+                        return
+                    
+                    # Find compatible magazines in table
+                    magazines_table = table_data.get("tables", {}).get("magazines", [])
+                    compatible_mags = [
+                        mag for mag in magazines_table
+                        if mag.get("magazinesystem") == mag_system
+                    ]
+                    
+                    if not compatible_mags:
+                        self._popup_show_info("DevMode Error", f"No magazines in table for {mag_system}")
+                        return
+                    
+                    # Use first compatible magazine
+                    mag_template = compatible_mags[0]
+                    capacity = mag_template.get("capacity", 30)
+                    
+                    # Create a loaded magazine with variant
+                    variant_name = variant_var.get()
+                    round_format = f"{caliber} | {variant_name}"
+                    # Use dict rounds instead of plain strings
+                    round_obj = {"name": round_format, "caliber": caliber, "variant": variant_name}
+
+                    new_mag = {
+                        "name": mag_template.get("name"),
+                        "id": mag_template.get("id"),
+                        "magazinetype": mag_template.get("magazinetype", "Unknown"),
+                        "magazinesystem": mag_system,
+                        "capacity": capacity,
+                        "rounds": [dict(round_obj) for _ in range(capacity)]
+                    }
+                    
+                    # Add to hands
+                    save_data.get("hands", {}).get("items", []).append(new_mag)
+                    
+                    self._popup_show_info("DevMode Ammo", f"Added {mag_template.get('name')} to hands\n({capacity} rounds, {mag_system})")
+                    update_weapon_view()
+                except Exception as e:
+                    logging.error(f"Error adding magazine: {e}")
+                    self._popup_show_info("DevMode Error", str(e))
+
+            def add_belt():
+                """Add a belt (disintegrating link belt) from the magazines table to hands.
+
+                Looks for magazines with magazinetype 'Belt', matching beltlink, or 'belt' in the name.
+                Uses random_quantity range if present to choose round count, otherwise falls back
+                to a sensible default (200 rounds).
+                """
+                try:
+                    current_weapon = current_weapon_state["weapon"]
+                    magazines_table = table_data.get("tables", {}).get("magazines", [])
+                    # Try to find a belt template that matches weapon's beltlink first
+                    beltlink = str(current_weapon.get("beltlink", "") or "").lower()
+                    candidates = []
+                    for mag in magazines_table:
+                        name = str(mag.get("name", "") or "").lower()
+                        mtype = str(mag.get("magazinetype", "") or "").lower()
+                        if mtype == "belt":
+                            candidates.append(mag)
+                        elif beltlink and str(mag.get("beltlink", "") or "").lower() == beltlink:
+                            candidates.append(mag)
+                        elif "belt" in name:
+                            candidates.append(mag)
+
+                    if not candidates:
+                        self._popup_show_info("DevMode Error", "No belt entries found in tables")
+                        return
+
+                    mag_template = candidates[0]
+
+                    # Determine capacity / rounds to create
+                    rnd = mag_template.get("random_quantity")
+                    if isinstance(rnd, dict) and "min" in rnd and "max" in rnd:
+                        import random as _r
+                        capacity = _r.randint(int(rnd.get("min", 50)), int(rnd.get("max", 200)))
+                    else:
+                        capacity = int(mag_template.get("capacity") or 200)
+
+                    caliber_list = current_weapon.get("caliber", []) or []
+                    caliber = caliber_list[0] if caliber_list else mag_template.get("caliber", ["Unknown"])[0]
+                    variant_name = variant_var.get()
+                    round_obj = {"name": f"{caliber} | {variant_name}", "caliber": caliber, "variant": variant_name}
+
+                    new_belt = {
+                        "name": mag_template.get("name", "Belt"),
+                        "id": mag_template.get("id"),
+                        "magazinetype": mag_template.get("magazinetype", "Belt"),
+                        "magazinesystem": mag_template.get("magazinesystem"),
+                        "capacity": capacity,
+                        "rounds": [dict(round_obj) for _ in range(capacity)]
+                    }
+
+                    save_data.get("hands", {}).get("items", []).append(new_belt)
+                    self._popup_show_info("DevMode Belt", f"Added {new_belt.get('name')} to hands ({capacity} rounds)")
+                    update_weapon_view()
+                except Exception as e:
+                    logging.exception("Error adding belt: %s", e)
+                    self._popup_show_info("DevMode Error", str(e))
+            
             self._create_sound_button(
                 devmode_frame,
                 text="Fill Magazine",
                 command=add_ammo,
+                width=120,
+                height=40,
+                font=customtkinter.CTkFont(size=12),
+                fg_color="#8B4513",
+                hover_color="#A0522D"
+            ).pack(side="left", padx=5, pady=10)
+            
+            self._create_sound_button(
+                devmode_frame,
+                text="Add Rounds",
+                command=add_individual_rounds,
+                width=120,
+                height=40,
+                font=customtkinter.CTkFont(size=12),
+                fg_color="#8B4513",
+                hover_color="#A0522D"
+            ).pack(side="left", padx=5, pady=10)
+            
+            self._create_sound_button(
+                devmode_frame,
+                text="Add Magazine",
+                command=add_individual_magazine,
+                width=120,
+                height=40,
+                font=customtkinter.CTkFont(size=12),
+                fg_color="#8B4513",
+                hover_color="#A0522D"
+            ).pack(side="left", padx=5, pady=10)
+
+            self._create_sound_button(
+                devmode_frame,
+                text="Add Belt",
+                command=add_belt,
                 width=120,
                 height=40,
                 font=customtkinter.CTkFont(size=12),
@@ -3821,7 +5245,12 @@ class App:
             )
             weapon_label.pack(side="left", padx=10, pady=5)
             
-            def switch_to(w_idx=idx):
+            def switch_to(w_idx=idx, w_item=weapon_item):
+                # Play equip sound for the weapon every time it's selected
+                try:
+                    self._play_firearm_sound(w_item, "equip")
+                except Exception:
+                    pass
                 combat_state["current_weapon_index"] = w_idx
                 refresh_weapon_display()
             
@@ -3834,11 +5263,58 @@ class App:
                 font=customtkinter.CTkFont(size=11)
             ).pack(side="right", padx=10, pady=5)
         
+        # Temperature polling system (update every 30 seconds)
+        poll_cancel = None
+        
+        def poll_temperature_update():
+            """Poll and update barrel temperature display every 30 seconds."""
+            nonlocal poll_cancel
+            try:
+                wpn = current_weapon_state["weapon"]
+                weapon_id = str(wpn.get("id"))
+                current_temp = combat_state.get("barrel_temperatures", {}).get(weapon_id)
+                
+                # Calculate passive cooling using Newton's Law of Cooling
+                if current_temp is not None and current_temp > combat_state.get("ambient_temperature", 70):
+                    now_ts = time.time()
+                    last_used = combat_state.get("weapon_last_used", {}).get(weapon_id, now_ts)
+                    elapsed = max(0.0, now_ts - last_used)
+                    
+                    if elapsed > 0:
+                        ambient = combat_state.get("ambient_temperature", 70)
+                        k = 0.01  # Cooling constant (10-min half-life)
+                        new_temp = ambient + (current_temp - ambient) * (2.71828 ** (-k * elapsed))
+                        new_temp = max(ambient, new_temp)
+                        combat_state["barrel_temperatures"][weapon_id] = new_temp
+                        
+                        # Update the display
+                        update_weapon_view()
+                        logging.debug(f"Temperature cooled from {current_temp:.1f}°F to {new_temp:.1f}°F")
+                
+                # Schedule next update in 30 seconds
+                poll_cancel = self.root.after(30000, poll_temperature_update)
+            except Exception as e:
+                logging.debug(f"Temperature polling error: {e}")
+                # Reschedule even on error
+                poll_cancel = self.root.after(30000, poll_temperature_update)
+        
+        # Start polling
+        poll_cancel = self.root.after(30000, poll_temperature_update)
+        
         # Back button
+        def exit_combat():
+            """Exit combat mode and cancel polling."""
+            nonlocal poll_cancel
+            if poll_cancel:
+                self.root.after_cancel(poll_cancel)
+            self._save_combat_state(save_data)
+            self._clear_window()
+            self._build_main_menu()
+        
         self._create_sound_button(
             main_frame,
             text="Exit Combat Mode",
-            command=lambda: [self._save_combat_state(save_data), self._clear_window(), self._build_main_menu()],
+            command=exit_combat,
             fg_color="#8B0000",
             hover_color="#A52A2A",
             height=50,
@@ -3855,7 +5331,7 @@ class App:
         
         # Check all equipment slots for weapons
         for slot_name, item in save_data.get("equipment", {}).items():
-            if item and item.get("firearm"):
+            if item and isinstance(item, dict) and item.get("firearm"):
                 weapons.append({
                     "item": item,
                     "slot": slot_name,
@@ -3863,9 +5339,9 @@ class App:
                 })
             
             # Check subslots (holsters, slings)
-            if item and "subslots" in item:
+            if item and isinstance(item, dict) and "subslots" in item:
                 for subslot in item["subslots"]:
-                    if subslot.get("current") and subslot["current"].get("firearm"):
+                    if subslot.get("current") and isinstance(subslot.get("current"), dict) and subslot["current"].get("firearm"):
                         weapons.append({
                             "item": subslot["current"],
                             "slot": f"{slot_name} -> {subslot['name']}",
@@ -3875,7 +5351,7 @@ class App:
         # Check weapons in hands
         if "hands" in save_data and "items" in save_data["hands"]:
             for hand_item in save_data["hands"]["items"]:
-                if hand_item and hand_item.get("firearm"):
+                if hand_item and isinstance(hand_item, dict) and hand_item.get("firearm"):
                     weapons.append({
                         "item": hand_item,
                         "slot": "Hands",
@@ -3884,7 +5360,7 @@ class App:
         
         return weapons
     
-    def _display_weapon_details(self, parent, weapon, combat_state, save_data, table_data):
+    def _display_weapon_details(self, parent, weapon, combat_state, save_data, table_data, current_weapon_state=None):
         """Display detailed information about the selected weapon."""
         detail_frame = customtkinter.CTkFrame(parent)
         detail_frame.pack(fill="both", expand=True, padx=10, pady=10)
@@ -3989,22 +5465,33 @@ class App:
             clean_color = "#FFFF00"  # Yellow
         
         clean_text = f"Cleanliness: {cleanliness:.1f}%" if has_hud else "Cleanliness: Status only"
-        customtkinter.CTkLabel(
+        clean_label = customtkinter.CTkLabel(
             detail_frame,
             text=clean_text,
             font=customtkinter.CTkFont(size=14),
             text_color=clean_color
-        ).pack(pady=5)
+        )
+        clean_label.pack(pady=5)
+        
+        # Store clean label reference if current_weapon_state provided
+        if current_weapon_state is not None:
+            current_weapon_state["clean_label_ref"] = clean_label
         
         # Ammo count (vague unless HUD equipped)
         has_hud = self._check_for_hud(save_data)
         ammo_text = self._get_ammo_display(weapon, has_hud)
         
-        customtkinter.CTkLabel(
+        ammo_label = customtkinter.CTkLabel(
             detail_frame,
             text=ammo_text,
             font=customtkinter.CTkFont(size=14)
-        ).pack(pady=5)
+        )
+        ammo_label.pack(pady=5)
+        
+        # Store label reference and original text if current_weapon_state provided
+        if current_weapon_state is not None:
+            current_weapon_state["ammo_label_ref"] = ammo_label
+            current_weapon_state["original_ammo_text"] = ammo_text
         
         # Attachments
         if weapon.get("accessories"):
@@ -4029,7 +5516,7 @@ class App:
     def _check_for_hud(self, save_data):
         """Check if player has a HUD equipped."""
         for slot_name, item in save_data.get("equipment", {}).items():
-            if item and item.get("hud"):
+            if item and isinstance(item, dict) and item.get("hud"):
                 return True
         return False
     
@@ -4037,9 +5524,31 @@ class App:
         """Get ammo display text (vague or exact based on HUD)."""
         loaded_mag = weapon.get("loaded")
         chambered = weapon.get("chambered")
+        magazine_type = weapon.get("magazinetype", "").lower()
         
+        # Check if weapon uses internal magazine (tube/box) or revolver
+        is_internal = "internal" in magazine_type or "tube" in magazine_type
+        is_revolver = "revolver" in weapon.get("platform", "").lower()
+        
+        if is_internal or is_revolver:
+            # Internal magazine - rounds stored in weapon directly
+            internal_rounds = weapon.get("rounds", [])
+            total_rounds = len(internal_rounds)
+            if chambered:
+                total_rounds += 1
+            
+            if has_hud:
+                chamber_text = " (+1 chambered)" if chambered else ""
+                capacity = weapon.get("capacity", 0)
+                return f"Ammo: {total_rounds}/{capacity} rounds{chamber_text}"
+            else:
+                if total_rounds == 0:
+                    return "Ammo: Empty (no rounds)"
+                return "Ammo: Loaded (exact count unknown)"
+        
+        # Detachable magazine weapons
         if not loaded_mag and not chambered:
-            return "Ammo: Empty"
+            return "Ammo: Empty (no magazine)"
         
         total_rounds = 0
         if chambered:
@@ -4052,13 +5561,17 @@ class App:
         if has_hud:
             # Exact count with HUD
             chamber_text = " (+1 chambered)" if chambered else ""
+            if loaded_mag and not loaded_mag.get("rounds"):
+                return f"Ammo: 0 rounds (empty magazine loaded){chamber_text}"
             return f"Ammo: {total_rounds} rounds{chamber_text}"
         else:
             # Without HUD, exact count hidden; require mag check
             if not loaded_mag and chambered:
                 return "Ammo: Unknown (mag out, round chambered)"
             if not loaded_mag:
-                return "Ammo: Mag removed"
+                return "Ammo: No magazine"
+            if not loaded_mag.get("rounds"):
+                return "Ammo: Empty magazine loaded (check/reload)"
             return "Ammo: Unknown (remove mag to check)"
     
     def _save_combat_state(self, save_data):
@@ -4127,7 +5640,26 @@ class App:
     def _play_firearm_sound(self, weapon, sound_type="fire"):
         """Play firearm sound with proper variants."""
         try:
+            # Check for custom equip sound first so it works even if caliber mapping is missing
+            if sound_type == "equip" and weapon.get("custom_equip_sound"):
+                sound_path = weapon["custom_equip_sound"]
+                if os.path.exists(sound_path):
+                    self._safe_sound_play("", sound_path)
+                    return
+
+            if sound_type == "equip":
+                # If no custom equip sound, just log and return early regardless of sound folder
+                logging.info(f"Equip sound placeholder for {weapon.get('name')}")
+                return
+
             sound_folder = self._get_firearm_sound_folder(weapon)
+
+            # Attempt platform-specific fire sounds first (platform-level overrides)
+            raw_platform = weapon.get("platform", "") or ""
+            if isinstance(raw_platform, (list, tuple)):
+                raw_platform = raw_platform[0] if raw_platform else ""
+            # Use the platform key directly as the weaponsounds folder name.
+            platform_folder = str(raw_platform).lower() if raw_platform else None
             
             if not sound_folder:
                 logging.warning(f"No sound folder found for weapon: {weapon.get('name')}")
@@ -4150,6 +5682,21 @@ class App:
             
             # Build sound path
             base_path = f"sounds/firearms/{sound_folder}"
+
+            # If platform-specific fire sounds exist, prefer those
+            if sound_type == "fire" and platform_folder:
+                wf = os.path.join("sounds", "firearms", "weaponsounds", platform_folder)
+                candidates = []
+                if is_suppressed:
+                    candidates = glob.glob(os.path.join(wf, "fire*_suppressed.wav"))
+                else:
+                    fire_candidates = glob.glob(os.path.join(wf, "fire*.wav"))
+                    candidates = [f for f in fire_candidates if "_suppressed" not in os.path.basename(f)]
+
+                if candidates:
+                    sound_file = random.choice(candidates)
+                    self._safe_sound_play("", sound_file)
+                    return
             
             # Special handling for SMG sounds in .45 ACP
             subtype = weapon.get("subtype", "")
@@ -4194,43 +5741,128 @@ class App:
         except Exception as e:
             logging.error(f"Error playing firearm sound: {e}")
     
-    def _play_weapon_action_sound(self, weapon, action_type):
-        """Play weapon action sounds (reload, bolt, etc)."""
+    def _play_weapon_action_sound(self, weapon, action_type, block=False):
+        """Play weapon action sounds (reload, bolt, etc).
+
+        `block=True` will wait for the sound to finish before returning.
+        """
         try:
             platform = weapon.get("platform", "").lower()
-            
-            # Map platforms to weaponsound folders
-            platform_folders = {
-                "ar-15": "ar-15",
-                "m4": "ar-15",
-                "m16": "ar-15",
-                "ump": "ump",
-                "92fs": "92fs",
-                "m9": "92fs",
-                "beretta": "92fs",
-                "m249": "m249",
-                "m203": "m203"
-            }
-            
-            platform_folder = None
-            for key, folder in platform_folders.items():
-                if key in platform.lower():
-                    platform_folder = folder
-                    break
-            
-            # Try platform-specific sound first
+            mag_type = weapon.get("magazinetype", "").lower()
+
+            # Use the platform key directly as the weaponsounds folder name.
+            platform_folder = platform if platform else None
+
+            # Belt-fed detection for action sound routing
+            is_belt = ("belt" in mag_type) or ("belt" in (platform or "")) or ("m249" in (platform or ""))
+
+            # Determine if this action should block until sound finishes
+            should_block = block or action_type in ("boltback", "boltforward")
+
+            # Try platform-specific sounds first. Support multiple variants (e.g. tubeinsert0-2)
             if platform_folder:
-                sound_path = f"sounds/firearms/weaponsounds/{platform_folder}/{action_type}.ogg"
-                if os.path.exists(sound_path):
-                    self._safe_sound_play("", sound_path)
+                wf = os.path.join("sounds", "firearms", "weaponsounds", platform_folder)
+                candidates = []
+                if action_type.startswith("tubeinsert") or action_type == "tubeinsert":
+                    candidates = glob.glob(os.path.join(wf, "tubeinsert*.ogg"))
+                elif action_type.startswith("bulletinsert"):
+                    candidates = glob.glob(os.path.join(wf, "bulletinsert*.ogg"))
+                else:
+                    exact = os.path.join(wf, f"{action_type}.ogg")
+                    if os.path.exists(exact):
+                        candidates = [exact]
+
+                if candidates:
+                    sound_file = random.choice(candidates)
+                    self._safe_sound_play("", sound_file, block=should_block)
+                    return
+
+            # Internal magazine/revolver specific sounds
+            internal_sounds = {
+                "tubeinsert": "sounds/firearms/universal/tubeinsert.ogg",  # Internal tube magazines
+                "bulletinsert0": "sounds/firearms/universal/bulletinsert0.ogg",  # Internal box magazines / revolver
+                "bulletinsert1": "sounds/firearms/universal/bulletinsert1.ogg",  # Internal box magazines / revolver
+                "cylinderopen": "sounds/firearms/universal/cylinderopen.ogg",  # Revolver
+                "cylinderclose": "sounds/firearms/universal/cylinderclose.ogg",  # Revolver
+                "cylinderrelease": "sounds/firearms/universal/cylinderrelease.ogg",  # Revolver
+            }
+
+            # Explicit internal sound actions (do NOT remap 'magin' to tubeinsert anymore)
+            # Handle tubeinsert with universal wildcard support and random selection
+            if action_type.startswith("tubeinsert") or action_type == "tubeinsert":
+                # Check universal folder for tubeinsert variants
+                uni_folder = os.path.join("sounds", "firearms", "universal")
+                tube_candidates = glob.glob(os.path.join(uni_folder, "tubeinsert*.ogg"))
+                if tube_candidates:
+                    sound_file = random.choice(tube_candidates)
+                    self._safe_sound_play("", sound_file, block=should_block)
+                    return
+                # Fallback single file
+                if os.path.exists(internal_sounds["tubeinsert"]):
+                    self._safe_sound_play("", internal_sounds["tubeinsert"], block=should_block)
+                    return
+
+            if action_type.startswith("bulletinsert"):
+                # Check universal folder for bulletinsert variants
+                uni_folder = os.path.join("sounds", "firearms", "universal")
+                bullet_candidates = glob.glob(os.path.join(uni_folder, "bulletinsert*.ogg"))
+                if bullet_candidates:
+                    sound_file = random.choice(bullet_candidates)
+                    self._safe_sound_play("", sound_file, block=should_block)
+                    return
+                # Fallback to mapped bulletinsert0/1
+                sound_file = internal_sounds.get(action_type)
+                if sound_file and os.path.exists(sound_file):
+                    self._safe_sound_play("", sound_file, block=should_block)
                     return
             
+            # Check if this is a revolver
+            if "revolver" in platform.lower() or "cylinder" in action_type:
+                if action_type == "cylinderopen" and os.path.exists(internal_sounds["cylinderopen"]):
+                    self._safe_sound_play("", internal_sounds["cylinderopen"], block=should_block)
+                    return
+                elif action_type == "cylinderclose" and os.path.exists(internal_sounds["cylinderclose"]):
+                    self._safe_sound_play("", internal_sounds["cylinderclose"], block=should_block)
+                    return
+                elif action_type == "cylinderrelease" and os.path.exists(internal_sounds["cylinderrelease"]):
+                    self._safe_sound_play("", internal_sounds["cylinderrelease"], block=should_block)
+                    return
+                elif action_type in ("bulletinsert0", "bulletinsert1") and os.path.exists(internal_sounds[action_type]):
+                    self._safe_sound_play("", internal_sounds[action_type], block=should_block)
+                    return
+            
+            # If this is an internal/tube/cylinder weapon, do not play the generic "magin" sound
+            # (internal reloads use per-round "tubeinsert"/"bulletinsert" and bolt sounds).
+            if action_type == "magin":
+                mag_type = weapon.get("magazinetype", "").lower()
+                if any(k in mag_type for k in ("internal", "tube", "cylinder")) or "revolver" in platform.lower() or is_belt:
+                    return
+
+            # Special-case belt actions: prefer platform-specific belt sounds (beltfeed, beltdrop, beltadvance)
+            if action_type.startswith("belt"):
+                if platform_folder:
+                    wf = os.path.join("sounds", "firearms", "weaponsounds", platform_folder)
+                    candidates = glob.glob(os.path.join(wf, "belt*.ogg"))
+                    if candidates:
+                        sound_file = random.choice(candidates)
+                        self._safe_sound_play("", sound_file, block=should_block)
+                        return
+                # Fallback to universal belt sounds if present
+                uni_folder = os.path.join("sounds", "firearms", "universal")
+                belt_candidates = glob.glob(os.path.join(uni_folder, "belt*.ogg"))
+                if belt_candidates:
+                    sound_file = random.choice(belt_candidates)
+                    self._safe_sound_play("", sound_file, block=should_block)
+                    return
+
             # Fall back to universal sounds
             universal_sounds = {
                 "magin": ["riflemagin", "pistolmagin"],
                 "magout": ["riflemagout", "pistolmagout"],
                 "boltback": ["rifleboltback", "pistolslideback", "boltactionback"],
                 "boltforward": ["rifleboltforward", "pistolslideforward", "boltactionforward"],
+                "pumpback": ["shotgunpumpback", "pumpback"],
+                "pumpforward": ["shotgunpumpforward", "pumpforward"],
                 "cleaning": ["cleaning"]
             }
             
@@ -4238,11 +5870,39 @@ class App:
                 for sound_name in universal_sounds[action_type]:
                     sound_path = f"sounds/firearms/universal/{sound_name}.ogg"
                     if os.path.exists(sound_path):
-                        self._safe_sound_play("", sound_path)
+                        self._safe_sound_play("", sound_path, block=should_block)
                         break
             
         except Exception as e:
             logging.error(f"Error playing weapon action sound: {e}")
+    
+    def _roll_d20_dice(self, num_rolls):
+        """Roll cryptographically random d20 dice and return median."""
+        rolls = [secrets.randbelow(20) + 1 for _ in range(num_rolls)]
+        rolls_sorted = sorted(rolls)
+        
+        # Calculate median
+        n = len(rolls_sorted)
+        if n % 2 == 1:
+            median = rolls_sorted[n // 2]
+        else:
+            median = (rolls_sorted[n // 2 - 1] + rolls_sorted[n // 2]) // 2
+        
+        return rolls, median
+    
+    def _copy_to_clipboard(self, text):
+        """Copy text to clipboard if pyperclip is available."""
+        if PYPERCLIP_AVAILABLE:
+            try:
+                pyperclip.copy(text)
+                logging.info(f"Copied to clipboard: {text}")
+                return True
+            except Exception as e:
+                logging.warning(f"Failed to copy to clipboard: {e}")
+                return False
+        else:
+            logging.info(f"Clipboard copy requested but pyperclip not available: {text}")
+            return False
     
     def _fire_weapon(self, weapon, combat_state, rounds_to_fire=3, fire_mode=None):
         """Fire weapon and handle barrel temperature, jamming, etc."""
@@ -4258,37 +5918,88 @@ class App:
         # Check if weapon has ammo
         chambered = weapon.get("chambered")
         loaded_mag = weapon.get("loaded")
-        
-        if not chambered and (not loaded_mag or not loaded_mag.get("rounds")):
-            logging.info("Weapon empty - dry fire")
-            self._safe_sound_play("sounds/firearms/universal", "dryfire.ogg")
-            return "Empty! No rounds to fire."
+        magazine_type = str(weapon.get("magazinetype", "") or "").lower()
+
+        # Normalize platform to a string (some data has lists)
+        raw_platform = weapon.get("platform", "") or ""
+        if isinstance(raw_platform, (list, tuple)):
+            raw_platform = raw_platform[0] if raw_platform else ""
+        platform = str(raw_platform)
+
+        is_internal = "internal" in magazine_type or "tube" in magazine_type or "cylinder" in magazine_type or "revolver" in platform.lower()
+        # Belt-fed detection (e.g., M249)
+        is_belt = ("belt" in magazine_type) or ("belt" in platform.lower()) or ("m249" in platform.lower())
+
+        # Normalize action field safely to determine pump-action (handles lists and strings)
+        raw_action = weapon.get("action", "") or ""
+        if isinstance(raw_action, (list, tuple)):
+            action_list = [str(a).lower() for a in raw_action if a is not None]
+        else:
+            action_list = [str(raw_action).lower()]
+
+        # Detect pump-action weapons (platform contains 'pump', any action contains 'pump', or magazine type mentions pump)
+        is_pump = (
+            "pump" in platform.lower()
+            or any("pump" in a for a in action_list)
+            or "pump" in magazine_type
+        )
+
+        # Respect the selected fire mode: only treat as pump if the user selected 'Pump'
+        # (we still keep `is_pump` as the weapon capability flag)
+        fire_mode_norm = str(fire_mode or "").title()
+        effective_is_pump = is_pump and fire_mode_norm == "Pump"
+
+        # For internal/cylinder weapons, rounds are stored in weapon['rounds']
+        if is_internal:
+            internal_rounds = weapon.get("rounds", [])
+            # Gun is empty if no chambered round and no internal rounds
+            if not chambered and not internal_rounds:
+                logging.info("Weapon empty (internal) - no rounds present")
+                self._safe_sound_play("", "sounds/firearms/universal/dryfire.ogg")
+                return "Empty! No rounds loaded."
+        else:
+            # Gun is only empty if no chambered round AND (no magazine loaded OR magazine is empty)
+            if not chambered and not loaded_mag:
+                logging.info("Weapon empty - no magazine loaded")
+                self._safe_sound_play("", "sounds/firearms/universal/dryfire.ogg")
+                return "Empty! No magazine loaded."
+
+            if not chambered and loaded_mag and not loaded_mag.get("rounds"):
+                logging.info("Weapon empty - magazine loaded but empty")
+                self._safe_sound_play("", "sounds/firearms/universal/dryfire.ogg")
+                return "Empty! Magazine loaded but no rounds."
         
         # Get current barrel stats
         temperature = combat_state.get("barrel_temperatures", {}).get(weapon_id, combat_state["ambient_temperature"])
         cleanliness = combat_state.get("barrel_cleanliness", {}).get(weapon_id, 100)
         
-        # Calculate jam chance (base + temperature modifier + cleanliness modifier)
+        # Calculate jam chance: base_jamrate is affected by temperature and cleanliness
         base_jamrate = weapon.get("jamrate", 0.01)
         
-        # Temperature increases jam chance
-        temp_modifier = 0
-        if temperature > 200:
-            temp_modifier = 0.10
-        elif temperature > 150:
-            temp_modifier = 0.05
-        elif temperature > 100:
-            temp_modifier = 0.02
+        # Temperature multiplier (increases jam chance exponentially with heat)
+        # At 212°F (100°C), temp_mult = 1.0 (baseline)
+        # At 400°F, temp_mult = 1.5
+        # At 600°F, temp_mult = 2.0
+        # At 1000°F, temp_mult = 3.0
+        ambient = combat_state.get("ambient_temperature", 70)
+        temp_above_boiling = max(0, temperature - 212)
+        temp_mult = 1.0 + (temp_above_boiling / 400.0)  # +0.25 per 100°F above boiling
         
-        # Cleanliness decreases jam chance
-        clean_modifier = (100 - cleanliness) / 1000  # Up to +10% jam chance at 0 cleanliness
+        # Cleanliness multiplier (affects jam rate 0.5 to 1.5 range)
+        # At 100% clean: mult = 0.5 (half the jam chance)
+        # At 50% clean: mult = 1.0 (baseline)
+        # At 0% clean: mult = 1.5 (1.5x jam chance)
+        clean_mult = 1.0 - (cleanliness - 50) / 100.0  # Ranges from 0.5 to 1.5
+        clean_mult = max(0.5, min(1.5, clean_mult))  # Clamp to 0.5-1.5
         
-        total_jamrate = base_jamrate + temp_modifier + clean_modifier
+        # Final jam rate
+        total_jamrate = base_jamrate * temp_mult * clean_mult
+        
         logging.debug(
-            "Jam calc: base=%s temp_mod=%s clean_mod=%s total=%s temp=%s clean=%s",
+            "Jam calc: base=%s temp_mult=%s clean_mult=%s total=%s temp=%s clean=%s",
             base_jamrate,
-            temp_modifier,
-            clean_modifier,
+            temp_mult,
+            clean_mult,
             total_jamrate,
             temperature,
             cleanliness
@@ -4297,33 +6008,111 @@ class App:
         # Timing model
         cyclic = weapon.get("cyclic", 600) or 600
         base_delay = max(0.0, 60.0 / cyclic)
-        human_delay = 0.18 if fire_mode in ("Semi", "Burst") else 0.0
+        # Optional separate cyclic rate for burst mode (shots-per-minute when firing a burst)
+        # If provided, `burst_cyclic` will be used to compute intra-burst timing.
+        burst_cyclic = weapon.get("burst_cyclic")
+        try:
+            if burst_cyclic:
+                burst_cyclic = float(burst_cyclic)
+            else:
+                burst_cyclic = None
+        except Exception:
+            burst_cyclic = None
+        burst_base_delay = max(0.0, 60.0 / burst_cyclic) if burst_cyclic and burst_cyclic > 0 else base_delay
+        
+        # Determine actual rounds to fire based on fire mode
+        actual_rounds_to_fire = rounds_to_fire
+        burst_count = weapon.get("burst_count", 0)
+        
+        # Bolt-action weapons can only fire one round per trigger pull
+        if fire_mode == "Bolt":
+            actual_rounds_to_fire = 1
+            logging.debug("Bolt-action fire mode: forcing rounds to 1")
+        # Pump-action weapons behave like bolt: one shot per trigger pull, but only when Pump is selected
+        elif effective_is_pump:
+            actual_rounds_to_fire = 1
+            logging.debug("Pump-action weapon (selected): forcing rounds to 1")
+        elif fire_mode == "Burst" and burst_count > 0:
+            # For burst mode: round up to nearest multiple of burst_count
+            actual_rounds_to_fire = ((rounds_to_fire + burst_count - 1) // burst_count) * burst_count
+            logging.debug(
+                "Burst fire mode: requested=%s burst_count=%s actual=%s",
+                rounds_to_fire,
+                burst_count,
+                actual_rounds_to_fire
+            )
+        
+        # Human reaction delay: only applies between bursts/shots in semi mode
+        # In auto mode, no reaction delay. In burst mode, reaction delay between bursts.
+        is_semi = fire_mode == "Semi"
+        is_burst = fire_mode == "Burst" and burst_count > 0
+        is_auto = fire_mode == "Auto"
+        is_bolt = fire_mode == "Bolt"
 
         # Fire rounds
         rounds_fired = 0
         jammed = False
         
-        for i in range(rounds_to_fire):
+        # Pump timing defaults (can be overridden per-weapon)
+        fire_to_pump_delay = weapon.get("pump_fire_to_back_delay", 0.12)
+        pump_back_to_forward_delay = weapon.get("pump_back_to_forward_delay", 0.15)
+
+        # Enforce single-shot for pump-action weapons as a final safety check (only when Pump selected)
+        if effective_is_pump:
+            if actual_rounds_to_fire != 1:
+                logging.debug("Pump-action weapon detected (selected): limiting actual_rounds_to_fire to 1")
+            actual_rounds_to_fire = 1
+
+        for i in range(actual_rounds_to_fire):
             # Check for jam
             if random.random() < total_jamrate:
                 jammed = True
                 logging.info(f"Weapon jammed after {rounds_fired} rounds!")
                 break
             
-            # Fire round
+                # Fire round
+            # Unified firing flow: determine source and fire
+            fired_this_iteration = False
             if chambered:
                 self._play_firearm_sound(weapon, "fire")
                 rounds_fired += 1
                 chambered = None
-                
-                # Try to chamber next round
-                if loaded_mag and loaded_mag.get("rounds"):
-                    chambered = loaded_mag["rounds"].pop(0)
-                
+                fired_this_iteration = True
+            elif is_internal and weapon.get("rounds"):
+                chambered = weapon["rounds"].pop(0)
+                self._play_firearm_sound(weapon, "fire")
+                rounds_fired += 1
+                fired_this_iteration = True
             elif loaded_mag and loaded_mag.get("rounds"):
                 chambered = loaded_mag["rounds"].pop(0)
                 self._play_firearm_sound(weapon, "fire")
                 rounds_fired += 1
+                fired_this_iteration = True
+            else:
+                # Out of ammo mid-burst
+                logging.info("Ran out of ammo mid-burst after %s rounds", rounds_fired)
+                break
+
+            # After firing, handle pump-action or automatic chambering
+            if fired_this_iteration:
+                if effective_is_pump:
+                    # Enforce single-shot behavior for pump actions handled earlier
+                    time.sleep(fire_to_pump_delay)
+                    self._play_weapon_action_sound(weapon, "pumpback")
+                    time.sleep(pump_back_to_forward_delay)
+                    # Chamber next round from internal rounds or loaded magazine
+                    if is_internal and weapon.get("rounds"):
+                        chambered = weapon["rounds"].pop(0)
+                    elif loaded_mag and loaded_mag.get("rounds"):
+                        chambered = loaded_mag["rounds"].pop(0)
+                    self._play_weapon_action_sound(weapon, "pumpforward")
+                else:
+                    # Try to chamber next round (but not for bolt-action weapons)
+                    if not is_bolt:
+                        if is_internal and weapon.get("rounds"):
+                            chambered = weapon["rounds"].pop(0)
+                        elif loaded_mag and loaded_mag.get("rounds"):
+                            chambered = loaded_mag["rounds"].pop(0)
             else:
                 # Out of ammo mid-burst
                 logging.info("Ran out of ammo mid-burst after %s rounds", rounds_fired)
@@ -4336,8 +6125,27 @@ class App:
             cleanliness -= random.uniform(0.1, 0.3)
             cleanliness = max(0, cleanliness)
 
-            # Apply timing delay per shot/burst to simulate human reaction on semi/burst
-            time.sleep(base_delay + human_delay)
+            # Apply timing delay based on fire mode
+            if is_bolt:
+                # Bolt: no delay, only fires one round
+                pass
+            elif is_semi:
+                # Semi: human reaction time between each shot
+                time.sleep(base_delay + 0.18)
+            elif is_burst:
+                # Burst: fire burst_count rounds as a group, then human reaction time
+                # Use `burst_base_delay` for intra-burst spacing (can be overridden per-weapon
+                # via the `burst_cyclic` key). Between bursts, include human reaction delay.
+                shots_in_burst = (i + 1) % burst_count
+                if shots_in_burst == 0 and i + 1 < actual_rounds_to_fire:
+                    # End of this burst, add human reaction delay before next burst
+                    time.sleep(0.18)
+                else:
+                    # Within the burst, use the burst-specific cycling delay
+                    time.sleep(burst_base_delay)
+            else:
+                # Auto: just base cycling delay between shots
+                time.sleep(base_delay)
         
         # Update weapon state
         weapon["chambered"] = chambered
@@ -4348,45 +6156,323 @@ class App:
             combat_state["barrel_temperatures"] = {}
         if "barrel_cleanliness" not in combat_state:
             combat_state["barrel_cleanliness"] = {}
+        if "weapon_last_used" not in combat_state:
+            combat_state["weapon_last_used"] = {}
         
         combat_state["barrel_temperatures"][weapon_id] = temperature
         combat_state["barrel_cleanliness"][weapon_id] = cleanliness
-        combat_state["last_temp_update"] = time.time()
+        combat_state["weapon_last_used"][weapon_id] = time.time()
+        
+        # For bolt-action weapons, automatically cycle the bolt after firing
+        if is_bolt and rounds_fired > 0 and not jammed:
+            time.sleep(0.1)
+            self._play_weapon_action_sound(weapon, "boltback")
+            time.sleep(0.3)
+            # For internal weapons, check weapon['rounds'] for next round, otherwise check loaded_mag
+            if is_internal:
+                if weapon.get("rounds"):
+                    next_round = weapon["rounds"].pop(0)
+                    weapon["chambered"] = next_round
+                    self._play_weapon_action_sound(weapon, "boltforward")
+                    cycle_result = "next round automatically chambered"
+                else:
+                    weapon["chambered"] = None
+                    self._play_weapon_action_sound(weapon, "boltforward")
+                    cycle_result = "bolt cycled (no rounds left to chamber)"
+            else:
+                if loaded_mag and loaded_mag.get("rounds"):
+                    next_round = loaded_mag["rounds"].pop(0)
+                    weapon["chambered"] = next_round
+                    self._play_weapon_action_sound(weapon, "boltforward")
+                    cycle_result = "next round automatically chambered"
+                else:
+                    weapon["chambered"] = None
+                    self._play_weapon_action_sound(weapon, "boltforward")
+                    cycle_result = "bolt cycled (no rounds left to chamber)"
+        else:
+            cycle_result = None
+        
+        # Roll d20 for each round fired and copy to clipboard
+        if rounds_fired > 0:
+            rolls, median = self._roll_d20_dice(rounds_fired)
+            weapon_name = weapon.get("name", "Unknown")
+            caliber_list = weapon.get("caliber", []) or ["Unknown"]
+            caliber = caliber_list[0]
+            
+            # Get the variant from chambered or loaded magazine
+            variant = "Unknown"
+            if chambered and " | " in str(chambered):
+                variant = str(chambered).split(" | ")[1]
+            elif loaded_mag and loaded_mag.get("rounds") and " | " in str(loaded_mag["rounds"][0]):
+                variant = str(loaded_mag["rounds"][0]).split(" | ")[1]
+            
+            clipboard_text = f"Roll: {median} | Weapon: {weapon_name}, round: {caliber}, {variant}, rounds fired: {rounds_fired}"
+            self._copy_to_clipboard(clipboard_text)
+            logging.info(f"D20 rolls: {rolls}, Median: {median}")
         
         # Return result message
         if jammed:
+            # Show jam-clear progress popup and play sequence with updates
+            import random as _rand
+
+            # Determine magazine type preference: if a loaded magazine exists use its type,
+            # otherwise fall back to the weapon's default. Treat submagazinetype as
+            # indicating a detachable-mag option for dual-feed weapons (e.g. M249).
+            if loaded_mag and loaded_mag.get("magazinetype"):
+                magazine_type = str(loaded_mag.get("magazinetype", "") or "").lower()
+            else:
+                magazine_type = weapon.get("magazinetype", "").lower()
+
+            sub_mag = str(weapon.get("submagazinetype", "") or "").lower()
+
+            # has_detachable_mag is true only if there is a loaded magazine and it isn't internal/tube/cylinder,
+            # or if the weapon supports a detachable sub-magazine and a detachable mag is present.
+            has_detachable_mag = bool(loaded_mag) and not any(k in magazine_type for k in ("internal", "tube", "cylinder")) and "revolver" not in weapon.get("platform", "").lower()
+
+            progress = None
+            try:
+                progress = self._popup_progress("Clearing Jam", "Preparing to clear jam...")
+            except Exception:
+                progress = None
+
+            try:
+                if has_detachable_mag:
+                    if progress:
+                        progress["update"]("Dropping magazine...")
+                    # For belt-fed weapons, play beltdrop instead of magout
+                    mag_type = weapon.get("magazinetype", "").lower()
+                    rt_platform = weapon.get("platform", "").lower()
+                    if "belt" in mag_type or "belt" in rt_platform or "m249" in rt_platform:
+                        self._play_weapon_action_sound(weapon, "beltdrop")
+                    else:
+                        self._play_weapon_action_sound(weapon, "magout")
+
+                if progress:
+                    progress["update"]("Waiting (1.0-1.5s)...")
+                time.sleep(_rand.uniform(1.0, 1.5))
+
+                # Use pump action sounds for pump weapons, otherwise bolt/slide sounds
+                if progress:
+                    if is_pump:
+                        progress["update"]("Pumping action back...")
+                    else:
+                        progress["update"]("Racking bolt back...")
+
+                if is_pump:
+                    self._play_weapon_action_sound(weapon, "pumpback")
+                else:
+                    self._play_weapon_action_sound(weapon, "boltback")
+
+                time.sleep(0.1)
+
+                if progress:
+                    if is_pump:
+                        progress["update"]("Pumping action forward...")
+                    else:
+                        progress["update"]("Racking bolt forward...")
+
+                if is_pump:
+                    self._play_weapon_action_sound(weapon, "pumpforward")
+                else:
+                    self._play_weapon_action_sound(weapon, "boltforward")
+
+                if progress:
+                    progress["update"]("Waiting (3.5-5.0s)...")
+                time.sleep(_rand.uniform(3.5, 5.0))
+
+                if has_detachable_mag:
+                    if progress:
+                        progress["update"]("Inserting magazine...")
+                    # Only play magin for detachable-mag weapons; for belts use beltfeed
+                    mag_type = weapon.get("magazinetype", "").lower()
+                    platform = weapon.get("platform", "").lower()
+                    if not any(k in mag_type for k in ("internal", "tube", "cylinder")) and "revolver" not in platform:
+                        if "belt" in mag_type or "belt" in platform or "m249" in platform:
+                            self._play_weapon_action_sound(weapon, "beltfeed")
+                        else:
+                            self._play_weapon_action_sound(weapon, "magin")
+
+                if progress:
+                    progress["update"]("Waiting (1.0-1.5s)...")
+                time.sleep(_rand.uniform(1.0, 1.5))
+
+                if progress:
+                    if is_pump:
+                        progress["update"]("Pumping action back...")
+                    else:
+                        progress["update"]("Racking bolt back...")
+
+                if is_pump:
+                    self._play_weapon_action_sound(weapon, "pumpback")
+                else:
+                    self._play_weapon_action_sound(weapon, "boltback")
+
+                time.sleep(0.1)
+
+                if progress:
+                    if is_pump:
+                        progress["update"]("Pumping action forward...")
+                    else:
+                        progress["update"]("Racking bolt forward...")
+
+                if is_pump:
+                    self._play_weapon_action_sound(weapon, "pumpforward")
+                else:
+                    self._play_weapon_action_sound(weapon, "boltforward")
+            finally:
+                if progress:
+                    try:
+                        progress["close"]()
+                    except Exception:
+                        pass
+
             return f"Fired {rounds_fired} rounds - WEAPON JAMMED! Clear jam and try again."
         else:
-            return f"Fired {rounds_fired} rounds successfully."
+            if is_bolt and rounds_fired > 0 and cycle_result:
+                return f"Fired {rounds_fired} round(s) successfully - {cycle_result}."
+            else:
+                return f"Fired {rounds_fired} rounds successfully."
     
     def _reload_weapon(self, weapon, save_data, combat_reload=False):
-        """Reload weapon from available magazines."""
+        """Reload weapon from available magazines or internal reload."""
         logging.info(
             "_reload_weapon start: name=%s magsystem=%s combat_reload=%s",
             weapon.get("name", "Unknown"),
             weapon.get("magazinesystem"),
             combat_reload
         )
-        # TODO: Implement magazine searching and reloading
-        # This requires searching storage/equipment for compatible magazines
         
+        magazine_type = weapon.get("magazinetype", "").lower()
         magazine_system = weapon.get("magazinesystem")
+        
+        # Handle internal magazines (tube and box)
+        if "internal" in magazine_type:
+            return self._reload_internal_magazine(weapon, save_data, magazine_type)
+        
+        # Handle revolvers
+        if "revolver" in weapon.get("platform", "").lower() or "cylinder" in magazine_type:
+            return self._reload_revolver(weapon, save_data)
+        
+        # Handle detachable box magazines
         if not magazine_system:
             return "Weapon doesn't use magazines."
         
-        # Search for compatible magazines in storage, hands, and equipment
+        # Search for compatible magazines in hands and equipment
         compatible_mags = []
-        
-        # Check storage
-        for item in save_data.get("storage", []):
-            if item and item.get("magazinesystem") == magazine_system:
-                rounds = item.get("rounds", [])
-                if rounds and len(rounds) > 0:
-                    compatible_mags.append(item)
+        # If weapon has infinite_ammo, perform the same reload sound sequence as a normal reload
+        # but always treat it as a fast reload and do not modify player inventory.
+        if weapon.get("infinite_ammo"):
+            # Record prior state before we touch weapon for chamber/mag decisions
+            prior_current_mag = weapon.get("loaded")
+            prior_chambered = weapon.get("chambered")
+
+            # Build synthetic magazine from mag_to_load if provided
+            mag_to_load = weapon.get("mag_to_load")
+            mag_item = None
+            if mag_to_load:
+                try:
+                    table_files = glob.glob(os.path.join("tables", "*.sldtbl"))
+                    if table_files:
+                        with open(table_files[0], 'r') as tf:
+                            table_data = json.load(tf)
+                        magazines_list = table_data.get("magazines") or table_data.get("tables", {}).get("magazines", [])
+                        for m in magazines_list:
+                            if m.get("id") == mag_to_load:
+                                import copy
+                                mag_item = copy.deepcopy(m)
+                                break
+                        if mag_item:
+                            capacity = mag_item.get("capacity", 0) or 0
+                            caliber_list = mag_item.get("caliber") or weapon.get("caliber") or ["Unknown"]
+                            mag_caliber = caliber_list[0] if isinstance(caliber_list, (list, tuple)) and caliber_list else (caliber_list if isinstance(caliber_list, str) else "Unknown")
+                            mag_item["rounds"] = []
+                            for _ in range(capacity):
+                                mag_item["rounds"].append({"name": f"{mag_caliber} | Infinite", "caliber": mag_caliber, "variant": "infinite"})
+                            # Assign synthetic magazine to weapon (do not touch inventory)
+                            weapon["loaded"] = mag_item
+                except Exception:
+                    logging.exception("Failed to construct synthetic magazine from mag_to_load")
+
+            # Use the same mag-drop fast-reload sequence/timing as auto-reload
+            # Determine emptiness based on prior state
+            is_gun_empty = not prior_chambered and (not prior_current_mag or not prior_current_mag.get("rounds", []))
+
+            # Play magout (or beltdrop for belt-fed) for prior magazine if present
+            if prior_current_mag:
+                try:
+                    # Prefer the prior magazine's type if available (handles dual-feed where the
+                    # currently-inserted mag may be a detachable box even on a belt weapon).
+                    mag_type_check = (prior_current_mag.get("magazinetype") or weapon.get("magazinetype", "")).lower()
+                    platform_check = weapon.get("platform", "").lower()
+                    if "belt" in mag_type_check or "belt" in platform_check or "m249" in platform_check:
+                        self._play_weapon_action_sound(weapon, "beltdrop")
+                    else:
+                        self._play_weapon_action_sound(weapon, "magout")
+                except Exception:
+                    pass
+                time.sleep(0.9)
+
+            # Play random magdrop sound (magdrop0 or magdrop1)
+            import random as rand_module
+            magdrop_sound = f"magdrop{rand_module.randint(0, 1)}"
+            self._safe_sound_play("", f"sounds/firearms/universal/{magdrop_sound}.ogg")
+            time.sleep(0.85)
+
+            # Pouchout sound
+            self._safe_sound_play("", "sounds/firearms/universal/pouchout.ogg")
+            time.sleep(0.8)
+
+            # Play magin for detachable-mag weapons; for belt-fed use beltfeed instead
+            mag_type_check = weapon.get("magazinetype", "").lower()
+            platform_check = weapon.get("platform", "").lower()
+            if not any(k in mag_type_check for k in ("internal", "tube", "cylinder")) and "revolver" not in platform_check:
+                try:
+                    if "belt" in mag_type_check or "belt" in platform_check or "m249" in platform_check:
+                        self._play_weapon_action_sound(weapon, "beltfeed")
+                    else:
+                        self._play_weapon_action_sound(weapon, "magin")
+                except Exception:
+                    pass
+                time.sleep(0.75)
+
+            # Bolt/pump cycle if gun was empty
+            rt_mag_type = str(weapon.get("magazinetype", "") or "").lower()
+            rt_platform_raw = weapon.get("platform", "") or ""
+            if isinstance(rt_platform_raw, (list, tuple)):
+                rt_platform_raw = rt_platform_raw[0] if rt_platform_raw else ""
+            rt_platform = str(rt_platform_raw).lower()
+            rt_action_raw = weapon.get("action", "") or ""
+            if isinstance(rt_action_raw, (list, tuple)):
+                rt_action_raw = rt_action_raw[0] if rt_action_raw else ""
+            rt_action = str(rt_action_raw).lower()
+            is_pump_reload = ("pump" in rt_platform or rt_action == "pump" or "pump" in rt_mag_type)
+
+            if is_gun_empty:
+                if not is_pump_reload:
+                    if not weapon.get("bolt_catch"):
+                        self._play_weapon_action_sound(weapon, "boltback")
+                        time.sleep(0.9)
+                        self._play_weapon_action_sound(weapon, "boltforward")
+                    else:
+                        self._play_weapon_action_sound(weapon, "boltforward")
+                else:
+                    self._play_weapon_action_sound(weapon, "pumpforward")
+                time.sleep(0.75)
+
+            # Assign synthetic magazine to weapon if constructed (do not remove from inventory)
+            # (mag_item was assigned earlier if present)
+
+            # Chamber a round if gun was empty
+            if is_gun_empty:
+                loaded_mag = weapon.get("loaded")
+                if loaded_mag and loaded_mag.get("rounds"):
+                    weapon["chambered"] = loaded_mag["rounds"].pop(0)
+
+            return "Reloaded (infinite ammo - fast magdrop)"
         
         # Check hands
         for item in save_data.get("hands", {}).get("items", []):
-            if item and item.get("magazinesystem") == magazine_system:
+            if item and isinstance(item, dict) and item.get("magazinesystem") == magazine_system:
                 rounds = item.get("rounds", [])
                 if rounds and len(rounds) > 0:
                     compatible_mags.append(item)
@@ -4400,28 +6486,355 @@ class App:
         # Take first available mag
         new_mag = compatible_mags[0]
         
-        # Handle current magazine
+        # Determine if reloading from empty or full
         current_mag = weapon.get("loaded")
-        if current_mag and not combat_reload:
-            # Put current mag back in storage
-            save_data["storage"].append(current_mag)
+        chambered = weapon.get("chambered")
+        # Gun is truly empty only if no magazine AND no chambered round
+        # Empty magazine (current_mag exists but has no rounds) should still trigger bolt sounds
+        is_gun_empty = not chambered and (not current_mag or not current_mag.get("rounds", []))
+        # Detect pump-action for reload behavior (avoid auto-chambering for pump guns)
+        rt_mag_type = str(weapon.get("magazinetype", "") or "").lower()
+        rt_platform_raw = weapon.get("platform", "") or ""
+        if isinstance(rt_platform_raw, (list, tuple)):
+            rt_platform_raw = rt_platform_raw[0] if rt_platform_raw else ""
+        rt_platform = str(rt_platform_raw).lower()
+        rt_action_raw = weapon.get("action", "") or ""
+        if isinstance(rt_action_raw, (list, tuple)):
+            rt_action_raw = rt_action_raw[0] if rt_action_raw else ""
+        rt_action = str(rt_action_raw).lower()
+        is_pump_reload = ("pump" in rt_platform or rt_action == "pump" or "pump" in rt_mag_type)
         
-        # Load new magazine and remove from source
-        weapon["loaded"] = new_mag
+        # === RELOAD SOUND SEQUENCE ===
+        # Play magout sound (or beltdrop for belt-fed) if magazine is present (even if empty)
+        if current_mag:
+            # Prefer the current_mag's magazinetype (handles detachable mags used on dual-feed weapons)
+            mag_type = (current_mag.get("magazinetype") or weapon.get("magazinetype", "")).lower()
+            platform = weapon.get("platform", "").lower()
+            if "belt" in mag_type or "belt" in platform or "m249" in platform:
+                self._play_weapon_action_sound(weapon, "beltdrop")
+            else:
+                self._play_weapon_action_sound(weapon, "magout")
+            time.sleep(random.uniform(1.0, 1.5))
         
-        # Remove from storage if found there
-        if new_mag in save_data.get("storage", []):
-            save_data["storage"].remove(new_mag)
-        # Remove from hands if found there
-        elif new_mag in save_data.get("hands", {}).get("items", []):
-            save_data["hands"]["items"].remove(new_mag)
+        # Pouchin sound
+        self._safe_sound_play("", "sounds/firearms/universal/pouchin.ogg")
+        time.sleep(random.uniform(1.0, 1.5))
         
-        # Play reload sounds
-        self._play_weapon_action_sound(weapon, "magout")
-        time.sleep(0.3)
-        self._play_weapon_action_sound(weapon, "magin")
+        # Pouchout sound (always happens, even if no mag was in gun)
+        self._safe_sound_play("", "sounds/firearms/universal/pouchout.ogg")
+        time.sleep(random.uniform(1.0, 1.5))
         
-        return f"Reloaded with magazine ({len(new_mag.get('rounds', []))} rounds)"
+        # Magazine in sound (only for detachable-mag weapons). For belt-fed, play beltfeed.
+        # Determine magazinetype from the incoming magazine if present (dual-feed weapons
+        # may accept detachable mags even if weapon.magazinetype == 'Belt').
+        mag_type = (new_mag.get("magazinetype") if 'new_mag' in locals() and new_mag else weapon.get("magazinetype", "")).lower()
+        platform = weapon.get("platform", "").lower()
+        if not any(k in mag_type for k in ("internal", "tube", "cylinder")) and "revolver" not in platform:
+            if "belt" in mag_type or "belt" in platform or "m249" in platform:
+                self._play_weapon_action_sound(weapon, "beltfeed")
+            else:
+                self._play_weapon_action_sound(weapon, "magin")
+        time.sleep(random.uniform(1.0, 1.5))
+        
+        # Bolt sounds (only if gun is empty - no chambered round and no magazine)
+        if is_gun_empty:
+            if not weapon.get("bolt_catch"):
+                self._play_weapon_action_sound(weapon, "boltback")
+                time.sleep(random.uniform(1.0, 1.5))
+                self._play_weapon_action_sound(weapon, "boltforward")
+            else:
+                # If has bolt catch, just play boltforward
+                self._play_weapon_action_sound(weapon, "boltforward")
+        
+        # Handle current magazine (put old mag back in hands if it has space)
+        if current_mag and not combat_reload and not weapon.get("infinite_ammo"):
+            # Put current mag back in hands (even if empty)
+            save_data.get("hands", {}).get("items", []).append(current_mag)
+        
+        # Load new magazine and remove from source (skip inventory changes for infinite_ammo)
+        if not weapon.get("infinite_ammo"):
+            weapon["loaded"] = new_mag
+
+            # Chamber a round from the new magazine if gun was empty
+            # For pump-action weapons, do NOT automatically chamber; user must cycle pump
+            if is_gun_empty and new_mag.get("rounds", []) and not is_pump_reload:
+                weapon["chambered"] = new_mag["rounds"].pop(0)
+
+            # Remove from hands if found there
+            if new_mag in save_data.get("hands", {}).get("items", []):
+                save_data["hands"]["items"].remove(new_mag)
+        else:
+            # For infinite_ammo weapons: chamber a synthetic infinite round if empty and not pump
+            if is_gun_empty and not is_pump_reload:
+                caliber_list = weapon.get("caliber", []) or ["Unknown"]
+                caliber = caliber_list[0]
+                weapon["chambered"] = {"name": f"{caliber} | Infinite", "caliber": caliber, "variant": "infinite"}
+
+        # For pump-action weapons, play the action sound at the end of loading
+        try:
+            if is_pump_reload:
+                self._play_weapon_action_sound(weapon, "pumpback")
+                self._play_weapon_action_sound(weapon, "pumpforward")
+        except Exception:
+            pass
+
+        # Return appropriate message
+        mag_rounds = len(new_mag.get('rounds', []))
+        chambered_info = " +1 in chamber" if is_gun_empty else ""
+        return f"Reloaded with magazine ({mag_rounds}{chambered_info} rounds)"
+    
+    def _reload_internal_magazine(self, weapon, save_data, magazine_type):
+        """Reload an internal magazine (tube or box) weapon."""
+        capacity = weapon.get("capacity", 10)
+        current_rounds = weapon.get("rounds", [])
+        
+        # Find compatible ammunition
+        compatible_ammo = []
+        caliber_list = weapon.get("caliber", []) or []
+        caliber = caliber_list[0] if caliber_list else None
+        
+        if not caliber:
+            return "Weapon has no caliber defined."
+
+        # If weapon has infinite ammo, fill internal magazine without consuming inventory
+        if weapon.get("infinite_ammo"):
+            ammo_needed = capacity - len(current_rounds)
+            ammo_loaded = 0
+            for _ in range(ammo_needed):
+                current_rounds.append({"name": f"{caliber} | Infinite", "caliber": caliber, "variant": "infinite"})
+                ammo_loaded += 1
+
+            # If no round was chambered before, cycle/chamber as appropriate
+            had_chambered = bool(weapon.get("chambered"))
+            if not had_chambered:
+                rt_mag_type = str(weapon.get("magazinetype", "") or "").lower()
+                rt_platform_raw = weapon.get("platform", "") or ""
+                if isinstance(rt_platform_raw, (list, tuple)):
+                    rt_platform_raw = rt_platform_raw[0] if rt_platform_raw else ""
+                rt_platform = str(rt_platform_raw).lower()
+                rt_action_raw = weapon.get("action", "") or ""
+                if isinstance(rt_action_raw, (list, tuple)):
+                    rt_action_raw = rt_action_raw[0] if rt_action_raw else ""
+                rt_action = str(rt_action_raw).lower()
+                is_pump_reload = ("pump" in rt_platform or rt_action == "pump" or "pump" in rt_mag_type)
+
+                if is_pump_reload:
+                    try:
+                        self._play_weapon_action_sound(weapon, "pumpforward")
+                    except Exception:
+                        pass
+                else:
+                    if not weapon.get("bolt_catch"):
+                        self._play_weapon_action_sound(weapon, "boltback")
+                        time.sleep(0.12)
+                        if current_rounds:
+                            weapon["chambered"] = current_rounds.pop(0)
+                        self._play_weapon_action_sound(weapon, "boltforward")
+                    else:
+                        if current_rounds:
+                            weapon["chambered"] = current_rounds.pop(0)
+                        self._play_weapon_action_sound(weapon, "boltforward")
+
+            weapon["rounds"] = current_rounds
+            return f"Internal magazine reloaded with {ammo_loaded} rounds (total: {len(current_rounds)}/{capacity})"
+        
+        # Search for ammunition in hands and equipment
+        for item in save_data.get("hands", {}).get("items", []):
+            if item and isinstance(item, dict) and item.get("caliber") == caliber:
+                qty = item.get("quantity", 0)
+                if qty > 0:
+                    compatible_ammo.append((item, qty))
+        
+        # Check equipment containers
+        for slot_name, eq_item in save_data.get("equipment", {}).items():
+            if eq_item and "items" in eq_item:
+                for item in eq_item["items"]:
+                    if item and isinstance(item, dict) and item.get("caliber") == caliber:
+                        qty = item.get("quantity", 0)
+                        if qty > 0:
+                            compatible_ammo.append((item, qty))
+        
+        if not compatible_ammo:
+            if weapon.get("infinite_ammo"):
+                # For infinite-ammo revolvers, simply fill cylinder
+                ammo_needed = capacity - len(current_rounds)
+                for _ in range(ammo_needed):
+                    current_rounds.append({"name": f"{caliber} | Infinite", "caliber": caliber, "variant": "infinite"})
+                # Close cylinder sound
+                time.sleep(0.1)
+                self._play_weapon_action_sound(weapon, "cylinderclose")
+                weapon["rounds"] = current_rounds
+                return f"Revolver reloaded with {ammo_needed} rounds (total: {len(current_rounds)}/{capacity})"
+            return "No compatible ammunition found!"
+        
+        # Play opening sounds if not empty (internal magazines don't use magout)
+        # For internal/tube/box magazines we use per-round sounds; skip generic magout.
+
+        # Play internal reload sounds based on type
+        ammo_needed = capacity - len(current_rounds)
+        ammo_loaded = 0
+
+        def make_round_obj(ammo_item):
+            # Create a round dict using ammo_item metadata when available
+            variant = ammo_item.get("variant") if isinstance(ammo_item, dict) else None
+            name = ammo_item.get("name") if isinstance(ammo_item, dict) else None
+            if variant:
+                rnd_name = f"{caliber} | {variant}"
+            elif name:
+                rnd_name = f"{caliber} | {name}"
+            else:
+                rnd_name = f"{caliber}"
+            return {"name": rnd_name, "caliber": caliber, "variant": variant}
+
+        if "tube" in magazine_type:
+            # Shotgun tube magazine — insert one round at a time with tubeinsert sound
+            while ammo_loaded < ammo_needed and compatible_ammo:
+                ammo_item, qty = compatible_ammo[0]
+                rounds_to_load = min(1, qty, ammo_needed - ammo_loaded)
+
+                for _ in range(rounds_to_load):
+                    # Play tubeinsert (blocking) but do not pause between inserts
+                    self._play_weapon_action_sound(weapon, "tubeinsert", block=True)
+                    current_rounds.append(make_round_obj(ammo_item))
+                    ammo_loaded += 1
+                    ammo_item["quantity"] -= 1
+
+                if ammo_item["quantity"] <= 0:
+                    compatible_ammo.pop(0)
+
+        elif "box" in magazine_type:
+            # Internal box magazine - alternate insert sounds
+            insert_index = 0
+            while ammo_loaded < ammo_needed and compatible_ammo:
+                ammo_item, qty = compatible_ammo[0]
+                rounds_to_load = min(1, qty, ammo_needed - ammo_loaded)
+
+                for _ in range(rounds_to_load):
+                    sound_action = f"bulletinsert{insert_index % 2}"
+                    # Play bulletinsert (blocking) without extra sleep between inserts
+                    self._play_weapon_action_sound(weapon, sound_action, block=True)
+                    current_rounds.append(make_round_obj(ammo_item))
+                    ammo_loaded += 1
+                    insert_index += 1
+                    ammo_item["quantity"] -= 1
+
+                if ammo_item["quantity"] <= 0:
+                    compatible_ammo.pop(0)
+
+        # Play closing sounds and handle bolt/chambering after loading
+        if ammo_loaded > 0:
+
+            # If no round was chambered before, cycle bolt appropriately to chamber one
+            had_chambered = bool(weapon.get("chambered"))
+            if not had_chambered:
+                # Detect pump-action: avoid auto-chambering for pump guns
+                rt_mag_type = str(weapon.get("magazinetype", "") or "").lower()
+                rt_platform_raw = weapon.get("platform", "") or ""
+                if isinstance(rt_platform_raw, (list, tuple)):
+                    rt_platform_raw = rt_platform_raw[0] if rt_platform_raw else ""
+                rt_platform = str(rt_platform_raw).lower()
+                rt_action_raw = weapon.get("action", "") or ""
+                if isinstance(rt_action_raw, (list, tuple)):
+                    rt_action_raw = rt_action_raw[0] if rt_action_raw else ""
+                rt_action = str(rt_action_raw).lower()
+                is_pump_reload = ("pump" in rt_platform or rt_action == "pump" or "pump" in rt_mag_type)
+
+                if is_pump_reload:
+                    # Do not auto-cycle for pump-action weapons; leave chamber empty
+                    cycle_result = "reloaded (pump required to chamber)"
+                    # Play pump forward sound to indicate the action at end of loading
+                    try:
+                        self._play_weapon_action_sound(weapon, "pumpforward")
+                    except Exception:
+                        pass
+                else:
+                    # If gun does not have bolt catch, play boltback then boltforward
+                    if not weapon.get("bolt_catch"):
+                        self._play_weapon_action_sound(weapon, "boltback")
+                        time.sleep(0.12)
+                        # Chamber next round from tube/rounds
+                        if current_rounds:
+                            weapon["chambered"] = current_rounds.pop(0)
+                        self._play_weapon_action_sound(weapon, "boltforward")
+                    else:
+                        # Boltcatch present: just cycle forward to chamber
+                        if current_rounds:
+                            weapon["chambered"] = current_rounds.pop(0)
+                        self._play_weapon_action_sound(weapon, "boltforward")
+
+        weapon["rounds"] = current_rounds
+        return f"Internal magazine reloaded with {ammo_loaded} rounds (total: {len(current_rounds)}/{capacity})"
+    
+    def _reload_revolver(self, weapon, save_data):
+        """Reload a revolver with individual rounds."""
+        capacity = weapon.get("capacity", 6)
+        current_rounds = weapon.get("rounds", [])
+        
+        # Find compatible ammunition
+        compatible_ammo = []
+        caliber_list = weapon.get("caliber", []) or []
+        caliber = caliber_list[0] if caliber_list else None
+        
+        if not caliber:
+            return "Weapon has no caliber defined."
+        
+        # Search for ammunition in hands and equipment
+        for item in save_data.get("hands", {}).get("items", []):
+            if item and isinstance(item, dict) and item.get("caliber") == caliber:
+                qty = item.get("quantity", 0)
+                if qty > 0:
+                    compatible_ammo.append((item, qty))
+        
+        # Check equipment containers
+        for slot_name, eq_item in save_data.get("equipment", {}).items():
+            if eq_item and "items" in eq_item:
+                for item in eq_item["items"]:
+                    if item and isinstance(item, dict) and item.get("caliber") == caliber:
+                        qty = item.get("quantity", 0)
+                        if qty > 0:
+                            compatible_ammo.append((item, qty))
+        
+        if not compatible_ammo:
+            return "No compatible ammunition found!"
+        
+        ammo_needed = capacity - len(current_rounds)
+        ammo_loaded = 0
+        
+        # Open cylinder
+        self._play_weapon_action_sound(weapon, "cylinderopen")
+        time.sleep(0.2)
+        
+        # Remove old rounds if any
+        if current_rounds:
+            self._play_weapon_action_sound(weapon, "cylinderrelease")
+            time.sleep(0.15)
+        
+        # Load new rounds with alternating bullet insert sounds
+        insert_index = 0
+        while ammo_loaded < ammo_needed and compatible_ammo:
+            ammo_item, qty = compatible_ammo[0]
+            rounds_to_load = min(1, qty, ammo_needed - ammo_loaded)
+
+            for _ in range(rounds_to_load):
+                # Alternate between bulletinsert0 and bulletinsert1
+                sound_action = f"bulletinsert{insert_index % 2}"
+                # Play bulletinsert (blocking) without extra sleep between inserts
+                self._play_weapon_action_sound(weapon, sound_action, block=True)
+                current_rounds.append(f"{caliber}")
+                ammo_loaded += 1
+                insert_index += 1
+                ammo_item["quantity"] -= 1
+
+            if ammo_item["quantity"] <= 0:
+                compatible_ammo.pop(0)
+        
+        # Close cylinder
+        time.sleep(0.1)
+        self._play_weapon_action_sound(weapon, "cylinderclose")
+        time.sleep(0.1)
+        
+        weapon["rounds"] = current_rounds
+        return f"Revolver reloaded with {ammo_loaded} rounds (total: {len(current_rounds)}/{capacity})"
     
     def _clean_weapon(self, weapon, combat_state):
         """Clean weapon to restore reliability."""
@@ -4438,6 +6851,414 @@ class App:
         combat_state["barrel_cleanliness"][weapon_id] = 100
         
         return "Weapon cleaned and maintained."
+    
+    def _cycle_bolt(self, weapon):
+        """Cycle the bolt on a bolt-action weapon to chamber the next round."""
+        logging.info("_cycle_bolt start: name=%s", weapon.get("name", "Unknown"))
+        
+        # Check if this is actually a bolt-action weapon
+        actions = weapon.get("action", [])
+        if "Bolt" not in actions:
+            return "This weapon does not have a bolt to cycle."
+        
+        # Check if there's already a round chambered
+        chambered = weapon.get("chambered")
+        if chambered:
+            logging.info("Bolt cycle: ejecting chambered round")
+            self._play_weapon_action_sound(weapon, "boltback")
+            time.sleep(0.3)
+            self._play_weapon_action_sound(weapon, "shelleject")
+            time.sleep(0.2)
+            # Chambered round is ejected (lost)
+            weapon["chambered"] = None
+            message = "Ejected chambered round. "
+        else:
+            message = ""
+        
+        # Try to chamber a new round from magazine
+        loaded_mag = weapon.get("loaded")
+        
+        if not loaded_mag:
+            self._play_weapon_action_sound(weapon, "boltback")
+            time.sleep(0.3)
+            self._play_weapon_action_sound(weapon, "boltforward")
+            return message + "No magazine loaded - bolt cycled but no round chambered."
+        
+        rounds = loaded_mag.get("rounds", [])
+        if not rounds:
+            self._play_weapon_action_sound(weapon, "boltback")
+            time.sleep(0.3)
+            self._play_weapon_action_sound(weapon, "boltforward")
+            return message + "Magazine empty - bolt cycled but no round chambered."
+        
+        # Chamber next round
+        self._play_weapon_action_sound(weapon, "boltback")
+        time.sleep(0.3)
+        next_round = rounds.pop(0)
+        weapon["chambered"] = next_round
+        self._play_weapon_action_sound(weapon, "boltforward")
+        
+        return message + f"Bolt cycled - chambered {next_round}."
+    
+    def _show_magazine_selection_menu(self, weapon, save_data, table_data, current_weapon_state, update_callback):
+        """Show a menu to select which magazine to load into the weapon from inventory."""
+        magazine_system = weapon.get("magazinesystem")
+        platform = str(weapon.get("platform", "") or "").lower()
+        mag_type_weapon = str(weapon.get("magazinetype", "") or "").lower()
+        # Support dual-feed / belt-fed weapons: treat 'belt' magazinetype specially
+        is_belt_weapon = ("belt" in mag_type_weapon) or ("m249" in platform)
+        sub_mag_type = str(weapon.get("submagazinetype", "") or "").lower()
+
+        # Find all magazines from inventory (hands, equipment) that match this system
+        compatible_mags = []
+
+        # Helper to decide compatibility
+        def mag_is_compatible(mag):
+            if not mag or not isinstance(mag, dict):
+                return False
+            # Exact magazinesystem match
+            if magazine_system and mag.get("magazinesystem") == magazine_system:
+                return True
+            # If weapon is belt-fed, accept items explicitly marked as 'Belt' or matching beltlink
+            mag_type = str(mag.get("magazinetype", "") or "").lower()
+            if is_belt_weapon and ("belt" in mag_type):
+                return True
+            # Accept submagazine type (e.g., detachable box for dual-feed weapons)
+            if sub_mag_type and mag_type == sub_mag_type:
+                return True
+            # Fallback: if weapon has beltlink and mag has same beltlink
+            if is_belt_weapon and weapon.get("beltlink") and mag.get("beltlink") and str(mag.get("beltlink")).lower() == str(weapon.get("beltlink")).lower():
+                return True
+            return False
+
+        # Check hands
+        for item in save_data.get("hands", {}).get("items", []):
+            if mag_is_compatible(item):
+                compatible_mags.append(("hands", item))
+        
+        # Check equipment containers and subslots
+        for slot_name, item in save_data.get("equipment", {}).items():
+                if item:
+                    # Check if item is a container with items
+                    if "items" in item and isinstance(item["items"], list):
+                        for mag in item["items"]:
+                            if mag_is_compatible(mag):
+                                compatible_mags.append(("equipment", mag))
+
+                    # Check subslots
+                    if "subslots" in item:
+                        for subslot in item["subslots"]:
+                            if subslot.get("current"):
+                                curr = subslot["current"]
+                                if "items" in curr and isinstance(curr["items"], list):
+                                    for mag in curr["items"]:
+                                        if mag_is_compatible(mag):
+                                            compatible_mags.append(("equipment", mag))
+        
+        if not compatible_mags:
+            if is_belt_weapon:
+                self._popup_show_info("Magazine", "No belts or compatible magazines in inventory for this weapon!")
+            else:
+                self._popup_show_info("Magazine", f"No compatible magazines in inventory for {magazine_system} system!")
+            return
+        
+        # Create popup for magazine selection
+        popup = customtkinter.CTkToplevel(self.root)
+        popup.title("Select Magazine")
+        popup.geometry("500x450")
+        popup.transient(self.root)
+        
+        label = customtkinter.CTkLabel(
+            popup,
+            text=f"Select a magazine for {weapon.get('name')}:",
+            font=customtkinter.CTkFont(size=13),
+            wraplength=450
+        )
+        label.pack(pady=10, padx=20)
+        
+        # Create scrollable frame for magazine list
+        scroll_frame = customtkinter.CTkScrollableFrame(popup, fg_color="transparent")
+        scroll_frame.pack(fill="both", expand=True, padx=10, pady=10)
+        
+        selected_mag = customtkinter.StringVar(value="0")
+        
+        for idx, (location, mag_item) in enumerate(compatible_mags):
+            mag_name = mag_item.get("name", "Unknown Magazine")
+            capacity = mag_item.get("capacity", "?")
+            rounds = len(mag_item.get("rounds", []))
+            
+            radio_frame = customtkinter.CTkFrame(scroll_frame, fg_color="transparent")
+            radio_frame.pack(fill="x", pady=5, padx=5)
+            
+            radio_text = f"{mag_name} ({rounds}/{capacity}) - from {location}"
+            radio = customtkinter.CTkRadioButton(
+                radio_frame,
+                text=radio_text,
+                variable=selected_mag,
+                value=str(idx),
+                font=customtkinter.CTkFont(size=11)
+            )
+            radio.pack(anchor="w")
+        
+        def give_magazine():
+            if not selected_mag.get():
+                self._popup_show_info("Magazine", "Please select a magazine!")
+                return
+            
+            idx = int(selected_mag.get())
+            location, mag_item = compatible_mags[idx]
+            
+            # Play reload sounds
+            import time
+            
+            # Determine if gun is empty before loading
+            current_mag = weapon.get("loaded")
+            chambered = weapon.get("chambered")
+            is_gun_empty = not chambered and (not current_mag or not current_mag.get("rounds", []))
+            
+            # Play magout sound if magazine is present
+            if current_mag:
+                mag_type = weapon.get("magazinetype", "").lower()
+                platform = weapon.get("platform", "").lower()
+                if "belt" in mag_type or "belt" in platform or "m249" in platform:
+                    self._play_weapon_action_sound(weapon, "beltdrop")
+                else:
+                    self._play_weapon_action_sound(weapon, "magout")
+                time.sleep(random.uniform(1.0, 1.5))
+            
+            self._safe_sound_play("", "sounds/firearms/universal/pouchin.ogg")
+            time.sleep(random.uniform(1.0, 1.5))
+            
+            self._safe_sound_play("", "sounds/firearms/universal/pouchout.ogg")
+            time.sleep(random.uniform(1.0, 1.5))
+            
+            # Only play magin for detachable-mag weapons. For belts, play beltfeed.
+            mag_type = weapon.get("magazinetype", "").lower()
+            platform = weapon.get("platform", "").lower()
+            if not any(k in mag_type for k in ("internal", "tube", "cylinder")) and "revolver" not in platform:
+                if "belt" in mag_type or "belt" in platform or "m249" in platform:
+                    self._play_weapon_action_sound(weapon, "beltfeed")
+                else:
+                    self._play_weapon_action_sound(weapon, "magin")
+                time.sleep(random.uniform(1.0, 1.5))
+            
+            # Bolt sounds (only if gun is empty - no chambered round and no magazine)
+            if is_gun_empty:
+                if not weapon.get("bolt_catch"):
+                    self._play_weapon_action_sound(weapon, "boltback")
+                    time.sleep(random.uniform(1.0, 1.5))
+                    self._play_weapon_action_sound(weapon, "boltforward")
+                else:
+                    # If has bolt catch, just play boltforward
+                    self._play_weapon_action_sound(weapon, "boltforward")
+            
+            # Replace currently loaded magazine
+            if current_mag and not weapon.get("infinite_ammo"):
+                # Put old magazine back in hands
+                save_data.get("hands", {}).get("items", []).append(current_mag)
+            
+            # Load the magazine (skip for infinite_ammo)
+            if not weapon.get("infinite_ammo"):
+                weapon["loaded"] = mag_item
+                weapon["chambered"] = None  # Reset chambered round
+            else:
+                weapon["chambered"] = None
+
+            # Detect pump-action for reload behavior (do not auto-chamber)
+            rt_mag_type = str(weapon.get("magazinetype", "") or "").lower()
+            rt_platform_raw = weapon.get("platform", "") or ""
+            if isinstance(rt_platform_raw, (list, tuple)):
+                rt_platform_raw = rt_platform_raw[0] if rt_platform_raw else ""
+            rt_platform = str(rt_platform_raw).lower()
+            rt_action_raw = weapon.get("action", "") or ""
+            if isinstance(rt_action_raw, (list, tuple)):
+                rt_action_raw = rt_action_raw[0] if rt_action_raw else ""
+            rt_action = str(rt_action_raw).lower()
+            is_pump_reload_local = ("pump" in rt_platform or rt_action == "pump" or "pump" in rt_mag_type)
+
+            # Chamber a round from the new magazine if gun was empty (skip for pump-action)
+            if not weapon.get("infinite_ammo") and is_gun_empty and mag_item.get("rounds", []) and not is_pump_reload_local:
+                weapon["chambered"] = mag_item["rounds"].pop(0)
+            elif weapon.get("infinite_ammo") and is_gun_empty and not is_pump_reload_local:
+                caliber_list = weapon.get("caliber", []) or ["Unknown"]
+                caliber = caliber_list[0]
+                weapon["chambered"] = {"name": f"{caliber} | Infinite", "caliber": caliber, "variant": "infinite"}
+            
+            # Remove magazine from source (skip for infinite_ammo)
+            if not weapon.get("infinite_ammo"):
+                if location == "hands":
+                    if mag_item in save_data.get("hands", {}).get("items", []):
+                        save_data["hands"]["items"].remove(mag_item)
+                elif location == "equipment":
+                    # Remove from equipment containers or subslots
+                    for slot_name, item in save_data.get("equipment", {}).items():
+                        if item:
+                            if "items" in item and isinstance(item["items"], list):
+                                if mag_item in item["items"]:
+                                    item["items"].remove(mag_item)
+                            if "subslots" in item:
+                                for subslot in item["subslots"]:
+                                    if subslot.get("current"):
+                                        curr = subslot["current"]
+                                        if "items" in curr and isinstance(curr["items"], list):
+                                            if mag_item in curr["items"]:
+                                                curr["items"].remove(mag_item)
+            # For infinite_ammo, do not remove any magazine from inventory
+            
+            popup.destroy()
+            mag_name = mag_item.get("name", "magazine")
+            rounds = len(mag_item.get("rounds", []))
+            # If this was a pump-action reload, play the action sound to indicate cycle
+            try:
+                if is_pump_reload_local:
+                    self._play_weapon_action_sound(weapon, "pumpforward")
+            except Exception:
+                pass
+
+            chambered_info = " +1 in chamber" if is_gun_empty and weapon.get("chambered") else ""
+            self._popup_show_info("Magazine", f"Loaded {mag_name} ({rounds}{chambered_info} rounds)!")
+            update_callback()
+        
+        button_frame = customtkinter.CTkFrame(popup, fg_color="transparent")
+        button_frame.pack(fill="x", padx=10, pady=10)
+        
+        load_btn = customtkinter.CTkButton(
+            button_frame,
+            text="Load Magazine",
+            command=give_magazine,
+            width=150,
+            height=40
+        )
+        load_btn.pack(side="left", padx=5)
+        
+        cancel_btn = customtkinter.CTkButton(
+            button_frame,
+            text="Cancel",
+            command=popup.destroy,
+            width=150,
+            height=40,
+            fg_color="#444444",
+            hover_color="#555555"
+        )
+        cancel_btn.pack(side="left", padx=5)
+        
+        popup.update_idletasks()
+        popup_width = popup.winfo_reqwidth()
+        popup_height = popup.winfo_reqheight()
+        screen_width = popup.winfo_screenwidth()
+        screen_height = popup.winfo_screenheight()
+        x = (screen_width // 2) - (popup_width // 2)
+        y = (screen_height // 2) - (popup_height // 2)
+        popup.geometry(f"+{x}+{y}")
+        popup.deiconify()
+        popup.grab_set()
+        popup.lift()
+        popup.focus()
+    
+    def _check_for_reloader_item(self, save_data):
+        """Check if player has a reloader item anywhere in inventory (except storage)."""
+        # Check equipment
+        for slot_name, item in save_data.get("equipment", {}).items():
+            if item and item.get("reloader"):
+                return True
+            # Check subslots
+            if item and "subslots" in item:
+                for subslot in item["subslots"]:
+                    if subslot.get("current") and subslot["current"].get("reloader"):
+                        return True
+        
+        # Check hands
+        for item in save_data.get("hands", {}).get("items", []):
+            if item and item.get("reloader"):
+                return True
+        
+        return False
+    
+    def _reload_magazine(self, magazine, save_data):
+        """
+        Reload a magazine by inserting rounds one at a time.
+        Uses bulletinsert0/1 sounds for manual reloading, or reloaderloop.ogg if reloader item present.
+        Delay: 0.5 seconds per round without reloader, 0.1 seconds with reloader.
+        """
+        logging.info("_reload_magazine start: capacity=%s", magazine.get("capacity"))
+        
+        # Get magazine info
+        capacity = magazine.get("capacity", 0)
+        current_rounds = magazine.get("rounds", [])
+        rounds_to_add = capacity - len(current_rounds)
+        
+        if rounds_to_add <= 0:
+            return f"Magazine already has {len(current_rounds)} rounds (capacity: {capacity})"
+        
+        # Check if reloader item is present
+        has_reloader = self._check_for_reloader_item(save_data)
+        
+        if has_reloader:
+            # Use reloader (0.1s delay, reloaderloop.ogg sound)
+            reloader_sound_path = os.path.join("sounds", "firearms", "universal", "reloaderloop.ogg")
+            
+            if os.path.exists(reloader_sound_path):
+                # Play reloader sound in loop
+                reloader_channel = pygame.mixer.find_channel()
+                if reloader_channel:
+                    try:
+                        reloader_sound = pygame.mixer.Sound(reloader_sound_path)
+                        reloader_channel.play(reloader_sound, loops=-1)  # Loop indefinitely
+                    except Exception as e:
+                        logging.warning(f"Failed to play reloader sound: {e}")
+                        reloader_channel = None
+                else:
+                    reloader_channel = None
+            else:
+                logging.warning(f"Reloader sound not found at {reloader_sound_path}")
+                reloader_channel = None
+            
+            # Add rounds with 0.1s delay
+            for i in range(rounds_to_add):
+                if current_rounds:
+                    # Use last round as template for variant
+                    template_round = current_rounds[-1]
+                    current_rounds.append(template_round)
+                else:
+                    # No rounds yet, use generic format
+                    current_rounds.append("Round")
+                time.sleep(0.1)
+            
+            # Stop reloader sound
+            if reloader_channel:
+                reloader_channel.stop()
+            
+            message = f"Reloaded {rounds_to_add} rounds using reloader (total: {len(current_rounds)}/{capacity})"
+        else:
+            # Manual reload (0.5s delay, bulletinsert0/1 sounds)
+            for i in range(rounds_to_add):
+                # Play bulletinsert sound (random 0 or 1)
+                insert_sound = f"bulletinsert{random.randint(0, 1)}"
+                try:
+                    sound_path = os.path.join("sounds", "firearms", "universal", f"{insert_sound}.ogg")
+                    if os.path.exists(sound_path):
+                        sound = pygame.mixer.Sound(sound_path)
+                        channel = pygame.mixer.find_channel()
+                        if channel:
+                            channel.play(sound)
+                except Exception as e:
+                    logging.warning(f"Failed to play {insert_sound}: {e}")
+                
+                # Add round
+                if current_rounds:
+                    template_round = current_rounds[-1]
+                    current_rounds.append(template_round)
+                else:
+                    current_rounds.append("Round")
+                
+                time.sleep(0.5)
+            
+            message = f"Manually reloaded {rounds_to_add} rounds (total: {len(current_rounds)}/{capacity})"
+        
+        magazine["rounds"] = current_rounds
+        logging.info(message)
+        return message
+    
     def _safe_exit(self):
         if currentsave is not None:
             logging.info("Exiting with current save loaded (no auto-save on exit).")

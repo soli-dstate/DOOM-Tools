@@ -48,6 +48,57 @@
                     {"name": "Muzzle Device", "slot": "muzzle_556", "current": null}
                 ],
                 "can_stack": false
+            },
+            {
+                "name": "Remington M24 Sniper Weapon System",
+                "value": 2500,
+                "description": "Bolt-action sniper rifle, used by military and law enforcement. Chambered in 7.62x51mm NATO, known for its accuracy and reliability.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 5.4,
+                "id": 40,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "R700",
+                "caliber": ["7.62x51mm NATO"],
+                "action": ["Bolt"],
+                "bolt": "closed",
+                "cyclic": 40,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "AICS",
+                "jamrate": 0.005,
+                "accessories": [
+                    {"name": "Scope Mount", "slot": "scope", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
+                ],
+                "can_stack": false
+            },
+            {
+                "name": "Remington M40 Sniper Weapon System",
+                "value": 2600,
+                "description": "Bolt-action sniper rifle, used by military and law enforcement. Chambered in 7.62x51mm NATO, known for its accuracy and reliability.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 7.5,
+                "id": 44,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "R700",
+                "caliber": ["7.62x51mm NATO"],
+                "action": ["Bolt"],
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 40,
+                "magazinetype": "Internal Box",
+                "capacity": 5,
+                "jamrate": 0.005,
+                "accessories": [
+                    {"name": "Scope Mount", "slot": "scope", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
+                ],
+                "can_stack": false
             }
         ],
         "submachine_guns": [
@@ -110,6 +161,60 @@
                     {"name": "Muzzle Device", "slot": "muzzle_12g", "current": null}
                 ],
                 "can_stack": false
+            },
+            {
+                "name": "Mossberg M590A1",
+                "value": 950,
+                "description": "Pump-action shotgun widely used by law enforcement and military forces. Chambered in 12 gauge, known for its reliability and ruggedness.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 3.2,
+                "id": 45,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "shotgun",
+                "platform": "M590",
+                "caliber": ["12 Gauge"],
+                "action": ["Pump"],
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 250,
+                "magazinetype": "Internal tube",
+                "capacity": 6,
+                "can_chamber_extra": true,
+                "jamrate": 0.02,
+                "accessories": [
+                    {"name": "Picatinny Rail Optic", "slot": "picatinny_optic", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_12g", "current": null}
+                ],
+                "can_stack": false
+            },
+            {
+                "name": "Franchi SPAS-12",
+                "value": 1200,
+                "description": "Combat shotgun known for its dual-mode operation (pump-action and semi-automatic). Chambered in 12 gauge, popular among military and law enforcement units for versatility and firepower.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 3.9,
+                "id": 46,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "shotgun",
+                "platform": "SPAS-12",
+                "caliber": ["12 Gauge"],
+                "action": ["Pump", "Semi"],
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 300,
+                "magazinetype": "Internal tube",
+                "capacity": 6,
+                "can_chamber_extra": true,
+                "jamrate": 0.02,
+                "accessories": [
+                    {"name": "Picatinny Rail Optic", "slot": "picatinny_optic", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_12g", "current": null}
+                ],
+                "can_stack": false
             }
         ],
         "machine_guns": [
@@ -132,7 +237,7 @@
                 "cyclic": 750,
                 "magazinetype": "Belt",
                 "submagazinetype": "Detachable box",
-                "magazinesystem": "STANAG 4179",
+                "submagazinesystem": "STANAG 4179",
                 "beltlink": "M27",
                 "jamrate": 0.025,
                 "accessories": [
@@ -466,6 +571,67 @@
                         "tip": "#ff4500"
                     }
                 ]
+            },
+            {
+                "name": "7.62x51mm NATO",
+                "value": 0.8,
+                "description": "Standard rifle round used by NATO forces, known for its accuracy and stopping power at medium to long ranges.",
+                "rarity": "Common",
+                "random_quantity": {"min": 10, "max": 100},
+                "weight": 0.02,
+                "id": 41,
+                "caliber": "7.62x51mm NATO",
+                "sounds": "762_51",
+                "variants": [
+                    {
+                        "name": "M80 Ball",
+                        "type": "Ball",
+                        "pen": "II",
+                        "modifiers": null,
+                        "rarity": "Common",
+                        "tip": null
+                    },
+                    {
+                        "name": "M61 AP",
+                        "type": "AP",
+                        "pen": "III",
+                        "modifiers": null,
+                        "rarity": "Uncommon",
+                        "tip": "#212121"
+                    },
+                    {
+                        "name": "M993 AP",
+                        "type": "AP",
+                        "pen": "IV",
+                        "modifiers": null,
+                        "rarity": "Rare",
+                        "tip": "#000000"
+                    },
+                    {
+                        "name": "M62 Tracer",
+                        "type": "Tracer",
+                        "pen": "II",
+                        "modifiers": {"stats": {"aim": 1, "stealth": -1}},
+                        "rarity": "Rare",
+                        "tip": "#ff4500"
+                    },
+                    {
+                        "name": "M948 SLAP",
+                        "type": "SLAP",
+                        "pen": "IV",
+                        "modifiers": null,
+                        "rarity": "Legendary",
+                        "tip": "#ffd700"
+                    },
+                    {
+                        "name": "M959 SLAP-T",
+                        "type": "SLAP-T",
+                        "pen": "IV",
+                        "modifiers": null,
+                        "rarity": "Mythic",
+                        "tip": "#ffd700"
+                    }
+                ]
             }
         ],
         "magazines": [
@@ -518,6 +684,19 @@
                 "id": 22,
                 "caliber": ["5.56x45mm NATO"],
                 "beltlink": "M27",
+                "can_stack": false
+            },
+            {
+                "name": "Magpul PMAG 10-Round 7.62x51mm NATO AICS magazine",
+                "value": 80,
+                "description": "10-round polymer magazine for 7.62x51mm NATO chambered rifles using the AICS magazine system.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.2,
+                "id": 42,
+                "caliber": ["7.62x51mm NATO"],
+                "capacity": 10,
+                "magazinesystem": "AICS",
                 "can_stack": false
             }
         ],
@@ -628,13 +807,14 @@
                 "burst_count": 3,
                 "bolt": "closed",
                 "bolt_catch": false,
-                "cyclic": 900,
+                "cyclic": 1100,
                 "magazinetype": "Detachable box",
                 "magazinesystem": "STANAG 4179",
                 "jamrate": 0.01,
                 "accessories": null,
                 "can_stack": false,
                 "infinite_ammo": true,
+                "mag_to_load": 13,
                 "custom_equip_sound": "sounds/firearms/weaponsounds/famas/french.ogg"
             }
         ],
@@ -848,6 +1028,16 @@
                 "electronic": true,
                 "battery_type": "Rechargeable",
                 "battery_life": 8
+            },
+            {
+                "name": "Reloader",
+                "value": 150,
+                "description": "A mechanical reloader to assist with loading rounds into magazines and belts.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 3,
+                "id": 43,
+                "reloader": true
             }
         ],
         "enemy_drops": [
