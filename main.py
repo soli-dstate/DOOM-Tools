@@ -4094,9 +4094,133 @@ class App:
         # show that accessory as the current weapon; otherwise use the normal
         # equipped weapon entry.
         active_ub = combat_state.get("active_underbarrel")
-        if active_ub and isinstance(active_ub, dict) and active_ub.get("parent_index") == combat_state.get("current_weapon_index"):
+        def _resolve_active_underbarrel_obj(active_entry):
+            try:
+                if not active_entry or not isinstance(active_entry, dict):
+                    return None
+                parent_index = active_entry.get("parent_index")
+                aid = active_entry.get("accessory_id")
+                aname = active_entry.get("accessory_name")
+                try:
+                    logging.info("Resolving active underbarrel: parent_index=%s accessory_id=%s accessory_name=%s current_weapon_index=%s equipped_count=%s",
+                                 parent_index, aid, aname, combat_state.get("current_weapon_index"), len(equipped_weapons))
+                except Exception:
+                    pass
+                if parent_index is None:
+                    return None
+                if parent_index < 0 or parent_index >= len(equipped_weapons):
+                    return None
+                parent_slot = equipped_weapons[parent_index].get("slot", "")
+                try:
+                    logging.info("Resolved parent_slot from equipped_weapons[%s] -> %s", parent_index, parent_slot)
+                except Exception:
+                    pass
+                # extract actual equipment slot name (left of '->')
+                if "->" in parent_slot:
+                    parent_slot = parent_slot.split("->")[0].strip()
+                parent_item = save_data.get("equipment", {}).get(parent_slot)
+                try:
+                    logging.info("Parent item found: %s", bool(parent_item))
+                except Exception:
+                    pass
+                if not parent_item or not isinstance(parent_item, dict):
+                    try:
+                        logging.info("No parent_item present for slot '%s'", parent_slot)
+                    except Exception:
+                        pass
+                    return None
+                # Search accessory entries on parent for matching id/name
+                for acc in parent_item.get("accessories", []) or []:
+                    cur = acc.get("current")
+                    try:
+                        logging.info("Checking parent accessory entry current=%s", repr(cur))
+                    except Exception:
+                        pass
+                    if isinstance(cur, dict):
+                        if aid is not None and cur.get("id") == aid:
+                            try:
+                                logging.info("Resolver matched accessory by id: %s", cur.get("id"))
+                            except Exception:
+                                pass
+                            return cur
+                        if aname and cur.get("name") == aname:
+                            try:
+                                logging.info("Resolver matched accessory by name: %s", cur.get("name"))
+                            except Exception:
+                                pass
+                            return cur
+                    else:
+                        # cur may be an id reference; compare numeric
+                        try:
+                            if aid is not None and (isinstance(cur, int) or (isinstance(cur, str) and cur.isdigit())) and int(cur) == int(aid):
+                                # try resolve from table_data
+                                tables = table_data.get("tables", {}) if isinstance(table_data, dict) else {}
+                                for arr in tables.values():
+                                    if isinstance(arr, list):
+                                        for it in arr:
+                                            if isinstance(it, dict) and it.get("id") == int(cur):
+                                                return it
+                        except Exception:
+                            pass
+
+                # If not found directly on the parent item, check its subslots
+                for sub in parent_item.get("subslots", []) or []:
+                    try:
+                        logging.info("Checking parent subslot '%s' for accessories", sub.get("name"))
+                    except Exception:
+                        pass
+                    sub_cur = sub.get("current") if isinstance(sub, dict) else None
+                    if not sub_cur or not isinstance(sub_cur, dict):
+                        continue
+                    for acc in sub_cur.get("accessories", []) or []:
+                        cur = acc.get("current")
+                        try:
+                            logging.info("Checking subslot accessory entry current=%s", repr(cur))
+                        except Exception:
+                            pass
+                        if isinstance(cur, dict):
+                            if aid is not None and cur.get("id") == aid:
+                                try:
+                                    logging.info("Resolver matched accessory in subslot by id: %s", cur.get("id"))
+                                except Exception:
+                                    pass
+                                return cur
+                            if aname and cur.get("name") == aname:
+                                try:
+                                    logging.info("Resolver matched accessory in subslot by name: %s", cur.get("name"))
+                                except Exception:
+                                    pass
+                                return cur
+                        else:
+                            try:
+                                if aid is not None and (isinstance(cur, int) or (isinstance(cur, str) and cur.isdigit())) and int(cur) == int(aid):
+                                    tables = table_data.get("tables", {}) if isinstance(table_data, dict) else {}
+                                    for arr in tables.values():
+                                        if isinstance(arr, list):
+                                            for it in arr:
+                                                if isinstance(it, dict) and it.get("id") == int(cur):
+                                                    return it
+                            except Exception:
+                                pass
+                return None
+            except Exception:
+                return None
+
+        try:
+            logging.info("Active underbarrel raw state: %s", repr(active_ub))
+        except Exception:
+            pass
+        resolved_active_acc = _resolve_active_underbarrel_obj(active_ub)
+        try:
+            logging.info("Resolved active accessory from resolver: %s", getattr(resolved_active_acc, 'get', lambda k=None: resolved_active_acc)('name', resolved_active_acc))
+        except Exception:
+            try:
+                logging.info("Resolved active accessory: %s", str(resolved_active_acc))
+            except Exception:
+                pass
+        if active_ub and isinstance(active_ub, dict) and active_ub.get("parent_index") == combat_state.get("current_weapon_index") and resolved_active_acc:
             # display the accessory as the current weapon
-            current_weapon = active_ub.get("accessory") or equipped_weapons[combat_state["current_weapon_index"]]["item"]
+            current_weapon = resolved_active_acc
             current_weapon_data = {"item": current_weapon, "slot": f"{equipped_weapons[combat_state['current_weapon_index']]['slot']} -> underbarrel"}
         else:
             current_weapon_data = equipped_weapons[combat_state["current_weapon_index"]]
@@ -4600,36 +4724,75 @@ class App:
             is_gun_empty = not chambered and (not current_mag or not current_mag.get("rounds", []))
             
             # Play reload sequence with mag drop sounds (0.75-1s timing)
-            import random as rand_module
-            # Only play magout if there is a magazine loaded to drop
-            if current_mag:
-                self._play_weapon_action_sound(wpn, "magout")
-                time.sleep(0.9)
-            
-            # Play random magdrop sound
-            magdrop_sound = f"magdrop{rand_module.randint(0, 1)}"
-            self._safe_sound_play("", f"sounds/firearms/universal/{magdrop_sound}.ogg")
-            time.sleep(0.85)
-            
-            self._safe_sound_play("", "sounds/firearms/universal/pouchout.ogg")
-            time.sleep(0.8)
-            
-            # Only play magin for detachable-mag weapons
-            mag_type = wpn.get("magazinetype", "").lower()
-            platform = wpn.get("platform", "").lower()
-            if not any(k in mag_type for k in ("internal", "tube", "cylinder")) and "revolver" not in platform:
-                self._play_weapon_action_sound(wpn, "magin")
-            time.sleep(0.75)
-            
-            # Bolt sounds if gun was empty
-            if is_gun_empty:
-                if not wpn.get("bolt_catch"):
-                    self._play_weapon_action_sound(wpn, "boltback")
-                    time.sleep(0.9)
-                    self._play_weapon_action_sound(wpn, "boltforward")
+            # For belt-fed weapons, use the dedicated belt sequences (or dualfeed sequence
+            # if the weapon supports detachable sub-magazines). Otherwise use pouch/magdrop flow.
+            try:
+                is_belt = ("belt" in (wpn.get("magazinetype", "") or "")) or ("belt" in (wpn.get("platform", "") or "")) or ("m249" in (wpn.get("platform", "") or ""))
+                if is_belt:
+                    if wpn.get("dualfeed") and (wpn.get("submagazinesystem") or wpn.get("submagazinetype")):
+                        try:
+                            self._perform_dualfeed_belt_reload_sequence(wpn)
+                        except Exception:
+                            pass
+                    else:
+                        try:
+                            self._perform_belt_reload_sequence(wpn)
+                        except Exception:
+                            pass
                 else:
-                    self._play_weapon_action_sound(wpn, "boltforward")
-                time.sleep(0.75)
+                    import random as rand_module
+                    # Only play magout if there is a magazine loaded to drop
+                    if current_mag:
+                        try:
+                            self._play_weapon_action_sound(wpn, "magout")
+                        except Exception:
+                            pass
+                        time.sleep(0.9)
+
+                    # Play random magdrop sound
+                    try:
+                        magdrop_sound = f"magdrop{rand_module.randint(0, 1)}"
+                        self._safe_sound_play("", f"sounds/firearms/universal/{magdrop_sound}.ogg")
+                    except Exception:
+                        pass
+                    time.sleep(0.85)
+
+                    try:
+                        self._safe_sound_play("", "sounds/firearms/universal/pouchout.ogg")
+                    except Exception:
+                        pass
+                    time.sleep(0.8)
+
+                    # Only play magin for detachable-mag weapons
+                    mag_type = wpn.get("magazinetype", "").lower()
+                    platform = wpn.get("platform", "").lower()
+                    if not any(k in mag_type for k in ("internal", "tube", "cylinder")) and "revolver" not in platform:
+                        try:
+                            self._play_weapon_action_sound(wpn, "magin")
+                        except Exception:
+                            pass
+                    time.sleep(0.75)
+
+                    # Bolt sounds if gun was empty
+                    if is_gun_empty:
+                        if not wpn.get("bolt_catch"):
+                            try:
+                                self._play_weapon_action_sound(wpn, "boltback")
+                            except Exception:
+                                pass
+                            time.sleep(0.9)
+                            try:
+                                self._play_weapon_action_sound(wpn, "boltforward")
+                            except Exception:
+                                pass
+                        else:
+                            try:
+                                self._play_weapon_action_sound(wpn, "boltforward")
+                            except Exception:
+                                pass
+                        time.sleep(0.75)
+            except Exception:
+                pass
             
             # Drop current magazine (don't keep it)
             if current_mag:
@@ -4803,6 +4966,27 @@ class App:
 
             apply_btn = customtkinter.CTkButton(popup, text="Apply", command=apply_changes, width=120)
             apply_btn.pack(pady=10)
+            # Auto-resize popup to ensure it does not exceed the screen size
+            try:
+                popup.update_idletasks()
+                req_w = popup.winfo_reqwidth()
+                req_h = popup.winfo_reqheight()
+                screen_w = popup.winfo_screenwidth()
+                screen_h = popup.winfo_screenheight()
+                # leave a small margin so the popup isn't flush with screen edges
+                max_w = max(200, screen_w - 100)
+                max_h = max(150, screen_h - 100)
+                final_w = min(req_w, max_w)
+                final_h = min(req_h, max_h)
+                x = (screen_w // 2) - (final_w // 2)
+                y = (screen_h // 2) - (final_h // 2)
+                popup.geometry(f"{final_w}x{final_h}+{x}+{y}")
+            except Exception:
+                # If anything goes wrong, fall back to the original geometry
+                try:
+                    popup.geometry("420x400")
+                except Exception:
+                    pass
 
         def check_magazine():
             import time
@@ -5117,8 +5301,38 @@ class App:
                 w_sounds = weapon_obj.get("sounds") or weapon_obj.get("sound_folder") or weapon_obj.get("ammo_type")
                 if not cal:
                     active_ub = combat_state.get("active_underbarrel")
+                    # Try to resolve accessory object from saved equipment using stored id/name
                     if active_ub and isinstance(active_ub, dict) and active_ub.get("parent_index") == combat_state.get("current_weapon_index"):
-                        acc = active_ub.get("accessory")
+                        aid = active_ub.get("accessory_id")
+                        aname = active_ub.get("accessory_name")
+                        # find parent slot
+                        parent_entry = equipped_weapons[combat_state.get("current_weapon_index")]
+                        parent_slot = parent_entry.get("slot", "")
+                        if "->" in parent_slot:
+                            parent_slot = parent_slot.split("->")[0].strip()
+                        parent_item = save_data.get("equipment", {}).get(parent_slot)
+                        acc = None
+                        if parent_item and isinstance(parent_item, dict):
+                            for acc_entry in parent_item.get("accessories", []) or []:
+                                cur = acc_entry.get("current")
+                                if isinstance(cur, dict):
+                                    if aid is not None and cur.get("id") == aid:
+                                        acc = cur; break
+                                    if aname and cur.get("name") == aname:
+                                        acc = cur; break
+                                else:
+                                    try:
+                                        if aid is not None and (isinstance(cur, int) or (isinstance(cur, str) and cur.isdigit())) and int(cur) == int(aid):
+                                            # resolve from table
+                                            tables = table_data.get("tables", {}) if isinstance(table_data, dict) else {}
+                                            for arr in tables.values():
+                                                if isinstance(arr, list):
+                                                    for it in arr:
+                                                        if isinstance(it, dict) and it.get("id") == int(cur):
+                                                            acc = it; break
+                                                    if acc: break
+                                    except Exception:
+                                        pass
                         if acc and isinstance(acc, dict):
                             raw_cal2 = acc.get("caliber")
                             if isinstance(raw_cal2, (list, tuple)):
@@ -5330,12 +5544,13 @@ class App:
                     least_full = min(containers, key=lambda x: x[2])
                     container_type, container, _ = least_full
                     
-                    # Add 500 individual round items to the chosen container
-                    for _ in range(500):
-                        container["items"].append(dict(single_round))
+                    # Add a single stacked ammo item (quantity 500) to the chosen container
+                    ammo_item = dict(single_round)
+                    ammo_item["quantity"] = 500
+                    container["items"].append(ammo_item)
                     added_location = container_type.replace("_", " ")
 
-                    self._popup_show_info("DevMode Ammo", f"Added 500 individual rounds to {added_location}")
+                    self._popup_show_info("DevMode Ammo", f"Added 500 rounds (stacked) to {added_location}")
                     update_weapon_view()
                 except Exception as e:
                     logging.error(f"Error adding rounds: {e}")
@@ -5804,17 +6019,90 @@ class App:
                 return None
 
             active = combat_state.get("active_underbarrel")
+            # Ensure we can resolve equipped weapons here (method may be called outside
+            # of the _open_combat_mode_tool local scope). Compute fresh list if needed.
+            try:
+                equipped_weapons = self._get_equipped_weapons(save_data, table_data)
+            except Exception:
+                equipped_weapons = []
             is_displaying_ub = False
+            resolved_acc_for_display = None
             if active and isinstance(active, dict) and active.get("parent_index") == combat_state.get("current_weapon_index"):
-                acc = active.get("accessory")
-                if acc and isinstance(acc, dict) and acc.get("id") == weapon.get("id"):
+                # try to resolve the accessory object from save_data using stored id/name
+                aid = active.get("accessory_id")
+                aname = active.get("accessory_name")
+                parent_slot = equipped_weapons[combat_state.get("current_weapon_index")].get("slot", "") # type: ignore
+                if "->" in parent_slot:
+                    parent_slot = parent_slot.split("->")[0].strip()
+                parent_item = save_data.get("equipment", {}).get(parent_slot)
+                if parent_item and isinstance(parent_item, dict):
+                    for acc_entry in parent_item.get("accessories", []) or []:
+                        cur = acc_entry.get("current")
+                        if isinstance(cur, dict):
+                            if aid is not None and cur.get("id") == aid:
+                                resolved_acc_for_display = cur; break
+                            if aname and cur.get("name") == aname:
+                                resolved_acc_for_display = cur; break
+                        else:
+                            try:
+                                if aid is not None and (isinstance(cur, int) or (isinstance(cur, str) and cur.isdigit())) and int(cur) == int(aid):
+                                    tables = table_data.get("tables", {}) if isinstance(table_data, dict) else {}
+                                    for arr in tables.values():
+                                        if isinstance(arr, list):
+                                            for it in arr:
+                                                if isinstance(it, dict) and it.get("id") == int(cur):
+                                                    resolved_acc_for_display = it; break
+                                            if resolved_acc_for_display: break
+                            except Exception:
+                                pass
+
+                # If not found directly on the parent item, check accessories on any subslot's current item
+                if not resolved_acc_for_display:
+                    for sub in parent_item.get("subslots", []) or []:
+                        try:
+                            logging.info("Checking parent subslot '%s' for active accessory", sub.get("name"))
+                        except Exception:
+                            pass
+                        sub_cur = sub.get("current") if isinstance(sub, dict) else None
+                        if not sub_cur or not isinstance(sub_cur, dict):
+                            continue
+                        for acc_entry in sub_cur.get("accessories", []) or []:
+                            cur = acc_entry.get("current")
+                            if isinstance(cur, dict):
+                                if aid is not None and cur.get("id") == aid:
+                                    resolved_acc_for_display = cur; break
+                                if aname and cur.get("name") == aname:
+                                    resolved_acc_for_display = cur; break
+                            else:
+                                try:
+                                    if aid is not None and (isinstance(cur, int) or (isinstance(cur, str) and cur.isdigit())) and int(cur) == int(aid):
+                                        tables = table_data.get("tables", {}) if isinstance(table_data, dict) else {}
+                                        for arr in tables.values():
+                                            if isinstance(arr, list):
+                                                for it in arr:
+                                                    if isinstance(it, dict) and it.get("id") == int(cur):
+                                                        resolved_acc_for_display = it; break
+                                                if resolved_acc_for_display: break
+                                except Exception:
+                                    pass
+                if resolved_acc_for_display and isinstance(resolved_acc_for_display, dict):
+                    try:
+                        logging.info("Resolved active accessory for display: id=%s name=%s", resolved_acc_for_display.get("id"), resolved_acc_for_display.get("name"))
+                    except Exception:
+                        pass
                     is_displaying_ub = True
+
+            # Debug: log the final decision so we can trace why the button may not appear
+            try:
+                logging.info("Underbarrel display decision: is_displaying_ub=%s resolved=%s active=%s", is_displaying_ub, getattr(resolved_acc_for_display, 'get', lambda k: None)('name') if isinstance(resolved_acc_for_display, dict) else resolved_acc_for_display, active)
+            except Exception:
+                pass
 
             if is_displaying_ub:
                 def _switch_to_parent():
                     try:
                         # play unselect/unholster sound for the underbarrel if available
-                        ub = active.get("accessory")
+                        ub = resolved_acc_for_display
                         ub_pf = ub.get("underbarrel_platform") or ub.get("platform") if isinstance(ub, dict) else None
                         if ub_pf:
                             wf = os.path.join("sounds", "firearms", "weaponsounds", str(ub_pf).lower())
@@ -5823,6 +6111,10 @@ class App:
                                 self._safe_sound_play("", random.choice(candidates), block=True)
                         # clear active state and refresh
                         combat_state.pop("active_underbarrel", None)
+                        try:
+                            logging.info("Cleared active_underbarrel for parent_index=%s", combat_state.get("current_weapon_index"))
+                        except Exception:
+                            pass
                         try:
                             self._save_combat_state(save_data)
                         except Exception:
@@ -5838,9 +6130,17 @@ class App:
             else:
                 # Find the first underbarrel accessory installed on this weapon
                 ub_found = None
+                try:
+                    logging.info("Underbarrel detection: weapon_id=%s accessories=%s", weapon.get("id"), weapon.get("accessories"))
+                except Exception:
+                    pass
                 for acc in weapon.get("accessories", []) or []:
                     cur = acc.get("current")
                     resolved = _resolve_current(cur)
+                    try:
+                        logging.info("Resolving accessory current=%s -> resolved=%s", repr(cur), getattr(resolved, 'get', lambda k, d=None: None)('id', resolved))
+                    except Exception:
+                        logging.info("Resolving accessory current=%s -> resolved=%s", repr(cur), str(resolved))
                     if resolved and isinstance(resolved, dict) and resolved.get("underbarrel_weapon"):
                         ub_found = resolved
                         break
@@ -5863,8 +6163,18 @@ class App:
                                 except Exception:
                                     pass
 
-                            # Set active underbarrel state to show accessory as current
-                            combat_state["active_underbarrel"] = {"parent_index": combat_state.get("current_weapon_index"), "accessory": ub_found}
+                            # Set active underbarrel state to show accessory as current.
+                            # Store identifying info (id/name/parent_index) rather than a possibly
+                            # deep-copied dict so the accessory can be re-resolved from `save_data`
+                            combat_state["active_underbarrel"] = {
+                                "parent_index": combat_state.get("current_weapon_index"),
+                                "accessory_id": ub_found.get("id") if isinstance(ub_found, dict) else None,
+                                "accessory_name": ub_found.get("name") if isinstance(ub_found, dict) else None
+                            }
+                            try:
+                                logging.info("Set active_underbarrel: parent_index=%s accessory_id=%s accessory_name=%s", combat_state.get("current_weapon_index"), ub_found.get("id"), ub_found.get("name"))
+                            except Exception:
+                                pass
                             try:
                                 self._save_combat_state(save_data)
                             except Exception:
@@ -6470,7 +6780,15 @@ class App:
                 "boltforward": ["rifleboltforward", "pistolslideforward", "boltactionforward"],
                 "pumpback": ["shotgunpumpback", "pumpback"],
                 "pumpforward": ["shotgunpumpforward", "pumpforward"],
-                "cleaning": ["cleaning"]
+                "cleaning": ["cleaning"],
+                # Belt / box related actions (fallback universal names)
+                "beltdrop": ["beltdrop"],
+                "beltfeed": ["beltfeed", "beltadvance"],
+                "beltalign": ["beltalign"],
+                "coveropen": ["coveropen"],
+                "coverclose": ["coverclose"],
+                "boxout": ["boxout"],
+                "boxin": ["boxin"]
             }
             
             if action_type in universal_sounds:
@@ -6482,6 +6800,61 @@ class App:
             
         except Exception as e:
             logging.error(f"Error playing weapon action sound: {e}")
+
+    def _perform_belt_reload_sequence(self, weapon):
+        """Perform the detailed belt-fed reload sound/timing sequence."""
+        try:
+            # initial rack
+            self._play_weapon_action_sound(weapon, "boltback")
+            self._play_weapon_action_sound(weapon, "boltforward")
+            time.sleep(random.uniform(0.5, 1.0))
+
+            # open cover / feed tray
+            self._play_weapon_action_sound(weapon, "coveropen")
+            time.sleep(random.uniform(1.0, 1.5))
+
+            # remove box / feed component
+            self._play_weapon_action_sound(weapon, "boxout")
+            time.sleep(random.uniform(1.0, 1.5))
+
+            # insert box
+            self._play_weapon_action_sound(weapon, "boxin")
+            time.sleep(random.uniform(0.5, 1.0))
+
+            # align belt
+            self._play_weapon_action_sound(weapon, "beltalign")
+            time.sleep(random.uniform(1.0, 1.5))
+
+            # close cover
+            self._play_weapon_action_sound(weapon, "coverclose")
+            time.sleep(random.uniform(1.0, 1.5))
+
+            # final rack
+            self._play_weapon_action_sound(weapon, "boltback")
+            time.sleep(0.15)
+            self._play_weapon_action_sound(weapon, "boltforward")
+        except Exception:
+            # best-effort: ignore sound errors
+            pass
+
+    def _perform_dualfeed_belt_reload_sequence(self, weapon):
+        """Perform reload sequence for belt-fed weapons that support detachable sub-magazines (dualfeed)."""
+        try:
+            self._play_weapon_action_sound(weapon, "boltback")
+            self._play_weapon_action_sound(weapon, "boltforward")
+            time.sleep(random.uniform(0.5, 1.0))
+
+            # treat like a detachable-mag swap for the sub-magazine
+            self._play_weapon_action_sound(weapon, "magout")
+            time.sleep(random.uniform(1.0, 1.5))
+            self._play_weapon_action_sound(weapon, "magin")
+            time.sleep(random.uniform(1.0, 1.5))
+
+            self._play_weapon_action_sound(weapon, "boltback")
+            time.sleep(0.15)
+            self._play_weapon_action_sound(weapon, "boltforward")
+        except Exception:
+            pass
     
     def _roll_d20_dice(self, num_rolls):
         """Roll cryptographically random d20 dice and return median."""
@@ -7022,13 +7395,25 @@ class App:
                 if has_detachable_mag:
                     if progress:
                         progress["update"]("Dropping magazine...")
-                    # For belt-fed weapons, play beltdrop instead of magout
-                    mag_type = weapon.get("magazinetype", "").lower()
-                    rt_platform = weapon.get("platform", "").lower()
-                    if "belt" in mag_type or "belt" in rt_platform or "m249" in rt_platform:
-                        self._play_weapon_action_sound(weapon, "beltdrop")
-                    else:
-                        self._play_weapon_action_sound(weapon, "magout")
+                    # If belt-fed, use the detailed belt sequence; if dualfeed, use dualfeed path
+                    try:
+                        mag_type_rt = (weapon.get("magazinetype", "") or "").lower()
+                        plat_rt = (weapon.get("platform", "") or "").lower()
+                        is_belt_rt = "belt" in mag_type_rt or "belt" in plat_rt or "m249" in plat_rt
+                        if is_belt_rt:
+                            if weapon.get("dualfeed") and (weapon.get("submagazinesystem") or weapon.get("submagazinetype")):
+                                self._perform_dualfeed_belt_reload_sequence(weapon)
+                            else:
+                                self._perform_belt_reload_sequence(weapon)
+                        else:
+                            # Non-belt disposable mag -> basic magout
+                            self._play_weapon_action_sound(weapon, "magout")
+                    except Exception:
+                        # best-effort fallback
+                        try:
+                            self._play_weapon_action_sound(weapon, "magout")
+                        except Exception:
+                            pass
 
                 if progress:
                     progress["update"]("Waiting (1.0-1.5s)...")
@@ -7066,14 +7451,23 @@ class App:
                 if has_detachable_mag:
                     if progress:
                         progress["update"]("Inserting magazine...")
-                    # Only play magin for detachable-mag weapons; for belts use beltfeed
-                    mag_type = weapon.get("magazinetype", "").lower()
-                    platform = weapon.get("platform", "").lower()
-                    if not any(k in mag_type for k in ("internal", "tube", "cylinder")) and "revolver" not in platform:
-                        if "belt" in mag_type or "belt" in platform or "m249" in platform:
-                            self._play_weapon_action_sound(weapon, "beltfeed")
+                    try:
+                        mag_type_rt = (weapon.get("magazinetype", "") or "").lower()
+                        plat_rt = (weapon.get("platform", "") or "").lower()
+                        is_belt_rt = "belt" in mag_type_rt or "belt" in plat_rt or "m249" in plat_rt
+                        # For belt-fed weapons we've already executed the belt sequence above,
+                        # but in case the sequence didn't include an explicit 'insert' step, try
+                        # to play the appropriate insert sound for hygiene.
+                        if is_belt_rt:
+                            # For dualfeed weapons prefer detachable-mag insert sound
+                            if weapon.get("dualfeed") and (weapon.get("submagazinesystem") or weapon.get("submagazinetype")):
+                                self._play_weapon_action_sound(weapon, "magin")
+                            else:
+                                self._play_weapon_action_sound(weapon, "beltfeed")
                         else:
                             self._play_weapon_action_sound(weapon, "magin")
+                    except Exception:
+                        pass
 
                 if progress:
                     progress["update"]("Waiting (1.0-1.5s)...")
@@ -7334,46 +7728,69 @@ class App:
         is_pump_reload = ("pump" in rt_platform or rt_action == "pump" or "pump" in rt_mag_type)
         
         # === RELOAD SOUND SEQUENCE ===
-        # Play magout sound (or beltdrop for belt-fed) if magazine is present (even if empty)
-        if current_mag:
-            # Prefer the current_mag's magazinetype (handles detachable mags used on dual-feed weapons)
-            mag_type = (current_mag.get("magazinetype") or weapon.get("magazinetype", "")).lower()
-            platform = weapon.get("platform", "").lower()
-            if "belt" in mag_type or "belt" in platform or "m249" in platform:
-                self._play_weapon_action_sound(weapon, "beltdrop")
-            else:
-                self._play_weapon_action_sound(weapon, "magout")
-            time.sleep(random.uniform(1.0, 1.5))
-        
-        # Pouchin sound
-        self._safe_sound_play("", "sounds/firearms/universal/pouchin.ogg")
-        time.sleep(random.uniform(1.0, 1.5))
-        
-        # Pouchout sound (always happens, even if no mag was in gun)
-        self._safe_sound_play("", "sounds/firearms/universal/pouchout.ogg")
-        time.sleep(random.uniform(1.0, 1.5))
-        
-        # Magazine in sound (only for detachable-mag weapons). For belt-fed, play beltfeed.
-        # Determine magazinetype from the incoming magazine if present (dual-feed weapons
-        # may accept detachable mags even if weapon.magazinetype == 'Belt').
-        mag_type = (new_mag.get("magazinetype") if 'new_mag' in locals() and new_mag else weapon.get("magazinetype", "")).lower()
+        # Handle belt-fed vs detachable-mag sequences. For dualfeed weapons, prefer
+        # the sub-magazine detachable flow when appropriate.
+        mag_type_current = (current_mag.get("magazinetype") if current_mag else weapon.get("magazinetype", "")).lower()
         platform = weapon.get("platform", "").lower()
-        if not any(k in mag_type for k in ("internal", "tube", "cylinder")) and "revolver" not in platform:
-            if "belt" in mag_type or "belt" in platform or "m249" in platform:
-                self._play_weapon_action_sound(weapon, "beltfeed")
+        is_belt_current = "belt" in mag_type_current or "belt" in platform or "m249" in platform
+
+        # If this weapon supports dualfeed and the weapon is belt-fed, use the dualfeed path
+        if is_belt_current:
+            if weapon.get("dualfeed") and (weapon.get("submagazinesystem") or weapon.get("submagazinetype")):
+                # Use the dualfeed belt->detachable-mag sequence
+                try:
+                    self._perform_dualfeed_belt_reload_sequence(weapon)
+                except Exception:
+                    pass
             else:
-                self._play_weapon_action_sound(weapon, "magin")
-        time.sleep(random.uniform(1.0, 1.5))
-        
-        # Bolt sounds (only if gun is empty - no chambered round and no magazine)
-        if is_gun_empty:
-            if not weapon.get("bolt_catch"):
-                self._play_weapon_action_sound(weapon, "boltback")
-                time.sleep(random.uniform(1.0, 1.5))
-                self._play_weapon_action_sound(weapon, "boltforward")
-            else:
-                # If has bolt catch, just play boltforward
-                self._play_weapon_action_sound(weapon, "boltforward")
+                # Full belt-fed detailed sequence
+                try:
+                    self._perform_belt_reload_sequence(weapon)
+                except Exception:
+                    pass
+        else:
+            # Standard detachable-mag sequence (use pouch logic and magdrop for realism)
+            if current_mag:
+                # Prefer the current_mag's magazinetype
+                try:
+                    self._play_weapon_action_sound(weapon, "magout")
+                except Exception:
+                    pass
+                time.sleep(random.uniform(0.75, 1.0))
+
+            # magdrop + pouch sounds
+            try:
+                import random as rand_module
+                magdrop_sound = f"magdrop{rand_module.randint(0, 1)}"
+                self._safe_sound_play("", f"sounds/firearms/universal/{magdrop_sound}.ogg")
+            except Exception:
+                pass
+            time.sleep(random.uniform(0.7, 0.9))
+
+            try:
+                self._safe_sound_play("", "sounds/firearms/universal/pouchout.ogg")
+            except Exception:
+                pass
+            time.sleep(random.uniform(0.7, 0.9))
+
+            # Magazine in sound (only for detachable-mag weapons)
+            mag_type_in = (new_mag.get("magazinetype") if 'new_mag' in locals() and new_mag else weapon.get("magazinetype", "")).lower()
+            if not any(k in mag_type_in for k in ("internal", "tube", "cylinder")) and "revolver" not in platform:
+                try:
+                    self._play_weapon_action_sound(weapon, "magin")
+                except Exception:
+                    pass
+            time.sleep(random.uniform(0.7, 0.9))
+
+            # Bolt sounds (only if gun is empty - no chambered round and no magazine)
+            if is_gun_empty:
+                if not weapon.get("bolt_catch"):
+                    self._play_weapon_action_sound(weapon, "boltback")
+                    time.sleep(random.uniform(0.5, 1.0))
+                    self._play_weapon_action_sound(weapon, "boltforward")
+                else:
+                    # If has bolt catch, just play boltforward
+                    self._play_weapon_action_sound(weapon, "boltforward")
         
         # Handle current magazine (put old mag back in hands if it has space)
         if current_mag and not combat_reload and not weapon.get("infinite_ammo"):
@@ -7573,41 +7990,137 @@ class App:
                 except Exception:
                     pass
 
-            defaults = self.PLATFORM_DEFAULTS.get(platform, {"ammo_type": "40mm_grenade", "capacity": 1, "reload_sound_folder": "40mm_grenade"})
+            # Determine underbarrel defaults using explicit `underbarrel_type` when present.
+            try:
+                ub_type = None
+                if isinstance(accessory, dict):
+                    ub_type = accessory.get("underbarrel_type") or accessory.get("underbarrel")
+
+                if isinstance(ub_type, str):
+                    ut = ub_type.lower()
+                    if "shot" in ut or "gauge" in ut or "12" in ut:
+                        defaults = {"ammo_type": "12 Gauge", "capacity": accessory.get("capacity", 1) or 1, "reload_sound_folder": "12gauge", "magazinetype": accessory.get("magazinetype", "internal")}
+                    elif "40" in ut or "m203" in ut or "grenade" in ut:
+                        defaults = {"ammo_type": "40mm_grenade", "capacity": accessory.get("capacity", 1) or 1, "reload_sound_folder": "m203", "magazinetype": accessory.get("magazinetype", "single")}
+                    else:
+                        defaults = self.PLATFORM_DEFAULTS.get(platform, {"ammo_type": "40mm_grenade", "capacity": 1, "reload_sound_folder": "40mm_grenade"})
+                else:
+                    defaults = self.PLATFORM_DEFAULTS.get(platform, {"ammo_type": "40mm_grenade", "capacity": 1, "reload_sound_folder": "40mm_grenade"})
+            except Exception:
+                defaults = self.PLATFORM_DEFAULTS.get(platform, {"ammo_type": "40mm_grenade", "capacity": 1, "reload_sound_folder": "40mm_grenade"})
+
             capacity = defaults.get("capacity", 1)
 
-            # Try to find a 40mm ammo item in the player's inventory (hands, then storage)
-            found_item = None
-            found_location = None
-            # Helper to test if an item is a 40mm round
-            def _is_40mm_item(it):
+            # If this underbarrel is declared as a conventional underbarrel (or explicitly
+            # marked as a shotgun subtype), treat it exactly like a normal weapon and
+            # delegate to the standard reload handlers. `magazinetype` drives which
+            # reload path to take (internal/tube/box, revolver, or detachable mags).
+            try:
+                ub_type = None
+                ub_sub = None
+                if isinstance(accessory, dict):
+                    ub_type = accessory.get("underbarrel_type") or accessory.get("type")
+                    ub_sub = accessory.get("underbarrel_subtype") or accessory.get("underbarrel_subtype")
+
+                is_conventional = False
+                if isinstance(ub_type, str) and ub_type.lower() == "conventional":
+                    is_conventional = True
+                if isinstance(ub_sub, str) and "shot" in ub_sub.lower():
+                    is_conventional = True
+
+                if is_conventional:
+                    mag_type = accessory.get("magazinetype") or defaults.get("magazinetype") or "internal"
+                    logging.debug("Underbarrel reload: treating as conventional underbarrel (underbarrel_type=%s, underbarrel_subtype=%s, magazinetype=%s)", ub_type, ub_sub, mag_type)
+                    mt_l = str(mag_type).lower()
+                    if any(k in mt_l for k in ("internal", "tube", "box")):
+                        return self._reload_internal_magazine(accessory, save_data, mag_type)
+                    if "revolver" in mt_l:
+                        return self._reload_revolver(accessory, save_data)
+                    return self._reload_weapon(accessory, save_data, combat_reload)
+            except Exception:
+                logging.exception("Failed to delegate underbarrel reload to normal handlers; falling back to custom logic")
+
+            # Generalized helper to test compatibility with the desired ammo type
+            def _is_compatible_ammo(it, desired):
                 try:
                     if not isinstance(it, dict):
                         return False
                     name = (it.get("name") or "").lower()
-                    if "40x46" in name or "40mm" in name or "40 x 46" in name:
-                        return True
                     calib = it.get("caliber")
-                    if calib:
+                    ammo_type_field = (it.get("ammo_type") or "").lower()
+                    desired_l = (desired or "").lower()
+
+                    # 40mm grenade detection
+                    if "40" in desired_l or "40mm" in desired_l or "grenade" in desired_l:
+                        if "40x46" in name or "40mm" in name or "40 x 46" in name:
+                            return True
+                        if calib:
+                            if isinstance(calib, (list, tuple)):
+                                for c in calib:
+                                    if isinstance(c, str) and "40" in c and "mm" in c:
+                                        return True
+                            elif isinstance(calib, str) and "40" in calib and "mm" in calib:
+                                return True
+                        if ammo_type_field == "40mm_grenade":
+                            return True
+                        return False
+                        
+
+                    # Shotgun / gauge detection
+                    if "gauge" in desired_l or "12" in desired_l:
+                        if "gauge" in name or "12 gauge" in name or (isinstance(calib, str) and "12" in calib.lower() and "gauge" in calib.lower()):
+                            return True
                         if isinstance(calib, (list, tuple)):
                             for c in calib:
-                                if isinstance(c, str) and "40" in c and "mm" in c:
+                                if isinstance(c, str) and "12" in c and "gauge" in c.lower():
                                     return True
-                        elif isinstance(calib, str) and "40" in calib and "mm" in calib:
+                        if ammo_type_field and ("12" in ammo_type_field or "gauge" in ammo_type_field):
                             return True
-                    if it.get("ammo_type") == "40mm_grenade":
+                        return False
+
+                    # Generic matching: match by exact caliber string or by sounds/ammo_type fields
+                    if calib:
+                        if isinstance(calib, (list, tuple)) and any((isinstance(c, str) and desired_l in c.lower()) for c in calib):
+                            return True
+                        if isinstance(calib, str) and desired_l in calib.lower():
+                            return True
+                    if desired_l and (desired_l == ammo_type_field or desired_l in name or desired_l in (it.get("sounds") or "")):
                         return True
                 except Exception:
                     pass
                 return False
 
-            # Search hands first
+            # Search hands first and prefer magazines when requested
+            found_item = None
+            found_location = None
+
+            want_mag = False
+            mag_type_hint = (defaults.get("magazinetype") or "").lower()
+            if "mag" in mag_type_hint or "box" in mag_type_hint or "detachable" in mag_type_hint:
+                want_mag = True
+
             hands_list = save_data.get("hands", {}).get("items", [])
             for idx, it in enumerate(list(hands_list)):
-                if _is_40mm_item(it):
-                    found_item = it
-                    found_location = ("hands", idx)
-                    break
+                try:
+                    # If this is a magazine-like object with rounds and we want a mag, accept it
+                    if want_mag and isinstance(it, dict) and it.get("rounds"):
+                        if defaults.get("magazinesystem"):
+                            if str(it.get("magazinesystem") or "").lower() == str(defaults.get("magazinesystem") or "").lower():
+                                found_item = it
+                                found_location = ("hands", idx)
+                                break
+                        else:
+                            found_item = it
+                            found_location = ("hands", idx)
+                            break
+
+                    # Otherwise check individual ammo items
+                    if _is_compatible_ammo(it, defaults.get("ammo_type")):
+                        found_item = it
+                        found_location = ("hands", idx)
+                        break
+                except Exception:
+                    continue
 
             # Then search storage (if present)
             if not found_item:
@@ -7615,64 +8128,114 @@ class App:
                     try:
                         if isinstance(container, dict) and container.get("items"):
                             for idx, it in enumerate(list(container.get("items", []))):
-                                if _is_40mm_item(it):
-                                    found_item = it
-                                    found_location = ("storage", storage_idx, idx)
-                                    break
+                                try:
+                                    if want_mag and isinstance(it, dict) and it.get("rounds"):
+                                        if defaults.get("magazinesystem"):
+                                            if str(it.get("magazinesystem") or "").lower() == str(defaults.get("magazinesystem") or "").lower():
+                                                found_item = it
+                                                found_location = ("storage", storage_idx, idx)
+                                                break
+                                        else:
+                                            found_item = it
+                                            found_location = ("storage", storage_idx, idx)
+                                            break
+                                    if _is_compatible_ammo(it, defaults.get("ammo_type")):
+                                        found_item = it
+                                        found_location = ("storage", storage_idx, idx)
+                                        break
+                                except Exception:
+                                    continue
                             if found_item:
                                 break
                     except Exception:
                         pass
 
             if not found_item:
-                # No 40mm ammo found — cannot reload
-                return "No 40mm rounds found in inventory!"
+                return f"No {defaults.get('ammo_type', 'compatible')} rounds/magazines found in inventory!"
 
-            # Consume the found item from inventory
+            # Consume the found item from inventory.
+            # If the item is a stacked ammo item with a `quantity` field, decrement it by one.
+            # If it's a magazine-like object (has `rounds`) and we intentionally want a mag,
+            # remove the whole magazine object; otherwise remove a single item entry.
             try:
                 if found_location and found_location[0] == "hands":
                     _, idx = found_location
-                    save_data.get("hands", {}).get("items", []).pop(idx)
+                    hand_items = save_data.get("hands", {}).get("items", [])
+                    if idx < len(hand_items):
+                        target = hand_items[idx]
+                        # stacked quantity handling
+                        if isinstance(target, dict) and target.get("quantity") and isinstance(target.get("quantity"), (int, float)):
+                            try:
+                                target["quantity"] -= 1
+                                if target["quantity"] <= 0:
+                                    hand_items.pop(idx)
+                            except Exception:
+                                hand_items.pop(idx)
+                        else:
+                            # magazine-like or single item: remove whole entry
+                            hand_items.pop(idx)
                 elif found_location and found_location[0] == "storage":
                     _, storage_idx, idx = found_location
-                    container = save_data.get("storage", [])[storage_idx]
-                    if isinstance(container, dict) and container.get("items"):
-                        container.get("items").pop(idx)
+                    storage_list = save_data.get("storage", [])
+                    if storage_idx < len(storage_list):
+                        container = storage_list[storage_idx]
+                        if isinstance(container, dict) and container.get("items"):
+                            items_list = container.get("items")
+                            if idx < len(items_list):
+                                target = items_list[idx]
+                                if isinstance(target, dict) and target.get("quantity") and isinstance(target.get("quantity"), (int, float)):
+                                    try:
+                                        target["quantity"] -= 1
+                                        if target["quantity"] <= 0:
+                                            items_list.pop(idx)
+                                    except Exception:
+                                        items_list.pop(idx)
+                                else:
+                                    items_list.pop(idx)
             except Exception:
-                logging.exception("Failed to remove consumed 40mm item from inventory")
+                logging.exception("Failed to remove consumed underbarrel ammo/magazine from inventory")
 
             # Store loaded count on the accessory for this session and record the consumed item id/name
-            # Persist loaded count back into the save_data accessory instance if possible.
             accessory["_ub_loaded"] = capacity
             try:
                 accessory["_ub_loaded_item"] = found_item.get("id") or found_item.get("name")
             except Exception:
                 pass
 
-            # Create a small loaded-magazine style structure on the accessory so the
-            # regular firing flow can chamber and pop rounds as if it were an internal
-            # magazine. This lets existing firing code play round sounds and handle
-            # chambering without special-casing everywhere.
+            # If we consumed a magazine-like object (has rounds), attach it directly.
             try:
-                # Build a representative round dict from the found item
-                round_cal = None
-                if isinstance(found_item, dict):
-                    raw_cal = found_item.get("caliber") or defaults.get("ammo_type")
-                    if isinstance(raw_cal, (list, tuple)):
-                        round_cal = raw_cal[0] if raw_cal else None
-                    else:
-                        round_cal = raw_cal
-                    round_variant = found_item.get("variant") or found_item.get("name")
+                if isinstance(found_item, dict) and found_item.get("rounds"):
+                    # Attach the magazine (use a shallow copy to avoid mutating original template)
+                    try:
+                        mag_copy = dict(found_item)
+                        # Ensure rounds is a list copy
+                        mag_copy["rounds"] = list(found_item.get("rounds", []))
+                        accessory["loaded"] = mag_copy
+                        # Chamber first round if present
+                        if accessory["loaded"].get("rounds"):
+                            accessory["chambered"] = accessory["loaded"]["rounds"].pop(0)
+                    except Exception:
+                        logging.exception("Failed to attach magazine as underbarrel loaded")
                 else:
-                    round_cal = defaults.get("ammo_type")
-                    round_variant = None
+                    # Build a representative round dict from the found item (single-round items)
+                    round_cal = None
+                    if isinstance(found_item, dict):
+                        raw_cal = found_item.get("caliber") or defaults.get("ammo_type")
+                        if isinstance(raw_cal, (list, tuple)):
+                            round_cal = raw_cal[0] if raw_cal else None
+                        else:
+                            round_cal = raw_cal
+                        round_variant = found_item.get("variant") or found_item.get("name")
+                    else:
+                        round_cal = defaults.get("ammo_type")
+                        round_variant = None
 
-                single_round = {"name": f"{round_cal} | {round_variant}" if round_variant else f"{round_cal}", "caliber": round_cal, "variant": round_variant}
-                # Attach a loaded-mag structure
-                accessory["loaded"] = {"magazinetype": "underbarrel", "magazinesystem": None, "capacity": capacity, "rounds": [dict(single_round) for _ in range(capacity)]}
-                # Chamber first round automatically
-                if accessory["loaded"]["rounds"]:
-                    accessory["chambered"] = accessory["loaded"]["rounds"].pop(0)
+                    single_round = {"name": f"{round_cal} | {round_variant}" if round_variant else f"{round_cal}", "caliber": round_cal, "variant": round_variant}
+                    # Attach a loaded-mag structure
+                    accessory["loaded"] = {"magazinetype": "underbarrel", "magazinesystem": None, "capacity": capacity, "rounds": [dict(single_round) for _ in range(capacity)]}
+                    # Chamber first round automatically
+                    if accessory["loaded"]["rounds"]:
+                        accessory["chambered"] = accessory["loaded"]["rounds"].pop(0)
             except Exception:
                 logging.exception("Failed to synthesize loaded rounds for underbarrel accessory")
 
