@@ -4727,29 +4727,36 @@ class App:
             # For belt-fed weapons, use the dedicated belt sequences (or dualfeed sequence
             # if the weapon supports detachable sub-magazines). Otherwise use pouch/magdrop flow.
             try:
-                is_belt = ("belt" in (wpn.get("magazinetype", "") or "")) or ("belt" in (wpn.get("platform", "") or "")) or ("m249" in (wpn.get("platform", "") or ""))
-                if is_belt:
-                    if wpn.get("dualfeed") and (wpn.get("submagazinesystem") or wpn.get("submagazinetype")):
-                        try:
-                            self._perform_dualfeed_belt_reload_sequence(wpn)
-                        except Exception:
-                            pass
-                    else:
-                        try:
-                            self._perform_belt_reload_sequence(wpn)
-                        except Exception:
-                            pass
-                else:
-                    import random as rand_module
-                    # Only play magout if there is a magazine loaded to drop
-                    if current_mag:
-                        try:
-                            self._play_weapon_action_sound(wpn, "magout")
-                        except Exception:
-                            pass
-                        time.sleep(0.9)
+                # Prefer the loaded magazine's type when deciding belt vs mag flow.
+                mag_type_current = (current_mag.get("magazinetype") if current_mag else wpn.get("magazinetype", "")).lower()
+                platform = (wpn.get("platform", "") or "").lower()
+                is_belt = "belt" in mag_type_current or "belt" in platform or "m249" in platform
 
-                    # Play random magdrop sound
+                # Debug: log decision inputs to help trace why magout/magin or belt sequence is chosen
+                try:
+                    logging.debug("reload_auto_drop: weapon=%s platform=%s magazinetype=%s current_mag_present=%s dualfeed=%s submagazinetype=%s submagazinesystem=%s is_belt=%s",
+                                  wpn.get("name", wpn.get("id", "unknown")),
+                                  platform,
+                                  mag_type_current,
+                                  bool(current_mag),
+                                  bool(wpn.get("dualfeed")),
+                                  wpn.get("submagazinetype"),
+                                  wpn.get("submagazinesystem"),
+                                  is_belt)
+                except Exception:
+                    pass
+
+                handled_belt = False
+
+                if current_mag and not ("belt" in mag_type_current):
+                    # There is a non-belt magazine loaded -> play magout/magdrop/pouch flow
+                    import random as rand_module
+                    try:
+                        self._play_weapon_action_sound(wpn, "magout")
+                    except Exception:
+                        pass
+                    time.sleep(0.9)
+
                     try:
                         magdrop_sound = f"magdrop{rand_module.randint(0, 1)}"
                         self._safe_sound_play("", f"sounds/firearms/universal/{magdrop_sound}.ogg")
@@ -4765,32 +4772,54 @@ class App:
 
                     # Only play magin for detachable-mag weapons
                     mag_type = wpn.get("magazinetype", "").lower()
-                    platform = wpn.get("platform", "").lower()
-                    if not any(k in mag_type for k in ("internal", "tube", "cylinder")) and "revolver" not in platform:
+                    platform_check = wpn.get("platform", "").lower()
+                    if not any(k in mag_type for k in ("internal", "tube", "cylinder")) and "revolver" not in platform_check:
                         try:
                             self._play_weapon_action_sound(wpn, "magin")
                         except Exception:
                             pass
                     time.sleep(0.75)
 
-                    # Bolt sounds if gun was empty
-                    if is_gun_empty:
-                        if not wpn.get("bolt_catch"):
-                            try:
-                                self._play_weapon_action_sound(wpn, "boltback")
-                            except Exception:
-                                pass
-                            time.sleep(0.9)
-                            try:
-                                self._play_weapon_action_sound(wpn, "boltforward")
-                            except Exception:
-                                pass
-                        else:
-                            try:
-                                self._play_weapon_action_sound(wpn, "boltforward")
-                            except Exception:
-                                pass
-                        time.sleep(0.75)
+                elif is_belt:
+                    # Belt-fed flow
+                    if wpn.get("dualfeed") and (wpn.get("submagazinesystem") or wpn.get("submagazinetype")):
+                        try:
+                            self._perform_dualfeed_belt_reload_sequence(wpn)
+                        except Exception:
+                            pass
+                    else:
+                        try:
+                            self._perform_belt_reload_sequence(wpn)
+                        except Exception:
+                            pass
+                    handled_belt = True
+
+                else:
+                    # No magazine present and not belt-fed: small pouch sound for realism
+                    try:
+                        self._safe_sound_play("", "sounds/firearms/universal/pouchout.ogg")
+                    except Exception:
+                        pass
+                    time.sleep(0.8)
+
+                # Bolt/pump cycle if gun was empty (skip if belt sequence already handled everything)
+                if not handled_belt and is_gun_empty:
+                    if not wpn.get("bolt_catch"):
+                        try:
+                            self._play_weapon_action_sound(wpn, "boltback")
+                        except Exception:
+                            pass
+                        time.sleep(0.9)
+                        try:
+                            self._play_weapon_action_sound(wpn, "boltforward")
+                        except Exception:
+                            pass
+                    else:
+                        try:
+                            self._play_weapon_action_sound(wpn, "boltforward")
+                        except Exception:
+                            pass
+                    time.sleep(0.75)
             except Exception:
                 pass
             
@@ -5004,8 +5033,20 @@ class App:
             round_count = len(rounds)
             capacity = loaded_mag.get("capacity", "Unknown")
             
-            # Play magout sound
-            self._play_weapon_action_sound(wpn, "magout")
+            # Determine belt status first so fallback doesn't incorrectly play magout
+            is_belt = ("belt" in (wpn.get("magazinetype", "") or "")) or ("belt" in (wpn.get("platform", "") or "")) or ("m249" in (wpn.get("platform", "") or ""))
+            try:
+                if is_belt:
+                    logging.debug("check_magazine: skipping magout for belt-fed weapon (platform=%s)", wpn.get("platform"))
+                else:
+                    self._play_weapon_action_sound(wpn, "magout")
+            except Exception:
+                # Only attempt fallback magout if this weapon is not belt-fed
+                if not is_belt:
+                    try:
+                        self._play_weapon_action_sound(wpn, "magout")
+                    except Exception:
+                        pass
             
             # Update label to show checking status
             ammo_label_ref = current_weapon_state.get("ammo_label_ref")
@@ -5561,19 +5602,32 @@ class App:
                 try:
                     current_weapon = current_weapon_state["weapon"]
                     mag_system = current_weapon.get("magazinesystem")
+                    # Support dualfeed weapons: allow creating magazines from the
+                    # sub-magazine system if present (e.g. belt weapons that accept
+                    # detachable sub-mags). Prefer the primary magazinesystem but
+                    # fall back to submagazinesystem when appropriate.
+                    sub_mag_system = current_weapon.get("submagazinesystem") or current_weapon.get("submagazinetype")
                     caliber_list = current_weapon.get("caliber", []) or []
                     caliber = caliber_list[0] if caliber_list else "Unknown"
                     
+                    # If primary magazinesystem is missing but sub-mag exists (dualfeed), use sub-mag
+                    if not mag_system and sub_mag_system:
+                        mag_system = sub_mag_system
+
                     if not mag_system:
                         self._popup_show_info("DevMode Error", "Weapon doesn't use detachable magazines")
                         return
                     
                     # Find compatible magazines in table
                     magazines_table = table_data.get("tables", {}).get("magazines", [])
-                    compatible_mags = [
-                        mag for mag in magazines_table
-                        if mag.get("magazinesystem") == mag_system
-                    ]
+                    # Accept magazines that match either the primary magazinesystem
+                    # or the sub-mag system (for dualfeed weapons), to make DevMode
+                    # additions flexible.
+                    compatible_mags = []
+                    for mag in magazines_table:
+                        m_ms = mag.get("magazinesystem")
+                        if m_ms == mag_system or (sub_mag_system and m_ms == sub_mag_system):
+                            compatible_mags.append(mag)
                     
                     if not compatible_mags:
                         self._popup_show_info("DevMode Error", f"No magazines in table for {mag_system}")
@@ -6685,12 +6739,22 @@ class App:
                 elif action_type.startswith("bulletinsert"):
                     candidates = glob.glob(os.path.join(wf, "bulletinsert*.ogg"))
                 else:
-                    exact = os.path.join(wf, f"{action_type}.ogg")
-                    if os.path.exists(exact):
-                        candidates = [exact]
+                    # Prefer any platform-specific variants like action_type*.ogg/.wav
+                    pattern_candidates = glob.glob(os.path.join(wf, f"{action_type}*.ogg")) + glob.glob(os.path.join(wf, f"{action_type}*.wav"))
+                    if pattern_candidates:
+                        candidates = pattern_candidates
+                    else:
+                        # Fallback to exact filenames if present
+                        exact_ogg = os.path.join(wf, f"{action_type}.ogg")
+                        exact_wav = os.path.join(wf, f"{action_type}.wav")
+                        if os.path.exists(exact_ogg):
+                            candidates = [exact_ogg]
+                        elif os.path.exists(exact_wav):
+                            candidates = [exact_wav]
 
                 if candidates:
                     sound_file = random.choice(candidates)
+                    logging.debug("_play_weapon_action_sound: platform-specific %s -> %s", action_type, sound_file)
                     self._safe_sound_play("", sound_file, block=should_block)
                     return
 
@@ -6712,6 +6776,7 @@ class App:
                 tube_candidates = glob.glob(os.path.join(uni_folder, "tubeinsert*.ogg"))
                 if tube_candidates:
                     sound_file = random.choice(tube_candidates)
+                    logging.debug("_play_weapon_action_sound: tubeinsert -> %s", sound_file)
                     self._safe_sound_play("", sound_file, block=should_block)
                     return
                 # Fallback single file
@@ -6725,6 +6790,7 @@ class App:
                 bullet_candidates = glob.glob(os.path.join(uni_folder, "bulletinsert*.ogg"))
                 if bullet_candidates:
                     sound_file = random.choice(bullet_candidates)
+                    logging.debug("_play_weapon_action_sound: bulletinsert -> %s", sound_file)
                     self._safe_sound_play("", sound_file, block=should_block)
                     return
                 # Fallback to mapped bulletinsert0/1
@@ -6736,15 +6802,19 @@ class App:
             # Check if this is a revolver
             if "revolver" in platform.lower() or "cylinder" in action_type:
                 if action_type == "cylinderopen" and os.path.exists(internal_sounds["cylinderopen"]):
+                    logging.debug("_play_weapon_action_sound: revolver cylinderopen -> %s", internal_sounds["cylinderopen"])
                     self._safe_sound_play("", internal_sounds["cylinderopen"], block=should_block)
                     return
                 elif action_type == "cylinderclose" and os.path.exists(internal_sounds["cylinderclose"]):
+                    logging.debug("_play_weapon_action_sound: revolver cylinderclose -> %s", internal_sounds["cylinderclose"])
                     self._safe_sound_play("", internal_sounds["cylinderclose"], block=should_block)
                     return
                 elif action_type == "cylinderrelease" and os.path.exists(internal_sounds["cylinderrelease"]):
+                    logging.debug("_play_weapon_action_sound: revolver cylinderrelease -> %s", internal_sounds["cylinderrelease"])
                     self._safe_sound_play("", internal_sounds["cylinderrelease"], block=should_block)
                     return
                 elif action_type in ("bulletinsert0", "bulletinsert1") and os.path.exists(internal_sounds[action_type]):
+                    logging.debug("_play_weapon_action_sound: revolver bulletinsert -> %s", internal_sounds[action_type])
                     self._safe_sound_play("", internal_sounds[action_type], block=should_block)
                     return
             
@@ -6755,22 +6825,43 @@ class App:
                 if any(k in mag_type for k in ("internal", "tube", "cylinder")) or "revolver" in platform.lower() or is_belt:
                     return
 
-            # Special-case belt actions: prefer platform-specific belt sounds (beltfeed, beltdrop, beltadvance)
-            if action_type.startswith("belt"):
-                if platform_folder:
-                    wf = os.path.join("sounds", "firearms", "weaponsounds", platform_folder)
-                    candidates = glob.glob(os.path.join(wf, "belt*.ogg"))
-                    if candidates:
-                        sound_file = random.choice(candidates)
-                        self._safe_sound_play("", sound_file, block=should_block)
-                        return
-                # Fallback to universal belt sounds if present
+            # Special-case belt/box/cover actions: prefer explicit platform-specific filenames (no broad globbing)
+            if action_type in ("beltdrop", "beltfeed", "beltalign", "coveropen", "coverclose", "boxout", "boxin"):
+                # Map action -> list of REAL filename bases (no invented names).
+                # These names are only used as filenames (without extension) when looking
+                # for platform-specific overrides; if none found, we try the universal folder.
+                preferred_map = {
+                    "beltdrop": ["beltremove", "magdrop0", "magdrop1"],
+                    "beltfeed": ["beltinsert"],
+                    "beltalign": ["reloaderloop", "beltinsert"],
+                    "coveropen": ["beltremove", "pouchout"],
+                    "coverclose": ["beltinsert", "pouchin"],
+                    "boxout": ["magdrop0", "magdrop1"],
+                    "boxin": ["riflemagin", "pistolmagin"]
+                }
+                pf = platform_folder
+                names = preferred_map.get(action_type, [action_type])
+
+                # Try platform-specific preferred names first (exact filenames only)
+                if pf:
+                    wf = os.path.join("sounds", "firearms", "weaponsounds", pf)
+                    for nm in names:
+                        for ext in (".ogg", ".wav"):
+                            cand = os.path.join(wf, nm + ext)
+                            if os.path.exists(cand):
+                                logging.debug("_play_weapon_action_sound: platform preferred %s -> %s", action_type, cand)
+                                self._safe_sound_play("", cand, block=should_block)
+                                return
+
+                # Fallback to universal preferred names (exact filenames only)
                 uni_folder = os.path.join("sounds", "firearms", "universal")
-                belt_candidates = glob.glob(os.path.join(uni_folder, "belt*.ogg"))
-                if belt_candidates:
-                    sound_file = random.choice(belt_candidates)
-                    self._safe_sound_play("", sound_file, block=should_block)
-                    return
+                for nm in names:
+                    for ext in (".ogg", ".wav"):
+                        cand = os.path.join(uni_folder, nm + ext)
+                        if os.path.exists(cand):
+                            logging.debug("_play_weapon_action_sound: universal preferred %s -> %s", action_type, cand)
+                            self._safe_sound_play("", cand, block=should_block)
+                            return
 
             # Fall back to universal sounds
             universal_sounds = {
@@ -6782,24 +6873,80 @@ class App:
                 "pumpforward": ["shotgunpumpforward", "pumpforward"],
                 "cleaning": ["cleaning"],
                 # Belt / box related actions (fallback universal names)
-                "beltdrop": ["beltdrop"],
-                "beltfeed": ["beltfeed", "beltadvance"],
-                "beltalign": ["beltalign"],
-                "coveropen": ["coveropen"],
-                "coverclose": ["coverclose"],
-                "boxout": ["boxout"],
-                "boxin": ["boxin"]
+                # NOTE: beltdrop/beltfeed should NOT be auto-fallbacked here; belt-fed
+                # weapons use explicit sequences and platform files. Keep box/cover
+                # related universal names but exclude beltdrop/beltfeed to avoid
+                # accidental magazine-style resolution.
+                "beltalign": ["reloaderloop", "beltinsert", "beltremove"],
+                "coveropen": ["beltremove", "pouchout", "magdrop0"],
+                "coverclose": ["beltinsert", "pouchin"],
+                "boxout": ["beltremove", "magdrop0", "magdrop1"],
+                "boxin": ["beltinsert", "magin", "riflemagin"]
             }
             
             if action_type in universal_sounds:
                 for sound_name in universal_sounds[action_type]:
                     sound_path = f"sounds/firearms/universal/{sound_name}.ogg"
                     if os.path.exists(sound_path):
+                        logging.debug("_play_weapon_action_sound: universal %s -> %s", action_type, sound_path)
                         self._safe_sound_play("", sound_path, block=should_block)
                         break
             
         except Exception as e:
             logging.error(f"Error playing weapon action sound: {e}")
+
+    def _play_weapon_action_sound_strict(self, weapon, action_type, block=False):
+        """Strict sound player: try exact platform filename(s) then controlled universal equivalents.
+
+        Returns True if a sound was played, False otherwise. Does NOT fabricate filenames.
+        """
+        try:
+            platform = weapon.get("platform", "").lower()
+            platform_folder = platform if platform else None
+
+            # Controlled mapping: action -> list of real filename bases (no invented names)
+            equivalents = {
+                "boltback": ["rifleboltback", "pistolslideback", "boltactionback"],
+                "boltforward": ["rifleboltforward", "pistolslideforward", "boltactionforward"],
+                "coveropen": ["beltremove", "pouchout"],
+                "coverclose": ["beltinsert", "pouchin"],
+                "boxout": ["magdrop0", "magdrop1"],
+                "boxin": ["riflemagin", "pistolmagin"],
+                "beltdrop": ["beltremove", "magdrop0", "magdrop1"],
+                "beltfeed": ["beltinsert"],
+                "beltalign": ["reloaderloop", "beltinsert"],
+                "magout": ["riflemagout", "pistolmagout", "magdrop0", "magdrop1"],
+                "magin": ["riflemagin", "pistolmagin"],
+                "pouchout": ["pouchout"],
+                "pouchin": ["pouchin"]
+            }
+
+            names = equivalents.get(action_type, [action_type])
+
+            # Try platform-specific exact filename FIRST (action_type.ogg only)
+            if platform_folder:
+                wf = os.path.join("sounds", "firearms", "weaponsounds", platform_folder)
+                exact = os.path.join(wf, action_type + ".ogg")
+                if os.path.exists(exact):
+                    logging.debug("_play_weapon_action_sound_strict: platform exact %s -> %s", action_type, exact)
+                    self._safe_sound_play("", exact, block=block)
+                    return True
+
+            # Try the universal equivalents next (exact filenames only, .ogg)
+            uni = os.path.join("sounds", "firearms", "universal")
+            for nm in names:
+                cand = os.path.join(uni, nm + ".ogg")
+                if os.path.exists(cand):
+                    logging.debug("_play_weapon_action_sound_strict: universal exact %s -> %s", action_type, cand)
+                    self._safe_sound_play("", cand, block=block)
+                    return True
+
+            # Not found
+            logging.debug("_play_weapon_action_sound_strict: no file for action '%s' (platform=%s)", action_type, platform_folder)
+            return False
+        except Exception as e:
+            logging.error(f"_play_weapon_action_sound_strict error: {e}")
+            return False
 
     def _perform_belt_reload_sequence(self, weapon):
         """Perform the detailed belt-fed reload sound/timing sequence."""
@@ -6807,32 +6954,32 @@ class App:
             # initial rack
             self._play_weapon_action_sound(weapon, "boltback")
             self._play_weapon_action_sound(weapon, "boltforward")
+            # initial small delay
             time.sleep(random.uniform(0.5, 1.0))
 
             # open cover / feed tray
-            self._play_weapon_action_sound(weapon, "coveropen")
+            self._play_weapon_action_sound_strict(weapon, "coveropen")
             time.sleep(random.uniform(1.0, 1.5))
 
             # remove box / feed component
-            self._play_weapon_action_sound(weapon, "boxout")
+            self._play_weapon_action_sound_strict(weapon, "boxout")
             time.sleep(random.uniform(1.0, 1.5))
 
             # insert box
-            self._play_weapon_action_sound(weapon, "boxin")
+            self._play_weapon_action_sound_strict(weapon, "boxin")
             time.sleep(random.uniform(0.5, 1.0))
 
             # align belt
-            self._play_weapon_action_sound(weapon, "beltalign")
+            self._play_weapon_action_sound_strict(weapon, "beltalign")
             time.sleep(random.uniform(1.0, 1.5))
 
             # close cover
-            self._play_weapon_action_sound(weapon, "coverclose")
+            self._play_weapon_action_sound_strict(weapon, "coverclose")
             time.sleep(random.uniform(1.0, 1.5))
 
-            # final rack
-            self._play_weapon_action_sound(weapon, "boltback")
-            time.sleep(0.15)
-            self._play_weapon_action_sound(weapon, "boltforward")
+            # final rack (no extra delay between back and forward)
+            self._play_weapon_action_sound_strict(weapon, "boltback")
+            self._play_weapon_action_sound_strict(weapon, "boltforward")
         except Exception:
             # best-effort: ignore sound errors
             pass
@@ -6845,14 +6992,14 @@ class App:
             time.sleep(random.uniform(0.5, 1.0))
 
             # treat like a detachable-mag swap for the sub-magazine
-            self._play_weapon_action_sound(weapon, "magout")
+            self._play_weapon_action_sound_strict(weapon, "magout")
             time.sleep(random.uniform(1.0, 1.5))
-            self._play_weapon_action_sound(weapon, "magin")
+            self._play_weapon_action_sound_strict(weapon, "magin")
             time.sleep(random.uniform(1.0, 1.5))
 
-            self._play_weapon_action_sound(weapon, "boltback")
-            time.sleep(0.15)
-            self._play_weapon_action_sound(weapon, "boltforward")
+            # final rack (no extra delay between back and forward)
+            self._play_weapon_action_sound_strict(weapon, "boltback")
+            self._play_weapon_action_sound_strict(weapon, "boltforward")
         except Exception:
             pass
     
@@ -7459,11 +7606,8 @@ class App:
                         # but in case the sequence didn't include an explicit 'insert' step, try
                         # to play the appropriate insert sound for hygiene.
                         if is_belt_rt:
-                            # For dualfeed weapons prefer detachable-mag insert sound
-                            if weapon.get("dualfeed") and (weapon.get("submagazinesystem") or weapon.get("submagazinetype")):
-                                self._play_weapon_action_sound(weapon, "magin")
-                            else:
-                                self._play_weapon_action_sound(weapon, "beltfeed")
+                            # Belt-fed reloads use explicit sequence already; skip extra insert hygiene.
+                            pass
                         else:
                             self._play_weapon_action_sound(weapon, "magin")
                     except Exception:
@@ -7628,22 +7772,36 @@ class App:
                     mag_type_check = (prior_current_mag.get("magazinetype") or weapon.get("magazinetype", "")).lower()
                     platform_check = weapon.get("platform", "").lower()
                     if "belt" in mag_type_check or "belt" in platform_check or "m249" in platform_check:
-                        self._play_weapon_action_sound(weapon, "beltdrop")
+                        # Belt-fed reload will handle cover/box/belt steps; skip this legacy beltdrop.
+                        pass
                     else:
                         self._play_weapon_action_sound(weapon, "magout")
                 except Exception:
                     pass
                 time.sleep(0.9)
 
-            # Play random magdrop sound (magdrop0 or magdrop1)
-            import random as rand_module
-            magdrop_sound = f"magdrop{rand_module.randint(0, 1)}"
-            self._safe_sound_play("", f"sounds/firearms/universal/{magdrop_sound}.ogg")
-            time.sleep(0.85)
+            # Play magdrop/pouch sounds for detachable-mag weapons only
+            platform_check = weapon.get("platform", "").lower()
+            mag_type_prior = (prior_current_mag.get("magazinetype") if prior_current_mag else weapon.get("magazinetype", "")).lower()
+            is_belt_prior = "belt" in mag_type_prior or "belt" in platform_check or "m249" in platform_check
+            if not is_belt_prior:
+                try:
+                    import random as rand_module
+                    magdrop_sound = f"magdrop{rand_module.randint(0, 1)}"
+                    self._safe_sound_play("", f"sounds/firearms/universal/{magdrop_sound}.ogg")
+                except Exception:
+                    pass
+                time.sleep(0.85)
 
-            # Pouchout sound
-            self._safe_sound_play("", "sounds/firearms/universal/pouchout.ogg")
-            time.sleep(0.8)
+                # Pouchout sound
+                try:
+                    self._safe_sound_play("", "sounds/firearms/universal/pouchout.ogg")
+                except Exception:
+                    pass
+                time.sleep(0.8)
+            else:
+                # Belt-fed prior magazine: belt sequence already handled above; skip pouch/magdrop.
+                logging.debug("fast-reload: skipping magdrop/pouch for belt-fed prior magazine (platform=%s)", platform_check)
 
             # Play magin for detachable-mag weapons; for belt-fed use beltfeed instead
             mag_type_check = weapon.get("magazinetype", "").lower()
@@ -7651,7 +7809,8 @@ class App:
             if not any(k in mag_type_check for k in ("internal", "tube", "cylinder")) and "revolver" not in platform_check:
                 try:
                     if "belt" in mag_type_check or "belt" in platform_check or "m249" in platform_check:
-                        self._play_weapon_action_sound(weapon, "beltfeed")
+                        # Belt-fed reload handled by dedicated sequence; skip legacy beltfeed.
+                        pass
                     else:
                         self._play_weapon_action_sound(weapon, "magin")
                 except Exception:
@@ -7732,23 +7891,19 @@ class App:
         # the sub-magazine detachable flow when appropriate.
         mag_type_current = (current_mag.get("magazinetype") if current_mag else weapon.get("magazinetype", "")).lower()
         platform = weapon.get("platform", "").lower()
+        # Consider it belt-fed only if the magazine *type* or platform explicitly indicates belt
         is_belt_current = "belt" in mag_type_current or "belt" in platform or "m249" in platform
 
-        # If this weapon supports dualfeed and the weapon is belt-fed, use the dualfeed path
-        if is_belt_current:
-            if weapon.get("dualfeed") and (weapon.get("submagazinesystem") or weapon.get("submagazinetype")):
-                # Use the dualfeed belt->detachable-mag sequence
-                try:
-                    self._perform_dualfeed_belt_reload_sequence(weapon)
-                except Exception:
-                    pass
-            else:
-                # Full belt-fed detailed sequence
-                try:
-                    self._perform_belt_reload_sequence(weapon)
-                except Exception:
-                    pass
-        else:
+        # If there is an inserted magazine that is NOT a belt-type, prefer magazine flow.
+        mag_is_detachable = False
+        if current_mag:
+            try:
+                cur_mag_type = (current_mag.get("magazinetype") or "").lower()
+                mag_is_detachable = not ("belt" in cur_mag_type)
+            except Exception:
+                mag_is_detachable = True
+
+        if mag_is_detachable:
             # Standard detachable-mag sequence (use pouch logic and magdrop for realism)
             if current_mag:
                 # Prefer the current_mag's magazinetype
@@ -7757,6 +7912,24 @@ class App:
                 except Exception:
                     pass
                 time.sleep(random.uniform(0.75, 1.0))
+            # magdrop + pouch sounds handled below
+        else:
+            # No detachable mag present; if weapon/platform indicates belt, use belt sequences
+            if is_belt_current:
+                if weapon.get("dualfeed") and (weapon.get("submagazinesystem") or weapon.get("submagazinetype")):
+                    # Use the dualfeed belt->detachable-mag sequence
+                    try:
+                        self._perform_dualfeed_belt_reload_sequence(weapon)
+                    except Exception:
+                        pass
+                else:
+                    # Full belt-fed detailed sequence
+                    try:
+                        self._perform_belt_reload_sequence(weapon)
+                    except Exception:
+                        pass
+                # Belt sequence fully handles the rest; skip the detachable-mag flow below
+                return
 
             # magdrop + pouch sounds
             try:
@@ -8835,26 +9008,46 @@ class App:
                 mag_type = weapon.get("magazinetype", "").lower()
                 platform = weapon.get("platform", "").lower()
                 if "belt" in mag_type or "belt" in platform or "m249" in platform:
-                    self._play_weapon_action_sound(weapon, "beltdrop")
+                    # Use explicit belt-fed sequence instead of legacy beltdrop
+                    try:
+                        if weapon.get("dualfeed") and (weapon.get("submagazinesystem") or weapon.get("submagazinetype")):
+                            self._perform_dualfeed_belt_reload_sequence(weapon)
+                        else:
+                            self._perform_belt_reload_sequence(weapon)
+                    except Exception:
+                        pass
                 else:
                     self._play_weapon_action_sound(weapon, "magout")
                 time.sleep(random.uniform(1.0, 1.5))
             
-            self._safe_sound_play("", "sounds/firearms/universal/pouchin.ogg")
-            time.sleep(random.uniform(1.0, 1.5))
-            
-            self._safe_sound_play("", "sounds/firearms/universal/pouchout.ogg")
-            time.sleep(random.uniform(1.0, 1.5))
+            # For pouch sounds, skip when handling belt-fed weapons (they use cover/box/belt)
+            mag_type_tmp = weapon.get("magazinetype", "").lower()
+            platform_tmp = weapon.get("platform", "").lower()
+            is_belt_tmp = "belt" in mag_type_tmp or "belt" in platform_tmp or "m249" in platform_tmp
+            if not is_belt_tmp:
+                try:
+                    self._safe_sound_play("", "sounds/firearms/universal/pouchin.ogg")
+                except Exception:
+                    pass
+                time.sleep(random.uniform(1.0, 1.5))
+                try:
+                    self._safe_sound_play("", "sounds/firearms/universal/pouchout.ogg")
+                except Exception:
+                    pass
+                time.sleep(random.uniform(1.0, 1.5))
+            else:
+                logging.debug("give_magazine: skipping pouch sounds for belt-fed weapon (platform=%s)", platform_tmp)
             
             # Only play magin for detachable-mag weapons. For belts, play beltfeed.
             mag_type = weapon.get("magazinetype", "").lower()
             platform = weapon.get("platform", "").lower()
             if not any(k in mag_type for k in ("internal", "tube", "cylinder")) and "revolver" not in platform:
-                if "belt" in mag_type or "belt" in platform or "m249" in platform:
-                    self._play_weapon_action_sound(weapon, "beltfeed")
-                else:
-                    self._play_weapon_action_sound(weapon, "magin")
-                time.sleep(random.uniform(1.0, 1.5))
+                    if "belt" in mag_type or "belt" in platform or "m249" in platform:
+                        # Already handled by belt-fed explicit sequence; no extra insert here.
+                        pass
+                    else:
+                        self._play_weapon_action_sound(weapon, "magin")
+                        time.sleep(random.uniform(1.0, 1.5))
             
             # Bolt sounds (only if gun is empty - no chambered round and no magazine)
             if is_gun_empty:
