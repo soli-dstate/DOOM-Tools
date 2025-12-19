@@ -13,12 +13,14 @@ import base64
 import pickle
 import json
 import shutil
+import subprocess
 import psutil
 import locale
 import random
 import math
 import time
 import secrets
+import ctypes
 try:
     import pyperclip
     PYPERCLIP_AVAILABLE = True
@@ -98,12 +100,12 @@ try:
 except requests.RequestException as e:
     logging.warning(f"Failed to fetch random fact: {e}")
 logging.info(f"Logging initialized at {log_filename}, log number {log_number}.")
-logging.info(f"Python version: {os.sys.version}")
-logging.info(f"Platform: {os.sys.platform}")
+logging.info(f"Python version: {sys.version}")
+logging.info(f"Platform: {sys.platform}")
 logging.info(f"Working directory: {os.getcwd()}")
-logging.info(f"Executable: {os.sys.executable}")
+logging.info(f"Executable: {sys.executable}")
 logging.info(f"Script: {os.path.abspath(__file__)}")
-logging.info(f"Arguments: {os.sys.argv}")
+logging.info(f"Arguments: {sys.argv}")
 logging.info(f"Process ID: {os.getpid()}")
 logging.info(f"Parent Process ID: {os.getppid()}")
 logging.info(f"User: {os.getlogin()}")
@@ -117,8 +119,6 @@ if platform.system() == "Linux":
             for line in f:
                 if line.startswith("PRETTY_NAME"):
                     distribution_info = line.split('=')[1].strip().strip('"')
-                    logging.info(f"Linux distribution: {distribution_info}")
-                    break
     except Exception as e:
         logging.warning(f"Failed to read Linux distribution info: {e}")
 logging.info(f"Architecture: {platform.architecture()[0]}")
@@ -138,10 +138,52 @@ global_variables = {
     "enemyloot_extension": ".sldenlt",
 }
 
+# Cross-platform error dialog helper
+def show_error_dialog(title, message):
+    """Show an error dialog in a platform-appropriate way.
+
+    - Windows: MessageBoxW with error icon.
+    - Linux: try zenity, kdialog, notify-send, then tkinter as fallback.
+    """
+    try:
+        if os.name == 'nt':
+            ctypes.windll.user32.MessageBoxW(0, str(message), str(title), 0x10)
+            return
+    except Exception:
+        pass
+    # Non-windows: try desktop utilities
+    try:
+        if shutil.which('zenity'):
+            subprocess.run(['zenity', '--error', '--title', str(title), '--text', str(message)])
+            return
+        if shutil.which('kdialog'):
+            subprocess.run(['kdialog', '--title', str(title), '--error', str(message)])
+            return
+        if shutil.which('notify-send'):
+            subprocess.run(['notify-send', str(title), str(message)])
+            return
+    except Exception:
+        pass
+    # Fallback: tkinter messagebox (modal)
+    try:
+        import tkinter as _tk
+        from tkinter import messagebox as _mb
+        _root = _tk.Tk()
+        _root.withdraw()
+        _mb.showerror(str(title), str(message))
+        try:
+            _root.destroy()
+        except Exception:
+            pass
+        return
+    except Exception:
+        logging.error("Unable to display GUI error dialog: %s - %s", title, message)
+        logging.info(f"Linux distribution: {distribution_info}")
+
 possible_flags = ["--dev", "--dm", "--debug", "--force", "-debug"]
 
 for flag in possible_flags:
-    if flag in os.sys.argv:
+    if flag in sys.argv:
         if flag == "--dev":
             global_variables["devmode"]["value"] = True
             logging.info("Development mode activated via command-line flag.")
@@ -185,6 +227,9 @@ folders = [
 themes_dir = "themes"
 os.makedirs(themes_dir, exist_ok=True)
 
+tmp_zip = None
+extract_dir = None
+
 try:
     if not any(os.scandir(themes_dir)):
         logging.info("Themes folder is empty. Downloading CTkThemesPack...")
@@ -216,15 +261,19 @@ try:
                 logging.warning("No 'themes' directory found in downloaded package.")
         else:
             logging.warning("Failed to locate extracted CTkThemesPack directory.")
+
+# (remote table sync will run after themes cleanup)
 except Exception as e:
     logging.error(f"Failed to populate themes: {e}")
 finally:
     try:
-        shutil.rmtree(extract_dir, ignore_errors=True)
+        if extract_dir:
+            shutil.rmtree(extract_dir, ignore_errors=True)
     except Exception:
         pass
     try:
-        os.remove(tmp_zip)
+        if tmp_zip and os.path.exists(tmp_zip):
+            os.remove(tmp_zip)
     except Exception:
         pass
 
@@ -286,7 +335,7 @@ if any(indicator in os.environ for indicator in ide_indicators):
                 logging.info(f"'{entry}' already exists in .gitignore")
     try:
         import subprocess
-        result = subprocess.run([os.sys.executable, '-m', 'pip', 'freeze'], capture_output=True, text=True)
+        result = subprocess.run([sys.executable, '-m', 'pip', 'freeze'], capture_output=True, text=True)
         current_packages = set(result.stdout.strip().split('\n'))
 
         existing_packages = set()
@@ -304,16 +353,20 @@ if any(indicator in os.environ for indicator in ide_indicators):
     except Exception as e:
         logging.warning(f"Failed to update requirements.txt: {e}")
 
-if not global_variables["devmode"]["value"]:
-    logging.info("Running in production mode.")
-    if os.name == 'nt':
-        saves_folder = os.path.join(os.getenv('LOCALAPPDATA'), 'DOOM Tools', 'saves')
-    else:
-        saves_folder = os.path.expanduser('~/.local/share/DOOM Tools/saves')
-else:
-    logging.info("Running in development mode.")
+    # Ensure saves_folder variable is always defined for later code paths
     saves_folder = "saves"
-    folders.append(saves_folder)
+
+    if not global_variables["devmode"]["value"]:
+        logging.info("Running in production mode.")
+        if os.name == 'nt':
+            base_ld = os.getenv('LOCALAPPDATA') or os.path.expanduser('~')
+            saves_folder = os.path.join(base_ld, 'DOOM Tools', 'saves')
+        else:
+            saves_folder = os.path.expanduser('~/.local/share/DOOM Tools/saves')
+    else:
+        logging.info("Running in development mode.")
+        saves_folder = "saves"
+        folders.append({"name": "saves", "ignore_gitignore": False})
     with open('.gitignore', 'a') as gitignore:
         existing_gitignore = set()
         try:
@@ -328,10 +381,10 @@ else:
         else:
             logging.info(f"'{entry}' already exists in .gitignore")
 
-os.makedirs(saves_folder, exist_ok=True)
+    os.makedirs(saves_folder or "saves", exist_ok=True)
 
 try:
-    appearance_settings_path = os.path.join(saves_folder, "appearance_settings.sldsv")
+    appearance_settings_path = os.path.join("saves", "appearance_settings.sldsv")
     if os.path.exists(appearance_settings_path):
         with open(appearance_settings_path, 'r') as f:
             loaded_settings = json.load(f)
@@ -341,7 +394,7 @@ except Exception as e:
     logging.warning(f"Failed to load appearance settings: {e}")
 
 try:
-    settings_path = os.path.join(saves_folder, "settings.sldsv")
+    settings_path = os.path.join("saves", "settings.sldsv")
     if os.path.exists(settings_path):
         with open(settings_path, 'r') as f:
             loaded_globals = json.load(f)
@@ -357,6 +410,81 @@ try:
         logging.info(f"Global settings loaded from {settings_path}")
 except Exception as e:
     logging.warning(f"Failed to load global settings: {e}")
+
+def _sync_remote_table():
+    try:
+        table_dir = os.path.join(os.getcwd(), "tables")
+        if not os.path.isdir(table_dir):
+            logging.info("No tables directory present; skipping remote table sync")
+            return
+
+        local_tables = sorted(glob.glob(os.path.join("tables", f"*{global_variables.get('table_extension', '.sldtbl')}")))
+        if not local_tables:
+            logging.info("No local table files found; skipping remote table sync")
+            return
+
+        # Choose the current table: prefer global_variables['current_table'] if it matches a file, else use first local file
+        target_local = None
+        cur_tbl = global_variables.get("current_table")
+        if cur_tbl:
+            for f in local_tables:
+                if os.path.abspath(f).endswith(cur_tbl) or os.path.basename(f) == cur_tbl:
+                    target_local = f
+                    break
+
+        if not target_local:
+            target_local = local_tables[0]
+
+        basename = os.path.basename(target_local)
+        raw_base = "https://raw.githubusercontent.com/soli-dstate/DOOM-Tools/master/tables/"
+        remote_url = raw_base + basename
+
+        logging.info(f"Checking remote table for updates: {remote_url}")
+        resp = requests.get(remote_url, timeout=15)
+        if resp.status_code != 200:
+            logging.info(f"Remote table not found (status {resp.status_code}): {remote_url}")
+            return
+
+        remote_text = resp.text
+        try:
+            with open(target_local, 'r', encoding='utf-8') as f:
+                local_text = f.read()
+        except Exception as e:
+            logging.warning(f"Failed to read local table {target_local}: {e}")
+            local_text = None
+
+        if local_text is None or local_text != remote_text:
+            if global_variables.get("devmode", {}).get("value", False):
+                logging.info("Devmode enabled: remote table differs but will not replace local file")
+                return
+
+            # Backup local file by replacing extension with .backup
+            name_root, _ = os.path.splitext(basename)
+            backup_name = name_root + ".backup"
+            backup_path = os.path.join(table_dir, backup_name)
+            try:
+                if os.path.exists(target_local):
+                    shutil.move(target_local, backup_path)
+                    logging.info(f"Backed up local table {target_local} -> {backup_path}")
+
+                # Write remote content to local file
+                with open(target_local, 'w', encoding='utf-8') as f:
+                    f.write(remote_text)
+                logging.info(f"Replaced local table with remote version: {target_local}")
+            except Exception as e:
+                logging.error(f"Failed to replace local table with remote version: {e}")
+        else:
+            logging.info("Local table matches remote; no update needed")
+    except Exception as e:
+        logging.error(f"Error during remote table sync: {e}")
+
+# Run sync early in init (skip if devmode)
+if not global_variables.get("devmode", {}).get("value", False):
+    logging.info("Remote table sync active, syncing...")
+    _sync_remote_table()
+    logging.info("Remote table sync complete.")
+else:
+    logging.info("Remote table sync active, skipped due to devmode.")
 
 # Validate table IDs are sequential
 def validate_table_ids():
@@ -418,6 +546,8 @@ def validate_table_ids():
             else:
                 missing_ids = sorted(expected_ids - actual_ids)
                 logging.error(f"Table '{table_name}': ID sequence broken! Missing IDs: {missing_ids}. Last ID: {max_id}, Next ID: {next_id}")
+                show_error_dialog("ID Sequence Error", f"Table '{table_name}': ID sequence broken! Missing IDs: {missing_ids}. Last ID: {max_id}, Next ID: {next_id}")
+                raise SystemExit("Format for table IDs is broken due to non-sequential IDs; aborting startup. Please fix/update the table.")
 
         except Exception as e:
             logging.error(f"Failed to validate table '{table_file}': {e}")
@@ -430,8 +560,8 @@ def validate_table_ids():
             logging.error(f"Duplicate ID detected: {dup_id} used in: {loc_str}")
 
         # Fail fast: IDs must be unique across all tables for program correctness
-        raise SystemExit("Duplicate table IDs detected; aborting startup. Fix your .sldtbl files.")
-
+        show_error_dialog("Duplicate ID Error", "Duplicate IDs detected across tables! See log for details.")
+        raise SystemExit("Format for table IDs is broken due to duplicates; aborting startup. Please fix/update the table.")
 
 validate_table_ids()
 
@@ -589,10 +719,15 @@ def update_item_keys_from_table(save_data):
         # Variable keys that should be preserved from save data (not overwritten from table)
         variable_keys = {
             "quantity", "current", "items", "subslots", "uses_left", "hits_left",
-            "battery_life", "loaded", "chambered", "rounds", "belt_rounds"
+            "battery_life", "loaded", "chambered", "rounds",
+            "accessories", "attachment"
         }
         
+        # Track whether any item keys were changed during the update
+        changed_any = False
+
         def update_item(item):
+            nonlocal changed_any
             """Update a single item's keys from table"""
             if not isinstance(item, dict) or "id" not in item:
                 return item
@@ -606,10 +741,28 @@ def update_item_keys_from_table(save_data):
             # Store variable data
             preserved_data = {key: item[key] for key in variable_keys if key in item}
             
-            # Update with table data
+            # Update with table data: only sync non-variable, non-internal keys
+            synced_keys = []
             for key, value in table_item.items():
-                if key not in variable_keys:
+                if key in variable_keys:
+                    continue
+                if isinstance(key, str) and key.startswith("_"):
+                    continue
+
+                # Only sync if the local value differs from the table value
+                local_val = item.get(key, None)
+                try:
+                    different = local_val != value
+                except Exception:
+                    different = True
+
+                if different:
                     item[key] = value
+                    synced_keys.append(key)
+
+            if synced_keys:
+                logging.info(f"Updated item id={item_id} name={item.get('name','<unknown>')} keys_synced={synced_keys}")
+                changed_any = True
             
             # Restore variable data
             for key, value in preserved_data.items():
@@ -642,7 +795,10 @@ def update_item_keys_from_table(save_data):
             if equipped_item and isinstance(equipped_item, dict):
                 update_item(equipped_item)
         
-        logging.info("Item keys updated from table data")
+        if changed_any:
+            logging.info(f"Item keys successfully synced from table {os.path.join('tables', os.path.basename(table_files[0]))}")
+        else:
+            logging.info(f"Item keys updated from table data: no changes detected in {os.path.join('tables', os.path.basename(table_files[0]))}")
         
     except Exception as e:
         logging.error(f"Failed to update item keys from table: {e}")
@@ -680,7 +836,7 @@ class App:
     def _save_persistent_data(self):
         """Persist metadata like last_loaded_save and UUID map."""
         try:
-            persistent_path = os.path.join(saves_folder, "persistent_data.sldsv")
+            persistent_path = os.path.join(saves_folder or "saves", "persistent_data.sldsv")
             pickled_persistent = pickle.dumps(persistentdata)
             encoded_persistent = base64.b85encode(pickled_persistent).decode('utf-8')
             with open(persistent_path, 'w') as f:
@@ -697,7 +853,7 @@ class App:
             if os.path.isabs(currentsave):
                 save_path = currentsave
             else:
-                save_path = os.path.join(saves_folder, currentsave)
+                save_path = os.path.join(saves_folder or "saves", currentsave or "")
             if not save_path.endswith(".sldsv"):
                 save_path += ".sldsv"
             try:
@@ -710,7 +866,7 @@ class App:
     def _load_file(self, save_filename):
         # Load persistent data (base85+pickle) first
         try:
-            persistent_path = os.path.join(saves_folder, "persistent_data.sldsv")
+            persistent_path = os.path.join(saves_folder or "saves", "persistent_data.sldsv")
             if os.path.exists(persistent_path):
                 with open(persistent_path, 'r') as f:
                     encoded_persistent = f.read()
@@ -735,7 +891,7 @@ class App:
         if os.path.isabs(save_filename):
             save_path = save_filename
         else:
-            save_path = os.path.join(saves_folder, save_filename)
+            save_path = os.path.join(saves_folder or "saves", save_filename)
         if not save_path.endswith('.sldsv'):
             save_path += '.sldsv'
         if not os.path.exists(save_path):
@@ -888,9 +1044,16 @@ class App:
         self.root.title("DOOM Tools")
         self.root.geometry(appearance_settings["resolution"])
         self.root.resizable(False, False)
-        if appearance_settings["borderless"]:
-            self.root.overrideredirect(True)
-        self.root.attributes('-fullscreen', appearance_settings["fullscreen"])
+        # Apply fullscreen first; override-redirect (borderless) interferes with
+        # setting the fullscreen attribute on some platforms/WM when enabled.
+        self.root.attributes('-fullscreen', appearance_settings.get("fullscreen", False))
+        # Only set override-redirect (borderless) when not fullscreen to avoid
+        # TclError: "can't set fullscreen attribute ... override-redirect flag is set"
+        try:
+            if appearance_settings.get("borderless") and not appearance_settings.get("fullscreen"):
+                self.root.overrideredirect(True)
+        except Exception:
+            pass
         # Sound cache to reduce repeated disk I/O for frequently played sounds
         self._sound_cache = {}
 
@@ -900,7 +1063,7 @@ class App:
             last_save_name = persistentdata.get("save_uuids", {}).get(last_save_uuid)
             if not last_save_name:
                 # Fallback: find a matching file on disk
-                pattern = os.path.join(saves_folder, f"*_{last_save_uuid}.sldsv")
+                pattern = os.path.join(saves_folder or "saves", f"*_{last_save_uuid}.sldsv")
                 matches = glob.glob(pattern)
                 if matches:
                     last_save_name = os.path.basename(matches[0]).replace(f"_{last_save_uuid}.sldsv", "")
@@ -977,9 +1140,18 @@ class App:
                         return
                     cache[sound_path] = sound
 
-                # Ensure volume is reasonable
+                # Determine volume, respecting flashbang mute/fade state if active
                 try:
-                    sound.set_volume(1.0)
+                    vol = 1.0
+                    # If in flashbang mute mode, only allow ring.ogg at full volume;
+                    # other sounds play at the current flashbang volume (starts at 0 and fades in)
+                    if getattr(self, '_flashbang_mute', False):
+                        base = os.path.basename(sound_path).lower()
+                        if 'ring.ogg' in base or base.startswith('ring'):
+                            vol = 1.0
+                        else:
+                            vol = float(getattr(self, '_flashbang_volume', 0.0))
+                    sound.set_volume(max(0.0, min(1.0, vol)))
                 except Exception:
                     pass
 
@@ -1037,10 +1209,17 @@ class App:
         else:
             popup = customtkinter.CTkToplevel(self.root)
         popup.title(title)
-        popup.geometry("450x200")
         popup.transient(self.root)
-        
-        label_kwargs = {"text": message, "wraplength": 400, "font": customtkinter.CTkFont(size=13)}
+
+        # Determine a sensible wraplength based on screen size so long messages
+        # flow inside the popup instead of creating an oversized window.
+        try:
+            screen_w = self.root.winfo_screenwidth()
+            wraplength = min(1000, max(300, screen_w - 200))
+        except Exception:
+            wraplength = 400
+
+        label_kwargs = {"text": message, "wraplength": wraplength, "font": customtkinter.CTkFont(size=13)}
         if label_text_color:
             label_kwargs["text_color"] = label_text_color
         label = customtkinter.CTkLabel(popup, **label_kwargs)
@@ -1059,14 +1238,24 @@ class App:
         ok_button.pack(pady=10)
         
         popup.update_idletasks()
-        # Center popup on screen
-        popup_width = popup.winfo_reqwidth()
-        popup_height = popup.winfo_reqheight()
-        screen_width = popup.winfo_screenwidth()
-        screen_height = popup.winfo_screenheight()
-        x = (screen_width // 2) - (popup_width // 2)
-        y = (screen_height // 2) - (popup_height // 2)
-        popup.geometry(f"+{x}+{y}")
+        # Auto-scale popup to fit its contents but do not exceed the screen
+        try:
+            req_w = popup.winfo_reqwidth()
+            req_h = popup.winfo_reqheight()
+            screen_w = popup.winfo_screenwidth()
+            screen_h = popup.winfo_screenheight()
+            max_w = max(200, screen_w - 100)
+            max_h = max(150, screen_h - 100)
+            final_w = min(req_w, max_w)
+            final_h = min(req_h, max_h)
+            x = (screen_w // 2) - (final_w // 2)
+            y = (screen_h // 2) - (final_h // 2)
+            popup.geometry(f"{final_w}x{final_h}+{x}+{y}")
+        except Exception:
+            try:
+                popup.geometry("+100+100")
+            except Exception:
+                pass
         popup.deiconify()
         popup.grab_set()
         popup.lift()
@@ -1104,6 +1293,116 @@ class App:
             try:
                 label.configure(text=text)
                 popup.update_idletasks()
+            except Exception:
+                pass
+
+            # Fallback: inspect the fired round or loaded magazine for variant data
+            try:
+                if True:
+                    candidate_round = None
+                    try:
+                        logging.debug("Variant extraction: chambered=%r", chambered)
+                    except Exception:
+                        pass
+                    try:
+                        logging.debug("Variant extraction: loaded_mag=%r", loaded_mag)
+                    except Exception:
+                        pass
+                    if chambered:
+                        candidate_round = chambered
+                    elif loaded_mag and isinstance(loaded_mag, dict) and loaded_mag.get("rounds"):
+                        try:
+                            candidate_round = loaded_mag["rounds"][0]
+                        except Exception:
+                            candidate_round = None
+                    if candidate_round is not None:
+                        try:
+                            logging.debug("Variant extraction: candidate_round repr: %s", repr(candidate_round))
+                        except Exception:
+                            pass
+                        # dict-style round entry: prefer explicit keys, then search nested structures
+                        if isinstance(candidate_round, dict):
+                            # preferred keys
+                            for k in ("variant", "variant_name", "name", "display", "label"):
+                                v = candidate_round.get(k)
+                                if v:
+                                    variant_name = str(v)
+                                    break
+                            # look for a 'variants' list
+                            if not variant_name and candidate_round.get("variants"):
+                                try:
+                                    vs = candidate_round.get("variants")
+                                    if isinstance(vs, (list, tuple)) and vs:
+                                        first = vs[0]
+                                        if isinstance(first, dict):
+                                            for k2 in ("name", "variant", "variant_name"):
+                                                if first.get(k2):
+                                                    variant_name = str(first.get(k2))
+                                                    break
+                                        else:
+                                            variant_name = str(first)
+                                except Exception:
+                                    pass
+                            # scan other string fields for a likely variant (not equal to caliber)
+                            if not variant_name:
+                                for k, v in candidate_round.items():
+                                    try:
+                                        if isinstance(v, str):
+                                            sv = v.strip()
+                                            if sv and sv.lower() != str(caliber).lower():
+                                                # prefer tokens that look like a variant (contain letters)
+                                                if any(c.isalpha() for c in sv):
+                                                    variant_name = sv
+                                                    break
+                                    except Exception:
+                                        continue
+                        elif isinstance(candidate_round, (list, tuple)):
+                            try:
+                                parts = []
+                                for x in candidate_round:
+                                    if isinstance(x, dict):
+                                        for k in ("variant", "name", "variant_name"):
+                                            if x.get(k):
+                                                parts.append(str(x.get(k)).strip())
+                                                break
+                                    else:
+                                        parts.append(str(x).strip().strip("'\""))
+                                if parts:
+                                    variant_name = " ".join([p for p in parts if p])
+                            except Exception:
+                                pass
+                        elif isinstance(candidate_round, str):
+                            s = candidate_round.strip()
+                            # try splitting on ' | ' or ' - '
+                            if " | " in s:
+                                parts = s.split(" | ")
+                                if len(parts) > 1:
+                                    variant_name = parts[-1]
+                            elif " - " in s:
+                                parts = s.split(" - ")
+                                if len(parts) > 1:
+                                    variant_name = parts[-1]
+                            else:
+                                import re as _re
+                                m = _re.search(r"variant\s*[:=]\s*['\"]([^'\"]+)['\"]", s, _re.IGNORECASE)
+                                if m:
+                                    variant_name = m.group(1)
+                                else:
+                                    m2 = _re.search(r"['\"]([^'\"]+)['\"]\s*$", s)
+                                    if m2:
+                                        variant_name = m2.group(1)
+                    if variant_name:
+                        try:
+                            import re as _re
+                            variant_name = _re.sub(r"^[\s'\"\{\[\(]+|[\s'\"\}\]\)]+$", "", variant_name).strip()
+                            if variant_name:
+                                round_display = f"{caliber} {variant_name}"
+                        except Exception:
+                            round_display = f"{caliber} {variant_name}"
+                        try:
+                            logging.debug("Variant extraction: variant_name=%r -> round_display=%r", variant_name, round_display)
+                        except Exception:
+                            pass
             except Exception:
                 pass
 
@@ -1165,6 +1464,68 @@ class App:
         screen_width = popup.winfo_screenwidth()
         screen_height = popup.winfo_screenheight()
         x = (screen_width // 2) - (popup_width // 2)
+        y = (screen_height // 2) - (popup_height // 2)
+        popup.geometry(f"+{x}+{y}")
+        popup.deiconify()
+        popup.lift()
+
+    def _popup_select_option(self, title, prompt, options):
+        """Show a modal selection dialog with the provided options (list of strings).
+
+        Returns the selected option string or None if cancelled.
+        """
+        self._play_ui_sound("popup")
+        popup = customtkinter.CTkToplevel(self.root)
+        popup.title(title)
+        popup.geometry("480x160")
+        popup.transient(self.root)
+
+        label = customtkinter.CTkLabel(popup, text=prompt, wraplength=440, font=customtkinter.CTkFont(size=13))
+        label.pack(pady=(16, 8), padx=16)
+
+        sel_var = customtkinter.StringVar(value=(options[0] if options else ""))
+        opt = customtkinter.CTkOptionMenu(popup, values=options, variable=sel_var)
+        opt.pack(pady=(0, 12), padx=16, fill="x")
+
+        result = {"value": None}
+
+        def confirm():
+            try:
+                self._play_ui_sound("click")
+            except Exception:
+                pass
+            result["value"] = sel_var.get()
+            popup.destroy()
+
+        def cancel():
+            try:
+                self._play_ui_sound("click")
+            except Exception:
+                pass
+            result["value"] = None
+            popup.destroy()
+
+        button_frame = customtkinter.CTkFrame(popup, fg_color="transparent")
+        button_frame.pack(pady=(4, 12))
+        ok_btn = customtkinter.CTkButton(button_frame, text="OK", command=confirm, width=120, height=34)
+        ok_btn.pack(side="left", padx=8)
+        cancel_btn = customtkinter.CTkButton(button_frame, text="Cancel", command=cancel, width=120, height=34)
+        cancel_btn.pack(side="left", padx=8)
+
+        popup.update_idletasks()
+        popup_width = popup.winfo_reqwidth()
+        popup_height = popup.winfo_reqheight()
+        screen_width = popup.winfo_screenwidth()
+        screen_height = popup.winfo_screenheight()
+        x = (screen_width // 2) - (popup_width // 2)
+        y = (screen_height // 2) - (popup_height // 2)
+        popup.geometry(f"+{x}+{y}")
+        popup.deiconify()
+        popup.lift()
+
+        popup.grab_set()
+        popup.wait_window()
+        return result.get("value")
         y = (screen_height // 2) - (popup_height // 2)
         popup.geometry(f"+{x}+{y}")
         popup.deiconify()
@@ -1271,7 +1632,7 @@ class App:
                         self._popup_show_info("Locked", "This crate is locked. Lockpicking not implemented yet.", sound="error")
                         return
                     
-                    save_path = os.path.join(saves_folder, currentsave + ".sldsv")
+                    save_path = os.path.join(saves_folder or "", (currentsave or "") + ".sldsv")
                     with open(save_path, 'r') as f:
                         save_data = json.load(f)
                     
@@ -1735,7 +2096,7 @@ class App:
             self._popup_show_info("Error", "No character loaded.", sound="error")
             return
         
-        save_filename = currentsave + ".sldsv"
+        save_filename = (currentsave or "") + ".sldsv"
         save_data = self._load_file(save_filename)
         
         if save_data is None:
@@ -2064,7 +2425,7 @@ class App:
                 if filename.endswith(".sldsv.sldsv"):
                     continue
                 if filename.endswith(".sldsv") and filename not in ["persistent_data.sldsv", "settings.sldsv"]:
-                    save_path = os.path.join(saves_folder, filename)
+                    save_path = os.path.join(saves_folder or "saves", filename)
                     try:
                         with open(save_path, 'r') as f:
                             save_data = json.load(f)
@@ -2346,7 +2707,7 @@ class App:
                 widget.destroy()
             selected_items.clear()
             
-            save_path = os.path.join(saves_folder, currentsave + ".sldsv")
+            save_path = os.path.join(saves_folder or "", (currentsave or "") + ".sldsv")
             try:
                 with open(save_path, 'r') as f:
                     save_data = json.load(f)
@@ -2386,7 +2747,7 @@ class App:
         
         def create_export():
             try:
-                save_path = os.path.join(saves_folder, currentsave + ".sldsv")
+                save_path = os.path.join(saves_folder or "", (currentsave or "") + ".sldsv")
                 with open(save_path, 'r') as f:
                     save_data = json.load(f)
                 
@@ -2471,7 +2832,7 @@ class App:
                         pickled_data = base64.b85decode(encoded_data.encode('utf-8'))
                         transfer_data = pickle.loads(pickled_data)
                         
-                        save_path = os.path.join(saves_folder, currentsave + ".sldsv")
+                        save_path = os.path.join(saves_folder or "", (currentsave or "") + ".sldsv")
                         with open(save_path, 'r') as f:
                             save_data = json.load(f)
                         
@@ -2548,7 +2909,7 @@ class App:
         self._clear_window()
         
         # Load current save data using _load_file
-        save_filename = currentsave + ".sldsv"
+        save_filename = (currentsave or "") + ".sldsv"
         save_data = self._load_file(save_filename)
         
         if save_data is None:
@@ -3093,7 +3454,7 @@ class App:
         self._clear_window()
         
         # Load current save data using _load_file
-        save_filename = currentsave + ".sldsv"
+        save_filename = (currentsave or "") + ".sldsv"
         save_data = self._load_file(save_filename)
         
         if save_data is None:
@@ -3789,7 +4150,7 @@ class App:
             return
         
         try:
-            save_path = os.path.join(saves_folder, currentsave)
+            save_path = os.path.join(saves_folder or "saves", currentsave or "")
             if not save_path.endswith('.sldsv'):
                 save_path += '.sldsv'
             with open(save_path, 'r') as f:
@@ -3846,26 +4207,43 @@ class App:
             weapon_id = str(wpn["item"].get("id"))
             temp_map = combat_state.setdefault("barrel_temperatures", {})
             last_used_map = combat_state.setdefault("weapon_last_used", {})
-            
+
             current_temp = temp_map.get(weapon_id, ambient)
-            last_used = last_used_map.get(weapon_id, now_ts)
-            
+            last_used = last_used_map.get(weapon_id)
+
+            # If we don't have a recorded last-used time but we do have a stored
+            # temperature, assume it was last updated one poll interval ago so
+            # cooling happens incrementally instead of all at once.
+            if last_used is None and weapon_id in temp_map:
+                assumed_interval = combat_state.get("temp_poll_interval", 15)
+                last_used = now_ts - float(assumed_interval)
+
             # Calculate elapsed time since last use
-            elapsed = max(0.0, now_ts - last_used)
-            
-            if elapsed > 0 and current_temp > ambient:
-                # Newton's law of cooling: k ≈ 0.01 for slow cooling (10-min half-life)
-                k = 0.01
-                new_temp = ambient + (current_temp - ambient) * (2.71828 ** (-k * elapsed))
-                # Don't go below ambient
-                new_temp = max(ambient, new_temp)
+            elapsed = max(0.0, now_ts - last_used) if last_used is not None else 0.0
+
+            if elapsed > 0 and current_temp != ambient:
+                # Use Newton's law of cooling/heating with a realistic constant.
+                # Default: 5-minute half-life (faster cooling). Magic weapons cool slower.
+                default_k = math.log(2.0) / 300.0
+                magic_k = math.log(2.0) / 600.0
+                magicsys_local = str(wpn.get("magicsoundsystem") or "").lower()
+                is_magic_local = (str(wpn.get("type") or "").lower() == "magic") or (magicsys_local in ("hg", "at", "mg", "rf"))
+                k = magic_k if is_magic_local else default_k
+                new_temp = ambient + (current_temp - ambient) * math.exp(-k * elapsed)
+                # Clamp to the range between ambient and the previous temperature
+                # to avoid any floating-point overshoot.
+                low = min(ambient, current_temp)
+                high = max(ambient, current_temp)
+                new_temp = min(max(new_temp, low), high)
                 temp_map[weapon_id] = new_temp
+                # Record that we updated cooling now so next poll uses small elapsed
+                last_used_map[weapon_id] = now_ts
                 logging.debug(
                     "Weapon %s cooling: was %.1f°F, now %.1f°F after %.1f seconds",
                     weapon_id,
                     current_temp,
                     new_temp,
-                    elapsed
+                    elapsed,
                 )
 
         logging.info(
@@ -3908,6 +4286,69 @@ class App:
             font=customtkinter.CTkFont(size=14)
         )
         ambient_label.pack(side="left", padx=10, pady=10)
+
+        # Quick action buttons container removed (buttons placed inline with temperature)
+
+        def _show_combat_stats():
+            """Gather player stats and weapon modifiers and display in a popup."""
+            try:
+                parts = []
+                # Player base stats
+                sd_stats = save_data.get("stats", {}) or {}
+                parts.append("Player base stats:")
+                if isinstance(sd_stats, dict) and sd_stats:
+                    for k, v in sd_stats.items():
+                        parts.append(f"  {k}: {v}")
+                else:
+                    parts.append("  (no base stats)")
+
+                # Aggregate modifiers from equipped weapons
+                agg = {}
+                parts.append("")
+                parts.append("Weapon modifiers (per-weapon):")
+                for idx, entry in enumerate(equipped_weapons):
+                    w = entry.get("item") if isinstance(entry, dict) else None
+                    name = w.get("name", f"weapon_{idx}") if isinstance(w, dict) else str(entry)
+                    mods = {}
+                    if isinstance(w, dict):
+                        mods = w.get("_active_modifiers", {}) or {}
+                    parts.append(f"  {name}:")
+                    stats_mods = mods.get("stats", {}) if isinstance(mods, dict) else {}
+                    if stats_mods:
+                        for sk, sv in stats_mods.items():
+                            parts.append(f"    {sk}: {sv}")
+                            try:
+                                agg[sk] = agg.get(sk, 0) + (int(sv) if isinstance(sv, (int, float)) else 0)
+                            except Exception:
+                                pass
+                    else:
+                        parts.append("    (no modifiers)")
+
+                parts.append("")
+                parts.append("Aggregated weapon modifiers:")
+                if agg:
+                    for k, v in agg.items():
+                        parts.append(f"  {k}: {v}")
+                else:
+                    parts.append("  (none)")
+
+                popup_text = "\n".join(parts)
+            except Exception as e:
+                logging.exception("Failed to build combat stats: %s", e)
+                popup_text = f"Error building stats: {e}"
+            try:
+                self._popup_show_info("Combat Stats", popup_text)
+            except Exception:
+                try:
+                    # Fallback: simple message box
+                    from tkinter import messagebox as _mb
+                    _mb.showinfo("Combat Stats", popup_text)
+                except Exception:
+                    logging.error("Unable to display combat stats popup")
+
+        # Place Show Stats on the same row as Ambient Temperature
+        stats_btn = self._create_sound_button(temp_frame, "Show Stats", _show_combat_stats, width=160, height=36)
+        stats_btn.pack(side="right", padx=8, pady=10)
         
         # Weapon switching controls
         weapon_switch_frame = customtkinter.CTkFrame(main_frame)
@@ -3916,6 +4357,10 @@ class App:
         def refresh_weapon_display():
             """Refresh the entire combat display."""
             self._save_combat_state(save_data)
+            try:
+                _update_nvg_button()
+            except Exception:
+                pass
             self._open_combat_mode_tool()
         
         def select_previous():
@@ -4212,7 +4657,11 @@ class App:
             pass
         resolved_active_acc = _resolve_active_underbarrel_obj(active_ub)
         try:
-            logging.info("Resolved active accessory from resolver: %s", getattr(resolved_active_acc, 'get', lambda k=None: resolved_active_acc)('name', resolved_active_acc))
+            if resolved_active_acc is not None and hasattr(resolved_active_acc, 'get') and callable(getattr(resolved_active_acc, 'get')):
+                name = resolved_active_acc.get('name', resolved_active_acc)
+            else:
+                name = resolved_active_acc
+            logging.info("Resolved active accessory from resolver: %s", name)
         except Exception:
             try:
                 logging.info("Resolved active accessory: %s", str(resolved_active_acc))
@@ -4263,13 +4712,26 @@ class App:
             try:
                 dev_menu = current_weapon_state.get("dev_variant_menu_ref")
                 dev_var = current_weapon_state.get("dev_variant_var")
+                dev_cal_menu = current_weapon_state.get("dev_caliber_menu_ref")
+                dev_cal_var = current_weapon_state.get("dev_caliber_var")
                 if dev_menu and dev_var is not None:
                     # Recompute choices using the same logic as the original menu
                     try:
                         # Call the local get_variant_choices if available; otherwise rebuild
                         new_choices = []
                         caliber_list = wpn.get("caliber", []) or []
-                        cal = caliber_list[0] if caliber_list else None
+                        # Prefer DevMode selected caliber if present
+                        try:
+                            if dev_cal_var and hasattr(dev_cal_var, 'get'):
+                                sel_cal = dev_cal_var.get()
+                                if sel_cal:
+                                    cal = sel_cal
+                                else:
+                                    cal = caliber_list[0] if caliber_list else None
+                            else:
+                                cal = caliber_list[0] if caliber_list else None
+                        except Exception:
+                            cal = caliber_list[0] if caliber_list else None
                         ammo_tables = table_data.get("tables", {}).get("ammunition", []) if table_data else []
                         for ammo in ammo_tables:
                             try:
@@ -4298,12 +4760,283 @@ class App:
                                     dev_var.set(new_choices[0])
                             except Exception:
                                 pass
+                        # Also refresh caliber menu values/state if present
+                        try:
+                            if dev_cal_menu is not None and dev_cal_var is not None:
+                                calib_vals = []
+                                if isinstance(caliber_list, (list, tuple)):
+                                    calib_vals = [str(x) for x in caliber_list if x is not None]
+                                elif isinstance(caliber_list, str):
+                                    calib_vals = [caliber_list]
+                                if not calib_vals:
+                                    calib_vals = [""]
+                                try:
+                                    dev_cal_menu.configure(values=calib_vals)
+                                    if dev_cal_var.get() not in calib_vals:
+                                        try:
+                                            dev_cal_var.set(calib_vals[0])
+                                        except Exception:
+                                            pass
+                                    # disable if only one
+                                    if len(calib_vals) <= 1:
+                                        try:
+                                            dev_cal_menu.configure(state="disabled")
+                                        except Exception:
+                                            pass
+                                    else:
+                                        try:
+                                            dev_cal_menu.configure(state="normal")
+                                        except Exception:
+                                            pass
+                                except Exception:
+                                    try:
+                                        dev_cal_menu.set_values(calib_vals)
+                                    except Exception:
+                                        pass
+                        except Exception:
+                            pass
                     except Exception:
                         pass
             except Exception:
                 pass
             self._save_combat_state(save_data)
-        
+            # Enable/disable Reload Magazine button based on hands ammo for current weapon
+            try:
+                rb = current_weapon_state.get('reload_mag_btn_ref')
+                if rb:
+                    def _hands_have_compatible_rounds(wpn):
+                        try:
+                            cal_list = wpn.get('caliber') if isinstance(wpn, dict) else None
+                            cal = None
+                            if isinstance(cal_list, (list, tuple)):
+                                cal = str(cal_list[0]) if cal_list else None
+                            elif isinstance(cal_list, str):
+                                cal = cal_list
+                            # scan hands for rounds/items
+                            for itm in save_data.get('hands', {}).get('items', []):
+                                if not itm or not isinstance(itm, dict):
+                                    continue
+                                # Only consider loose rounds: exclude magazines/belts (items with magazinesystem or capacity)
+                                if itm.get('magazinesystem') or itm.get('capacity'):
+                                    continue
+                                # explicit rounds list (loose bag of rounds)
+                                rds = itm.get('rounds')
+                                if isinstance(rds, list) and rds:
+                                    first = rds[0]
+                                    if isinstance(first, dict) and cal and str(first.get('caliber')) == str(cal):
+                                        return True
+                                    if isinstance(first, str) and cal and str(cal) in first:
+                                        return True
+                                    # if unknown, count as available
+                                    return True
+                                # stacked quantity items (loose stacked rounds)
+                                qty = int(itm.get('quantity') or 0) if isinstance(itm.get('quantity'), (int, float)) else 0
+                                if qty > 0:
+                                    ical = itm.get('caliber') or itm.get('name')
+                                    if not cal or (ical and str(ical) == str(cal)):
+                                        return True
+                                # single loose round item
+                                if itm.get('caliber') and (not cal or str(itm.get('caliber')) == str(cal)):
+                                    return True
+                            return False
+                        except Exception:
+                            return False
+
+                    def _inventory_has_nonfull_magazine():
+                        try:
+                            def check_item(itm):
+                                if not itm or not isinstance(itm, dict):
+                                    return False
+                                cap = itm.get('capacity')
+                                if cap is None:
+                                    return False
+                                try:
+                                    cap_i = int(cap)
+                                except Exception:
+                                    return False
+                                rounds = itm.get('rounds')
+                                cur = 0
+                                if isinstance(rounds, list):
+                                    cur = len(rounds)
+                                else:
+                                    try:
+                                        cur = int(rounds or 0)
+                                    except Exception:
+                                        cur = 0
+                                return cur < cap_i
+
+                            for itm in save_data.get('hands', {}).get('items', []):
+                                try:
+                                    if check_item(itm):
+                                        return True
+                                except Exception:
+                                    pass
+                            for slot_name, eq_item in save_data.get('equipment', {}).items():
+                                try:
+                                    if not eq_item or not isinstance(eq_item, dict):
+                                        continue
+                                    for itm in eq_item.get('items', []) or []:
+                                        try:
+                                            if check_item(itm):
+                                                return True
+                                        except Exception:
+                                            pass
+                                    for sub in eq_item.get('subslots', []) or []:
+                                        try:
+                                            curr = sub.get('current')
+                                            if curr and isinstance(curr, dict):
+                                                for itm in curr.get('items', []) or []:
+                                                    try:
+                                                        if check_item(itm):
+                                                            return True
+                                                    except Exception:
+                                                        pass
+                                        except Exception:
+                                            pass
+                                except Exception:
+                                    pass
+                            return False
+                        except Exception:
+                            return False
+
+                    enabled = _hands_have_compatible_rounds(current_weapon_state.get('weapon') or {}) and _inventory_has_nonfull_magazine()
+                    try:
+                        rb.configure(state='normal' if enabled else 'disabled')
+                    except Exception:
+                        try:
+                            if not enabled:
+                                rb.configure(state='disabled')
+                            else:
+                                rb.configure(state='normal')
+                        except Exception:
+                            pass
+            except Exception:
+                pass
+        # NVG UI state (button reference will be set below).
+        nvg_btn = None
+
+        def _find_nvg_item():
+            """Search save_data for a night-vision goggle item. Returns item or None."""
+            def _is_nvg(itm):
+                try:
+                    if not itm or not isinstance(itm, dict):
+                        return False
+                    iid = itm.get("id")
+                    if iid is not None and str(iid) == "98":
+                        return True
+                    if itm.get("night_vision"):
+                        return True
+                    name = itm.get("name") or ""
+                    if isinstance(name, str) and "night" in name.lower() and "vision" in name.lower():
+                        return True
+                except Exception:
+                    pass
+                return False
+
+            try:
+                # Check hands first
+                for itm in save_data.get("hands", {}).get("items", []):
+                    try:
+                        if _is_nvg(itm):
+                            return itm
+                    except Exception:
+                        pass
+
+                # Check equipment containers (items + subslots)
+                for slot_name, eq in save_data.get("equipment", {}).items():
+                    try:
+                        if not eq:
+                            continue
+                        if "items" in eq and isinstance(eq["items"], list):
+                            for itm in eq["items"]:
+                                try:
+                                    if _is_nvg(itm):
+                                        return itm
+                                except Exception:
+                                    pass
+                        # check subslots
+                        if "subslots" in eq:
+                            for sub in eq.get("subslots", []):
+                                try:
+                                    curr = sub.get("current") if isinstance(sub, dict) else None
+                                    # If the subslot current itself is the NVG (mounted), return it
+                                    try:
+                                        if _is_nvg(curr):
+                                            return curr
+                                    except Exception:
+                                        pass
+                                    # Otherwise, if current contains an items list, inspect it
+                                    if curr and "items" in curr and isinstance(curr["items"], list):
+                                        for itm in curr["items"]:
+                                            try:
+                                                if _is_nvg(itm):
+                                                    return itm
+                                            except Exception:
+                                                pass
+                                    # Also handle nested 'current' chains (e.g., mount -> current -> current)
+                                    try:
+                                        nested = curr
+                                        depth = 0
+                                        while isinstance(nested, dict) and depth < 4:
+                                            nested = nested.get("current")
+                                            if _is_nvg(nested):
+                                                return nested
+                                            depth += 1
+                                    except Exception:
+                                        pass
+                                except Exception:
+                                    pass
+                    except Exception:
+                        pass
+
+                # Check currently-selected weapon attachments (accessories)
+                try:
+                    for acc in current_weapon.get("accessories", []) or []:
+                        try:
+                            cur = acc.get("current")
+                            if _is_nvg(cur):
+                                return cur
+                            # some accessories may have 'items' lists
+                            if isinstance(cur, dict) and "items" in cur and isinstance(cur["items"], list):
+                                for itm in cur["items"]:
+                                    try:
+                                        if _is_nvg(itm):
+                                            return itm
+                                    except Exception:
+                                        pass
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+            except Exception:
+                pass
+            return None
+
+        def _update_nvg_button():
+            """Refresh NVG button enabled state and colors based on presence and active flag."""
+            try:
+                has = _find_nvg_item() is not None
+                active = bool(combat_state.get("nvg_active"))
+                if nvg_btn is None:
+                    return
+                if not has:
+                    try:
+                        nvg_btn.configure(state="disabled", fg_color=None)
+                    except Exception:
+                        nvg_btn.configure(state="disabled")
+                    return
+                # enabled
+                try:
+                    nvg_btn.configure(state="normal")
+                    if active:
+                        nvg_btn.configure(fg_color="#228B22", hover_color="#2E8B57")
+                    else:
+                        nvg_btn.configure(fg_color="#444444", hover_color="#666666")
+                except Exception:
+                    pass
+            except Exception:
+                pass
+
         # Actions section with sliders
         actions_frame = customtkinter.CTkFrame(main_frame)
         actions_frame.pack(fill="x", pady=(0, 20))
@@ -4391,7 +5124,6 @@ class App:
             play_fireselector_sound()
         
         # Create dial canvas (larger size)
-        import math
         dial_canvas = customtkinter.CTkCanvas(
             firemode_label_frame,
             width=140,
@@ -4493,7 +5225,7 @@ class App:
                     best_diff = diff
                     best_mode = mode
             
-            return best_mode, mode_angles.get(best_mode, angle)
+            return best_mode, mode_angles.get(best_mode or "", angle)
         
         def on_mouse_down(event):
             center_x, center_y = 70, 70
@@ -4536,9 +5268,533 @@ class App:
             dial_canvas.configure(state="disabled")
         
         draw_dial()  # Initial draw
+        # Attachment mode selector dial: mirrors fire-mode dial size and behavior
+        attach_mode_frame = customtkinter.CTkFrame(actions_frame)
+        attach_mode_frame.pack(side="left", padx=10, pady=10)
+
+        customtkinter.CTkLabel(
+            attach_mode_frame,
+            text="Attachment Mode:",
+            font=customtkinter.CTkFont(size=12)
+        ).pack(side="top", padx=5, pady=2)
+
+        attach_canvas = customtkinter.CTkCanvas(
+            attach_mode_frame,
+            width=140,
+            height=140,
+            bg="#212121",
+            highlightthickness=0
+        )
+        attach_canvas.pack(side="top", padx=5, pady=5)
+
+        # Find accessories that expose selectable modes and provide UI to choose which
+        acc_with_modes = None
+        acc_modes = []
+        acc_slot_ref = None
+        attachments_with_modes = []  # list of (acc_index, acc_dict, display_name)
+        for ai, acc in enumerate(current_weapon.get("accessories", []) or []):
+            cur = acc.get("current")
+            if cur and isinstance(cur, dict) and isinstance(cur.get("modes"), list) and cur.get("modes"):
+                # show only the attachment's name in the selector per user request
+                display = str(cur.get('name', 'Attachment'))
+                attachments_with_modes.append((ai, acc, display))
+
+        # Attachment selector (dropdown) so user can pick which attachment the dial controls
+        attach_select_var = customtkinter.StringVar(value="")
+        def _update_attachment_selection(choice):
+            nonlocal acc_with_modes, acc_modes, acc_slot_ref, attachments_with_modes
+            # Rebuild attachments list from current weapon to stay up-to-date
+            attachments_with_modes = []
+            for ai, acc in enumerate(current_weapon.get("accessories", []) or []):
+                cur = acc.get("current")
+                if cur and isinstance(cur, dict) and isinstance(cur.get("modes"), list) and cur.get("modes"):
+                    display = str(cur.get('name', 'Attachment'))
+                    attachments_with_modes.append((ai, acc, display))
+
+            # Update option menu values if present
+            try:
+                new_names = [disp for (_ai, _acc, disp) in attachments_with_modes]
+                if hasattr(attach_mode_frame, 'mode_option') and attach_mode_frame.mode_option:
+                    try:
+                        attach_mode_frame.mode_option.configure(values=new_names)
+                    except Exception:
+                        pass
+                if 'attach_select' in locals() or 'attach_select' in globals():
+                    try:
+                        attach_select.configure(values=new_names)
+                    except Exception:
+                        pass
+            except Exception:
+                logging.exception("Failed to refresh attachment option menu values")
+
+            # find selected by display text in the rebuilt list
+            sel = None
+            for ai, acc, disp in attachments_with_modes:
+                if disp == choice:
+                    sel = (ai, acc)
+                    break
+            if sel is None:
+                acc_with_modes = None
+                acc_modes = []
+                acc_slot_ref = None
+            else:
+                acc_with_modes = sel[1]
+                cur = (acc_with_modes.get("current") if isinstance(acc_with_modes, dict) else None) or {}
+                acc_modes = cur.get("modes") or []
+                acc_slot_ref = acc_with_modes
+                # ensure _mode_index exists
+                if acc_with_modes.get("_mode_index") is None:
+                    acc_with_modes["_mode_index"] = 0
+                # update mode controls
+                _refresh_mode_controls()
+            draw_attach_dial()
+
+        attach_names = [disp for (_ai, _acc, disp) in attachments_with_modes]
+        if attach_names:
+            attach_select = customtkinter.CTkOptionMenu(attach_mode_frame, values=attach_names, variable=attach_select_var, command=_update_attachment_selection)
+            attach_select.pack(side="top", padx=5, pady=(2,4))
+            # preselect first (actual selection applied after dial/setup)
+            attach_select_var.set(attach_names[0])
+        else:
+            # placeholder label when nothing available
+            customtkinter.CTkLabel(attach_mode_frame, text="No attachment selected", font=customtkinter.CTkFont(size=10), text_color="#888888").pack(side="top", padx=5, pady=(2,4))
+
+        # Mode-select OptionMenu and Slider (alternative methods to the dial)
+        attach_mode_var = customtkinter.StringVar(value="")
+        attach_mode_slider = None
+
+        def _refresh_mode_controls():
+            nonlocal attach_mode_slider
+            # update mode option list and slider range based on acc_modes
+            # Build a filtered list of selectable modes and a mapping to the original acc_modes indices.
+            visible_modes = []
+            mode_index_map = []
+            for mi, mode in enumerate(acc_modes):
+                if isinstance(mode, dict) and mode.get("mode_method") is not None and not mode.get("name"):
+                    # treat this dict as metadata (e.g., {"mode_method":"slider"}); skip as a selectable mode
+                    continue
+                # otherwise this is a selectable mode
+                visible_modes.append(mode)
+                mode_index_map.append(mi)
+            mode_names = []
+            for vmi, mode in enumerate(visible_modes):
+                if isinstance(mode, dict):
+                    mode_names.append(mode.get("name", f"Mode {vmi}"))
+                else:
+                    mode_names.append(str(mode))
+
+            # determine presentation method: explicit mode_method on the attachment overrides
+            mode_method = None
+            try:
+                # check several places: the installed item's 'current' dict, the accessory wrapper, or slot ref
+                cur = (acc_with_modes.get("current") if acc_with_modes else None) or {}
+                mode_method = cur.get("mode_method")
+                if not mode_method and acc_with_modes and isinstance(acc_with_modes, dict):
+                    mode_method = acc_with_modes.get("mode_method")
+                if not mode_method and acc_slot_ref and isinstance(acc_slot_ref, dict):
+                    mode_method = acc_slot_ref.get("mode_method")
+                # also check metadata entries inside acc_modes list
+                if not mode_method:
+                    for m in acc_modes:
+                        if isinstance(m, dict) and m.get("mode_method"):
+                            mode_method = m.get("mode_method")
+                            break
+            except Exception:
+                mode_method = None
+            # infer if not explicit: if modes have 'position' use dial, otherwise prefer option menu
+            if not mode_method:
+                has_position = any(isinstance(m, dict) and m.get("position") is not None for m in acc_modes)
+                mode_method = "dial" if has_position else "option"
+
+            # update option menu if present
+            try:
+                # Option menu only when mode_method indicates it
+                if mode_method == "option":
+                    if hasattr(attach_mode_frame, 'mode_option'):
+                        try:
+                            attach_mode_frame.mode_option.configure(values=mode_names)
+                            attach_mode_frame.mode_option.pack(side="top", padx=5, pady=(2,4))
+                        except Exception:
+                            pass
+                    else:
+                        attach_mode_frame.mode_option = customtkinter.CTkOptionMenu(attach_mode_frame, values=mode_names, variable=attach_mode_var, command=lambda v: _set_mode_by_name(v))
+                        attach_mode_frame.mode_option.pack(side="top", padx=5, pady=(2,4))
+                else:
+                    # remove/hide existing option menu if present
+                    if hasattr(attach_mode_frame, 'mode_option'):
+                        try:
+                            attach_mode_frame.mode_option.pack_forget()
+                        except Exception:
+                            pass
+            except Exception:
+                logging.exception("Failed to refresh mode option menu")
+            except Exception:
+                logging.exception("Failed to refresh mode option menu")
+            # slider
+            try:
+                # Slider only when mode_method indicates it
+                if mode_method == "slider":
+                    # slider ranges are based on visible selectable modes
+                    if hasattr(attach_mode_frame, 'mode_slider') and attach_mode_frame.mode_slider:
+                        try:
+                            attach_mode_frame.mode_slider.configure(from_=0, to=max(0, len(visible_modes) - 1), number_of_steps=max(1, len(visible_modes) - 1))
+                            attach_mode_frame.mode_slider.pack(side="top", padx=5, pady=(2,6), fill="x")
+                        except Exception:
+                            pass
+                    else:
+                        attach_mode_frame.mode_slider = customtkinter.CTkSlider(attach_mode_frame, from_=0, to=max(0, len(visible_modes) - 1), number_of_steps=max(1, len(visible_modes) - 1), command=lambda v: _set_mode_by_index(round(float(v))))
+                        attach_mode_frame.mode_slider.pack(side="top", padx=5, pady=(2,6), fill="x")
+                else:
+                    # hide slider if present
+                    if hasattr(attach_mode_frame, 'mode_slider') and attach_mode_frame.mode_slider:
+                        try:
+                            attach_mode_frame.mode_slider.pack_forget()
+                        except Exception:
+                            pass
+            except Exception:
+                logging.exception("Failed to refresh mode slider")
+
+            # set current values
+            if acc_with_modes and acc_modes:
+                actual_mi = int(acc_with_modes.get("_mode_index") or 0)
+                # find visible index for this actual index
+                try:
+                    vis_index = mode_index_map.index(actual_mi) if actual_mi in mode_index_map else 0
+                except Exception:
+                    vis_index = 0
+                try:
+                    attach_mode_var.set(mode_names[vis_index] if mode_names else "")
+                except Exception:
+                    attach_mode_var.set(mode_names[0] if mode_names else "")
+                try:
+                    attach_mode_frame.mode_slider.set(vis_index)
+                except Exception:
+                    pass
+
+            # stash mapping on the frame so other handlers can map visible->actual
+            attach_mode_frame._visible_modes = visible_modes
+            attach_mode_frame._mode_index_map = mode_index_map
+
+            # ensure there is a small label to show current selected mode for slider/option
+            try:
+                if not hasattr(attach_mode_frame, 'mode_label') or attach_mode_frame.mode_label is None:
+                    attach_mode_frame.mode_label = customtkinter.CTkLabel(attach_mode_frame, text="", font=customtkinter.CTkFont(size=12, weight="bold"), text_color="#44AAFF")
+            except Exception:
+                attach_mode_frame.mode_label = None
+
+            # update mode_label text and visibility (show for slider/option, hide otherwise)
+            try:
+                ml = getattr(attach_mode_frame, 'mode_label', None)
+                current_mode_name = ""
+                try:
+                    if acc_with_modes and acc_modes:
+                        actual_mi = int(acc_with_modes.get("_mode_index") or 0)
+                        actual_mi = max(0, min(actual_mi, len(acc_modes) - 1))
+                        mode_obj = acc_modes[actual_mi]
+                        current_mode_name = mode_obj.get("name") if isinstance(mode_obj, dict) else str(mode_obj)
+                except Exception:
+                    current_mode_name = ""
+                if ml:
+                    try:
+                        ml.configure(text=current_mode_name)
+                    except Exception:
+                        pass
+                    try:
+                        if mode_method in ("slider", "option"):
+                            ml.pack(side="top", padx=5, pady=(0,6))
+                        else:
+                            ml.pack_forget()
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+
+            # show/hide the dial canvas depending on mode_method
+            try:
+                if mode_method == "dial":
+                    try:
+                        attach_canvas.pack(side="top", padx=5, pady=5)
+                    except Exception:
+                        pass
+                    # ensure canvas is enabled
+                    attach_canvas.configure(state="normal")
+                else:
+                    try:
+                        attach_canvas.pack_forget()
+                    except Exception:
+                        pass
+            except Exception:
+                logging.exception("Failed to adjust attach canvas visibility")
+
+        def _set_mode_by_name(name):
+            if not acc_with_modes or not acc_modes:
+                return
+            # Use visible modes mapping if available
+            vis = getattr(attach_mode_frame, '_visible_modes', None)
+            map_ = getattr(attach_mode_frame, '_mode_index_map', None)
+            if vis is not None and map_ is not None:
+                for vmi, mode in enumerate(vis):
+                    mode_name = mode.get("name") if isinstance(mode, dict) else str(mode)
+                    if mode_name == name:
+                        # map visible index -> actual index
+                        actual = map_[vmi]
+                        _set_mode_by_index(actual)
+                        return
+            # fallback: search acc_modes directly
+            for mi, mode in enumerate(acc_modes):
+                mode_name = mode.get("name") if isinstance(mode, dict) else str(mode)
+                if mode_name == name:
+                    _set_mode_by_index(mi)
+                    return
+
+        def _set_mode_by_index(idx):
+            if not acc_with_modes or not acc_modes:
+                return
+            # idx may be a visible index or an actual acc_modes index; map if necessary
+            try:
+                map_ = getattr(attach_mode_frame, '_mode_index_map', None)
+                if map_ is not None and 0 <= int(idx) < len(map_):
+                    actual_idx = int(map_[int(idx)])
+                else:
+                    actual_idx = int(idx)
+            except Exception:
+                actual_idx = 0
+            try:
+                old_index = acc_with_modes.get("_mode_index")
+            except Exception:
+                old_index = None
+            try:
+                acc_with_modes["_mode_index"] = int(actual_idx)
+            except Exception:
+                acc_with_modes["_mode_index"] = 0
+            # play dial/mode-change sound only if index changed
+            try:
+                new_index = acc_with_modes.get("_mode_index")
+                if new_index != old_index:
+                    self._safe_sound_play("firearms/universal", "fireselector")
+            except Exception:
+                pass
+            try:
+                self._apply_item_overrides(current_weapon)
+            except Exception:
+                logging.exception("Failed to apply overrides after attachment mode change")
+            # sync UI
+            _refresh_mode_controls()
+            # update dial angle
+            try:
+                mi = int(acc_with_modes.get("_mode_index") or 0)
+                pos_deg = acc_modes[mi].get("position") if isinstance(acc_modes[mi], dict) and acc_modes[mi].get("position") is not None else (mi * (360.0 / max(1, len(acc_modes))))
+                attach_state["current_angle"] = float(pos_deg)
+            except Exception:
+                pass
+            # update displayed mode label if present
+            try:
+                ml = getattr(attach_mode_frame, 'mode_label', None)
+                if ml:
+                    try:
+                        mode_obj = acc_modes[int(acc_with_modes.get("_mode_index") or 0)]
+                        mname = mode_obj.get("name") if isinstance(mode_obj, dict) else str(mode_obj)
+                    except Exception:
+                        mname = ""
+                    try:
+                        ml.configure(text=mname)
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+            draw_attach_dial()
+
+        # Default dial state for attachment modes
+        attach_state = {"current_angle": 90, "dragging": False}
+
+        def draw_attach_dial():
+            attach_canvas.delete("all")
+            center_x, center_y = 70, 70
+            radius = 35
+            attach_canvas.create_oval(
+                center_x - radius, center_y - radius,
+                center_x + radius, center_y + radius,
+                fill="#333333", outline="#555555", width=2
+            )
+
+            if not acc_modes:
+                attach_canvas.create_text(center_x, center_y, text="No Modes", fill="#AAAAAA", font=("Arial", 10))
+                return
+
+            # Draw ticks/labels using 'position' if present or spread evenly
+            for mi, mode in enumerate(acc_modes):
+                try:
+                    pos_deg = None
+                    if isinstance(mode, dict):
+                        pos_deg = mode.get("position")
+                    if pos_deg is None:
+                        pos_deg = (mi * (360.0 / max(1, len(acc_modes))))
+                    rad = math.radians(float(pos_deg))
+                    x1 = center_x + (radius - 8) * math.cos(rad)
+                    y1 = center_y + (radius - 8) * math.sin(rad)
+                    x2 = center_x + radius * math.cos(rad)
+                    y2 = center_y + radius * math.sin(rad)
+                    attach_canvas.create_line(x1, y1, x2, y2, fill="#888888", width=3)
+
+                    label_dist = radius + 12
+                    label_x = center_x + label_dist * math.cos(rad)
+                    label_y = center_y + label_dist * math.sin(rad)
+                    label_text = mode.get("name", f"Mode {mi}") if isinstance(mode, dict) else str(mode)
+                    attach_canvas.create_text(label_x, label_y, text=label_text.upper(), fill="#AAAAAA", font=("Arial", 9, "bold"))
+                except Exception:
+                    logging.exception("draw_attach_dial tick failed")
+
+            # Draw pointer
+            current_angle = attach_state["current_angle"]
+            rad = math.radians(current_angle)
+            pointer_x = center_x + 28 * math.cos(rad)
+            pointer_y = center_y + 28 * math.sin(rad)
+            attach_canvas.create_line(center_x, center_y, pointer_x, pointer_y, fill="#44AAFF", width=4)
+            knob_radius = 6
+            attach_canvas.create_oval(
+                center_x - knob_radius, center_y - knob_radius,
+                center_x + knob_radius, center_y + knob_radius,
+                fill="#44AAFF", outline="#FFFFFF", width=2
+            )
+
+            # Current mode text
+            if acc_with_modes and isinstance(acc_with_modes.get("current"), dict):
+                mode_idx = acc_with_modes.get("_mode_index")
+                try:
+                    mode_idx = int(mode_idx) if mode_idx is not None else 0
+                except Exception:
+                    mode_idx = 0
+                mode_idx = max(0, min(mode_idx, len(acc_modes) - 1))
+                mode_name = acc_modes[mode_idx].get("name", "Mode") if isinstance(acc_modes[mode_idx], dict) else str(acc_modes[mode_idx])
+            else:
+                mode_name = "None"
+
+            attach_canvas.create_text(70, 10, text=mode_name, fill="#00FF00", font=("Arial", 11, "bold"))
+
+        def get_attach_angle_from_point(x, y):
+            center_x, center_y = 70, 70
+            dx = x - center_x
+            dy = y - center_y
+            angle = math.degrees(math.atan2(dy, dx)) % 360
+            return angle
+
+        def snap_attach_to_nearest(angle):
+            if not acc_modes:
+                return None, angle
+            best_idx = 0
+            best_diff = 360
+            for mi, mode in enumerate(acc_modes):
+                try:
+                    pos_deg = mode.get("position") if isinstance(mode, dict) else None
+                    if pos_deg is None:
+                        pos_deg = (mi * (360.0 / max(1, len(acc_modes))))
+                    md = float(pos_deg)
+                    diff = min(abs(angle - md), 360 - abs(angle - md))
+                    if diff < best_diff:
+                        best_diff = diff
+                        best_idx = mi
+                except Exception:
+                    pass
+            chosen_angle = acc_modes[best_idx].get("position") if isinstance(acc_modes[best_idx], dict) and acc_modes[best_idx].get("position") is not None else (best_idx * (360.0 / max(1, len(acc_modes))))
+            return best_idx, float(chosen_angle)
+
+        def attach_on_mouse_down(event):
+            center_x, center_y = 70, 70
+            dx = event.x - center_x
+            dy = event.y - center_y
+            distance = math.sqrt(dx**2 + dy**2)
+            if distance < 40:
+                attach_state["dragging"] = True
+
+        def attach_on_mouse_move(event):
+            if not attach_state["dragging"]:
+                return
+            angle = get_attach_angle_from_point(event.x, event.y)
+            attach_state["current_angle"] = angle
+            draw_attach_dial()
+
+        def attach_on_mouse_up(event):
+            if not attach_state["dragging"]:
+                return
+            attach_state["dragging"] = False
+            if not acc_modes:
+                return
+            idx, snapped = snap_attach_to_nearest(attach_state["current_angle"])
+            if idx is None:
+                return
+            attach_state["current_angle"] = snapped
+            # Persist index on the accessory and reapply overrides
+            try:
+                old_index = acc_with_modes.get("_mode_index")
+            except Exception:
+                old_index = None
+            try:
+                acc_with_modes["_mode_index"] = int(idx)
+            except Exception:
+                acc_with_modes["_mode_index"] = 0
+            # play dial/mode-change sound only if index changed
+            try:
+                new_index = acc_with_modes.get("_mode_index")
+                if new_index != old_index:
+                    self._safe_sound_play("firearms/universal", "fireselector")
+            except Exception:
+                pass
+            try:
+                self._apply_item_overrides(current_weapon)
+            except Exception:
+                logging.exception("Failed to apply overrides after attachment mode change")
+            # update displayed mode label if present
+            try:
+                ml = getattr(attach_mode_frame, 'mode_label', None)
+                if ml:
+                    try:
+                        mode_obj = acc_modes[int(acc_with_modes.get("_mode_index") or 0)]
+                        mname = mode_obj.get("name") if isinstance(mode_obj, dict) else str(mode_obj)
+                    except Exception:
+                        mname = ""
+                    try:
+                        ml.configure(text=mname)
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+            draw_attach_dial()
+
+        attach_canvas.bind("<Button-1>", attach_on_mouse_down)
+        attach_canvas.bind("<B1-Motion>", attach_on_mouse_move)
+        attach_canvas.bind("<ButtonRelease-1>", attach_on_mouse_up)
+
+        # Disable canvas if no accessory modes
+        if not acc_modes:
+            attach_canvas.configure(state="disabled")
+
+        # Apply initial selection now that attach_state and controls exist
+        try:
+            if attach_names:
+                _update_attachment_selection(attach_names[0])
+        except Exception:
+            logging.exception("Initial attachment selection failed")
+
+        draw_attach_dial()
         
         def fire_weapon():
             wpn = current_weapon_state["weapon"]
+            # Prevent firing if magic weapon is overheated
+            try:
+                magicsys_local = str(wpn.get("magicsoundsystem") or "").lower()
+                is_magic_local = (str(wpn.get("type") or "").lower() == "magic") or (magicsys_local in ("hg", "at", "mg", "rf"))
+                if is_magic_local:
+                    weapon_id_local = str(wpn.get("id"))
+                    temp_local = combat_state.get("barrel_temperatures", {}).get(weapon_id_local, combat_state.get("ambient_temperature", 70))
+                    overheat_thresh = float(wpn.get("overheat_temp", wpn.get("shutdown_temp", 600) or 600))
+                    if temp_local >= overheat_thresh:
+                        try:
+                            self._popup_show_info("Overheated", "Weapon is overheated and cannot fire. Wait for cooling.")
+                        except Exception:
+                            pass
+                        return
+            except Exception:
+                pass
             rounds_to_fire = rounds_var.get()
             logging.info(
                 "Fire button pressed: weapon=%s, rounds=%s, mode=%s",
@@ -4547,7 +5803,7 @@ class App:
                 firemode_var.get()
             )
             try:
-                result = self._fire_weapon(wpn, combat_state, rounds_to_fire, firemode_var.get())
+                result = self._fire_weapon(wpn, combat_state, rounds_to_fire, firemode_var.get(), save_data)
                 logging.info("Fire result: %s", result)
                 self._popup_show_info("Fire Result", result)
             except Exception as e:
@@ -4637,7 +5893,7 @@ class App:
         self.root.bind("<space>", on_spacebar)
         
         # Bind R key for reload (single tap = menu, double tap = auto-reload with drop)
-        reload_last_press_time = [0]  # Use list to allow modification in nested function
+        reload_last_press_time = [0.0]  # Use list to allow modification in nested function
         reload_pending_id = [None]
         
         def on_r_press(event):
@@ -4657,7 +5913,11 @@ class App:
                 reload_auto_drop()
             else:
                 # Schedule single-tap action with delay to detect double-tap
-                reload_pending_id[0] = self.root.after(400, lambda: reload_weapon())
+                try:
+                    _rid = self.root.after(400, lambda: reload_weapon())
+                    reload_pending_id[0] = _rid  # type: ignore
+                except Exception:
+                    reload_pending_id[0] = None
         
         self.root.bind("r", on_r_press)
         self.root.bind("R", on_r_press)
@@ -4828,12 +6088,20 @@ class App:
                 pass  # Just discard it, don't add to inventory
             
             # Load the magazine
+            # Preserve any existing chambered round. Only chamber from the
+            # newly-inserted magazine if the gun was empty prior to loading.
+            previous_chambered = wpn.get("chambered")
             wpn["loaded"] = mag_item
-            wpn["chambered"] = None
-            
-            # Chamber a round if gun was empty
+
             if is_gun_empty and mag_item.get("rounds", []):
-                wpn["chambered"] = mag_item["rounds"].pop(0)
+                # If gun was empty, chamber the first round from the magazine
+                try:
+                    wpn["chambered"] = mag_item["rounds"].pop(0)
+                except Exception:
+                    wpn["chambered"] = None
+            else:
+                # Leave existing chambered round intact
+                wpn["chambered"] = previous_chambered
             
             # Remove magazine from source
             if location == "hands":
@@ -4859,14 +6127,23 @@ class App:
             self._popup_show_info("Auto-Reload", f"Loaded {mag_name} ({rounds}{chambered_info} rounds)!")
             update_weapon_view()
         
-        self._create_sound_button(
+        # Keep a persistent reference to the fire button so we can disable it when
+        # magic weapons overheat.
+        fire_btn = self._create_sound_button(
             actions_frame,
             text="Fire (Press SPACE)",
             command=fire_weapon,
             width=150,
             height=50,
             font=customtkinter.CTkFont(size=14)
-        ).pack(side="left", padx=10, pady=10)
+        )
+        fire_btn.pack(side="left", padx=10, pady=10)
+        # Store reference and original text for update routines
+        try:
+            current_weapon_state['fire_button_ref'] = fire_btn
+            current_weapon_state['fire_button_orig_text'] = "Fire (Press SPACE)"
+        except Exception:
+            pass
         
         self._create_sound_button(
             actions_frame,
@@ -4907,6 +6184,115 @@ class App:
                 fg_color="#8B4513",
                 hover_color="#A0522D"
             ).pack(side="left", padx=10, pady=10)
+
+        # Night Vision Goggles toggle button
+        def _toggle_nvg():
+            try:
+                nvg_item = _find_nvg_item()
+                if not nvg_item:
+                    self._popup_show_info("NVG", "No night-vision goggles found in inventory.")
+                    try:
+                        nvg_btn.configure(state="disabled")
+                    except Exception:
+                        pass
+                    return
+                active = bool(combat_state.get("nvg_active"))
+                # Toggle
+                combat_state["nvg_active"] = not active
+                # Remember which item is providing NVG capability
+                try:
+                    combat_state["nvg_item_id"] = int(nvg_item.get("id"))
+                except Exception:
+                    combat_state["nvg_item_id"] = nvg_item.get("id")
+                # Play sound
+                try:
+                    if combat_state["nvg_active"]:
+                        self._safe_sound_play("misc/nvg", "on")
+                    else:
+                        self._safe_sound_play("misc/nvg", "off")
+                except Exception:
+                    pass
+                # Update button visuals
+                try:
+                    _update_nvg_button()
+                except Exception:
+                    pass
+            except Exception:
+                logging.exception("NVG toggle failed")
+
+        # Create NVG button and set initial appearance via _update_nvg_button
+        try:
+            nvg_btn = self._create_sound_button(actions_frame, "NVG", _toggle_nvg, width=150, height=50, font=customtkinter.CTkFont(size=14))
+            nvg_btn.pack(side="left", padx=10, pady=10)
+        except Exception:
+            logging.exception("Failed to create NVG button")
+        try:
+            _update_nvg_button()
+        except Exception:
+            pass
+
+        # Periodic cooling tick for magic weapons and UI updates (disables fire when overheated)
+        def cooling_tick():
+            try:
+                ambient_temp = combat_state.get("ambient_temperature", 70)
+                temps = combat_state.setdefault("barrel_temperatures", {})
+                magic_ids = list(combat_state.get("magic_weapon_ids", {}).keys())
+
+                # Passive cooling: faster decay for magic weapons
+                for mid in magic_ids:
+                    try:
+                        t = float(temps.get(mid, ambient_temp))
+                        if t > ambient_temp:
+                            # Exponential-ish decay plus minimum per-tick drop
+                            drop = max(1.0, (t - ambient_temp) * 0.18)
+                            t = max(ambient_temp, t - drop)
+                            temps[mid] = t
+                    except Exception:
+                        pass
+
+                # Update fire button state for currently selected weapon
+                try:
+                    w = current_weapon_state.get("weapon")
+                    fb = current_weapon_state.get("fire_button_ref")
+                    if fb and isinstance(fb, (customtkinter.CTkButton,)):
+                        is_magic_w = False
+                        try:
+                            ms = str(w.get("magicsoundsystem") or "").lower()
+                            is_magic_w = (str(w.get("type") or "").lower() == "magic") or (ms in ("hg", "at", "mg", "rf"))
+                        except Exception:
+                            is_magic_w = False
+
+                        if is_magic_w:
+                            wid = str(w.get("id"))
+                            tnow = temps.get(wid, ambient_temp)
+                            overheat_thresh = float(w.get("overheat_temp", w.get("shutdown_temp", 600) or 600))
+                            if tnow >= overheat_thresh:
+                                try:
+                                    fb.configure(state="disabled")
+                                    fb.configure(text=(current_weapon_state.get('fire_button_orig_text') or "Fire") + " (Overheated)")
+                                except Exception:
+                                    pass
+                            else:
+                                try:
+                                    fb.configure(state="normal")
+                                    fb.configure(text=current_weapon_state.get('fire_button_orig_text') or "Fire")
+                                except Exception:
+                                    pass
+                except Exception:
+                    pass
+            except Exception:
+                logging.exception("cooling_tick failed")
+            finally:
+                try:
+                    self.root.after(1000, cooling_tick)
+                except Exception:
+                    pass
+
+        # Start the cooling tick loop
+        try:
+            self.root.after(1000, cooling_tick)
+        except Exception:
+            pass
 
         # Attachment management
         def manage_attachments():
@@ -4958,6 +6344,83 @@ class App:
                 current_choice = customtkinter.StringVar(value=current_label)
                 option = customtkinter.CTkOptionMenu(frame, values=[o[1] for o in opts], variable=current_choice, width=220)
                 option.pack(anchor="w", pady=4)
+
+                def _open_mode_dial_for(acc_ref):
+                    try:
+                        # Resolve current accessory definition
+                        cur = acc_ref.get("current")
+                        if not cur or not isinstance(cur, dict):
+                            self._popup_show_info("Attachment Modes", "No attachment installed in this slot.")
+                            return
+                        modes = cur.get("modes") or []
+                        if not modes or not isinstance(modes, list):
+                            self._popup_show_info("Attachment Modes", "This attachment has no selectable modes.")
+                            return
+
+                        import tkinter as tk
+
+                        dial = customtkinter.CTkToplevel(self.root)
+                        dial.title("Select Mode")
+                        size = 320
+                        dial.geometry(f"{size}x{size}")
+                        dial.transient(self.root)
+
+                        canvas = tk.Canvas(dial, width=size, height=size, highlightthickness=0)
+                        canvas.pack(fill="both", expand=True)
+
+                        cx = size // 2
+                        cy = size // 2
+                        r = int(size * 0.35)
+
+                        # Draw outer circle
+                        canvas.create_oval(cx - r, cy - r, cx + r, cy + r, outline="#888", width=2)
+
+                        for mi, mode in enumerate(modes):
+                            try:
+                                pos_deg = mode.get("position") if isinstance(mode, dict) else None
+                                if pos_deg is None:
+                                    pos_deg = (mi * (360.0 / max(1, len(modes))))
+                                theta = math.radians(float(pos_deg))
+                                mx = cx + int(r * math.cos(theta))
+                                my = cy + int(r * math.sin(theta))
+                                label = mode.get("name", f"Mode {mi}") if isinstance(mode, dict) else str(mode)
+
+                                btn = customtkinter.CTkButton(dial, text=label, width=110, command=(lambda idx=mi, a=acc_ref, d=dial: _set_mode_and_close(a, idx, d)))
+                                # place the CTkButton on the canvas
+                                canvas.create_window(mx, my, window=btn)
+                            except Exception:
+                                logging.exception("Failed to render mode button")
+
+                        # Highlight currently-selected mode
+                        cur_index = acc_ref.get("_mode_index")
+                        if cur_index is None:
+                            cur_index = acc_ref.get("mode_index") or 0
+                        try:
+                            cur_index = int(cur_index)
+                        except Exception:
+                            cur_index = 0
+
+                        def _set_mode_and_close(acc_set, idx_set, dial_win):
+                            try:
+                                acc_set["_mode_index"] = int(idx_set)
+                            except Exception:
+                                acc_set["_mode_index"] = 0
+                            try:
+                                # Recompute overrides immediately so UI reflects new modifiers
+                                self._apply_item_overrides(wpn)
+                            except Exception:
+                                logging.exception("Failed to apply overrides after mode change")
+                            try:
+                                dial_win.destroy()
+                            except Exception:
+                                pass
+
+                    except Exception:
+                        logging.exception("open_mode_dial failed")
+
+                mode_btn = customtkinter.CTkButton(frame, text="Mode...", width=80, command=(lambda a=acc: _open_mode_dial_for(a)))
+                mode_btn.pack(anchor="w", pady=2)
+
                 rows.append((acc, opts, current_choice))
 
             def apply_changes():
@@ -4968,22 +6431,101 @@ class App:
                         if lbl == chosen_label:
                             chosen_item = itm
                             break
+                    # Helper: remove occurrences of an item across save_data lists
+                    def _remove_all_references(item):
+                        try:
+                            if not item or not isinstance(item, dict):
+                                return
+                            item_id = item.get("id")
+                        except Exception:
+                            item_id = None
+
+                        def _scan(obj):
+                            if isinstance(obj, dict):
+                                for k, v in list(obj.items()):
+                                    _scan(v)
+                            elif isinstance(obj, list):
+                                # Remove matching items in-place
+                                to_remove = []
+                                for el in obj:
+                                    try:
+                                        if el is item:
+                                            to_remove.append(el)
+                                        elif isinstance(el, dict) and item_id is not None and el.get("id") == item_id:
+                                            to_remove.append(el)
+                                    except Exception:
+                                        pass
+                                for r in to_remove:
+                                    try:
+                                        while r in obj:
+                                            obj.remove(r)
+                                    except Exception:
+                                        pass
+                                for el in obj:
+                                    _scan(el)
+
+                        try:
+                            _scan(save_data)
+                        except Exception:
+                            pass
+
                     # Put existing back to hands if being replaced/removed
                     if acc.get("current"):
+                        # remove any other references before adding to hands to avoid duplicates
+                        try:
+                            _remove_all_references(acc["current"])
+                        except Exception:
+                            pass
                         save_data.get("hands", {}).get("items", []).append(acc["current"])
+
                     if chosen_item is None:
+                        # Removing attachment: also ensure previous current removed from other containers
                         acc["current"] = None
                     else:
-                        # remove chosen_item from hands
+                        # Remove chosen_item from anywhere it currently exists in the save
+                        try:
+                            _remove_all_references(chosen_item)
+                        except Exception:
+                            pass
+                        # remove chosen_item from hands (already cleared by _remove_all_references but keep safe)
                         hands_items = save_data.get("hands", {}).get("items", [])
-                        if chosen_item in hands_items:
-                            hands_items.remove(chosen_item)
-                        # remove from equipment containers
-                        for slot_name, eq_item in save_data.get("equipment", {}).items():
-                            if eq_item and "items" in eq_item:
-                                if chosen_item in eq_item["items"]:
-                                    eq_item["items"].remove(chosen_item)
+                        try:
+                            if chosen_item in hands_items:
+                                hands_items.remove(chosen_item)
+                        except Exception:
+                            pass
+                        # remove from equipment containers (explicit check for older data shapes)
+                        try:
+                            for slot_name, eq_item in save_data.get("equipment", {}).items():
+                                if eq_item and "items" in eq_item and isinstance(eq_item["items"], list):
+                                    try:
+                                        while chosen_item in eq_item["items"]:
+                                            eq_item["items"].remove(chosen_item)
+                                    except Exception:
+                                        pass
+                                # subslots
+                                if eq_item and "subslots" in eq_item:
+                                    for sub in eq_item.get("subslots", []):
+                                        if sub and sub.get("current") and "items" in sub.get("current", {}):
+                                            try:
+                                                while chosen_item in sub["current"]["items"]:
+                                                    sub["current"]["items"].remove(chosen_item)
+                                            except Exception:
+                                                pass
+                        except Exception:
+                            pass
+
                         acc["current"] = chosen_item
+                        # If the installed attachment has selectable modes, ensure a
+                        # mode index is present on the accessory so modifiers can be
+                        # applied. Preserve existing index if present; otherwise default 0.
+                        try:
+                            modes = chosen_item.get("modes") or []
+                            if isinstance(modes, list) and modes:
+                                if acc.get("_mode_index") is None and acc.get("mode_index") is None:
+                                    acc["_mode_index"] = 0
+                        except Exception:
+                            pass
                 # Recompute any overrides from attachments onto the weapon
                 try:
                     self._apply_item_overrides(wpn)
@@ -5087,7 +6629,7 @@ class App:
             # If the currently-displayed weapon is an underbarrel/simple launcher,
             # delegate to the underbarrel reload flow which consumes single rounds.
             try:
-                wpn_check = current_weapon_state.get("weapon")
+                wpn_check = current_weapon_state.get("weapon") or {}
                 # detect by explicit flag or by sounds hint
                 wpn_sounds = wpn_check.get("sounds") or wpn_check.get("sound_folder") or wpn_check.get("ammo_type")
                 if wpn_check.get("underbarrel_weapon") or (isinstance(wpn_sounds, str) and "40mm" in wpn_sounds):
@@ -5188,9 +6730,71 @@ class App:
                 if current_rounds >= capacity:
                     self._popup_show_info("Reload Magazine", f"Magazine is already full ({current_rounds}/{capacity})")
                     return
-                
+
+                # Compute available loose rounds in hands for this magazine
+                try:
+                    def _available_loose_rounds_for_mag(mag):
+                        avail = 0
+                        # try magazine caliber
+                        mcal = mag.get('caliber')
+                        mag_cal = None
+                        if isinstance(mcal, (list, tuple)):
+                            mag_cal = str(mcal[0]) if mcal else None
+                        elif isinstance(mcal, str):
+                            mag_cal = mcal
+
+                        for itm in save_data.get('hands', {}).get('items', []):
+                            if not itm or not isinstance(itm, dict):
+                                continue
+                            # skip magazines/belts
+                            if itm.get('magazinesystem') or itm.get('capacity'):
+                                continue
+                            # loose rounds list
+                            rds = itm.get('rounds')
+                            if isinstance(rds, list) and rds:
+                                for r in rds:
+                                    if isinstance(r, dict) and mag_cal and str(r.get('caliber')) == str(mag_cal):
+                                        avail += 1
+                                    elif isinstance(r, str) and mag_cal and str(mag_cal) in r:
+                                        avail += 1
+                                    else:
+                                        avail += 1
+                                continue
+                            # stacked quantity
+                            qty = int(itm.get('quantity') or 0) if isinstance(itm.get('quantity'), (int, float)) else 0
+                            if qty > 0:
+                                ical = itm.get('caliber') or itm.get('name')
+                                if not mag_cal or (ical and str(ical) == str(mag_cal)):
+                                    avail += qty
+                                    continue
+                            # single loose round item
+                            if itm.get('caliber') and (not mag_cal or str(itm.get('caliber')) == str(mag_cal)):
+                                avail += 1
+                        return avail
+                    available = _available_loose_rounds_for_mag(mag_item)
+                except Exception:
+                    available = 0
+
+                if available <= 0:
+                    self._popup_show_info("Reload Magazine", "No compatible loose rounds in hands to reload this magazine")
+                    return
+
+                # Ask user how many rounds to load (limit to available and space)
+                try:
+                    import tkinter.simpledialog as _sd
+                    max_load = min(available, capacity - current_rounds)
+                    if max_load <= 0:
+                        self._popup_show_info("Reload Magazine", "Magazine has no space to load rounds")
+                        return
+                    ask = _sd.askinteger("Load Rounds", f"Enter rounds to load (1-{max_load}):", initialvalue=max_load, minvalue=1, maxvalue=max_load)
+                    if not ask:
+                        return
+                    to_load = int(ask)
+                except Exception:
+                    to_load = min(available, capacity - current_rounds)
+
                 popup.destroy()
-                result = self._reload_magazine(mag_item, save_data)
+                result = self._reload_magazine(mag_item, save_data, max_rounds=to_load)
                 self._popup_show_info("Reload Magazine", result)
                 update_weapon_view()
             
@@ -5277,43 +6881,675 @@ class App:
                 clean_label_ref.configure(text=estimation)
                 self.root.update()  # Force immediate UI update
         
-        self._create_sound_button(
-            actions_frame,
-            text="Check Cleanliness",
-            command=check_cleanliness,
-            width=150,
-            height=50,
-            font=customtkinter.CTkFont(size=14)
-        ).pack(side="left", padx=10, pady=10)
-        
-        self._create_sound_button(
-            actions_frame,
-            text="Check Magazine",
-            command=check_magazine,
-            width=150,
-            height=50,
-            font=customtkinter.CTkFont(size=14)
-        ).pack(side="left", padx=10, pady=10)
+        # Secondary actions (moved to More Actions popup to reduce UI clutter)
+        try:
+            check_clean_btn = self._create_sound_button(
+                actions_frame,
+                text="Check Cleanliness",
+                command=check_cleanliness,
+                width=150,
+                height=50,
+                font=customtkinter.CTkFont(size=14)
+            )
+        except Exception:
+            check_clean_btn = None
+        try:
+            check_mag_btn = self._create_sound_button(
+                actions_frame,
+                text="Check Magazine",
+                command=check_magazine,
+                width=150,
+                height=50,
+                font=customtkinter.CTkFont(size=14)
+            )
+        except Exception:
+            check_mag_btn = None
 
-        self._create_sound_button(
+        reload_mag_btn = self._create_sound_button(
             actions_frame,
-            text="Reload Magazine",
-            command=reload_magazine,
+            text="Magazine Management",
+            # open magazine submenu which contains Reload + Unload
+            command=lambda: _show_magazine_popup(),
             width=150,
             height=50,
             font=customtkinter.CTkFont(size=14),
             fg_color="#1a4d1a",
             hover_color="#2d7a2d"
-        ).pack(side="left", padx=10, pady=10)
+        )
+        reload_mag_btn.pack(side="left", padx=10, pady=10)
+        try:
+            current_weapon_state['reload_mag_btn_ref'] = reload_mag_btn
+        except Exception:
+            pass
+        # Unload magazine button: remove loaded magazine to hands
+        def unload_magazine():
+            try:
+                wpn = current_weapon_state.get('weapon') or {}
+                loaded = wpn.get('loaded')
+                if not loaded:
+                    self._popup_show_info('Unload', 'No magazine loaded to unload')
+                    return
+                # Move loaded magazine to hands
+                save_data.get('hands', {}).get('items', []).append(loaded)
+                wpn['loaded'] = None
+                # Keep chambered round (do not eject)
+                self._popup_show_info('Unload', f"Unloaded {loaded.get('name', 'magazine')} to hands")
+                update_weapon_view()
+            except Exception as e:
+                logging.exception('Failed to unload magazine: %s', e)
 
-        self._create_sound_button(
-            actions_frame,
-            text="Manage Attachments",
-            command=manage_attachments,
-            width=170,
-            height=50,
-            font=customtkinter.CTkFont(size=14)
-        ).pack(side="left", padx=10, pady=10)
+        unload_btn = self._create_sound_button(actions_frame, text='Unload Magazine', command=unload_magazine, width=150, height=50, font=customtkinter.CTkFont(size=14), fg_color='#444444', hover_color='#555555')
+        try:
+            current_weapon_state['unload_mag_btn_ref'] = unload_btn
+        except Exception:
+            pass
+
+        # Magazine submenu: contains Reload and Unload actions
+        def _show_magazine_popup():
+            try:
+                popup = customtkinter.CTkToplevel(self.root)
+                popup.title('Magazine')
+                popup.geometry('420x220')
+                popup.transient(self.root)
+
+                lab = customtkinter.CTkLabel(popup, text='Magazine Actions', font=customtkinter.CTkFont(size=14, weight='bold'))
+                lab.pack(pady=8)
+
+                # Determine availability for reload/unload to set button states
+                try:
+                    def _hands_have_compatible_rounds_local(wpn):
+                        try:
+                            cal_list = wpn.get('caliber') if isinstance(wpn, dict) else None
+                            cal = None
+                            if isinstance(cal_list, (list, tuple)):
+                                cal = str(cal_list[0]) if cal_list else None
+                            elif isinstance(cal_list, str):
+                                cal = cal_list
+                            for itm in save_data.get('hands', {}).get('items', []):
+                                if not itm or not isinstance(itm, dict):
+                                    continue
+                                if itm.get('magazinesystem') or itm.get('capacity'):
+                                    continue
+                                rds = itm.get('rounds')
+                                if isinstance(rds, list) and rds:
+                                    return True
+                                qty = int(itm.get('quantity') or 0) if isinstance(itm.get('quantity'), (int, float)) else 0
+                                if qty > 0:
+                                    return True
+                                if itm.get('caliber'):
+                                    return True
+                            return False
+                        except Exception:
+                            return False
+
+                    def _inventory_has_nonfull_local():
+                        try:
+                            def check_item(itm):
+                                if not itm or not isinstance(itm, dict):
+                                    return False
+                                cap = itm.get('capacity')
+                                if cap is None:
+                                    return False
+                                try:
+                                    cap_i = int(cap)
+                                except Exception:
+                                    return False
+                                rounds = itm.get('rounds')
+                                cur = len(rounds) if isinstance(rounds, list) else (int(rounds or 0) if rounds is not None else 0)
+                                return cur < cap_i
+                            for itm in save_data.get('hands', {}).get('items', []):
+                                try:
+                                    if check_item(itm):
+                                        return True
+                                except Exception:
+                                    pass
+                            for slot_name, eq_item in save_data.get('equipment', {}).items():
+                                try:
+                                    if not eq_item or not isinstance(eq_item, dict):
+                                        continue
+                                    for itm in eq_item.get('items', []) or []:
+                                        try:
+                                            if check_item(itm):
+                                                return True
+                                        except Exception:
+                                            pass
+                                    for sub in eq_item.get('subslots', []) or []:
+                                        try:
+                                            curr = sub.get('current')
+                                            if curr and isinstance(curr, dict):
+                                                for itm in curr.get('items', []) or []:
+                                                    try:
+                                                        if check_item(itm):
+                                                            return True
+                                                    except Exception:
+                                                        pass
+                                        except Exception:
+                                            pass
+                                except Exception:
+                                    pass
+                            return False
+                        except Exception:
+                            return False
+
+                    wpn_local = current_weapon_state.get('weapon') or {}
+                    can_reload = _hands_have_compatible_rounds_local(wpn_local) and _inventory_has_nonfull_local()
+                    loaded_mag_local = wpn_local.get('loaded')
+                    can_unload = False
+                    try:
+                        if loaded_mag_local and isinstance(loaded_mag_local, dict):
+                            rounds_list = loaded_mag_local.get('rounds', [])
+                            if isinstance(rounds_list, list) and len(rounds_list) > 0:
+                                can_unload = True
+                    except Exception:
+                        can_unload = False
+                except Exception:
+                    can_reload = False
+                    can_unload = False
+
+                # Reload button inside popup uses same reload_magazine handler
+                try:
+                    reload_btn = self._create_sound_button(popup, text='Reload Magazine', command=reload_magazine, width=240, height=40, font=customtkinter.CTkFont(size=12), fg_color='#1a4d1a')
+                    reload_btn.pack(pady=6)
+                    try:
+                        reload_btn.configure(state='normal' if can_reload else 'disabled')
+                    except Exception:
+                        pass
+                except Exception:
+                    pass
+                # Unload button inside popup
+                try:
+                    unload_btn_popup = self._create_sound_button(popup, text='Unload Magazine', command=unload_magazine, width=240, height=40, font=customtkinter.CTkFont(size=12), fg_color='#444444')
+                    unload_btn_popup.pack(pady=6)
+                    try:
+                        unload_btn_popup.configure(state='normal' if can_unload else 'disabled')
+                    except Exception:
+                        pass
+                except Exception:
+                    pass
+
+                try:
+                    customtkinter.CTkButton(popup, text='Close', command=popup.destroy, width=140).pack(pady=8)
+                except Exception:
+                    pass
+
+                try:
+                    popup.grab_set()
+                    popup.lift()
+                    popup.focus()
+                except Exception:
+                    pass
+            except Exception:
+                pass
+
+        # Throwables support (only active in combat mode)
+        def _find_throwables_in_inventory():
+            items = []
+            # look in hands
+            for itm in save_data.get('hands', {}).get('items', []):
+                try:
+                    if itm and isinstance(itm, dict) and str(itm.get('type', '')).lower() in ('fragmentation', 'smoke', 'stun', '9-bang', '9bang', '9_bang'):
+                        items.append(('hands', itm))
+                except Exception:
+                    pass
+            # equipment containers
+            for slot_name, eq_item in save_data.get('equipment', {}).items():
+                try:
+                    if not eq_item or not isinstance(eq_item, dict):
+                        continue
+                    if 'items' in eq_item and isinstance(eq_item['items'], list):
+                        for itm in eq_item['items']:
+                            try:
+                                if itm and isinstance(itm, dict) and str(itm.get('type', '')).lower() in ('fragmentation', 'smoke', 'stun', '9-bang', '9bang', '9_bang'):
+                                    items.append(('equipment', itm))
+                            except Exception:
+                                pass
+                    if 'subslots' in eq_item:
+                        for sub in eq_item.get('subslots', []):
+                            try:
+                                curr = sub.get('current') if isinstance(sub, dict) else None
+                                if curr and isinstance(curr, dict) and 'items' in curr and isinstance(curr['items'], list):
+                                    for itm in curr['items']:
+                                        try:
+                                            if itm and isinstance(itm, dict) and str(itm.get('type', '')).lower() in ('fragmentation', 'smoke', 'stun', '9-bang', '9bang', '9_bang'):
+                                                items.append(('equipment', itm))
+                                        except Exception:
+                                            pass
+                            except Exception:
+                                pass
+                except Exception:
+                    pass
+            return items
+
+        def _has_ear_protection():
+            try:
+                for slot, eq in save_data.get('equipment', {}).items():
+                    if not eq or not isinstance(eq, dict):
+                        continue
+                    # top-level has key
+                    if eq.get('ear_protection'):
+                        return True
+                    # items inside
+                    for itm in eq.get('items', []) or []:
+                        try:
+                            if itm and isinstance(itm, dict) and itm.get('ear_protection'):
+                                return True
+                        except Exception:
+                            pass
+                    for sub in eq.get('subslots', []) or []:
+                        try:
+                            curr = sub.get('current')
+                            if curr and isinstance(curr, dict):
+                                if curr.get('ear_protection'):
+                                    return True
+                                for itm in curr.get('items', []) or []:
+                                    try:
+                                        if itm and isinstance(itm, dict) and itm.get('ear_protection'):
+                                            return True
+                                    except Exception:
+                                        pass
+                        except Exception:
+                            pass
+                return False
+            except Exception:
+                return False
+
+        def _has_flash_goggles():
+            try:
+                for slot, eq in save_data.get('equipment', {}).items():
+                    if not eq or not isinstance(eq, dict):
+                        continue
+                    if eq.get('flashbang_goggle'):
+                        return True
+                    for itm in eq.get('items', []) or []:
+                        try:
+                            if itm and isinstance(itm, dict) and itm.get('flashbang_goggle'):
+                                return True
+                        except Exception:
+                            pass
+                    for sub in eq.get('subslots', []) or []:
+                        try:
+                            curr = sub.get('current')
+                            if curr and isinstance(curr, dict):
+                                if curr.get('flashbang_goggle'):
+                                    return True
+                                for itm in curr.get('items', []) or []:
+                                    try:
+                                        if itm and isinstance(itm, dict) and itm.get('flashbang_goggle'):
+                                            return True
+                                    except Exception:
+                                        pass
+                        except Exception:
+                            pass
+                return False
+            except Exception:
+                return False
+
+        def _handle_flashbang_effects(bang_count=1):
+            # bang_count flashes play in sequence; manage ear protection and goggles
+            try:
+                has_ears = _has_ear_protection()
+                has_gog = _has_flash_goggles()
+
+                # If no ear protection, enable mute/fade mode and play ring at full volume
+                if not has_ears:
+                    try:
+                        self._flashbang_mute = True
+                        self._flashbang_volume = 0.0
+                    except Exception:
+                        pass
+
+                    # play ring immediately in its own thread so it is audible
+                    try:
+                        threading.Thread(target=lambda: self._safe_sound_play('', 'sounds/misc/throwable/ring.ogg'), daemon=True).start()
+                    except Exception:
+                        pass
+
+                    # fade-in waiter: wait 7-8s then slowly raise _flashbang_volume to 1.0
+                    def _fade_in_after_delay():
+                        try:
+                            wait = random.uniform(7.0, 8.0)
+                            time.sleep(wait)
+                            steps = 20
+                            dur = 3.0
+                            step_sleep = dur / steps
+                            for i in range(1, steps + 1):
+                                try:
+                                    self._flashbang_volume = float(i) / float(steps)
+                                except Exception:
+                                    self._flashbang_volume = 1.0
+                                time.sleep(step_sleep)
+                            # disable mute
+                            try:
+                                self._flashbang_mute = False
+                                self._flashbang_volume = 1.0
+                            except Exception:
+                                pass
+                        except Exception:
+                            try:
+                                self._flashbang_mute = False
+                                self._flashbang_volume = 1.0
+                            except Exception:
+                                pass
+
+                    try:
+                        threading.Thread(target=_fade_in_after_delay, daemon=True).start()
+                    except Exception:
+                        pass
+
+                # Visual effect: if no goggles, show white overlay then fade back
+                overlay = None
+                if not has_gog:
+                    def _create_overlay():
+                        try:
+                            ov = customtkinter.CTkToplevel(self.root)
+                            ov.overrideredirect(True)
+                            sw = self.root.winfo_screenwidth()
+                            sh = self.root.winfo_screenheight()
+                            ov.geometry(f"{sw}x{sh}+0+0")
+                            try:
+                                ov.attributes('-topmost', True)
+                            except Exception:
+                                pass
+                            try:
+                                ov.attributes('-alpha', 1.0)
+                            except Exception:
+                                pass
+                            try:
+                                ov.configure(fg_color='white')
+                            except Exception:
+                                try:
+                                    ov.configure(bg='white')
+                                except Exception:
+                                    pass
+                            return ov
+                        except Exception:
+                            return None
+
+                    # create overlay on main thread and schedule fade via after
+                    try:
+                        overlay = None
+                        def _make_and_fade():
+                            nonlocal overlay
+                            overlay = _create_overlay()
+                            # schedule fade after 7-8s then gradually reduce alpha
+                            delay = int(random.uniform(7000, 8000))
+                            def _fade_step(count=0, steps=30):
+                                try:
+                                    if overlay is None:
+                                        return
+                                    alpha = 1.0 - (float(count) / float(steps))
+                                    alpha = max(0.0, min(1.0, alpha))
+                                    try:
+                                        overlay.attributes('-alpha', alpha)
+                                    except Exception:
+                                        pass
+                                    if count < steps:
+                                        overlay.after(int( (3000)/steps ), lambda: _fade_step(count+1, steps))
+                                    else:
+                                        try:
+                                            overlay.destroy()
+                                        except Exception:
+                                            pass
+                                except Exception:
+                                    try:
+                                        if overlay:
+                                            overlay.destroy()
+                                    except Exception:
+                                        pass
+
+                            overlay.after(delay, lambda: _fade_step(0))
+
+                        self.root.after(0, _make_and_fade)
+                    except Exception:
+                        pass
+
+                return True
+            except Exception:
+                return False
+
+        def _do_throw_sequence(location, throwable_item):
+            try:
+                # Remove throwable from inventory (consume)
+                try:
+                    if location == 'hands':
+                        if throwable_item in save_data.get('hands', {}).get('items', []):
+                            save_data.get('hands', {}).get('items', []).remove(throwable_item)
+                    elif location == 'equipment':
+                        for slot_name, eq_item in save_data.get('equipment', {}).items():
+                            if not eq_item or not isinstance(eq_item, dict):
+                                continue
+                            if 'items' in eq_item and throwable_item in eq_item['items']:
+                                try:
+                                    eq_item['items'].remove(throwable_item)
+                                    break
+                                except Exception:
+                                    pass
+                            if 'subslots' in eq_item:
+                                for sub in eq_item.get('subslots', []):
+                                    try:
+                                        curr = sub.get('current')
+                                        if curr and isinstance(curr, dict) and 'items' in curr and throwable_item in curr['items']:
+                                            try:
+                                                curr['items'].remove(throwable_item)
+                                                break
+                                            except Exception:
+                                                pass
+                                    except Exception:
+                                        pass
+                except Exception:
+                    pass
+
+                # Sound sequence: pin -> throw -> spoon
+                try:
+                    self._safe_sound_play('', 'sounds/misc/throwable/pin.ogg')
+                except Exception:
+                    pass
+                time.sleep(random.uniform(0.2, 0.5))
+                try:
+                    self._safe_sound_play('', 'sounds/misc/throwable/throw.ogg')
+                except Exception:
+                    pass
+                time.sleep(random.uniform(0.2, 0.3))
+                try:
+                    self._safe_sound_play('', 'sounds/misc/throwable/spoon.ogg')
+                except Exception:
+                    pass
+
+                fuse = float(throwable_item.get('fuse_time') or throwable_item.get('fuse', 3))
+                start_t = time.time()
+                end_t = start_t + fuse
+
+                # initial bounce delay then bounces
+                time.sleep(random.uniform(0.8, 1.3))
+                try:
+                    idx = random.randint(0, 3)
+                    self._safe_sound_play('', f'sounds/misc/throwable/bounce{idx}.ogg')
+                except Exception:
+                    pass
+
+                extra = random.randint(0, 3)
+                for bi in range(extra):
+                    # stop bouncing early if fragmentation/stun/9-bang and fuse elapsed
+                    if time.time() >= end_t and str(throwable_item.get('type', '')).lower() in ('fragmentation', 'stun', '9-bang', '9bang', '9_bang'):
+                        break
+                    if bi == 0:
+                        time.sleep(random.uniform(0.2, 0.3))
+                    elif bi == 1:
+                        time.sleep(random.uniform(0.2, 0.3))
+                    else:
+                        time.sleep(random.uniform(0.1, 0.2))
+                    try:
+                        idx = random.randint(0, 3)
+                        self._safe_sound_play('', f'sounds/misc/throwable/bounce{idx}.ogg')
+                    except Exception:
+                        pass
+
+                typ = str(throwable_item.get('type', '')).lower()
+                # Wait until fuse or if already passed, proceed
+                remaining = end_t - time.time()
+                if remaining > 0:
+                    time.sleep(remaining)
+
+                # Detonate / effect
+                if typ == 'fragmentation':
+                    try:
+                        self._safe_sound_play('', 'sounds/misc/throwable/explosion.ogg')
+                    except Exception:
+                        pass
+                elif typ == 'smoke':
+                    try:
+                        self._safe_sound_play('', 'sounds/misc/throwable/smoke.ogg')
+                    except Exception:
+                        pass
+                elif typ in ('stun', 'flashbang', 'flash'):
+                    # Single flashbang
+                    try:
+                        _handle_flashbang_effects(bang_count=1)
+                        self._safe_sound_play('', 'sounds/misc/throwable/flashbang.ogg')
+                    except Exception:
+                        pass
+                elif typ in ('9-bang', '9bang', '9_bang'):
+                    try:
+                        _handle_flashbang_effects(bang_count=9)
+                        for i in range(9):
+                            try:
+                                self._safe_sound_play('', 'sounds/misc/throwable/flashbang.ogg')
+                            except Exception:
+                                pass
+                            if i < 8:
+                                time.sleep(random.uniform(0.3, 0.5))
+                    except Exception:
+                        pass
+
+                # update UI after throw
+                try:
+                    update_weapon_view()
+                except Exception:
+                    pass
+            except Exception:
+                logging.exception('Throwable sequence failed')
+
+        def throw_throwable():
+            all_throw = _find_throwables_in_inventory()
+            if not all_throw:
+                self._popup_show_info('Throw', 'No throwables in inventory')
+                return
+
+            popup = customtkinter.CTkToplevel(self.root)
+            popup.title('Select Throwable')
+            popup.geometry('420x320')
+            popup.transient(self.root)
+
+            lab = customtkinter.CTkLabel(popup, text='Select a throwable to throw:', font=customtkinter.CTkFont(size=12))
+            lab.pack(pady=8)
+
+            sel_var = customtkinter.StringVar(value='0')
+            frame = customtkinter.CTkScrollableFrame(popup, fg_color='transparent')
+            frame.pack(fill='both', expand=True, padx=10, pady=10)
+            for idx, (loc, itm) in enumerate(all_throw):
+                name = itm.get('name') or itm.get('type') or f'Throwable {idx}'
+                desc = f"{name} - {loc} - fuse {itm.get('fuse_time') or itm.get('fuse', '?')}s"
+                rb = customtkinter.CTkRadioButton(frame, text=desc, variable=sel_var, value=str(idx))
+                rb.pack(anchor='w', pady=2)
+
+            def do_throw():
+                try:
+                    idx = int(sel_var.get())
+                    loc, itm = all_throw[idx]
+                except Exception:
+                    popup.destroy()
+                    return
+                popup.destroy()
+                # Run sequence in background thread
+                try:
+                    threading.Thread(target=_do_throw_sequence, args=(loc, itm), daemon=True).start()
+                except Exception:
+                    _do_throw_sequence(loc, itm)
+
+            bframe = customtkinter.CTkFrame(popup, fg_color='transparent')
+            bframe.pack(fill='x', padx=10, pady=6)
+            customtkinter.CTkButton(bframe, text='Throw', command=do_throw, width=120).pack(side='left', padx=6)
+            customtkinter.CTkButton(bframe, text='Cancel', command=popup.destroy, width=120).pack(side='left', padx=6)
+            try:
+                popup.grab_set()
+                popup.lift()
+                popup.focus()
+            except Exception:
+                pass
+
+        # More Actions popup builder (collect secondary actions)
+        def _show_more_actions():
+            try:
+                popup = customtkinter.CTkToplevel(self.root)
+                popup.title('More Actions')
+                popup.geometry('520x420')
+                popup.transient(self.root)
+
+                frame = customtkinter.CTkScrollableFrame(popup, fg_color='transparent')
+                frame.pack(fill='both', expand=True, padx=10, pady=10)
+
+                # Helper to add buttons to popup using same commands
+                def _add(name, cmd, width=200, height=44, fg=None):
+                    try:
+                        btn = self._create_sound_button(frame, text=name, command=cmd, width=width, height=height, font=customtkinter.CTkFont(size=12))
+                        if fg:
+                            try:
+                                btn.configure(fg_color=fg)
+                            except Exception:
+                                pass
+                        btn.pack(pady=6)
+                    except Exception:
+                        pass
+
+                # Add available secondary actions
+                if check_clean_btn is not None:
+                    _add('Check Cleanliness', check_cleanliness)
+                if check_mag_btn is not None:
+                    _add('Check Magazine', check_magazine)
+                if throw_btn is not None:
+                    _add('Throw', throw_throwable)
+                if manage_attach_btn is not None:
+                    _add('Manage Attachments', manage_attachments)
+                # Unload moved into Magazine submenu
+
+                # provide close
+                try:
+                    b = customtkinter.CTkButton(popup, text='Close', command=popup.destroy, width=120)
+                    b.pack(pady=6)
+                except Exception:
+                    pass
+
+                try:
+                    popup.grab_set()
+                    popup.lift()
+                    popup.focus()
+                except Exception:
+                    pass
+            except Exception:
+                pass
+
+        # More Actions launcher (compacting many buttons into popup)
+        try:
+            self._create_sound_button(actions_frame, text='More Actions', command=_show_more_actions, width=150, height=50, font=customtkinter.CTkFont(size=14)).pack(side='left', padx=10, pady=10)
+        except Exception:
+            pass
+
+        # Create hidden references for secondary buttons (they will appear in More Actions popup)
+        try:
+            throw_btn = self._create_sound_button(actions_frame, text='Throw', command=throw_throwable, width=150, height=50, font=customtkinter.CTkFont(size=14), fg_color='#333333', hover_color='#444444')
+        except Exception:
+            throw_btn = None
+        try:
+            manage_attach_btn = self._create_sound_button(
+                actions_frame,
+                text="Manage Attachments",
+                command=manage_attachments,
+                width=170,
+                height=50,
+                font=customtkinter.CTkFont(size=14)
+            )
+        except Exception:
+            manage_attach_btn = None
         
         # Devmode buttons
         if global_variables.get("devmode", {}).get("value", False):
@@ -5383,6 +7619,16 @@ class App:
                             if not cal:
                                 w_sounds = acc.get("sounds") or acc.get("sound_folder") or acc.get("ammo_type")
 
+                # If a DevMode caliber dropdown exists and has a selection, prefer it
+                try:
+                    dev_cal_var = current_weapon_state.get("dev_caliber_var")
+                    if dev_cal_var and hasattr(dev_cal_var, 'get'):
+                        sel = dev_cal_var.get()
+                        if sel:
+                            cal = sel
+                except Exception:
+                    pass
+
                 ammo_tables = table_data.get("tables", {}).get("ammunition", []) if table_data else []
                 for ammo in ammo_tables:
                     try:
@@ -5414,6 +7660,62 @@ class App:
                 text="Variant:",
                 font=customtkinter.CTkFont(size=12)
             ).pack(side="left", padx=5)
+
+            # Caliber selection (placed to the left of Variant)
+            try:
+                # Use the current weapon object from state
+                wpn_for_dev = (current_weapon_state.get("weapon") if isinstance(current_weapon_state, dict) else None) or {}
+                raw_cal_list = wpn_for_dev.get("caliber") if isinstance(wpn_for_dev, dict) else None
+                calib_values = []
+                if isinstance(raw_cal_list, (list, tuple)):
+                    calib_values = [str(x) for x in raw_cal_list if x is not None]
+                elif isinstance(raw_cal_list, str):
+                    calib_values = [raw_cal_list]
+                # Fallback: empty list -> no caliber info
+                if not calib_values:
+                    calib_values = []
+
+                caliber_var = customtkinter.StringVar(value=(calib_values[0] if calib_values else ""))
+
+                def _on_caliber_change(val):
+                    try:
+                        current_weapon_state["dev_caliber_var"] = caliber_var
+                        # refresh variant choices to respect selected caliber
+                        try:
+                            new_choices = get_variant_choices()
+                            # variant_menu will be created after this block; safe to configure at runtime
+                            try:
+                                if variant_menu:
+                                    variant_menu.configure(values=new_choices)
+                                    if variant_var.get() not in new_choices:
+                                        variant_var.set(new_choices[0])
+                            except Exception:
+                                try:
+                                    variant_menu.set_values(new_choices)
+                                    if variant_var.get() not in new_choices:
+                                        variant_var.set(new_choices[0])
+                                except Exception:
+                                    pass
+                        except Exception:
+                            pass
+                    except Exception:
+                        pass
+
+                # Always create an OptionMenu widget for caliber, then disable if single/no value
+                calib_vals_for_widget = calib_values if calib_values else ["None"]
+                caliber_menu = customtkinter.CTkOptionMenu(devmode_frame, values=calib_vals_for_widget, variable=caliber_var, command=_on_caliber_change, width=140)
+                caliber_menu.pack(side="left", padx=5)
+                if len(calib_values) <= 1:
+                    try:
+                        caliber_menu.configure(state="disabled")
+                    except Exception:
+                        pass
+                current_weapon_state["dev_caliber_menu_ref"] = caliber_menu
+                current_weapon_state["dev_caliber_var"] = caliber_var
+            except Exception:
+                logging.exception("Failed to create DevMode caliber menu")
+
+            # Now create the Variant menu to the right of the Caliber menu
             variant_menu = customtkinter.CTkOptionMenu(
                 devmode_frame,
                 values=get_variant_choices(),
@@ -5609,6 +7911,14 @@ class App:
                     sub_mag_system = current_weapon.get("submagazinesystem") or current_weapon.get("submagazinetype")
                     caliber_list = current_weapon.get("caliber", []) or []
                     caliber = caliber_list[0] if caliber_list else "Unknown"
+                    try:
+                        dev_cal_var = current_weapon_state.get("dev_caliber_var")
+                        if dev_cal_var and hasattr(dev_cal_var, 'get'):
+                            sel = dev_cal_var.get()
+                            if sel:
+                                caliber = sel
+                    except Exception:
+                        pass
                     
                     # If primary magazinesystem is missing but sub-mag exists (dualfeed), use sub-mag
                     if not mag_system and sub_mag_system:
@@ -5628,13 +7938,44 @@ class App:
                         m_ms = mag.get("magazinesystem")
                         if m_ms == mag_system or (sub_mag_system and m_ms == sub_mag_system):
                             compatible_mags.append(mag)
+                    # If DevMode caliber selection present, filter templates to match selected caliber
+                    try:
+                        dev_cal_var = current_weapon_state.get("dev_caliber_var")
+                        if dev_cal_var and hasattr(dev_cal_var, 'get'):
+                            sel_cal = dev_cal_var.get()
+                            if sel_cal:
+                                def _template_matches_cal(m, c):
+                                    try:
+                                        mcal = m.get("caliber")
+                                        if isinstance(mcal, (list, tuple)):
+                                            return any(str(e) == str(c) for e in mcal)
+                                        if isinstance(mcal, str):
+                                            return str(mcal) == str(c)
+                                        return False
+                                    except Exception:
+                                        return False
+                                compatible_mags = [m for m in compatible_mags if _template_matches_cal(m, sel_cal)]
+                    except Exception:
+                        pass
                     
                     if not compatible_mags:
                         self._popup_show_info("DevMode Error", f"No magazines in table for {mag_system}")
                         return
-                    
-                    # Use first compatible magazine
-                    mag_template = compatible_mags[0]
+
+                    # If multiple compatible magazines exist, prompt user to select which one to add
+                    if len(compatible_mags) > 1:
+                        try:
+                            opt_names = [str(m.get('name') or f"Mag {i}") for i, m in enumerate(compatible_mags)]
+                            choice = self._popup_select_option("Select Magazine", "Multiple compatible magazines found. Choose one to add:", opt_names)
+                            if not choice:
+                                return
+                            # map selected name back to template
+                            sel_index = opt_names.index(choice)
+                            mag_template = compatible_mags[sel_index]
+                        except Exception:
+                            mag_template = compatible_mags[0]
+                    else:
+                        mag_template = compatible_mags[0]
                     capacity = mag_template.get("capacity", 30)
                     
                     # Create a loaded magazine with variant
@@ -5843,40 +8184,135 @@ class App:
                 weapon_id = str(wpn.get("id"))
                 current_temp = combat_state.get("barrel_temperatures", {}).get(weapon_id)
                 
-                # Calculate passive cooling using Newton's Law of Cooling
-                if current_temp is not None and current_temp > combat_state.get("ambient_temperature", 70):
+                # Calculate passive cooling/heating using Newton's Law of Cooling
+                if current_temp is not None and current_temp != combat_state.get("ambient_temperature", 70):
                     now_ts = time.time()
-                    last_used = combat_state.get("weapon_last_used", {}).get(weapon_id, now_ts)
-                    elapsed = max(0.0, now_ts - last_used)
-                    
+                    last_used = combat_state.get("weapon_last_used", {}).get(weapon_id)
+                    if last_used is None and weapon_id in combat_state.get("barrel_temperatures", {}):
+                        # Assume last update was one poll interval ago
+                        assumed_interval = combat_state.get("temp_poll_interval", 15)
+                        last_used = now_ts - float(assumed_interval)
+                    elapsed = max(0.0, now_ts - last_used) if last_used is not None else 0.0
+
                     if elapsed > 0:
                         ambient = combat_state.get("ambient_temperature", 70)
-                        k = 0.01  # Cooling constant (10-min half-life)
-                        new_temp = ambient + (current_temp - ambient) * (2.71828 ** (-k * elapsed))
-                        new_temp = max(ambient, new_temp)
+                        default_k = math.log(2.0) / 300.0
+                        magic_k = math.log(2.0) / 600.0
+                        magicsys_local = str(wpn.get("magicsoundsystem") or "").lower()
+                        is_magic_local = (str(wpn.get("type") or "").lower() == "magic") or (magicsys_local in ("hg", "at", "mg", "rf"))
+                        k = magic_k if is_magic_local else default_k
+                        new_temp = ambient + (current_temp - ambient) * math.exp(-k * elapsed)
+                        low = min(ambient, current_temp)
+                        high = max(ambient, current_temp)
+                        new_temp = min(max(new_temp, low), high)
                         combat_state["barrel_temperatures"][weapon_id] = new_temp
-                        
+                        combat_state.setdefault("weapon_last_used", {})[weapon_id] = now_ts
+
                         # Update the display
                         update_weapon_view()
-                        logging.debug(f"Temperature cooled from {current_temp:.1f}°F to {new_temp:.1f}°F")
+                        logging.debug(f"Temperature cooled from {current_temp:.2f}°F to {new_temp:.2f}°F")
+                        # Cook-off logic: when very hot, rounds may cook off randomly
+                        try:
+                            cookoff_thresh = float(combat_state.get("cookoff_temp", 1500))
+                        except Exception:
+                            cookoff_thresh = 1500.0
+                        if new_temp >= cookoff_thresh:
+                            # probability per second (capped); scales with temperature
+                            per_sec_prob = min(0.02, max(0.0, (new_temp - cookoff_thresh) / 10000.0))
+                            cookoff_prob = 1.0 - ((1.0 - per_sec_prob) ** max(1.0, elapsed))
+                            if random.random() < cookoff_prob:
+                                try:
+                                    # Attempt to fire one cook-off round from chamber, loaded mag, or internal
+                                    fired = False
+                                    if isinstance(wpn, dict) and wpn.get("chambered"):
+                                        wpn["chambered"] = None
+                                        fired = True
+                                    elif isinstance(wpn, dict) and wpn.get("loaded") and isinstance(wpn.get("loaded"), dict) and wpn["loaded"].get("rounds"):
+                                        try:
+                                            wpn["loaded"]["rounds"].pop(0)
+                                            fired = True
+                                        except Exception:
+                                            fired = False
+                                    elif isinstance(wpn, dict) and wpn.get("rounds"):
+                                        try:
+                                            wpn["rounds"].pop(0)
+                                            fired = True
+                                        except Exception:
+                                            fired = False
+
+                                    if fired:
+                                        try:
+                                            # play firearm sound for the cook-off
+                                            self._play_firearm_sound(wpn, "fire")
+                                        except Exception:
+                                            pass
+                                        # increase temp slightly from the cook-off
+                                        try:
+                                            temp_gain = float(wpn.get("temp_gain_per_shot", wpn.get("temp_gain", 7)))
+                                        except Exception:
+                                            temp_gain = 7.0
+                                        new_temp = new_temp + (temp_gain * 0.5)
+                                        combat_state["barrel_temperatures"][weapon_id] = new_temp
+                                        combat_state.setdefault("weapon_last_used", {})[weapon_id] = now_ts
+                                        update_weapon_view()
+                                        logging.warning("Cook-off occurred for weapon %s at %.1f°F", wpn.get("name", weapon_id), new_temp)
+                                except Exception:
+                                    logging.exception("Cook-off handling failed")
                 
-                # Schedule next update in 30 seconds
-                poll_cancel = self.root.after(30000, poll_temperature_update)
+                # Schedule next update in 15 seconds
+                poll_cancel = self.root.after(15000, poll_temperature_update)
             except Exception as e:
                 logging.debug(f"Temperature polling error: {e}")
                 # Reschedule even on error
-                poll_cancel = self.root.after(30000, poll_temperature_update)
+                poll_cancel = self.root.after(15000, poll_temperature_update)
         
         # Start polling
-        poll_cancel = self.root.after(30000, poll_temperature_update)
+        poll_cancel = self.root.after(15000, poll_temperature_update)
         
         # Back button
         def exit_combat():
             """Exit combat mode and cancel polling."""
-            nonlocal poll_cancel
+            nonlocal poll_cancel, reload_pending_id
+            # Cancel periodic poll
             if poll_cancel:
-                self.root.after_cancel(poll_cancel)
+                try:
+                    self.root.after_cancel(poll_cancel)
+                except Exception:
+                    pass
+
+            # Cancel any pending reload single-tap callback
+            try:
+                if reload_pending_id and reload_pending_id[0]:
+                    try:
+                        self.root.after_cancel(reload_pending_id[0])
+                    except Exception:
+                        pass
+                    reload_pending_id[0] = None
+            except Exception:
+                pass
+
+            # Unbind combat-related global key handlers to restore normal app key behavior
+            try:
+                for k in ("<Left>", "<Right>", "<space>", "r", "R"):
+                    try:
+                        self.root.unbind(k)
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+
             self._save_combat_state(save_data)
+            # Restore previous tk scaling if we changed it for autoscale
+            try:
+                prev = current_weapon_state.get('prev_tk_scaling')
+                if prev is not None:
+                    try:
+                        self.root.tk.call('tk', 'scaling', float(prev))
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+
             self._clear_window()
             self._build_main_menu()
         
@@ -5890,6 +8326,38 @@ class App:
             font=customtkinter.CTkFont(size=14)
         ).pack(pady=10)
         
+        # Autoscale UI if it doesn't fit on the current resolution
+        try:
+            # Force layout measurement
+            main_frame.update_idletasks()
+            req_w = main_frame.winfo_reqwidth() or 1
+            req_h = main_frame.winfo_reqheight() or 1
+            sw = self.root.winfo_screenwidth() or 1
+            sh = self.root.winfo_screenheight() or 1
+            margin = 40
+            if req_w + margin > sw or req_h + margin > sh:
+                scale_w = float(sw - margin) / float(req_w)
+                scale_h = float(sh - margin) / float(req_h)
+                new_scale = min(scale_w, scale_h, 1.0)
+                # Clamp scale to reasonable lower bound
+                new_scale = max(new_scale, 0.6)
+                try:
+                    prev_scale = float(self.root.tk.call('tk', 'scaling'))
+                except Exception:
+                    prev_scale = 1.0
+                # store previous scale so we can restore on exit
+                try:
+                    current_weapon_state['prev_tk_scaling'] = prev_scale
+                except Exception:
+                    pass
+                try:
+                    self.root.tk.call('tk', 'scaling', new_scale)
+                    main_frame.update_idletasks()
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
         # Save combat state
         self._save_combat_state(save_data)
         self._save_combat_state(save_data)
@@ -5938,7 +8406,7 @@ class App:
             # `underbarrel` flag and reference the parent slot.
             try:
                 if item and isinstance(item, dict) and item.get("accessories"):
-                    for acc in item.get("accessories"):
+                    for acc in (item.get("accessories") or []):
                         cur = acc.get("current")
                         resolved = None
                         if cur and isinstance(cur, dict):
@@ -6018,6 +8486,60 @@ class App:
                             weapon[k] = copy.deepcopy(v)
                         except Exception:
                             weapon[k] = v
+        # Aggregate any accessory "modifiers" (e.g. stats modifiers) into a
+        # computed _active_modifiers mapping on the weapon for use by combat
+        # calculations or UI. This is recomputed each time overrides are applied
+        # so it will reflect the currently-installed accessories.
+        try:
+            agg = {"stats": {}}
+            for acc in weapon.get("accessories", []) or []:
+                cur = acc.get("current")
+                # Base modifiers on the accessory itself
+                if cur and isinstance(cur, dict):
+                    mods = cur.get("modifiers") or {}
+                    if isinstance(mods, dict):
+                        stats = mods.get("stats") or {}
+                        if isinstance(stats, dict):
+                            for sname, sval in stats.items():
+                                try:
+                                    agg["stats"][sname] = agg["stats"].get(sname, 0) + (int(sval) if isinstance(sval, (int, float)) else 0)
+                                except Exception:
+                                    pass
+                    # If this accessory exposes selectable "modes", apply the modifiers
+                    # from the currently-selected mode (stored on the accessory as _mode_index)
+                    try:
+                        modes = cur.get("modes") or []
+                        if isinstance(modes, list) and modes:
+                            mode_index = acc.get("_mode_index")
+                            if mode_index is None:
+                                # Allow legacy key name
+                                mode_index = acc.get("mode_index")
+                            try:
+                                mi = int(mode_index) if mode_index is not None else 0
+                            except Exception:
+                                mi = 0
+                            mi = max(0, min(mi, len(modes) - 1))
+                            mode = modes[mi]
+                            if isinstance(mode, dict):
+                                mm = mode.get("modifiers") or {}
+                                if isinstance(mm, dict):
+                                    mstats = mm.get("stats") or {}
+                                    if isinstance(mstats, dict):
+                                        for sname, sval in mstats.items():
+                                            try:
+                                                agg["stats"][sname] = agg["stats"].get(sname, 0) + (int(sval) if isinstance(sval, (int, float)) else 0)
+                                            except Exception:
+                                                pass
+                    except Exception:
+                        # Non-fatal: don't let mode parsing break overrides aggregation
+                        pass
+            weapon["_active_modifiers"] = agg
+        except Exception:
+            # non-critical; don't let modifier aggregation break attachment flow
+            try:
+                weapon["_active_modifiers"] = {"stats": {}}
+            except Exception:
+                pass
     
     def _display_weapon_details(self, parent, weapon, combat_state, save_data, table_data, current_weapon_state=None):
         """Display detailed information about the selected weapon."""
@@ -6252,9 +8774,84 @@ class App:
         # HUD-based detail control
         has_hud = self._check_for_hud(save_data)
 
-        # Convert temperature based on units
+        # Detect special equipment: CSAD (id 37) and Gun Link (id 85 on the weapon)
+        def _has_equipped_item(save_data, target_id):
+            try:
+                for slot_name, item in save_data.get("equipment", {}).items():
+                    if not item or not isinstance(item, dict):
+                        continue
+                    # Top-level equipment item
+                    if item.get("id") == target_id:
+                        return True
+                    # Items inside containers
+                    for sub in (item.get("items") or []):
+                        try:
+                            if sub and isinstance(sub, dict) and sub.get("id") == target_id:
+                                return True
+                        except Exception:
+                            pass
+                    # Subslots may hold nested containers
+                    for subslot in (item.get("subslots") or []):
+                        try:
+                            curr = subslot.get("current")
+                            if curr and isinstance(curr, dict):
+                                if curr.get("id") == target_id:
+                                    return True
+                                for s in (curr.get("items") or []):
+                                    try:
+                                        if s and isinstance(s, dict) and s.get("id") == target_id:
+                                            return True
+                                    except Exception:
+                                        pass
+                        except Exception:
+                            pass
+            except Exception:
+                return False
+            return False
+
+        has_csad = _has_equipped_item(save_data, 37)
+        # Gun Link must be attached to the current weapon. Handle several data shapes:
+        # - accessory.current may be a dict with 'id' or 'name'
+        # - accessory.current may already be resolved to an integer id
+        # - attachment id varies in tables (85 appears in some files, 94 in others)
+        gunlink_on_weapon = False
+        try:
+            for acc in (weapon.get("accessories") or []):
+                if not acc or not isinstance(acc, dict):
+                    continue
+                cur = acc.get("current")
+                # If current is an integer id
+                try:
+                    if isinstance(cur, int) and cur in (85, 94):
+                        gunlink_on_weapon = True
+                        break
+                except Exception:
+                    pass
+
+                # If current is a dict, check id or name
+                try:
+                    if isinstance(cur, dict):
+                        cid = cur.get("id")
+                        cname = str(cur.get("name") or "").lower()
+                        if (isinstance(cid, int) and cid in (85, 94)) or ("gun link" in cname):
+                            gunlink_on_weapon = True
+                            break
+                except Exception:
+                    pass
+        except Exception:
+            gunlink_on_weapon = False
+
+        # Compute visibility flags per user rules:
+        # - Temperature exact if HUD OR CSAD equipped
+        # - Cleanliness exact only if HUD OR (CSAD + Gun Link on this weapon)
+        # - Ammo exact only if HUD OR (CSAD + Gun Link on this weapon)
+        temp_exact = bool(has_hud or has_csad)
+        clean_exact = bool(has_hud or (has_csad and gunlink_on_weapon))
+        ammo_exact = bool(has_hud or (has_csad and gunlink_on_weapon))
+
+        # Convert temperature based on units (do not pre-round; format when displaying)
         if appearance_settings["units"] == "metric":
-            display_temp = round((temperature - 32) * 5/9, 1)
+            display_temp = (temperature - 32) * 5/9
             temp_unit = "°C"
         else:
             display_temp = temperature
@@ -6284,10 +8881,10 @@ class App:
         else:
             temp_color = "#007700"  # cool green
 
-        if has_hud:
-            temp_text = f"Barrel Temperature: {display_temp}{temp_unit}"
+        if temp_exact:
+            temp_text = f"Barrel Temperature: {display_temp:.2f}{temp_unit}"
         else:
-            # Vague temp categories without HUD
+            # Vague temp categories without exact readout
             if temperature > 200:
                 temp_desc = "Critical hot"
             elif temperature > 150:
@@ -6315,7 +8912,7 @@ class App:
         elif cleanliness < 70:
             clean_color = "#FFFF00"  # Yellow
         
-        clean_text = f"Cleanliness: {cleanliness:.1f}%" if has_hud else "Cleanliness: Status only"
+        clean_text = f"Cleanliness: {cleanliness:.2f}%" if clean_exact else "Cleanliness: Status only"
         clean_label = customtkinter.CTkLabel(
             detail_frame,
             text=clean_text,
@@ -6328,9 +8925,8 @@ class App:
         if current_weapon_state is not None:
             current_weapon_state["clean_label_ref"] = clean_label
         
-        # Ammo count (vague unless HUD equipped)
-        has_hud = self._check_for_hud(save_data)
-        ammo_text = self._get_ammo_display(weapon, has_hud)
+        # Ammo count display
+        ammo_text = self._get_ammo_display(weapon, bool(ammo_exact))
         
         ammo_label = customtkinter.CTkLabel(
             detail_frame,
@@ -6428,7 +9024,7 @@ class App:
     def _save_combat_state(self, save_data):
         """Save combat state to save file."""
         try:
-            save_path = os.path.join(saves_folder, currentsave)
+            save_path = os.path.join(saves_folder or "saves", currentsave or "")
             if not save_path.endswith(global_variables.get("save_extension", ".sldsv")):
                 save_path += global_variables.get("save_extension", ".sldsv")
             with open(save_path, 'w') as f:
@@ -6825,17 +9421,11 @@ class App:
                 if any(k in mag_type for k in ("internal", "tube", "cylinder")) or "revolver" in platform.lower() or is_belt:
                     return
 
-            # Special-case belt/box/cover actions: prefer explicit platform-specific filenames (no broad globbing)
-            if action_type in ("beltdrop", "beltfeed", "beltalign", "coveropen", "coverclose", "boxout", "boxin"):
-                # Map action -> list of REAL filename bases (no invented names).
-                # These names are only used as filenames (without extension) when looking
-                # for platform-specific overrides; if none found, we try the universal folder.
+            # Special-case cover/box actions: prefer explicit platform-specific filenames
+            if action_type in ("coveropen", "coverclose", "boxout", "boxin"):
                 preferred_map = {
-                    "beltdrop": ["beltremove", "magdrop0", "magdrop1"],
-                    "beltfeed": ["beltinsert"],
-                    "beltalign": ["reloaderloop", "beltinsert"],
-                    "coveropen": ["beltremove", "pouchout"],
-                    "coverclose": ["beltinsert", "pouchin"],
+                    "coveropen": ["pouchout"],
+                    "coverclose": ["pouchin"],
                     "boxout": ["magdrop0", "magdrop1"],
                     "boxin": ["riflemagin", "pistolmagin"]
                 }
@@ -6872,16 +9462,11 @@ class App:
                 "pumpback": ["shotgunpumpback", "pumpback"],
                 "pumpforward": ["shotgunpumpforward", "pumpforward"],
                 "cleaning": ["cleaning"],
-                # Belt / box related actions (fallback universal names)
-                # NOTE: beltdrop/beltfeed should NOT be auto-fallbacked here; belt-fed
-                # weapons use explicit sequences and platform files. Keep box/cover
-                # related universal names but exclude beltdrop/beltfeed to avoid
-                # accidental magazine-style resolution.
-                "beltalign": ["reloaderloop", "beltinsert", "beltremove"],
-                "coveropen": ["beltremove", "pouchout", "magdrop0"],
-                "coverclose": ["beltinsert", "pouchin"],
-                "boxout": ["beltremove", "magdrop0", "magdrop1"],
-                "boxin": ["beltinsert", "magin", "riflemagin"]
+                # Box/cover related universal names
+                "coveropen": ["pouchout", "magdrop0"],
+                "coverclose": ["pouchin"],
+                "boxout": ["magdrop0", "magdrop1"],
+                "boxin": ["magin", "riflemagin"]
             }
             
             if action_type in universal_sounds:
@@ -6908,13 +9493,10 @@ class App:
             equivalents = {
                 "boltback": ["rifleboltback", "pistolslideback", "boltactionback"],
                 "boltforward": ["rifleboltforward", "pistolslideforward", "boltactionforward"],
-                "coveropen": ["beltremove", "pouchout"],
-                "coverclose": ["beltinsert", "pouchin"],
+                "coveropen": ["pouchout"],
+                "coverclose": ["pouchin"],
                 "boxout": ["magdrop0", "magdrop1"],
                 "boxin": ["riflemagin", "pistolmagin"],
-                "beltdrop": ["beltremove", "magdrop0", "magdrop1"],
-                "beltfeed": ["beltinsert"],
-                "beltalign": ["reloaderloop", "beltinsert"],
                 "magout": ["riflemagout", "pistolmagout", "magdrop0", "magdrop1"],
                 "magin": ["riflemagin", "pistolmagin"],
                 "pouchout": ["pouchout"],
@@ -6950,78 +9532,44 @@ class App:
 
     def _perform_belt_reload_sequence(self, weapon):
         """Perform the detailed belt-fed reload sound/timing sequence."""
+        # Belt-fed sequences removed — keep stub for compatibility.
         try:
-            # initial rack
-            self._play_weapon_action_sound(weapon, "boltback")
-            self._play_weapon_action_sound(weapon, "boltforward")
-            # initial small delay
-            time.sleep(random.uniform(0.5, 1.0))
-
-            # open cover / feed tray
-            self._play_weapon_action_sound_strict(weapon, "coveropen")
-            time.sleep(random.uniform(1.0, 1.5))
-
-            # remove box / feed component
-            self._play_weapon_action_sound_strict(weapon, "boxout")
-            time.sleep(random.uniform(1.0, 1.5))
-
-            # insert box
-            self._play_weapon_action_sound_strict(weapon, "boxin")
-            time.sleep(random.uniform(0.5, 1.0))
-
-            # align belt
-            self._play_weapon_action_sound_strict(weapon, "beltalign")
-            time.sleep(random.uniform(1.0, 1.5))
-
-            # close cover
-            self._play_weapon_action_sound_strict(weapon, "coverclose")
-            time.sleep(random.uniform(1.0, 1.5))
-
-            # final rack (no extra delay between back and forward)
-            self._play_weapon_action_sound_strict(weapon, "boltback")
-            self._play_weapon_action_sound_strict(weapon, "boltforward")
+            logging.debug("_perform_belt_reload_sequence called but belt-fed logic removed.")
         except Exception:
-            # best-effort: ignore sound errors
             pass
 
     def _perform_dualfeed_belt_reload_sequence(self, weapon):
         """Perform reload sequence for belt-fed weapons that support detachable sub-magazines (dualfeed)."""
+        # Dual-feed belt sequence removed — keep stub for compatibility.
         try:
-            self._play_weapon_action_sound(weapon, "boltback")
-            self._play_weapon_action_sound(weapon, "boltforward")
-            time.sleep(random.uniform(0.5, 1.0))
-
-            # treat like a detachable-mag swap for the sub-magazine
-            self._play_weapon_action_sound_strict(weapon, "magout")
-            time.sleep(random.uniform(1.0, 1.5))
-            self._play_weapon_action_sound_strict(weapon, "magin")
-            time.sleep(random.uniform(1.0, 1.5))
-
-            # final rack (no extra delay between back and forward)
-            self._play_weapon_action_sound_strict(weapon, "boltback")
-            self._play_weapon_action_sound_strict(weapon, "boltforward")
+            logging.debug("_perform_dualfeed_belt_reload_sequence called but belt-fed logic removed.")
         except Exception:
             pass
     
     def _roll_d20_dice(self, num_rolls):
-        """Roll cryptographically random d20 dice and return median."""
+        """Roll cryptographically random d20 dice and return rounded average.
+
+        The average is rounded half-up (e.g. 2.5 -> 3) to produce an integer
+        result suitable for firearm rolling logic.
+        """
         rolls = [secrets.randbelow(20) + 1 for _ in range(num_rolls)]
-        rolls_sorted = sorted(rolls)
-        
-        # Calculate median
-        n = len(rolls_sorted)
-        if n % 2 == 1:
-            median = rolls_sorted[n // 2]
-        else:
-            median = (rolls_sorted[n // 2 - 1] + rolls_sorted[n // 2]) // 2
-        
-        return rolls, median
+
+        # Calculate rounded average (half-up)
+        n = len(rolls)
+        if n == 0:
+            return rolls, 0
+        avg = sum(rolls) / n
+        rounded = int(math.floor(avg + 0.5))
+
+        return rolls, rounded
     
     def _copy_to_clipboard(self, text):
         """Copy text to clipboard if pyperclip is available."""
         if PYPERCLIP_AVAILABLE:
             try:
-                pyperclip.copy(text)
+                # Import here to avoid module being considered possibly-unbound by static checkers
+                import pyperclip as _pyperclip
+                _pyperclip.copy(text)
                 logging.info(f"Copied to clipboard: {text}")
                 return True
             except Exception as e:
@@ -7031,7 +9579,7 @@ class App:
             logging.info(f"Clipboard copy requested but pyperclip not available: {text}")
             return False
     
-    def _fire_weapon(self, weapon, combat_state, rounds_to_fire=3, fire_mode=None):
+    def _fire_weapon(self, weapon, combat_state, rounds_to_fire=3, fire_mode=None, save_data=None):
         """Fire weapon and handle barrel temperature, jamming, etc."""
         weapon_id = str(weapon.get("id"))
         logging.info(
@@ -7041,6 +9589,8 @@ class App:
             rounds_to_fire,
             fire_mode or "unknown"
         )
+        # Hold optional roll breakdown to attach to result popup
+        roll_summary_text = None
         
         # Check if weapon has ammo
         chambered = weapon.get("chambered")
@@ -7054,8 +9604,8 @@ class App:
         platform = str(raw_platform)
 
         is_internal = "internal" in magazine_type or "tube" in magazine_type or "cylinder" in magazine_type or "revolver" in platform.lower()
-        # Belt-fed detection (e.g., M249)
-        is_belt = ("belt" in magazine_type) or ("belt" in platform.lower()) or ("m249" in platform.lower())
+        # Belt-fed logic removed: treat as non-belt by default
+        is_belt = False
 
         # Normalize action field safely to determine pump-action (handles lists and strings)
         raw_action = weapon.get("action", "") or ""
@@ -7075,6 +9625,158 @@ class App:
         # (we still keep `is_pump` as the weapon capability flag)
         fire_mode_norm = str(fire_mode or "").title()
         effective_is_pump = is_pump and fire_mode_norm == "Pump"
+
+        # Magic weapon detection: magic weapons do not consume ammo and use a
+        # magicsoundsystem key to drive charge/prefire/cooling sequences.
+        magicsys = str(weapon.get("magicsoundsystem") or "").lower()
+        is_magic = (str(weapon.get("type") or "").lower() == "magic") or (magicsys in ("hg", "at", "mg", "rf"))
+
+        if is_magic:
+            # Helper paths
+            magic_folder = os.path.join("sounds", "firearms", "magic", magicsys if magicsys else "hg")
+
+            # Systems that require charge before firing
+            requires_charge = magicsys in ("at", "rf")
+
+            # Get current barrel temperature for this weapon (fallback ambient)
+            temperature = combat_state.get("barrel_temperatures", {}).get(weapon_id, combat_state.get("ambient_temperature", 70))
+            # Remember pre-fire temperature to avoid immediate net cooling below this
+            pre_fire_temp = temperature
+
+            # If this system requires a charge, play the charge sound then continue
+            if requires_charge:
+                charge_file = os.path.join(magic_folder, "charge.ogg")
+                if os.path.exists(charge_file):
+                    try:
+                        self._safe_sound_play("", charge_file, block=True)
+                    except Exception:
+                        logging.exception("Failed to play charge sound for magic weapon")
+
+            # If we get here, either no charge is required or charge is pending/complete.
+            # For rf systems, play prefire before the firing loop
+            if magicsys == "rf":
+                prefire_file = os.path.join(magic_folder, "prefire.ogg")
+                if os.path.exists(prefire_file):
+                    try:
+                        self._safe_sound_play("", prefire_file, block=True)
+                    except Exception:
+                        logging.exception("Failed to play prefire for rf magic weapon")
+
+
+            # Determine number of shots to play for this firing action
+            try:
+                nshots = max(1, int(rounds_to_fire or 1))
+            except Exception:
+                nshots = 1
+
+            # Bolt-action-based magic systems (AT, RF) are single-shot per trigger
+            if magicsys in ("at", "rf"):
+                nshots = 1
+
+            # Convert cyclic rate (RPM) to seconds per shot; fallback to 600 RPM
+            try:
+                rpm = float(weapon.get("cyclic", weapon.get("rpm", 600)) or 600)
+                if rpm <= 0:
+                    rpm = 600.0
+            except Exception:
+                rpm = 600.0
+            shot_delay = 60.0 / float(rpm)
+
+            # Gather candidate fire sounds
+            try:
+                import glob as _glob
+                fire_candidates = _glob.glob(os.path.join(magic_folder, "fire*.ogg"))
+            except Exception:
+                fire_candidates = []
+
+            # Per-shot temperature gain (weapon-provided or fallback)
+            try:
+                temp_gain = float(weapon.get("temp_gain_per_shot", weapon.get("temp_gain", 20) or 20))
+            except Exception:
+                temp_gain = random.uniform(15, 25)
+
+            for i in range(nshots):
+                # Play a randomized fire sound if available (non-blocking) and delay by cyclic rate
+                try:
+                    # For charged systems (at, rf) block until the main fire sound finishes
+                    block_this_shot = magicsys in ("at", "rf")
+                    if fire_candidates:
+                        chosen = random.choice(fire_candidates)
+                        self._safe_sound_play("", chosen, block=block_this_shot)
+                    else:
+                        # Use safe play to keep consistent path handling
+                        fallback_path = os.path.join("sounds", weapon.get("sound_folder", ""), "fire.ogg")
+                        self._safe_sound_play("", fallback_path, block=block_this_shot)
+                except Exception:
+                    logging.exception("Magic weapon fire sound failed")
+
+                # For systems that model a bolt, play boltback per shot (non-blocking)
+                if magicsys in ("at", "rf"):
+                    try:
+                        self._play_weapon_action_sound_strict(weapon, "boltback", block=False)
+                    except Exception:
+                        pass
+
+                # Increase temperature per shot
+                try:
+                    temperature += temp_gain
+                except Exception:
+                    temperature = temperature + (temp_gain if isinstance(temp_gain, (int, float)) else 0)
+
+                # Delay to match cyclic rate only when the main fire didn't already block
+                try:
+                    if not (magicsys in ("at", "rf")):
+                        # For semi-auto selections, apply a small human-reaction delay
+                        # with slight random jitter so magic semi-autos behave like
+                        # conventional semi-auto weapons.
+                        try:
+                            if str(fire_mode or "").title() == "Semi":
+                                jitter = random.uniform(-0.06, 0.06)
+                                time.sleep(max(0.0, shot_delay + 0.18 + jitter))
+                            else:
+                                time.sleep(shot_delay)
+                        except Exception:
+                            # Fallback to base shot delay on any error
+                            time.sleep(shot_delay)
+                except Exception:
+                    pass
+
+            # Cooling cycle: rf/at play a physical cooling sound; hg/mg cool silently
+            cooling_file = os.path.join(magic_folder, "cooling.ogg")
+            if magicsys in ("at", "rf") and os.path.exists(cooling_file):
+                try:
+                    self._safe_sound_play("", cooling_file, block=True)
+                except Exception:
+                    logging.exception("Failed to play cooling sound for magic weapon")
+
+            # Apply cooling amount once per firing action
+            try:
+                cool_amount = float(weapon.get("temp_loss_per_cooling_cycle", weapon.get("temp_loss", 20) or 20))
+            except Exception:
+                cool_amount = random.uniform(5, 15)
+            # Make magic weapon cooling more effective by default (multiplicative)
+            cool_amount = cool_amount * float(weapon.get("magic_cooling_multiplier", 1.8))
+            # Prevent the immediate cooling step from making the weapon cooler
+            # than it was before firing (avoids negative net heat for powerful
+            # cooling multipliers on single-shot systems like AT/RF).
+            temperature = max(pre_fire_temp, temperature - cool_amount)
+
+            # Mark this weapon id as a magic weapon for periodic cooling/timers
+            try:
+                combat_state.setdefault("magic_weapon_ids", {})[weapon_id] = True
+            except Exception:
+                pass
+
+            # Final boltforward only for systems that model a bolt (at, rf)
+            if magicsys in ("at", "rf"):
+                try:
+                    self._play_weapon_action_sound(weapon, "boltforward")
+                except Exception:
+                    pass
+
+            # Store updated temperature and return
+            combat_state.setdefault("barrel_temperatures", {})[weapon_id] = temperature
+            return "Fired (magic)"
 
         # For internal/cylinder weapons, rounds are stored in weapon['rounds']
         if is_internal:
@@ -7168,13 +9870,18 @@ class App:
                 burst_count,
                 actual_rounds_to_fire
             )
+        # If the gas system is already melted, force single-shot behavior
+        if weapon.get("gas_melted", False):
+            actual_rounds_to_fire = 1
+            logging.debug("Gas-melted weapon detected: forcing single-shot behavior")
         
         # Human reaction delay: only applies between bursts/shots in semi mode
         # In auto mode, no reaction delay. In burst mode, reaction delay between bursts.
         is_semi = fire_mode == "Semi"
         is_burst = fire_mode == "Burst" and burst_count > 0
         is_auto = fire_mode == "Auto"
-        is_bolt = fire_mode == "Bolt"
+        # If the weapon's gas system has melted, it effectively becomes bolt-action
+        is_bolt = fire_mode == "Bolt" or bool(weapon.get("gas_melted", False))
 
         # Fire rounds
         rounds_fired = 0
@@ -7421,8 +10128,28 @@ class App:
                 logging.info("Ran out of ammo mid-burst after %s rounds", rounds_fired)
                 break
             
-            # Increase barrel temperature per shot
-            temperature += random.uniform(15, 25)
+            # Increase barrel temperature per shot (use per-weapon gain when available,
+            # otherwise use a realistic default to avoid excessive heating).
+            try:
+                temp_gain = float(weapon.get("temp_gain_per_shot", weapon.get("temp_gain", None)))
+            except Exception:
+                temp_gain = None
+            if temp_gain is None:
+                # Default per-shot heat: modest (5-10°F) to be realistic
+                temp_gain = random.uniform(5.0, 10.0)
+            temperature += temp_gain
+
+            # If the weapon reaches melt temperature immediately after a shot,
+            # mark the gas system melted and switch to bolt behavior for the
+            # remainder of this firing action (prevents further automatic cycling).
+            try:
+                melt_temp = float(weapon.get("melt_temp", 3000))
+            except Exception:
+                melt_temp = 3000.0
+            if temperature >= melt_temp and not weapon.get("gas_melted", False):
+                weapon["gas_melted"] = True
+                is_bolt = True
+                logging.warning("Weapon %s gas system MELTED at %.1f°F (in-shot)", weapon.get("name", weapon_id), temperature)
             
             # Decrease cleanliness per shot
             cleanliness -= random.uniform(0.1, 0.3)
@@ -7462,36 +10189,74 @@ class App:
         if "weapon_last_used" not in combat_state:
             combat_state["weapon_last_used"] = {}
         
+        # If temperature exceeds melt threshold, mark gas system as melted and
+        # force bolt behavior until cleaned. Default melt temp ~3000°F unless
+        # overridden per-weapon via `melt_temp`.
+        try:
+            melt_temp = float(weapon.get("melt_temp", 3000))
+        except Exception:
+            melt_temp = 3000.0
+        if temperature >= melt_temp:
+            weapon["gas_melted"] = True
+            logging.warning("Weapon %s gas system MELTED at %.1f°F", weapon.get("name", weapon_id), temperature)
+
         combat_state["barrel_temperatures"][weapon_id] = temperature
         combat_state["barrel_cleanliness"][weapon_id] = cleanliness
         combat_state["weapon_last_used"][weapon_id] = time.time()
         
         # For bolt-action weapons, automatically cycle the bolt after firing
         if is_bolt and rounds_fired > 0 and not jammed:
-            time.sleep(0.1)
+            # Slightly longer pause before the boltback sound to match recoil
+            # and firing animation timing.
+            time.sleep(0.28)
             self._play_weapon_action_sound(weapon, "boltback")
-            time.sleep(0.3)
-            # For internal weapons, check weapon['rounds'] for next round, otherwise check loaded_mag
-            if is_internal:
-                if weapon.get("rounds"):
-                    next_round = weapon["rounds"].pop(0)
-                    weapon["chambered"] = next_round
-                    self._play_weapon_action_sound(weapon, "boltforward")
-                    cycle_result = "next round automatically chambered"
+            # If gas system is melted, play boltforward immediately with no delay
+            if weapon.get("gas_melted", False):
+                # Chamber next round immediately (internal or loaded mag)
+                if is_internal:
+                    if weapon.get("rounds"):
+                        next_round = weapon["rounds"].pop(0)
+                        weapon["chambered"] = next_round
+                        self._play_weapon_action_sound(weapon, "boltforward")
+                        cycle_result = "next round automatically chambered"
+                    else:
+                        weapon["chambered"] = None
+                        self._play_weapon_action_sound(weapon, "boltforward")
+                        cycle_result = "bolt cycled (no rounds left to chamber)"
                 else:
-                    weapon["chambered"] = None
-                    self._play_weapon_action_sound(weapon, "boltforward")
-                    cycle_result = "bolt cycled (no rounds left to chamber)"
+                    if loaded_mag and loaded_mag.get("rounds"):
+                        next_round = loaded_mag["rounds"].pop(0)
+                        weapon["chambered"] = next_round
+                        self._play_weapon_action_sound(weapon, "boltforward")
+                        cycle_result = "next round automatically chambered"
+                    else:
+                        weapon["chambered"] = None
+                        self._play_weapon_action_sound(weapon, "boltforward")
+                        cycle_result = "bolt cycled (no rounds left to chamber)"
             else:
-                if loaded_mag and loaded_mag.get("rounds"):
-                    next_round = loaded_mag["rounds"].pop(0)
-                    weapon["chambered"] = next_round
-                    self._play_weapon_action_sound(weapon, "boltforward")
-                    cycle_result = "next round automatically chambered"
+                # Normal timing: short delay between boltback and boltforward
+                time.sleep(0.12)
+                # For internal weapons, check weapon['rounds'] for next round, otherwise check loaded_mag
+                if is_internal:
+                    if weapon.get("rounds"):
+                        next_round = weapon["rounds"].pop(0)
+                        weapon["chambered"] = next_round
+                        self._play_weapon_action_sound(weapon, "boltforward")
+                        cycle_result = "next round automatically chambered"
+                    else:
+                        weapon["chambered"] = None
+                        self._play_weapon_action_sound(weapon, "boltforward")
+                        cycle_result = "bolt cycled (no rounds left to chamber)"
                 else:
-                    weapon["chambered"] = None
-                    self._play_weapon_action_sound(weapon, "boltforward")
-                    cycle_result = "bolt cycled (no rounds left to chamber)"
+                    if loaded_mag and loaded_mag.get("rounds"):
+                        next_round = loaded_mag["rounds"].pop(0)
+                        weapon["chambered"] = next_round
+                        self._play_weapon_action_sound(weapon, "boltforward")
+                        cycle_result = "next round automatically chambered"
+                    else:
+                        weapon["chambered"] = None
+                        self._play_weapon_action_sound(weapon, "boltforward")
+                        cycle_result = "bolt cycled (no rounds left to chamber)"
         else:
             cycle_result = None
         
@@ -7509,9 +10274,238 @@ class App:
             elif loaded_mag and loaded_mag.get("rounds") and " | " in str(loaded_mag["rounds"][0]):
                 variant = str(loaded_mag["rounds"][0]).split(" | ")[1]
             
-            clipboard_text = f"Roll: {median} | Weapon: {weapon_name}, round: {caliber}, {variant}, rounds fired: {rounds_fired}"
+            # Compute effective aim: player base stat + weapon active modifiers + weapon intrinsic stats
+            effective_aim = 0
+            try:
+                # Player base stats - support Title or lower keys
+                if save_data and isinstance(save_data, dict):
+                    sd_stats = save_data.get("stats", {}) or {}
+                    if isinstance(sd_stats, dict):
+                        if "Aim" in sd_stats:
+                            effective_aim += float(sd_stats.get("Aim", 0) or 0)
+                        else:
+                            # try lowercase key
+                            effective_aim += float(sd_stats.get("aim", 0) or 0)
+            except Exception:
+                pass
+            try:
+                # Weapon active modifiers aggregated earlier
+                if isinstance(weapon, dict):
+                    mods = weapon.get("_active_modifiers", {}) or {}
+                    stats_mods = mods.get("stats", {}) if isinstance(mods, dict) else {}
+                    if isinstance(stats_mods, dict):
+                        effective_aim += float(stats_mods.get("aim", 0) or 0)
+                    # Also include weapon's own stats if present
+                    wstats = weapon.get("stats", {}) or {}
+                    if isinstance(wstats, dict):
+                        effective_aim += float(wstats.get("aim", 0) or 0)
+            except Exception:
+                pass
+
+            # Enforce bonus_clamp: limit the positive bonus from stats+mods
+            try:
+                pre_clamp_aim = effective_aim
+                clamp_val = None
+                # weapon-specific override
+                try:
+                    if isinstance(weapon, dict) and weapon.get("bonus_clamp") is not None:
+                        clamp_val = float(weapon.get("bonus_clamp"))
+                except Exception:
+                    clamp_val = None
+                # fallback to table default
+                if clamp_val is None:
+                    try:
+                        tbl_path = os.path.join("tables", "lid.sldtbl")
+                        if os.path.exists(tbl_path):
+                            with open(tbl_path, 'r', encoding='utf-8') as tf:
+                                import json as _json
+                                tdata = _json.load(tf)
+                                clamp_val = tdata.get('additional_settings', {}).get('bonus_clamp')
+                    except Exception:
+                        clamp_val = None
+                # Apply clamp to positive bonuses only
+                applied_clamp = False
+                if clamp_val is not None:
+                    try:
+                        clamp_num = float(clamp_val)
+                        if effective_aim > clamp_num:
+                            effective_aim = clamp_num
+                            applied_clamp = True
+                    except Exception:
+                        applied_clamp = False
+                final_total = int(median) + int(round(effective_aim))
+            except Exception:
+                final_total = median
+
+            # Build a clean round display string (handle dicts, lists, tuples, and reprs)
+            round_display = str(caliber)
+            try:
+                # If variant is a dict, prefer explicit name/variant fields
+                if isinstance(variant, dict):
+                    vname = variant.get("name") or variant.get("variant") or variant.get("variant_name")
+                    if vname:
+                        round_display = f"{caliber} {vname}"
+                # If variant is a list/tuple, join string parts
+                elif isinstance(variant, (list, tuple)):
+                    try:
+                        parts = [str(x).strip() for x in variant if x is not None]
+                        if parts:
+                            round_display = f"{caliber} {' '.join(parts)}"
+                    except Exception:
+                        pass
+                elif isinstance(variant, str) and variant and variant != "Unknown":
+                    maybe = variant.strip()
+                    # If the variant is a simple clean string (no dict/list/artifacts), use it directly
+                    try:
+                        simple = True
+                        # treat as non-simple if it contains typical repr/artifact characters
+                        for ch in "{}[](),'\"":
+                            if ch in maybe:
+                                simple = False
+                                break
+                        # also treat as non-simple if it contains the word 'caliber' or 'variant'
+                        if "caliber" in maybe.lower() or "variant" in maybe.lower():
+                            simple = False
+                        if simple and maybe:
+                            round_display = f"{caliber} {maybe}"
+                            # short-circuit further parsing
+                            maybe = None
+                    except Exception:
+                        pass
+                    if not maybe:
+                        # already handled as clean variant
+                        pass
+                    else:
+                        parsed = None
+                    parsed = None
+                    # Try to safely parse common reprs (dict, list, tuple)
+                    if maybe[0] in ("{", "[", "("):
+                        try:
+                            import ast as _ast
+                            parsed = _ast.literal_eval(maybe)
+                        except Exception:
+                            parsed = None
+                    if isinstance(parsed, dict):
+                        vname = parsed.get("name") or parsed.get("variant") or parsed.get("variant_name")
+                        if vname:
+                            round_display = f"{caliber} {vname}"
+                        elif parsed.get("caliber") and parsed.get("variant"):
+                            round_display = f"{parsed.get('caliber')} {parsed.get('variant')}"
+                    elif isinstance(parsed, (list, tuple)):
+                        try:
+                            parts = [str(x).strip() for x in parsed if x is not None]
+                            if parts:
+                                round_display = f"{caliber} {' '.join(parts)}"
+                        except Exception:
+                            pass
+                    else:
+                        # Try regex extraction for patterns like "variant': 'M855 Ball'" or "variant: \"M855 Ball\""
+                        try:
+                            import re as _re
+                            m = _re.search(r"variant\s*[:=]\s*['\"]([^'\"]+)['\"]", maybe, _re.IGNORECASE)
+                            if m:
+                                round_display = f"{caliber} {m.group(1)}"
+                            else:
+                                # Fallback: split naive comma-separated entries and strip quotes
+                                cleaned = maybe
+                        except Exception:
+                            cleaned = maybe
+                        # Remove surrounding braces/brackets/parentheses
+                        if (cleaned.startswith("{") and cleaned.endswith("}")) or (cleaned.startswith("[") and cleaned.endswith("]")) or (cleaned.startswith("(") and cleaned.endswith(")")):
+                            cleaned = cleaned[1:-1]
+                        # Split by comma and pick meaningful tokens
+                        parts = [p.strip().strip("'\"") for p in cleaned.split(",") if p.strip()]
+                        if len(parts) == 1:
+                            if parts[0]:
+                                round_display = f"{caliber} {parts[0]}"
+                        elif len(parts) >= 2:
+                            # Often reprs are like "'caliber', 'variant'" -> pick last token
+                            candidate = parts[-1]
+                            try:
+                                import re as _re
+                                # Extract quoted substring if present
+                                m = _re.search(r"['\"]([^'\"]+)['\"]", candidate)
+                                if m:
+                                    candidate = m.group(1)
+                                else:
+                                    # Extract after 'variant' key if present
+                                    m2 = _re.search(r"variant\s*[:=]\s*([^,}\)\]]+)", candidate, _re.IGNORECASE)
+                                    if m2:
+                                        candidate = m2.group(1).strip().strip("'\"{}[]() ")
+                                    else:
+                                        # Fallback: strip remaining punctuation
+                                        candidate = candidate.strip().strip("'\"{}[]() ")
+                            except Exception:
+                                candidate = candidate.strip().strip("'\"{}[]() ")
+                            round_display = f"{caliber} {candidate}"
+            except Exception:
+                pass
+
+            # Final cleanup: remove stray separators/punctuation from round_display
+            try:
+                import re as _re
+                # remove trailing separators like ':' or '|' and surrounding spaces
+                round_display = _re.sub(r"[\s:|]+$", "", round_display)
+                # collapse multiple spaces
+                round_display = _re.sub(r"\s+", " ", round_display).strip()
+            except Exception:
+                try:
+                    round_display = round_display.strip()
+                except Exception:
+                    pass
+
+            # If variant still missing (round_display equals caliber only), try table lookup for common variant
+            try:
+                if round_display == str(caliber):
+                    tbl_path = os.path.join("tables", "lid.sldtbl")
+                    if os.path.exists(tbl_path):
+                        try:
+                            with open(tbl_path, 'r', encoding='utf-8') as tf:
+                                import json as _json
+                                tdata = _json.load(tf)
+                                ammo_arr = tdata.get('tables', {}).get('ammunition', [])
+                                for a in ammo_arr:
+                                    try:
+                                        if a.get('caliber') == caliber:
+                                            variants = a.get('variants') or []
+                                            if variants and isinstance(variants, list):
+                                                first = variants[0]
+                                                if isinstance(first, dict) and first.get('name'):
+                                                    round_display = f"{caliber} {first.get('name')}"
+                                                    break
+                                                elif isinstance(first, str) and first:
+                                                    round_display = f"{caliber} {first}"
+                                                    break
+                                    except Exception:
+                                        continue
+                        except Exception:
+                            pass
+            except Exception:
+                pass
+
+            # Clipboard should contain only the final modified roll and a concise context
+            clipboard_text = f"Roll: {final_total} | Weapon: {weapon_name} | Round: {round_display} | {rounds_fired} rounds fired"
             self._copy_to_clipboard(clipboard_text)
-            logging.info(f"D20 rolls: {rolls}, Median: {median}")
+            logging.info(f"D20 rolls: {rolls}, Rounded avg: {median}")
+
+            # Prepare detailed breakdown text to include in the function result
+            try:
+                popup_lines = [
+                    f"Base roll (rounded avg): {median}",
+                    f"Aim bonus: {int(round(effective_aim))}",
+                    f"Final total: {final_total}",
+                    f"Weapon: {weapon_name}",
+                    f"Round: {round_display}",
+                    f"Rounds fired: {rounds_fired}"
+                ]
+                try:
+                    if 'applied_clamp' in locals() and applied_clamp:
+                        popup_lines.insert(2, f"Bonus clamp applied: +{int(clamp_num)} (was {int(round(pre_clamp_aim))})")
+                except Exception:
+                    pass
+                roll_summary_text = "\n".join(popup_lines)
+            except Exception:
+                roll_summary_text = None
         
         # Return result message
         if jammed:
@@ -7650,9 +10644,12 @@ class App:
             return f"Fired {rounds_fired} rounds - WEAPON JAMMED! Clear jam and try again."
         else:
             if is_bolt and rounds_fired > 0 and cycle_result:
-                return f"Fired {rounds_fired} round(s) successfully - {cycle_result}."
+                base = f"Fired {rounds_fired} round(s) successfully - {cycle_result}."
             else:
-                return f"Fired {rounds_fired} rounds successfully."
+                base = f"Fired {rounds_fired} rounds successfully."
+            if roll_summary_text:
+                return f"{base}\n{roll_summary_text}"
+            return base
     
     def _reload_weapon(self, weapon, save_data, combat_reload=False):
         """Reload weapon from available magazines or internal reload."""
@@ -8176,11 +11173,11 @@ class App:
                     elif "40" in ut or "m203" in ut or "grenade" in ut:
                         defaults = {"ammo_type": "40mm_grenade", "capacity": accessory.get("capacity", 1) or 1, "reload_sound_folder": "m203", "magazinetype": accessory.get("magazinetype", "single")}
                     else:
-                        defaults = self.PLATFORM_DEFAULTS.get(platform, {"ammo_type": "40mm_grenade", "capacity": 1, "reload_sound_folder": "40mm_grenade"})
+                        defaults = self.PLATFORM_DEFAULTS.get(platform or "", {"ammo_type": "40mm_grenade", "capacity": 1, "reload_sound_folder": "40mm_grenade"})
                 else:
-                    defaults = self.PLATFORM_DEFAULTS.get(platform, {"ammo_type": "40mm_grenade", "capacity": 1, "reload_sound_folder": "40mm_grenade"})
+                    defaults = self.PLATFORM_DEFAULTS.get(platform or "", {"ammo_type": "40mm_grenade", "capacity": 1, "reload_sound_folder": "40mm_grenade"})
             except Exception:
-                defaults = self.PLATFORM_DEFAULTS.get(platform, {"ammo_type": "40mm_grenade", "capacity": 1, "reload_sound_folder": "40mm_grenade"})
+                defaults = self.PLATFORM_DEFAULTS.get(platform or "", {"ammo_type": "40mm_grenade", "capacity": 1, "reload_sound_folder": "40mm_grenade"})
 
             capacity = defaults.get("capacity", 1)
 
@@ -8353,7 +11350,7 @@ class App:
                     if storage_idx < len(storage_list):
                         container = storage_list[storage_idx]
                         if isinstance(container, dict) and container.get("items"):
-                            items_list = container.get("items")
+                            items_list = container.get("items") or []
                             if idx < len(items_list):
                                 target = items_list[idx]
                                 if isinstance(target, dict) and target.get("quantity") and isinstance(target.get("quantity"), (int, float)):
@@ -8429,7 +11426,7 @@ class App:
                             return True
                         # Check attachments/current slots
                         if obj.get("accessories") and isinstance(obj.get("accessories"), list):
-                            for a in obj.get("accessories"):
+                            for a in (obj.get("accessories") or []):
                                 cur = a.get("current")
                                 if isinstance(cur, dict) and (cur.get("id") == acc_id or cur.get("name") == acc_name):
                                     cur["_ub_loaded"] = capacity
@@ -8440,7 +11437,7 @@ class App:
                                     return True
                         # Check nested items list
                         if obj.get("items") and isinstance(obj.get("items"), list):
-                            for it in obj.get("items"):
+                            for it in (obj.get("items") or []):
                                 if isinstance(it, dict) and (it.get("id") == acc_id or it.get("name") == acc_name):
                                     it["_ub_loaded"] = capacity
                                     try:
@@ -8460,7 +11457,7 @@ class App:
                         break
                     # deeper: subslots
                     if eq_item.get("subslots"):
-                        for sub in eq_item.get("subslots"):
+                        for sub in (eq_item.get("subslots") or []):
                             cur = sub.get("current")
                             if isinstance(cur, dict) and (cur.get("id") == acc_id or cur.get("name") == acc_name):
                                 cur["_ub_loaded"] = capacity
@@ -8481,7 +11478,7 @@ class App:
                 for container in list(save_data.get("storage", [])):
                     try:
                         if isinstance(container, dict) and container.get("items"):
-                            for it in container.get("items"):
+                            for it in (container.get("items") or []):
                                 if isinstance(it, dict) and (it.get("id") == acc_id or it.get("name") == acc_name):
                                     it["_ub_loaded"] = capacity
                                     try:
@@ -8613,10 +11610,16 @@ class App:
                 else:
                     if not weapon.get("bolt_catch"):
                         self._play_weapon_action_sound(weapon, "boltback")
-                        time.sleep(0.12)
-                        if current_rounds:
-                            weapon["chambered"] = current_rounds.pop(0)
-                        self._play_weapon_action_sound(weapon, "boltforward")
+                        # If gas system melted, play forward immediately
+                        if weapon.get("gas_melted", False):
+                            if current_rounds:
+                                weapon["chambered"] = current_rounds.pop(0)
+                            self._play_weapon_action_sound(weapon, "boltforward")
+                        else:
+                            time.sleep(0.12)
+                            if current_rounds:
+                                weapon["chambered"] = current_rounds.pop(0)
+                            self._play_weapon_action_sound(weapon, "boltforward")
                     else:
                         if current_rounds:
                             weapon["chambered"] = current_rounds.pop(0)
@@ -8738,11 +11741,18 @@ class App:
                     # If gun does not have bolt catch, play boltback then boltforward
                     if not weapon.get("bolt_catch"):
                         self._play_weapon_action_sound(weapon, "boltback")
-                        time.sleep(0.12)
-                        # Chamber next round from tube/rounds
-                        if current_rounds:
-                            weapon["chambered"] = current_rounds.pop(0)
-                        self._play_weapon_action_sound(weapon, "boltforward")
+                        # If gas system melted, play forward immediately
+                        if weapon.get("gas_melted", False):
+                            # Chamber next round from tube/rounds
+                            if current_rounds:
+                                weapon["chambered"] = current_rounds.pop(0)
+                            self._play_weapon_action_sound(weapon, "boltforward")
+                        else:
+                            time.sleep(0.12)
+                            # Chamber next round from tube/rounds
+                            if current_rounds:
+                                weapon["chambered"] = current_rounds.pop(0)
+                            self._play_weapon_action_sound(weapon, "boltforward")
                     else:
                         # Boltcatch present: just cycle forward to chamber
                         if current_rounds:
@@ -8836,6 +11846,13 @@ class App:
             combat_state["barrel_cleanliness"] = {}
         
         combat_state["barrel_cleanliness"][weapon_id] = 100
+        # Repair melted gas system if present when cleaned
+        try:
+            if weapon.get("gas_melted", False):
+                weapon["gas_melted"] = False
+                logging.info("Weapon %s gas system repaired by cleaning", weapon.get("name", weapon_id))
+        except Exception:
+            pass
         
         return "Weapon cleaned and maintained."
     
@@ -8901,22 +11918,86 @@ class App:
 
         # Helper to decide compatibility
         def mag_is_compatible(mag):
+            # Reject non-dicts early
             if not mag or not isinstance(mag, dict):
                 return False
+
+            compat = False
+
             # Exact magazinesystem match
-            if magazine_system and mag.get("magazinesystem") == magazine_system:
-                return True
+            try:
+                if magazine_system and mag.get("magazinesystem") == magazine_system:
+                    compat = True
+            except Exception:
+                pass
+
             # If weapon is belt-fed, accept items explicitly marked as 'Belt' or matching beltlink
-            mag_type = str(mag.get("magazinetype", "") or "").lower()
-            if is_belt_weapon and ("belt" in mag_type):
-                return True
+            try:
+                mag_type = str(mag.get("magazinetype", "") or "").lower()
+                if is_belt_weapon and ("belt" in mag_type):
+                    compat = True
+            except Exception:
+                pass
+
             # Accept submagazine type (e.g., detachable box for dual-feed weapons)
-            if sub_mag_type and mag_type == sub_mag_type:
-                return True
+            try:
+                if sub_mag_type and mag_type == sub_mag_type:
+                    compat = True
+            except Exception:
+                pass
+
             # Fallback: if weapon has beltlink and mag has same beltlink
-            if is_belt_weapon and weapon.get("beltlink") and mag.get("beltlink") and str(mag.get("beltlink")).lower() == str(weapon.get("beltlink")).lower():
-                return True
-            return False
+            try:
+                if is_belt_weapon and weapon.get("beltlink") and mag.get("beltlink") and str(mag.get("beltlink")).lower() == str(weapon.get("beltlink")).lower():
+                    compat = True
+            except Exception:
+                pass
+
+            # If not compatible by system/type, reject now
+            if not compat:
+                return False
+
+            # If DevMode caliber selection is active, require mag to match selected caliber
+            try:
+                dev_cal_var = None
+                if isinstance(current_weapon_state, dict):
+                    dev_cal_var = current_weapon_state.get("dev_caliber_var")
+                if dev_cal_var and hasattr(dev_cal_var, 'get'):
+                    sel_cal = dev_cal_var.get()
+                    if sel_cal:
+                        def _mag_matches_cal(m, c):
+                            try:
+                                mcal = m.get("caliber")
+                                if isinstance(mcal, (list, tuple)):
+                                    for e in mcal:
+                                        try:
+                                            if str(e) == str(c):
+                                                return True
+                                        except Exception:
+                                            pass
+                                elif isinstance(mcal, str):
+                                    if str(mcal) == str(c):
+                                        return True
+                                # Check existing rounds if present
+                                rds = m.get("rounds")
+                                if isinstance(rds, list) and rds:
+                                    first = rds[0]
+                                    if isinstance(first, dict):
+                                        if str(first.get("caliber")) == str(c):
+                                            return True
+                                    elif isinstance(first, str):
+                                        if str(c) in first:
+                                            return True
+                            except Exception:
+                                pass
+                            return False
+
+                        if not _mag_matches_cal(mag, sel_cal):
+                            return False
+            except Exception:
+                pass
+
+            return True
 
         # Check hands
         for item in save_data.get("hands", {}).get("items", []):
@@ -9005,49 +12086,30 @@ class App:
             
             # Play magout sound if magazine is present
             if current_mag:
-                mag_type = weapon.get("magazinetype", "").lower()
-                platform = weapon.get("platform", "").lower()
-                if "belt" in mag_type or "belt" in platform or "m249" in platform:
-                    # Use explicit belt-fed sequence instead of legacy beltdrop
-                    try:
-                        if weapon.get("dualfeed") and (weapon.get("submagazinesystem") or weapon.get("submagazinetype")):
-                            self._perform_dualfeed_belt_reload_sequence(weapon)
-                        else:
-                            self._perform_belt_reload_sequence(weapon)
-                    except Exception:
-                        pass
-                else:
+                try:
                     self._play_weapon_action_sound(weapon, "magout")
-                time.sleep(random.uniform(1.0, 1.5))
-            
-            # For pouch sounds, skip when handling belt-fed weapons (they use cover/box/belt)
-            mag_type_tmp = weapon.get("magazinetype", "").lower()
-            platform_tmp = weapon.get("platform", "").lower()
-            is_belt_tmp = "belt" in mag_type_tmp or "belt" in platform_tmp or "m249" in platform_tmp
-            if not is_belt_tmp:
-                try:
-                    self._safe_sound_play("", "sounds/firearms/universal/pouchin.ogg")
                 except Exception:
                     pass
                 time.sleep(random.uniform(1.0, 1.5))
-                try:
-                    self._safe_sound_play("", "sounds/firearms/universal/pouchout.ogg")
-                except Exception:
-                    pass
-                time.sleep(random.uniform(1.0, 1.5))
-            else:
-                logging.debug("give_magazine: skipping pouch sounds for belt-fed weapon (platform=%s)", platform_tmp)
-            
-            # Only play magin for detachable-mag weapons. For belts, play beltfeed.
+
+            # Play pouch in/out sounds (treat all reloads as detachable-mag style)
+            try:
+                self._safe_sound_play("", "sounds/firearms/universal/pouchin.ogg")
+            except Exception:
+                pass
+            time.sleep(random.uniform(1.0, 1.5))
+            try:
+                self._safe_sound_play("", "sounds/firearms/universal/pouchout.ogg")
+            except Exception:
+                pass
+            time.sleep(random.uniform(1.0, 1.5))
+
+            # Play magin for detachable-mag weapons (skip only for internal/tube/cylinder/revolver)
             mag_type = weapon.get("magazinetype", "").lower()
             platform = weapon.get("platform", "").lower()
             if not any(k in mag_type for k in ("internal", "tube", "cylinder")) and "revolver" not in platform:
-                    if "belt" in mag_type or "belt" in platform or "m249" in platform:
-                        # Already handled by belt-fed explicit sequence; no extra insert here.
-                        pass
-                    else:
-                        self._play_weapon_action_sound(weapon, "magin")
-                        time.sleep(random.uniform(1.0, 1.5))
+                self._play_weapon_action_sound(weapon, "magin")
+                time.sleep(random.uniform(1.0, 1.5))
             
             # Bolt sounds (only if gun is empty - no chambered round and no magazine)
             if is_gun_empty:
@@ -9181,7 +12243,7 @@ class App:
         
         return False
     
-    def _reload_magazine(self, magazine, save_data):
+    def _reload_magazine(self, magazine, save_data, max_rounds=None):
         """
         Reload a magazine by inserting rounds one at a time.
         Uses bulletinsert0/1 sounds for manual reloading, or reloaderloop.ogg if reloader item present.
@@ -9193,12 +12255,93 @@ class App:
         capacity = magazine.get("capacity", 0)
         current_rounds = magazine.get("rounds", [])
         rounds_to_add = capacity - len(current_rounds)
+        if max_rounds is not None:
+            try:
+                rounds_to_add = min(int(max_rounds), rounds_to_add)
+            except Exception:
+                pass
+        initial_to_add = rounds_to_add
         
         if rounds_to_add <= 0:
             return f"Magazine already has {len(current_rounds)} rounds (capacity: {capacity})"
         
         # Check if reloader item is present
         has_reloader = self._check_for_reloader_item(save_data)
+
+        # Try to pull rounds from player's hands first (individual rounds, stacks, or other magazines/belts)
+        try:
+            hands_items = save_data.get("hands", {}).get("items", [])
+            for hi in range(len(hands_items) - 1, -1, -1):
+                if rounds_to_add <= 0:
+                    break
+                item = hands_items[hi]
+                if not isinstance(item, dict):
+                    continue
+                if item is magazine:
+                    continue
+                # Only use loose round containers: skip magazines/belts (items with magazinesystem or capacity)
+                if item.get('magazinesystem') or item.get('capacity'):
+                    continue
+
+                # Transfer from items that have a 'rounds' list (loose bags of rounds)
+                if isinstance(item.get("rounds"), list) and item.get("rounds"):
+                    take = min(rounds_to_add, len(item["rounds"]))
+                    for _ in range(take):
+                        try:
+                            r = item["rounds"].pop()
+                        except Exception:
+                            try:
+                                r = item["rounds"].pop(0)
+                            except Exception:
+                                r = None
+                        if r is not None:
+                            current_rounds.append(r)
+                            rounds_to_add -= 1
+                    if not item.get("rounds"):
+                        try:
+                            hands_items.pop(hi)
+                        except Exception:
+                            pass
+                    continue
+
+                # Transfer from stacked round items with 'quantity' (loose stacks)
+                qty = int(item.get("quantity") or 0) if isinstance(item.get("quantity"), (int, float)) else 0
+                if qty > 0 and ("caliber" in item or "name" in item):
+                    take = min(rounds_to_add, qty)
+                    for _ in range(take):
+                        r = {k: v for k, v in item.items() if k != "quantity"}
+                        current_rounds.append(r)
+                        rounds_to_add -= 1
+                    item["quantity"] = qty - take
+                    if item["quantity"] <= 0:
+                        try:
+                            hands_items.pop(hi)
+                        except Exception:
+                            pass
+                    continue
+
+                # Single loose round item (has 'caliber')
+                if item.get("caliber"):
+                    try:
+                        hands_items.pop(hi)
+                        current_rounds.append(item)
+                        rounds_to_add -= 1
+                    except Exception:
+                        pass
+        except Exception:
+            logging.exception("Failed to pull rounds from hands during reload")
+
+        # Determine how many were taken from hands
+        loaded_from_hands = initial_to_add - rounds_to_add
+
+        # If nothing was taken from hands, don't fabricate rounds; require loose rounds
+        if loaded_from_hands <= 0:
+            return "No loose rounds available in hands to reload the magazine"
+
+        # If we took some rounds from hands, commit and return (do not fabricate additional rounds)
+        if rounds_to_add > 0:
+            magazine["rounds"] = current_rounds
+            return f"Reloaded {loaded_from_hands} from hands (total: {len(current_rounds)}/{capacity})"
         
         if has_reloader:
             # Use reloader (0.1s delay, reloaderloop.ogg sound)
@@ -9235,7 +12378,8 @@ class App:
             if reloader_channel:
                 reloader_channel.stop()
             
-            message = f"Reloaded {rounds_to_add} rounds using reloader (total: {len(current_rounds)}/{capacity})"
+            loaded = initial_to_add - rounds_to_add
+            message = f"Reloaded {loaded} rounds using reloader (total: {len(current_rounds)}/{capacity})"
         else:
             # Manual reload (0.5s delay, bulletinsert0/1 sounds)
             for i in range(rounds_to_add):
@@ -9260,7 +12404,8 @@ class App:
                 
                 time.sleep(0.5)
             
-            message = f"Manually reloaded {rounds_to_add} rounds (total: {len(current_rounds)}/{capacity})"
+            loaded = initial_to_add - rounds_to_add
+            message = f"Manually reloaded {loaded} rounds (total: {len(current_rounds)}/{capacity})"
         
         magazine["rounds"] = current_rounds
         logging.info(message)
@@ -9316,7 +12461,7 @@ class App:
                     logging.error(f"Fallback theme load failed: {e2}")
             # Save appearance settings
             try:
-                appearance_settings_path = os.path.join(saves_folder, "appearance_settings.sldsv")
+                appearance_settings_path = os.path.join(saves_folder or "saves", "appearance_settings.sldsv")
                 with open(appearance_settings_path, 'w') as f:
                     json.dump(appearance_settings, f, indent=4)
                 logging.info(f"Appearance settings saved to {appearance_settings_path}")
@@ -9584,13 +12729,13 @@ class App:
         def save_settings():
             try:
                 # Save appearance settings
-                appearance_settings_path = os.path.join(saves_folder, "appearance_settings.sldsv")
+                appearance_settings_path = os.path.join(saves_folder or "saves", "appearance_settings.sldsv")
                 with open(appearance_settings_path, 'w') as f:
                     json.dump(appearance_settings, f, indent=4)
                 logging.info(f"Appearance settings saved to {appearance_settings_path}")
                 
                 # Save global variables/settings
-                settings_path = os.path.join(saves_folder, "settings.sldsv")
+                settings_path = os.path.join(saves_folder or "saves", "settings.sldsv")
                 with open(settings_path, 'w') as f:
                     json.dump(global_variables, f, indent=4)
                 logging.info(f"Global settings saved to {settings_path}")
@@ -9758,7 +12903,7 @@ class App:
             
             def add_item_to_inventory(item):
                 try:
-                    save_path = os.path.join(saves_folder, currentsave + ".sldsv")
+                    save_path = os.path.join(saves_folder or "", (currentsave or "") + ".sldsv")
                     with open(save_path, 'r') as f:
                         save_data = json.load(f)
                     
@@ -9955,7 +13100,7 @@ class App:
             return
         
         # Load DM settings for enabled enemies
-        dm_settings_path = os.path.join(saves_folder, "dm_settings.sldsv")
+        dm_settings_path = os.path.join(saves_folder or "saves", "dm_settings.sldsv")
         enabled_enemies = {}
         
         if os.path.exists(dm_settings_path):
@@ -10116,7 +13261,7 @@ class App:
             return
         
         # Load DM settings for enabled enemies
-        dm_settings_path = os.path.join(saves_folder, "dm_settings.sldsv")
+        dm_settings_path = os.path.join(saves_folder or "saves", "dm_settings.sldsv")
         enabled_enemies = {}
         
         if os.path.exists(dm_settings_path):
@@ -11344,7 +14489,7 @@ class App:
             return
         
         # Load DM settings
-        dm_settings_path = os.path.join(saves_folder, "dm_settings.sldsv")
+        dm_settings_path = os.path.join(saves_folder or "saves", "dm_settings.sldsv")
         dm_settings = {"enabled_enemies": {}}
         
         if os.path.exists(dm_settings_path):
