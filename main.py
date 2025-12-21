@@ -21,12 +21,9 @@ import math
 import time
 import secrets
 import ctypes
-try:
-    import pyperclip
-    PYPERCLIP_AVAILABLE = True
-except ImportError:
-    PYPERCLIP_AVAILABLE = False
-    logging.warning("pyperclip not installed - clipboard functionality disabled")
+import threading
+import pyperclip
+import numpy
 
 pygame.init()
 
@@ -505,6 +502,8 @@ def validate_table_ids():
 
     # Global map of id -> list of (table_file, subtable_name, item_name_or_index)
     global_id_map = {}
+    # Collect magazine compatibility errors across all files
+    magazine_errors = []
 
     for table_file in sorted(table_files):
         table_path = os.path.join(tables_dir, table_file)
@@ -514,6 +513,51 @@ def validate_table_ids():
 
             table_name = table_data.get("prettyname", table_file)
             tables = table_data.get("tables", {})
+
+            # Verify detachable-box firearms have at least one compatible magazine
+            try:
+                magazine_items = []
+                if isinstance(tables, dict):
+                    magazine_items = tables.get("magazines", []) or []
+
+                magazine_systems = set()
+                for mag in magazine_items:
+                    if isinstance(mag, dict):
+                        ms = mag.get("magazinesystem")
+                        if ms is None:
+                            continue
+                        if isinstance(ms, list):
+                            for m in ms:
+                                magazine_systems.add(str(m))
+                        else:
+                            magazine_systems.add(str(ms))
+
+                # Scan all tables for firearms that use detachable box mags
+                for subtable_name_check, items_check in tables.items():
+                    if not isinstance(items_check, list):
+                        continue
+                    for item_check in items_check:
+                        if not isinstance(item_check, dict):
+                            continue
+                        if item_check.get("firearm") and str(item_check.get("magazinetype", "")).lower() == "detachable box":
+                            f_ms = item_check.get("magazinesystem")
+                            friendly = f"Table '{table_name}': Firearm '{item_check.get('name')}' (ID {item_check.get('id')})"
+                            if f_ms is None:
+                                msg = f"{friendly} missing 'magazinesystem' field"
+                                logging.error(msg)
+                                magazine_errors.append(msg)
+                                continue
+
+                            needed = [f_ms] if not isinstance(f_ms, list) else f_ms
+                            # normalize to strings
+                            needed = [str(n) for n in needed]
+                            compatible = any(n in magazine_systems for n in needed)
+                            if not compatible:
+                                msg = f"{friendly} has no magazines matching magazinesystem(s): {needed}"
+                                logging.error(msg)
+                                magazine_errors.append(msg)
+            except Exception as e:
+                logging.warning(f"Failed to perform magazine compatibility check for '{table_file}': {e}")
 
             # Collect IDs for per-file sequential check
             file_ids = []
@@ -547,6 +591,7 @@ def validate_table_ids():
                 missing_ids = sorted(expected_ids - actual_ids)
                 logging.error(f"Table '{table_name}': ID sequence broken! Missing IDs: {missing_ids}. Last ID: {max_id}, Next ID: {next_id}")
                 show_error_dialog("ID Sequence Error", f"Table '{table_name}': ID sequence broken! Missing IDs: {missing_ids}. Last ID: {max_id}, Next ID: {next_id}")
+                logging.critical("Aborting startup due to ID sequence error.")
                 raise SystemExit("Format for table IDs is broken due to non-sequential IDs; aborting startup. Please fix/update the table.")
 
         except Exception as e:
@@ -554,14 +599,29 @@ def validate_table_ids():
 
     # After processing all files, check for duplicate IDs across files/subtables
     duplicates = {i: locs for i, locs in global_id_map.items() if len(locs) > 1}
+    duplicate_errors = []
     if duplicates:
         for dup_id, locations in duplicates.items():
             loc_str = "; ".join([f"{f}:{sub}:{name}" for f, sub, name in locations])
-            logging.error(f"Duplicate ID detected: {dup_id} used in: {loc_str}")
+            msg = f"Duplicate ID detected: {dup_id} used in: {loc_str}"
+            logging.error(msg)
+            duplicate_errors.append(msg)
 
-        # Fail fast: IDs must be unique across all tables for program correctness
-        show_error_dialog("Duplicate ID Error", "Duplicate IDs detected across tables! See log for details.")
-        raise SystemExit("Format for table IDs is broken due to duplicates; aborting startup. Please fix/update the table.")
+    # If any magazine or duplicate errors were collected, report them together and abort
+    all_errors = duplicate_errors + magazine_errors
+    if all_errors:
+        # Log all errors (already logged above for duplicates and magazines, but ensure order)
+        for err in all_errors:
+            logging.error(err)
+
+        # Prepare a concise message for the error dialog (limit to first 10 errors)
+        preview = "\n".join(all_errors[:10])
+        if len(all_errors) > 10:
+            preview += f"\n...and {len(all_errors)-10} more errors"
+
+        show_error_dialog("Table Validation Errors", f"Errors detected during table validation:\n{preview}\nSee logs for full details.")
+        logging.critical("Aborting startup due to table validation errors.")
+        raise SystemExit("Format for table tables is broken due to validation errors; aborting startup. Please fix/update the table(s).")
 
 validate_table_ids()
 
@@ -1140,6 +1200,13 @@ class App:
                         return
                     cache[sound_path] = sound
 
+                # Prepare a muffled variant cache
+                if not hasattr(self, '_muffled_sound_cache'):
+                    try:
+                        self._muffled_sound_cache = {}
+                    except Exception:
+                        self._muffled_sound_cache = {}
+
                 # Determine volume, respecting flashbang mute/fade state if active
                 try:
                     vol = 1.0
@@ -1147,11 +1214,119 @@ class App:
                     # other sounds play at the current flashbang volume (starts at 0 and fades in)
                     if getattr(self, '_flashbang_mute', False):
                         base = os.path.basename(sound_path).lower()
-                        if 'ring.ogg' in base or base.startswith('ring'):
+                        # Allow ring, explosion, and flashbang sounds to be audible at full
+                        # volume even while other sounds are muted/faded.
+                        if ('ring' in base) or ('explosion' in base) or ('flashbang' in base):
                             vol = 1.0
                         else:
                             vol = float(getattr(self, '_flashbang_volume', 0.0))
-                    sound.set_volume(max(0.0, min(1.0, vol)))
+                    # If ear protection muffle flag set, try to use a muffled sound (low-pass) if possible,
+                    # otherwise fall back to lowering volume.
+                    try:
+                        if getattr(self, '_bang_muffle', False):
+                            base = os.path.basename(sound_path).lower()
+                            is_bang = ('explosion' in base) or ('flashbang' in base) or ('bang' in base)
+                            logging.debug(f"_safe_sound_play: bang_muffle active, filename='{base}', is_bang={is_bang}")
+                            if is_bang:
+                                muffled = None
+                                try:
+                                    mcache = getattr(self, '_muffled_sound_cache', {})
+                                    muffled = mcache.get(sound_path)
+                                except Exception:
+                                    muffled = None
+
+                                if muffled is None:
+                                    try:
+                                        import numpy as _np
+                                        from numpy.fft import rfft, irfft, fftfreq
+                                        snd_arr = None
+                                        try:
+                                            snd_arr = pygame.sndarray.array(sound)
+                                        except Exception:
+                                            snd_arr = None
+
+                                        if snd_arr is None:
+                                            muffled = None
+                                        else:
+                                            try:
+                                                mixer_info = pygame.mixer.get_init()
+                                                sr = int(mixer_info[0]) if mixer_info and mixer_info[0] else 44100
+                                            except Exception:
+                                                sr = 44100
+
+                                            orig_dtype = snd_arr.dtype
+                                            snd_float = snd_arr.astype(_np.float32)
+                                            if snd_float.ndim == 1:
+                                                channels = 1
+                                                channels_data = [snd_float]
+                                            else:
+                                                channels = snd_float.shape[1]
+                                                channels_data = [snd_float[:, c] for c in range(channels)]
+
+                                            processed = []
+                                            cutoff = float(getattr(self, '_bang_muffle_cutoff', 3000.0))
+                                            for chdata in channels_data:
+                                                n = chdata.size
+                                                spec = rfft(chdata)
+                                                freqs = fftfreq(n, 1.0 / sr)[:spec.size]
+                                                spec[freqs > cutoff] = 0
+                                                proc = irfft(spec)
+                                                ir_len = int(0.03 * sr)
+                                                if ir_len > 1:
+                                                    ir = _np.exp(-_np.linspace(0, 4, ir_len))
+                                                    ir = ir / (ir.sum() + 1e-9)
+                                                    try:
+                                                        proc = _np.convolve(proc, ir, mode='same')
+                                                    except Exception:
+                                                        pass
+                                                processed.append(proc)
+
+                                            if channels == 1:
+                                                proc_arr = processed[0]
+                                            else:
+                                                proc_arr = _np.vstack(processed).T
+
+                                            try:
+                                                if _np.issubdtype(orig_dtype, _np.integer):
+                                                    info = _np.iinfo(orig_dtype)
+                                                    proc_arr = _np.clip(proc_arr, info.min, info.max)
+                                                else:
+                                                    proc_arr = _np.clip(proc_arr, -1.0, 1.0)
+                                                proc_arr = proc_arr.astype(orig_dtype)
+                                            except Exception:
+                                                try:
+                                                    proc_arr = proc_arr.astype(orig_dtype)
+                                                except Exception:
+                                                    pass
+
+                                            try:
+                                                muffled_sound = pygame.sndarray.make_sound(proc_arr)
+                                                try:
+                                                    self._muffled_sound_cache[sound_path] = muffled_sound
+                                                except Exception:
+                                                    pass
+                                                muffled = muffled_sound
+                                            except Exception:
+                                                muffled = None
+                                    except Exception:
+                                        muffled = None
+
+                                if muffled is not None:
+                                    sound = muffled
+                                    logging.debug(f"_safe_sound_play: using synthesized muffled sound for {sound_path}")
+                                else:
+                                    mv = float(getattr(self, '_bang_muffle_volume', 0.45))
+                                    vol = min(vol, mv)
+                                    logging.debug(f"_safe_sound_play: no synthesized muffled sound, capping vol to {vol}")
+                    except Exception:
+                        logging.exception('_safe_sound_play: error during muffle handling')
+                        pass
+                    final_vol = max(0.0, min(1.0, vol))
+                    try:
+                        sound.set_volume(final_vol)
+                    except Exception:
+                        logging.debug('_safe_sound_play: failed to set volume on sound object')
+                    logging.debug(f"_safe_sound_play: final volume set to {final_vol} for '{sound_path}' (flashbang_mute={getattr(self,'_flashbang_mute',False)}, bang_muffle={getattr(self,'_bang_muffle',False)})")
                 except Exception:
                     pass
 
@@ -1494,7 +1669,7 @@ class App:
                 self._play_ui_sound("click")
             except Exception:
                 pass
-            result["value"] = sel_var.get()
+            result["value"] = sel_var.get() # type: ignore
             popup.destroy()
 
         def cancel():
@@ -4326,9 +4501,34 @@ class App:
 
                 parts.append("")
                 parts.append("Aggregated weapon modifiers:")
+                # Apply stat clamp logic from table settings so displayed bonuses
+                # match the same limits used elsewhere (e.g., character creation).
+                try:
+                    stat_clamp = 20
+                    try:
+                        table_files = glob.glob(os.path.join("tables", "*.sldtbl"))
+                        if table_files:
+                            with open(table_files[0], 'r') as tf:
+                                td = json.load(tf)
+                                stat_clamp = td.get("additional_settings", {}).get("stat_clamp", stat_clamp)
+                    except Exception:
+                        pass
+                except Exception:
+                    stat_clamp = 20
+
                 if agg:
                     for k, v in agg.items():
-                        parts.append(f"  {k}: {v}")
+                        try:
+                            num = int(v) if isinstance(v, (int, float)) else int(float(v))
+                        except Exception:
+                            try:
+                                num = int(v)
+                            except Exception:
+                                num = 0
+                        # Negative minimum follows existing UI logic (-20); positive capped by stat_clamp
+                        num = max(num, -20)
+                        num = min(num, int(stat_clamp or 20))
+                        parts.append(f"  {k}: {num}")
                 else:
                     parts.append("  (none)")
 
@@ -4707,7 +4907,9 @@ class App:
             weapon_name_label.configure(text=f"Selected: {wpn.get('name', 'Unknown')}")
             for child in details_frame.winfo_children():
                 child.destroy()
-            self._display_weapon_details(details_frame, wpn, combat_state, save_data, table_data, current_weapon_state)
+            # Prefer the up-to-date global save_data if present (reloads may update it)
+            sd = globals().get('save_data') if 'save_data' in globals() else save_data
+            self._display_weapon_details(details_frame, wpn, combat_state, sd, table_data, current_weapon_state)
             # If a DevMode variant menu exists, refresh its choices to match the new weapon
             try:
                 dev_menu = current_weapon_state.get("dev_variant_menu_ref")
@@ -4799,7 +5001,8 @@ class App:
                         pass
             except Exception:
                 pass
-            self._save_combat_state(save_data)
+            sd2 = globals().get('save_data') if 'save_data' in globals() else save_data
+            self._save_combat_state(sd2)
             # Enable/disable Reload Magazine button based on hands ammo for current weapon
             try:
                 rb = current_weapon_state.get('reload_mag_btn_ref')
@@ -5428,8 +5631,6 @@ class App:
                             pass
             except Exception:
                 logging.exception("Failed to refresh mode option menu")
-            except Exception:
-                logging.exception("Failed to refresh mode option menu")
             # slider
             try:
                 # Slider only when mode_method indicates it
@@ -5915,7 +6116,7 @@ class App:
                 # Schedule single-tap action with delay to detect double-tap
                 try:
                     _rid = self.root.after(400, lambda: reload_weapon())
-                    reload_pending_id[0] = _rid  # type: ignore
+                    reload_pending_id[0] = _rid   # type: ignore
                 except Exception:
                     reload_pending_id[0] = None
         
@@ -6335,12 +6536,40 @@ class App:
                 for itm in candidates_for_slot(acc.get("slot")):
                     label = itm.get("name", "Attachment")
                     opts.append((itm, label))
-                # Preselect the currently-installed attachment if present so
-                # attachments don't appear to 'disappear' when opening the menu.
-                current_label = "None"
+
+                # Ensure the currently-installed attachment is present in the
+                # options so opening the menu doesn't inadvertently 'remove'
+                # it when the user doesn't change the selection.
                 cur = acc.get("current")
-                if cur and isinstance(cur, dict):
-                    current_label = cur.get("name", "None")
+                current_label = "None"
+                try:
+                    if cur and isinstance(cur, dict):
+                        # Try to find existing installed item in the candidate list
+                        found = False
+                        cur_id = cur.get("id")
+                        for itm, lbl in opts:
+                            try:
+                                if itm is cur:
+                                    current_label = lbl
+                                    found = True
+                                    break
+                                if isinstance(itm, dict) and cur_id is not None and itm.get("id") == cur_id:
+                                    current_label = lbl
+                                    found = True
+                                    break
+                            except Exception:
+                                pass
+                        if not found:
+                            # If not present, add the installed item to options so it remains selectable
+                            try:
+                                installed_label = cur.get("name", "Installed")
+                            except Exception:
+                                installed_label = "Installed"
+                            opts.append((cur, installed_label)) # type: ignore
+                            current_label = installed_label
+                except Exception:
+                    current_label = "None"
+
                 current_choice = customtkinter.StringVar(value=current_label)
                 option = customtkinter.CTkOptionMenu(frame, values=[o[1] for o in opts], variable=current_choice, width=220)
                 option.pack(anchor="w", pady=4)
@@ -7200,44 +7429,111 @@ class App:
 
                     # play ring immediately in its own thread so it is audible
                     try:
-                        threading.Thread(target=lambda: self._safe_sound_play('', 'sounds/misc/throwable/ring.ogg'), daemon=True).start()
+                        def _play_ring():
+                            try:
+                                logging.debug("Flashbang: spawning ring playback thread")
+                                self._safe_sound_play('', 'sounds/misc/throwable/ring.ogg')
+                                logging.debug("Flashbang: ring playback attempted")
+                            except Exception:
+                                logging.exception('Flashbang ring playback failed')
+                        threading.Thread(target=_play_ring, daemon=True).start()
                     except Exception:
-                        pass
+                        logging.exception('Failed to start ring playback thread')
 
                     # fade-in waiter: wait 7-8s then slowly raise _flashbang_volume to 1.0
-                    def _fade_in_after_delay():
-                        try:
-                            wait = random.uniform(7.0, 8.0)
-                            time.sleep(wait)
-                            steps = 20
-                            dur = 3.0
-                            step_sleep = dur / steps
-                            for i in range(1, steps + 1):
-                                try:
-                                    self._flashbang_volume = float(i) / float(steps)
-                                except Exception:
-                                    self._flashbang_volume = 1.0
-                                time.sleep(step_sleep)
-                            # disable mute
-                            try:
-                                self._flashbang_mute = False
-                                self._flashbang_volume = 1.0
-                            except Exception:
-                                pass
-                        except Exception:
-                            try:
-                                self._flashbang_mute = False
-                                self._flashbang_volume = 1.0
-                            except Exception:
-                                pass
-
                     try:
-                        threading.Thread(target=_fade_in_after_delay, daemon=True).start()
+                        # cancel any previous fade thread via event
+                        try:
+                            if hasattr(self, '_flashbang_fade_cancel') and self._flashbang_fade_cancel is not None:
+                                try:
+                                    self._flashbang_fade_cancel.set()
+                                except Exception:
+                                    pass
+                        except Exception:
+                            pass
+
+                        fade_cancel = threading.Event()
+                        self._flashbang_fade_cancel = fade_cancel
+
+                        def _fade_in_after_delay(cancel_evt=fade_cancel):
+                            try:
+                                wait = random.uniform(7.0, 8.0)
+                                # wait in small increments so we can respond to cancel
+                                waited = 0.0
+                                step_wait = 0.1
+                                while waited < wait:
+                                    if cancel_evt.is_set():
+                                        return
+                                    time.sleep(step_wait)
+                                    waited += step_wait
+
+                                steps = 20
+                                dur = 3.0
+                                step_sleep = dur / steps
+                                for i in range(1, steps + 1):
+                                    if cancel_evt.is_set():
+                                        return
+                                    try:
+                                        self._flashbang_volume = float(i) / float(steps)
+                                    except Exception:
+                                        self._flashbang_volume = 1.0
+                                    time.sleep(step_sleep)
+                                # disable mute
+                                try:
+                                    self._flashbang_mute = False
+                                    self._flashbang_volume = 1.0
+                                    # Ensure cached sounds are restored to full volume so subsequent playback isn't left low.
+                                    try:
+                                        cache = getattr(self, '_sound_cache', {}) or {}
+                                        for spath, ssound in cache.items():
+                                            try:
+                                                ssound.set_volume(1.0)
+                                            except Exception:
+                                                pass
+                                    except Exception:
+                                        pass
+                                except Exception:
+                                    pass
+                            except Exception:
+                                try:
+                                    self._flashbang_mute = False
+                                    self._flashbang_volume = 1.0
+                                except Exception:
+                                    pass
+
+                        t = threading.Thread(target=_fade_in_after_delay, daemon=True)
+                        t.start()
+                        self._flashbang_fade_thread = t
+                    except Exception:
+                        pass
+                else:
+                    # If player has ear protection, muffle bangs (lower volume) for a short time
+                    try:
+                        self._bang_muffle = True
+                        # default muffle volume (0.0-1.0)
+                        self._bang_muffle_volume = getattr(self, '_bang_muffle_volume', 0.45)
+                        # cancel previous timer if present
+                        try:
+                            prev = getattr(self, '_bang_muffle_timer', None)
+                            if prev:
+                                try:
+                                    prev.cancel()
+                                except Exception:
+                                    pass
+                        except Exception:
+                            pass
+                        # schedule removal of muffle after a short duration (5s)
+                        try:
+                            mt = threading.Timer(5.0, lambda: setattr(self, '_bang_muffle', False))
+                            mt.daemon = True
+                            mt.start()
+                            self._bang_muffle_timer = mt
+                        except Exception:
+                            pass
                     except Exception:
                         pass
 
                 # Visual effect: if no goggles, show white overlay then fade back
-                overlay = None
                 if not has_gog:
                     def _create_overlay():
                         try:
@@ -7265,44 +7561,252 @@ class App:
                         except Exception:
                             return None
 
-                    # create overlay on main thread and schedule fade via after
+                    # create or reuse overlay on main thread and schedule/cancel fade via after
                     try:
-                        overlay = None
                         def _make_and_fade():
-                            nonlocal overlay
-                            overlay = _create_overlay()
-                            # schedule fade after 7-8s then gradually reduce alpha
-                            delay = int(random.uniform(7000, 8000))
-                            def _fade_step(count=0, steps=30):
-                                try:
-                                    if overlay is None:
-                                        return
-                                    alpha = 1.0 - (float(count) / float(steps))
-                                    alpha = max(0.0, min(1.0, alpha))
+                            try:
+                                # reuse existing overlay if present: cancel its scheduled fade and reset alpha
+                                existing = getattr(self, '_flashbang_overlay', None)
+                                existing_after = getattr(self, '_flashbang_overlay_after_id', None)
+                                overlay = existing
+                                if overlay is None or not getattr(overlay, 'winfo_exists', lambda: False)():
+                                    overlay = _create_overlay()
                                     try:
-                                        overlay.attributes('-alpha', alpha)
+                                        self._flashbang_overlay = overlay
                                     except Exception:
                                         pass
-                                    if count < steps:
-                                        overlay.after(int( (3000)/steps ), lambda: _fade_step(count+1, steps))
-                                    else:
-                                        try:
-                                            overlay.destroy()
-                                        except Exception:
-                                            pass
-                                except Exception:
+                                else:
                                     try:
-                                        if overlay:
-                                            overlay.destroy()
+                                        # cancel any previously scheduled fade
+                                        if existing_after:
+                                            try:
+                                                overlay.after_cancel(existing_after)
+                                            except Exception:
+                                                pass
+                                    except Exception:
+                                        pass
+                                    try:
+                                        overlay.attributes('-alpha', 1.0)
                                     except Exception:
                                         pass
 
-                            overlay.after(delay, lambda: _fade_step(0))
+                                # schedule fade after 7-8s then gradually reduce alpha
+                                delay = int(random.uniform(7000, 8000))
+                                def _fade_step(count=0, steps=30):
+                                    try:
+                                        if not getattr(overlay, 'winfo_exists', lambda: False)():
+                                            try:
+                                                if getattr(self, '_flashbang_overlay', None) is overlay:
+                                                    self._flashbang_overlay = None
+                                                    self._flashbang_overlay_after_id = None
+                                            except Exception:
+                                                pass
+                                            return
+                                        alpha = 1.0 - (float(count) / float(steps))
+                                        alpha = max(0.0, min(1.0, alpha))
+                                        try:
+                                            overlay.attributes('-alpha', alpha)
+                                        except Exception:
+                                            pass
+                                        if count < steps:
+                                            aid = overlay.after(int((3000) / steps), lambda: _fade_step(count+1, steps))
+                                            try:
+                                                self._flashbang_overlay_after_id = aid
+                                            except Exception:
+                                                pass
+                                        else:
+                                            try:
+                                                overlay.destroy()
+                                            except Exception:
+                                                pass
+                                            try:
+                                                if getattr(self, '_flashbang_overlay', None) is overlay:
+                                                    self._flashbang_overlay = None
+                                                    self._flashbang_overlay_after_id = None
+                                            except Exception:
+                                                pass
+                                    except Exception:
+                                        try:
+                                            if overlay:
+                                                overlay.destroy()
+                                        except Exception:
+                                            pass
+
+                                try:
+                                    aid = overlay.after(delay, lambda: _fade_step(0))
+                                    try:
+                                        self._flashbang_overlay_after_id = aid
+                                    except Exception:
+                                        pass
+                                except Exception:
+                                    try:
+                                        # fallback: start immediately
+                                        _fade_step(0)
+                                    except Exception:
+                                        pass
+                            except Exception:
+                                pass
 
                         self.root.after(0, _make_and_fade)
                     except Exception:
                         pass
 
+                return True
+            except Exception:
+                return False
+
+        def _handle_fragmentation_flash_effects():
+            # very short visual flash for fragmentation grenades when no flash goggles
+            try:
+                has_gog = _has_flash_goggles()
+                if has_gog:
+                    return True
+
+                def _create_quick_flash():
+                    try:
+                        ov = customtkinter.CTkToplevel(self.root)
+                        ov.overrideredirect(True)
+                        sw = self.root.winfo_screenwidth()
+                        sh = self.root.winfo_screenheight()
+                        ov.geometry(f"{sw}x{sh}+0+0")
+                        try:
+                            ov.attributes('-topmost', True)
+                        except Exception:
+                            pass
+                        try:
+                            ov.attributes('-alpha', 1.0)
+                        except Exception:
+                            pass
+                        try:
+                            ov.configure(fg_color='white')
+                        except Exception:
+                            try:
+                                ov.configure(bg='white')
+                            except Exception:
+                                pass
+
+                        # fade out almost instantly (200-350ms)
+                        def _quick_fade(step=0, steps=6):
+                            try:
+                                if not getattr(ov, 'winfo_exists', lambda: False)():
+                                    return
+                                alpha = 1.0 - (float(step) / float(steps))
+                                alpha = max(0.0, min(1.0, alpha))
+                                try:
+                                    ov.attributes('-alpha', alpha)
+                                except Exception:
+                                    pass
+                                if step < steps:
+                                    ov.after(int(random.uniform(30, 60)), lambda: _quick_fade(step+1, steps))
+                                else:
+                                    try:
+                                        ov.destroy()
+                                    except Exception:
+                                        pass
+                            except Exception:
+                                try:
+                                    ov.destroy()
+                                except Exception:
+                                    pass
+
+                        # start fade almost immediately
+                        ov.after(int(random.uniform(30, 60)), lambda: _quick_fade(1, 6))
+                        return ov
+                    except Exception:
+                        return None
+
+                try:
+                    # if ear protection present, muffle the fragmentation bang briefly
+                    try:
+                        if _has_ear_protection():
+                            try:
+                                self._bang_muffle = True
+                                self._bang_muffle_volume = getattr(self, '_bang_muffle_volume', 0.45)
+                                prev = getattr(self, '_bang_muffle_timer', None)
+                                if prev:
+                                    try:
+                                        prev.cancel()
+                                    except Exception:
+                                        pass
+                                mt = threading.Timer(3.0, lambda: setattr(self, '_bang_muffle', False))
+                                mt.daemon = True
+                                mt.start()
+                                self._bang_muffle_timer = mt
+                            except Exception:
+                                pass
+                    except Exception:
+                        pass
+
+                    self.root.after(0, _create_quick_flash)
+                except Exception:
+                    pass
+                return True
+            except Exception:
+                return False
+
+        def _handle_goggle_dark_flash_effects():
+            # short darkening flash for users wearing flash goggles
+            try:
+                # only if goggles present
+                if not _has_flash_goggles():
+                    return False
+
+                def _create_quick_dark():
+                    try:
+                        ov = customtkinter.CTkToplevel(self.root)
+                        ov.overrideredirect(True)
+                        sw = self.root.winfo_screenwidth()
+                        sh = self.root.winfo_screenheight()
+                        ov.geometry(f"{sw}x{sh}+0+0")
+                        try:
+                            ov.attributes('-topmost', True)
+                        except Exception:
+                            pass
+                        # start semi-transparent black
+                        try:
+                            ov.attributes('-alpha', 0.8)
+                        except Exception:
+                            pass
+                        try:
+                            ov.configure(fg_color='black')
+                        except Exception:
+                            try:
+                                ov.configure(bg='black')
+                            except Exception:
+                                pass
+
+                        # fade out quickly (200-400ms)
+                        def _quick_fade(step=0, steps=6):
+                            try:
+                                if not getattr(ov, 'winfo_exists', lambda: False)():
+                                    return
+                                alpha = max(0.0, min(1.0, 0.8 * (1.0 - float(step) / float(steps))))
+                                try:
+                                    ov.attributes('-alpha', alpha)
+                                except Exception:
+                                    pass
+                                if step < steps:
+                                    ov.after(int(random.uniform(30, 70)), lambda: _quick_fade(step+1, steps))
+                                else:
+                                    try:
+                                        ov.destroy()
+                                    except Exception:
+                                        pass
+                            except Exception:
+                                try:
+                                    ov.destroy()
+                                except Exception:
+                                    pass
+
+                        ov.after(int(random.uniform(20, 60)), lambda: _quick_fade(1, 6))
+                        return ov
+                    except Exception:
+                        return None
+
+                try:
+                    self.root.after(0, _create_quick_dark)
+                except Exception:
+                    pass
                 return True
             except Exception:
                 return False
@@ -7393,6 +7897,20 @@ class App:
                 # Detonate / effect
                 if typ == 'fragmentation':
                     try:
+                        # short flash for fragmentation grenades (instant decay)
+                        try:
+                            _handle_fragmentation_flash_effects()
+                        except Exception:
+                            pass
+                        # if goggles present, show a short darken instead of cancelling
+                        try:
+                            if _has_flash_goggles():
+                                try:
+                                    _handle_goggle_dark_flash_effects()
+                                except Exception:
+                                    pass
+                        except Exception:
+                            pass
                         self._safe_sound_play('', 'sounds/misc/throwable/explosion.ogg')
                     except Exception:
                         pass
@@ -7406,6 +7924,15 @@ class App:
                     try:
                         _handle_flashbang_effects(bang_count=1)
                         self._safe_sound_play('', 'sounds/misc/throwable/flashbang.ogg')
+                        try:
+                            # if goggles present, show a short darken per flash
+                            if _has_flash_goggles():
+                                try:
+                                    _handle_goggle_dark_flash_effects()
+                                except Exception:
+                                    pass
+                        except Exception:
+                            pass
                     except Exception:
                         pass
                 elif typ in ('9-bang', '9bang', '9_bang'):
@@ -7414,6 +7941,15 @@ class App:
                         for i in range(9):
                             try:
                                 self._safe_sound_play('', 'sounds/misc/throwable/flashbang.ogg')
+                                # if goggles present, darken briefly for this flash
+                                try:
+                                    if _has_flash_goggles():
+                                        try:
+                                            _handle_goggle_dark_flash_effects()
+                                        except Exception:
+                                            pass
+                                except Exception:
+                                    pass
                             except Exception:
                                 pass
                             if i < 8:
@@ -7781,6 +8317,140 @@ class App:
                     logging.exception("DevMode debug failed: %s", e)
 
             customtkinter.CTkButton(devmode_frame, text="Debug Variants", command=devmode_debug, width=140).pack(side="left", padx=8)
+            
+            def add_all_throwables():
+                try:
+                    # find throwable templates in table_data by type or category
+                    found = []
+                    tables = table_data.get("tables", {}) if table_data else {}
+                    for tname, items in tables.items():
+                        try:
+                            for it in items:
+                                try:
+                                    typ = str(it.get('type', '')).lower()
+                                    if typ in ('fragmentation', 'smoke', 'stun', '9-bang', '9bang', '9_bang'):
+                                        item_copy = it.copy()
+                                        item_copy = add_subslots_to_item(item_copy)
+                                        found.append(item_copy)
+                                except Exception:
+                                    pass
+                        except Exception:
+                            pass
+
+                    if not found:
+                        # fallback: create simple throwable entries
+                        found = [
+                            {"name": "Fragmentation Grenade", "type": "fragmentation", "fuse": 3},
+                            {"name": "Smoke Grenade", "type": "smoke", "fuse": 3},
+                            {"name": "Stun Grenade", "type": "stun", "fuse": 3},
+                            {"name": "9-Bang", "type": "9-bang", "fuse": 3},
+                        ]
+
+                    # Validate we have a save to write to
+                    if not currentsave:
+                        self._popup_show_info('DevMode Error', 'No active save to modify.', sound='error')
+                        return
+                    save_path = os.path.join(saves_folder or "", (currentsave or "") + ".sldsv")
+                    if not os.path.exists(save_path):
+                        self._popup_show_info('DevMode Error', f'Save file not found: {save_path}', sound='error')
+                        return
+
+                    # Prefer modifying in-memory `save_data` if present (keeps UI state consistent)
+                    added = 0
+                    sd = globals().get('save_data') if 'save_data' in globals() else None
+                    logging.debug(f"DevMode Add Throwables: currentsave={currentsave}, save_path={save_path}, in_memory_save_present={isinstance(sd, dict)}")
+                    if isinstance(sd, dict):
+                        try:
+                            before = len(sd.get('hands', {}).get('items', [])) if sd.get('hands') else 0
+                            sd.setdefault('hands', {})
+                            sd['hands'].setdefault('items', [])
+                            for itm in found:
+                                try:
+                                    sd['hands']['items'].append(itm.copy() if isinstance(itm, dict) else itm)
+                                    added += 1
+                                except Exception:
+                                    logging.exception('Failed to append throwable to in-memory hands')
+                            after = len(sd.get('hands', {}).get('items', []))
+                            logging.debug(f"Added to in-memory hands: before={before}, after={after}, added={added}")
+                            # ensure global reference updated (should be same object, but be explicit)
+                            try:
+                                globals()['save_data'] = sd
+                            except Exception:
+                                pass
+                            # persist using canonical saver so file format and metadata stay consistent
+                            try:
+                                self._save_file(sd)
+                            except Exception:
+                                logging.exception('Failed to persist save_data after adding throwables')
+                            # If the outer scope captured `save_data` (closure), update it in-place
+                            try:
+                                if 'save_data' in globals():
+                                    # attempt to update any existing reference used by UI closures
+                                    outer = globals().get('save_data')
+                                    if outer is not sd and isinstance(outer, dict) and isinstance(sd, dict):
+                                        outer.clear()
+                                        outer.update(sd)
+                                        globals()['save_data'] = outer
+                                        logging.debug('Synchronized global save_data object in-place after in-memory save')
+                            except Exception:
+                                logging.exception('Failed to synchronize save_data object in-place')
+                        except Exception:
+                            logging.exception('Failed to add throwables to in-memory save_data')
+                    else:
+                        # fallback: operate on file-only save
+                        try:
+                            with open(save_path, 'r') as f:
+                                file_sd = json.load(f)
+                        except Exception:
+                            file_sd = {}
+                        try:
+                            before = len(file_sd.get('hands', {}).get('items', [])) if file_sd.get('hands') else 0
+                            file_sd.setdefault('hands', {})
+                            file_sd['hands'].setdefault('items', [])
+                            for itm in found:
+                                try:
+                                    file_sd['hands']['items'].append(itm.copy() if isinstance(itm, dict) else itm)
+                                    added += 1
+                                except Exception:
+                                    logging.exception('Failed to append throwable to save file hands')
+                            after = len(file_sd.get('hands', {}).get('items', []))
+                            logging.debug(f"Added to file hands: before={before}, after={after}, added={added}")
+                            # persist using canonical saver so file format and metadata stay consistent
+                            try:
+                                self._save_file(file_sd)
+                            except Exception:
+                                logging.exception('Failed to persist save file after adding throwables')
+                            # reload into memory so UI reflects changes
+                            try:
+                                loaded = self._load_file(currentsave)
+                                if loaded and isinstance(loaded, dict):
+                                    # assign into globals
+                                    globals()['save_data'] = loaded
+                                    logging.debug('Reloaded save into memory after DevMode add_all_throwables')
+                                    # also try to update any enclosing `save_data` reference the UI may be using
+                                    try:
+                                        # if a captured `save_data` variable exists in this scope, update it in-place
+                                        if isinstance(save_data, dict):
+                                            save_data.clear()
+                                            save_data.update(loaded)
+                                            logging.debug('Updated enclosing save_data object in-place after reload')
+                                    except Exception:
+                                        logging.debug('No enclosing save_data to update in-place or update failed')
+                            except Exception:
+                                logging.exception('Failed to reload save into memory after adding throwables')
+                        except Exception:
+                            logging.exception('Failed to add throwables to save file')
+
+                    self._popup_show_info('DevMode', f'Added {added} throwables to hands', sound='success')
+                    try:
+                        update_weapon_view()
+                    except Exception:
+                        pass
+                except Exception as e:
+                    logging.exception('Failed to add throwables: %s', e)
+                    self._popup_show_info('DevMode Error', str(e), sound='error')
+
+            customtkinter.CTkButton(devmode_frame, text="Add All Throwables", command=add_all_throwables, width=160).pack(side="left", padx=8)
             
             def reset_temperature():
                 try:
@@ -8540,6 +9210,21 @@ class App:
                 weapon["_active_modifiers"] = {"stats": {}}
             except Exception:
                 pass
+        # Debug: log resulting action and installed accessories to aid troubleshooting
+        try:
+            wid = str(weapon.get("id"))
+            act = weapon.get("action")
+            acc_names = []
+            for a in weapon.get("accessories", []) or []:
+                try:
+                    cur = a.get("current")
+                    if cur and isinstance(cur, dict):
+                        acc_names.append(cur.get("name") or str(cur.get("id") or "?"))
+                except Exception:
+                    pass
+            logging.debug("_apply_item_overrides: weapon id=%s action=%s installed_attachments=%s", wid, act, acc_names)
+        except Exception:
+            pass
     
     def _display_weapon_details(self, parent, weapon, combat_state, save_data, table_data, current_weapon_state=None):
         """Display detailed information about the selected weapon."""
@@ -8607,7 +9292,7 @@ class App:
                 # try to resolve the accessory object from save_data using stored id/name
                 aid = active.get("accessory_id")
                 aname = active.get("accessory_name")
-                parent_slot = equipped_weapons[combat_state.get("current_weapon_index")].get("slot", "") # type: ignore
+                parent_slot = equipped_weapons[combat_state.get("current_weapon_index")].get("slot", "")
                 if "->" in parent_slot:
                     parent_slot = parent_slot.split("->")[0].strip()
                 parent_item = save_data.get("equipment", {}).get(parent_slot)
@@ -9564,22 +10249,15 @@ class App:
         return rolls, rounded
     
     def _copy_to_clipboard(self, text):
-        """Copy text to clipboard if pyperclip is available."""
-        if PYPERCLIP_AVAILABLE:
-            try:
-                # Import here to avoid module being considered possibly-unbound by static checkers
-                import pyperclip as _pyperclip
-                _pyperclip.copy(text)
-                logging.info(f"Copied to clipboard: {text}")
-                return True
-            except Exception as e:
-                logging.warning(f"Failed to copy to clipboard: {e}")
-                return False
-        else:
-            logging.info(f"Clipboard copy requested but pyperclip not available: {text}")
+        try:
+            pyperclip.copy(text)
+            logging.info(f"Copied to clipboard: {text}")
+            return True
+        except Exception as e:
+            logging.warning(f"Failed to copy to clipboard: {e}")
             return False
     
-    def _fire_weapon(self, weapon, combat_state, rounds_to_fire=3, fire_mode=None, save_data=None):
+    def _fire_weapon(self, weapon, combat_state, rounds_to_fire=3, fire_mode=None, save_data=None): # type: ignore
         """Fire weapon and handle barrel temperature, jamming, etc."""
         weapon_id = str(weapon.get("id"))
         logging.info(
@@ -12913,15 +13591,27 @@ class App:
                     # Add subslots if applicable
                     item_to_add = add_subslots_to_item(item_to_add)
                     
-                    # Add to storage
-                    save_data["storage"].append(item_to_add)
-                    
+                    # Ensure hands container exists and add item to hands (DevMode expects immediate hands placement)
+                    try:
+                        save_data.setdefault("hands", {})
+                        save_data["hands"].setdefault("items", [])
+                        save_data["hands"]["items"].append(item_to_add)
+                        added_location = "hands"
+                    except Exception:
+                        # fallback to storage if hands can't be used
+                        try:
+                            save_data.setdefault("storage", [])
+                            save_data["storage"].append(item_to_add)
+                            added_location = "storage"
+                        except Exception:
+                            added_location = "unknown"
+
                     # Save
                     with open(save_path, 'w') as f:
                         json.dump(save_data, f, indent=4)
-                    
-                    logging.info(f"Added item ID {item.get('id')} ({item.get('name')}) to storage")
-                    self._popup_show_info("Success", f"Added '{item.get('name')}' to storage!", sound="success")
+
+                    logging.info(f"Added item ID {item.get('id')} ({item.get('name')}) to {added_location}")
+                    self._popup_show_info("Success", f"Added '{item.get('name')}' to {added_location}!", sound="success")
                 except Exception as e:
                     logging.error(f"Failed to add item: {e}")
                     self._popup_show_info("Error", f"Failed to add item: {e}", sound="error")

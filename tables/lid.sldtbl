@@ -45,6 +45,7 @@
                     {"name": "Picatinny Rail (Handguard Left)", "slot": "picatinny_rifle", "current": null},
                     {"name": "Picatinny Rail (Handguard Right)", "slot": "picatinny_rifle", "current": null},
                     {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom", "current": null},
+                    {"name": "Bayonet Lug", "slot": "bayonet_mount_ar15", "current": null, "conflicts_with": ["muzzle_556"]},    
                     {"name": "Muzzle Device", "slot": "muzzle_556", "current": null}
                 ],
                 "can_stack": false
@@ -185,7 +186,7 @@
                 "bolt": "closed",
                 "cyclic": 60,
                 "jamrate": 0.005,
-                "acccessories": [
+                "accessories": [
                     {"name": "Plateforme d'accessoires de la Manufacture d'armes de Solle", "slot": "pams_mount", "current": null}
                 ],
                 "can_stack": false
@@ -209,8 +210,190 @@
                 "bolt": "closed",
                 "cyclic": 10,
                 "jamrate": 0.002,
-                "acccessories": [
+                "accessories": [
                     {"name": "Plateforme d'accessoires de la Manufacture d'armes de Solle", "slot": "pams_mount", "current": null}
+                ],
+                "can_stack": false
+            },
+            {
+                "name": "Knight's Armament SR-25 K5",
+                "value": 4500,
+                "description": "A high-end civilian semi-automatic AR-10, firing 7.62x51mm NATO. This one has a 14.5 inch carbine barrel.",
+                "rarity": "Legendary",
+                "random_quantity": false,
+                "weight": 4.3,
+                "id": 98,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "AR-10",
+                "caliber": ["7.62x51mm NATO"],
+                "action": ["Semi"],
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 600,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "AR-10",
+                "jamrate": 0.001,
+                "accessories": [
+                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": null},
+                    {"name": "Picatinny Rail (Handguard Top)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "MLOK Mounts (Handguard Left)", "slot": "mlok_rifle", "current": null},
+                    {"name": "MLOK Mounts (Handguard Right)", "slot": "mlok_rifle", "current": null},
+                    {"name": "MLOK Mounts (Handguard Bottom)", "slot": "mlok_bottom", "current": null},
+                    {"name": "AR-15 Auto Sear", "slot": "ar15_auto_sear", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
+                ],
+                "can_stack": false
+            },
+            {
+                "name": "Armalite AR-10 20\" Tactical Rifle",
+                "value": 2500,
+                "description": "A civilian semi-automatic AR-10, firing 7.62x51mm NATO. This one has a 20 inch barrel for improved accuracy at range.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 4.5,
+                "id": 99,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "AR-10",
+                "caliber": ["7.62x51mm NATO"],
+                "action": ["Semi"],
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 600,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "AR-10",
+                "jamrate": 0.01,
+                "accessories": [
+                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": null},
+                    {"name": "Picatinny Rail (Handguard Top)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "MLOK Mounts (Handguard Left)", "slot": "mlok_rifle", "current": null},
+                    {"name": "MLOK Mounts (Handguard Right)", "slot": "mlok_rifle", "current": null},
+                    {"name": "MLOK Mounts (Handguard Bottom)", "slot": "mlok_bottom", "current": null},
+                    {"name": "AR-15 Auto Sear", "slot": "ar15_auto_sear", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
+                ],
+                "can_stack": false
+            },
+            {
+                "name": "SIG Sauer MCX Spear",
+                "value": 4200,
+                "description": "A civilian semi-automatic rifle based on the MCX platform, chambered in 7.62x51mm NATO.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 3.8,
+                "id": 100,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "MCX",
+                "caliber": ["7.62x51mm NATO"],
+                "action": ["Semi"],
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 500,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "MCX-Spear",
+                "jamrate": 0.01,
+                "accessories": [
+                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": null},
+                    {"name": "Picatinny Rail (Handguard Top)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "MLOK Mounts (Handguard Left)", "slot": "mlok_rifle", "current": null},
+                    {"name": "MLOK Mounts (Handguard Right)", "slot": "mlok_rifle", "current": null},
+                    {"name": "MLOK Mounts (Handguard Bottom)", "slot": "mlok_bottom", "current": null},
+                    {"name": "AR-15 Auto Sear", "slot": "ar15_auto_sear", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
+                ],
+                "can_stack": false
+            },
+            {
+                "name": "Spike's Tactical 10th Anniversary AR-15",
+                "value": 8500,
+                "description": "A civilian semi-automatic AR-15, firing 5.56x45mm NATO. A special edition model released to commemorate Spike's Tactical's 10th anniversary.",
+                "rarity": "Mythic",
+                "random_quantity": false,
+                "weight": 3.2,
+                "id": 106,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "AR-15",
+                "caliber": ["5.56x45mm NATO"],
+                "action": ["Semi"],
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 900,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "STANAG 4179",
+                "jamrate": 0.001,
+                "accessories": [
+                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": null},
+                    {"name": "Picatinny Rail (Handguard Top)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Left)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Right)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom", "current": null},
+                    {"name": "AR-15 Auto Sear", "slot": "ar15_auto_sear", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_556", "current": null}
+                ],
+                "can_stack": false
+            },
+            {
+                "name": "Colt M16A1",
+                "value": 1750,
+                "description": "A classic from the Vietnam War era, chambered in 5.56x45mm NATO. Known best for jamming in the jungle.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 3.4,
+                "id": 114,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "AR-15",
+                "caliber": ["5.56x45mm NATO"],
+                "action": ["Semi", "Auto"],
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 800,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "STANAG 4179",
+                "jamrate": 0.02,
+                "accessories": [
+                    {"name": "Carry Handle Mount", "slot": "m16_carryhandle", "current": null},
+                    {"name": "Bayonet Lug", "slot": "bayonet_mount_ar15", "current": null, "conflicts_with": ["muzzle_556"]},                    
+                    {"name": "Muzzle Device", "slot": "muzzle_556", "current": null}
+                ],
+                "can_stack": false
+            },
+            {
+                "name": "M4 SOPMOD II",
+                "value": 2000,
+                "description": "An upgraded M4 carbine with a different handguard and stock. This model has a 14.5\" barrel and was meant to have accessories, which this one does not come with.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 3,
+                "id": 116,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "AR-15",
+                "caliber": ["5.56x45mm NATO"],
+                "action": ["Semi", "Burst"],
+                "burst_count": 3,
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 850,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "STANAG 4179",
+                "jamrate": 0.01,
+                "accessories": [
+                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": null},
+                    {"name": "Picatinny Rail (Handguard Top)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Left)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Right)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_556", "current": null}
                 ],
                 "can_stack": false
             }
@@ -331,7 +514,7 @@
                 "bolt": "closed",
                 "cyclic": 800,
                 "jamrate": 0.01,
-                "acccessories": [
+                "accessories": [
                     {"name": "Plateforme d'accessoires de la Manufacture d'armes de Solle", "slot": "pams_mount", "current": null}
                 ],
                 "can_stack": false
@@ -642,7 +825,7 @@
                 "bolt": "closed",
                 "cyclic": 1500,
                 "jamrate": 0.01,
-                "acccessories": [
+                "accessories": [
                     {"name": "Plateforme d'accessoires de la Manufacture d'armes de Solle", "slot": "pams_mount", "current": null}
                 ],
                 "can_stack": false
@@ -945,7 +1128,7 @@
                 "bolt": "closed",
                 "cyclic": 500,
                 "jamrate": 0.01,
-                "acccessories": null,
+                "accessories": null,
                 "can_stack": false
             }
         ],
@@ -1128,6 +1311,156 @@
                 "electronic": true,
                 "battery_type": "Rechargeable",
                 "battery_life": 8,
+                "can_stack": false
+            },
+            {
+                "name": "AR-15 Auto Sear",
+                "value": 15,
+                "description": "A small metal piece that allows an AR-15 rifle to fire in fully automatic mode when installed.",
+                "rarity": "Legendary",
+                "random_quantity": false,
+                "weight": 0.05,
+                "id": 105,
+                "attachment": true,
+                "slot": "ar15_auto_sear",
+                "overrides": {
+                    "action": ["Semi", "Auto"]
+                },
+                "can_stack": false
+            },
+            {
+                "name": "Leopuld VX-6HD GEN 2 3-18x50mm Scope",
+                "value": 1500,
+                "description": "High magnification variable optic providing enhanced target acquisition at long ranges. Mounts to a picatinny rail.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 0.75,
+                "id": 107,
+                "attachment": true,
+                "slot": "picatinny_optic",
+                "modes": [
+                    {"name": "3x", "type": "magnification", "usage": null, "modifiers": {"stats": {"aim": 2}, "night_vision_compatible": false}, "position": 0},
+                    {"name": "6x", "type": "magnification", "usage": null, "modifiers": {"stats": {"aim": 3}, "night_vision_compatible": false}, "position": 45},
+                    {"name": "9x", "type": "magnification", "usage": null, "modifiers": {"stats": {"aim": 4}, "night_vision_compatible": false}, "position": 90},
+                    {"name": "12x", "type": "magnification", "usage": null, "modifiers": {"stats": {"aim": 5}, "night_vision_compatible": false}, "position": 135},
+                    {"name": "15x", "type": "magnification", "usage": null, "modifiers": {"stats": {"aim": 6}, "night_vision_compatible": false}, "position": 180},
+                    {"name": "18x", "type": "magnification", "usage": null, "modifiers": {"stats": {"aim": 7}, "night_vision_compatible": false}, "position": 225},
+                    {"mode_method": "dial"}
+                ]
+            },
+            {
+                "name": "Magpul AFG-2 Angled Foregrip",
+                "value": 35,
+                "description": "Angled foregrip that improves weapon handling and reduces recoil. Mounts to a picatinny rail.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.2,
+                "id": 108,
+                "attachment": true,
+                "slot": ["picatinny_bottom", "picatinny_bottom_nounderbarrel"],
+                "modifiers": {"stats": {"aim": 1}},
+                "can_stack": false
+            },
+            {
+                "name": "Magpul M-LOK AFG Angled Foregrip",
+                "value": 25,
+                "description": "Angled foregrip that improves weapon handling and reduces recoil. Mounts to an M-LOK handguard.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.2,
+                "id": 109,
+                "attachment": true,
+                "slot": ["mlok_bottom", "mlok_bottom_nounderbarrel"],
+                "modifiers": {"stats": {"aim": 1}},
+                "can_stack": false
+            },
+            {
+                "name": "Magpul RVG Vertical Foregrip",
+                "value": 25,
+                "description": "Vertical foregrip that improves weapon handling and reduces recoil. Mounts to a picatinny rail.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.2,
+                "id": 110,
+                "attachment": true,
+                "slot": ["picatinny_bottom", "picatinny_bottom_nounderbarrel"],
+                "modifiers": {"stats": {"aim": 1}},
+                "can_stack": false
+            },
+            {
+                "name": "Magpul M-LOK MVG Vertical Foregrip",
+                "value": 20,
+                "description": "Vertical foregrip that improves weapon handling and reduces recoil. Mounts to an M-LOK handguard.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.2,
+                "id": 111,
+                "attachment": true,
+                "slot": ["mlok_bottom", "mlok_bottom_nounderbarrel"],
+                "modifiers": {"stats": {"aim": 1}},
+                "can_stack": false
+            },
+            {
+                "name": "Spike's Tactical ST6Ti 5.56mm Suppressor",
+                "value": 1500,
+                "description": "5.56mm suppressor that hides muzzle flash and dampens sound.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 0.35,
+                "id": 112,
+                "attachment": true,
+                "slot": "muzzle_556",
+                "suppressor": true,
+                "modifiers": {"stats": {"stealth": 2}},
+                "can_stack": false
+            },
+            {
+                "name": "EOTech SU-231/PEQ Holographic Sight",
+                "value": 900,
+                "description": "Holographic sight providing rapid target acquisition at close to medium ranges. Mounts to a picatinny rail.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 0.7,
+                "id": 118,
+                "attachment": true,
+                "slot": "picatinny_optic",
+                "modifiers": {"stats": {"aim": 2}},
+                "magnified": false,
+                "variable": false,
+                "night_vision_compatible": true,
+                "subslots": [
+                    {"name": "Magnifier", "slot": "magnifier", "current": null}
+                ],
+                "can_stack": false
+            },
+            {
+                "name": "Insight AN/PEQ-2 IR laser",
+                "value": 1500,
+                "description": "Infrared laser designator for use with night vision devices. Mounts to a picatinny rail.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 0.25,
+                "id": 119,
+                "attachment": true,
+                "slot": "picatinny_rifle",
+                "modifiers": {"stats": {"aim": 1}},
+                "electronic": true,
+                "battery_type": "CR123A",
+                "battery_life": 5,
+                "can_stack": false
+            },
+            {
+                "name": "SIG NG556-QD Suppressor",
+                "value": 1300,
+                "description": "5.56mm suppressor that hides muzzle flash and dampens sound.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 0.38,
+                "id": 121,
+                "attachment": true,
+                "slot": "muzzle_556",
+                "suppressor": true,
+                "modifiers": {"stats": {"stealth": 2}},
                 "can_stack": false
             }
         ],
@@ -1862,6 +2195,58 @@
                 "capacity": 100,
                 "magazinesystem": "STANAG 8556",
                 "can_stack": false
+            },
+            {
+                "name": "SIG Sauer MCX-Spear 20 Round Multi-Caliber Magazine",
+                "value": 100,
+                "description": "20 round multi-caliber magazine for the SIG Sauer MCX-Spear rifle.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 0.3,
+                "id": 101,
+                "caliber": ["6.5x45mm Colt", "7.62x51mm NATO"],
+                "capacity": 20,
+                "magazinesystem": "MCX-Spear",
+                "can_stack": false
+            },
+            {
+                "name": "Armalite USGI 10-Round 7.62x51mm NATO AR-10 magazine",
+                "value": 20,
+                "description": "Reduced size 10-round magazine for 7.62x51mm NATO chambered AR-10 rifles.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.3,
+                "id": 104,
+                "caliber": ["7.62x51mm NATO"],
+                "capacity": 10,
+                "magazinesystem": "AR-10",
+                "can_stack": false
+            },
+            {
+                "name": "Armalite USGI 20-Round 7.62x51mm NATO AR-10 magazine",
+                "value": 30,
+                "description": "Standard 20-round magazine for 7.62x51mm NATO chambered AR-10 rifles.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 0.35,
+                "id": 102,
+                "caliber": ["7.62x51mm NATO"],
+                "capacity": 20,
+                "magazinesystem": "AR-10",
+                "can_stack": false
+            },
+            {
+                "name": "Armalite USGI 30-Round 7.62x51mm NATO AR-10 magazine",
+                "value": 40,
+                "description": "Extended 30-round magazine for 7.62x51mm NATO chambered AR-10 rifles.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 0.4,
+                "id": 103,
+                "caliber": ["7.62x51mm NATO"],
+                "capacity": 30,
+                "magazinesystem": "AR-10",
+                "can_stack": false
             }
         ],
         "melee": [
@@ -1982,6 +2367,131 @@
                 "infinite_ammo": true,
                 "mag_to_load": 13,
                 "custom_equip_sound": "sounds/firearms/weaponsounds/famas/french.ogg"
+            },
+            {
+                "name": "Spike's Tactical 10th Anniversary AR-15",
+                "value": 8500,
+                "description": "A civilian semi-automatic AR-15, firing 5.56x45mm NATO. Something feels very... bitter about this gun.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 3.2,
+                "id": 113,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "AR-15",
+                "caliber": ["5.56x45mm NATO"],
+                "action": ["Semi"],
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 900,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "STANAG 4179",
+                "jamrate": 0.001,
+                "accessories": [
+                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": {"name":"Leopuld VX-6HD GEN 2 3-18x50mm Scope","value":1500,"description":"High magnification variable optic providing enhanced target acquisition at long ranges. Mounts to a picatinny rail.","rarity":"Rare","random_quantity":false,"weight":0.75,"id":107,"attachment":true,"slot":"picatinny_optic","modes":[{"name":"3x","type":"magnification","usage":null,"modifiers":{"stats":{"aim":2},"night_vision_compatible":false},"position":0},{"name":"6x","type":"magnification","usage":null,"modifiers":{"stats":{"aim":3},"night_vision_compatible":false},"position":45},{"name":"9x","type":"magnification","usage":null,"modifiers":{"stats":{"aim":4},"night_vision_compatible":false},"position":90},{"name":"12x","type":"magnification","usage":null,"modifiers":{"stats":{"aim":5},"night_vision_compatible":false},"position":135},{"name":"15x","type":"magnification","usage":null,"modifiers":{"stats":{"aim":6},"night_vision_compatible":false},"position":180},{"name":"18x","type":"magnification","usage":null,"modifiers":{"stats":{"aim":7},"night_vision_compatible":false},"position":225},{"mode_method":"dial"}]}},
+                    {"name": "Picatinny Rail (Handguard Top)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Left)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Right)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom", "current": {"name": "Magpul AFG-2 Angled Foregrip", "value": 35, "description": "Angled foregrip that improves weapon handling and reduces recoil. Mounts to a picatinny rail.", "rarity": "Common", "random_quantity": false, "weight": 0.2, "id": 108, "attachment": true, "slot": ["picatinny_bottom", "picatinny_bottom_nounderbarrel"], "modifiers": {"stats": {"aim": 1}}, "can_stack": false}},
+                    {"name": "AR-15 Auto Sear", "slot": "ar15_auto_sear", "current": {"name": "AR-15 Auto Sear", "value": 15, "description": "A small metal piece that allows an AR-15 rifle to fire in fully automatic mode when installed.", "rarity": "Legendary", "random_quantity": false, "weight": 0.05, "id": 105, "attachment": true, "slot": "ar15_auto_sear", "overrides": {"action": ["Semi", "Auto"]}, "can_stack": false}},
+                    {"name": "Muzzle Device", "slot": "muzzle_556", "current": {"name": "Spike's Tactical ST6Ti 5.56mm Suppressor", "value": 1500, "description": "5.56mm suppressor that hides muzzle flash and dampens sound.", "rarity": "Rare", "random_quantity": false, "weight": 0.35, "id": 112, "attachment": true, "slot": "muzzle_556", "suppressor": true, "modifiers": {"stats": {"stealth": 2}}, "can_stack": false}}
+                ],
+                "can_stack": false
+            },
+            {
+                "name": "Colt M16A1",
+                "value": 12000,
+                "description": "A classic from the Vietnam War era, chambered in 5.56x45mm NATO. Something's different about this M16A1... it has yellow accents and smells like Jack Daniel's.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 3.5,
+                "id": 115,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "AR-15",
+                "caliber": ["5.56x45mm NATO"],
+                "action": ["Semi", "Auto"],
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 800,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "STANAG 4179",
+                "jamrate": 0.001,
+                "accessories": [
+                    {"name": "Carry Handle Mount", "slot": "m16_carryhandle", "current": null},
+                    {"name": "Bayonet Lug", "slot": "bayonet_mount_ar15", "current": null, "conflicts_with": ["muzzle_556"]},    
+                    {"name": "Muzzle Device", "slot": "muzzle_556", "current": null}
+                ],
+                "can_stack": false
+            },
+            {
+                "name": "M4 SOPMOD II",
+                "value": 2000,
+                "description": "An upgraded M4 carbine with a different handguard and stock. Why is this covered in blood...",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 3,
+                "id": 117,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "AR-15",
+                "caliber": ["5.56x45mm NATO"],
+                "action": ["Semi", "Burst"],
+                "burst_count": 3,
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 850,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "STANAG 4179",
+                "jamrate": 0.01,
+                "accessories": [
+                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": {"name":"EOTech SU-231/PEQ Holographic Sight","value":900,"description":"Holographic sight providing rapid target acquisition at close to medium ranges. Mounts to a picatinny rail.","rarity":"Uncommon","random_quantity":false,"weight":0.7,"id":118,"attachment":true,"slot":"picatinny_optic","modifiers":{"stats":{"aim":2}},"magnified":false,"variable":false,"night_vision_compatible":true,"subslots":[{"name":"Magnifier","slot":"magnifier","current":null}],"can_stack":false}},
+                    {"name": "Picatinny Rail (Handguard Top)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Left)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Right)", "slot": "picatinny_rifle", "current": {"name":"Insight AN/PEQ-2 IR laser","value":1500,"description":"Infrared laser designator for use with night vision devices. Mounts to a picatinny rail.","rarity":"Rare","random_quantity":false,"weight":0.25,"id":119,"attachment":true,"slot":"picatinny_rifle","modifiers":{"stats":{"aim":1}},"electronic":true,"battery_type":"CR123A","battery_life":5,"can_stack":false}},
+                    {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_556", "current": null}
+                ],
+                "can_stack": false
+            },
+            {
+                "name": "Colt M4A1 Carbine",
+                "value": 4500,
+                "description": "Versatile carbine, once standard issue for the LEDF, now adopted by the Kyntarians. This one is tan on the handguard, receivers, and stock. The buffer tube has green accents.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 2.9,
+                "id": 120,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "AR-15",
+                "caliber": ["5.56x45mm NATO"],
+                "action": ["Semi", "Auto"],
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 900,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "STANAG 4179",
+                "jamrate": 0.01,
+                "accessories": [
+                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": {"name":"EOTech SU-231/PEQ Holographic Sight","value":900,"description":"Holographic sight providing rapid target acquisition at close to medium ranges. Mounts to a picatinny rail.","rarity":"Uncommon","random_quantity":false,"weight":0.7,"id":118,"attachment":true,"slot":"picatinny_optic","modifiers":{"stats":{"aim":2}},"magnified":false,"variable":false,"night_vision_compatible":true,"subslots":[{"name":"Magnifier","slot":"magnifier","current":null}],"can_stack":false}},
+                    {"name": "Picatinny Rail (Handguard Top)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Left)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Right)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom", "current": {"name":"Knight's Armament VFG Vertical Foregrip","value":80,"description":"Vertical foregrip that improves weapon handling and reduces recoil. Mounts to a picatinny rail.","rarity":"Common","random_quantity":false,"weight":0.2,"id":9,"attachment":true,"slot":["picatinny_bottom","picatinny_bottom_nounderbarrel"],"modifiers":{"stats":{"aim":1}},"can_stack":false}},
+                    {"name": "Bayonet Lug", "slot": "bayonet_mount_ar15", "current": null, "conflicts_with": ["muzzle_556"]},    
+                    {"name": "Muzzle Device", "slot": "muzzle_556", "current": {"name":"SIG NG556-QD Suppressor","value":1300,"description":"5.56mm suppressor that hides muzzle flash and dampens sound.","rarity":"Rare","random_quantity":false,"weight":0.38,"id":121,"attachment":true,"slot":"muzzle_556","suppressor":true,"modifiers":{"stats":{"stealth":2}},"can_stack":false}}
+                ],
+                "can_stack": false
+            },
+            {
+                "name": "Heckler & Koch HK416",
+                "value": 3500,
+                "description": "Assault rifle suited for hybrid wet/dry environments, chambered in 5.56x45mm NATO. This rifle h"
             }
         ],
         "equipment": [
@@ -2261,6 +2771,19 @@
                 "electronic": true,
                 "battery_type": "AA",
                 "battery_life": 10
+            },
+            {
+                "name": "3M Peltor ComTac VI Headset",
+                "value": 800,
+                "description": "Tactical headset providing hearing protection and enhanced situational awareness. Compatible with helmets equipped with ear protection slots.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 0.4,
+                "id": 97,
+                "equippable": true,
+                "encumbrance_reduction": 0.5,
+                "slot": ["ear_protection", "head"],
+                "ear_protection": true
             }
         ],
         "enemy_drops": [

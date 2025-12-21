@@ -1,0 +1,8 @@
+{
+  "reportUndefinedVariable": false,
+  "reportPossiblyUnboundVariable": false,
+  "reportAttributeAccessIssue": false,
+  "reportOptionalMemberAccess": false,
+  "reportOptionalSubscript": false,
+  "reportCallIssue": false
+}
