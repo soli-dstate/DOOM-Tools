@@ -548,6 +548,37 @@
                     {"name": "Muzzle Device", "slot": "muzzle_556", "current": null}
                 ],
                 "can_stack": false
+            },
+            {
+                "name": "Heckler & Koch UMP-9",
+                "value": 1200,
+                "description": "A lightweight successor to the MP5, chambered in 9x19mm Parabellum. Developed for law enforcement, but never used.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 2.5,
+                "id": 126,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "smg",
+                "platform": "UMP",
+                "caliber": ["9x19mm Parabellum"],
+                "action": ["Semi", "Burst", "Auto"],
+                "burst_count": 2,
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 600,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "UMP-9",
+                "jamrate": 0.015,
+                "accessories": [
+                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": null},
+                    {"name": "Picatinny Rail (Handguard Top)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Left)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Right)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom_nounderbarrel", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_9mm", "current": null}
+                ],
+                "can_stack": false
             }
         ],
         "shotguns": [
@@ -1143,7 +1174,7 @@
                 "id": 5,
                 "attachment": true,
                 "slot": "picatinny_optic",
-                "modifiers": {"stats": {"aim": 2}},
+                "modifiers": {"stats": {"aim": 1}},
                 "magnified": true,
                 "variable": false,
                 "night_vision_compatible": false,
@@ -1339,12 +1370,12 @@
                 "attachment": true,
                 "slot": "picatinny_optic",
                 "modes": [
-                    {"name": "3x", "type": "magnification", "usage": null, "modifiers": {"stats": {"aim": 2}, "night_vision_compatible": false}, "position": 0},
-                    {"name": "6x", "type": "magnification", "usage": null, "modifiers": {"stats": {"aim": 3}, "night_vision_compatible": false}, "position": 45},
-                    {"name": "9x", "type": "magnification", "usage": null, "modifiers": {"stats": {"aim": 4}, "night_vision_compatible": false}, "position": 90},
-                    {"name": "12x", "type": "magnification", "usage": null, "modifiers": {"stats": {"aim": 5}, "night_vision_compatible": false}, "position": 135},
-                    {"name": "15x", "type": "magnification", "usage": null, "modifiers": {"stats": {"aim": 6}, "night_vision_compatible": false}, "position": 180},
-                    {"name": "18x", "type": "magnification", "usage": null, "modifiers": {"stats": {"aim": 7}, "night_vision_compatible": false}, "position": 225},
+                    {"name": "3x", "type": "magnification", "usage": null, "modifiers": {"stats": {"aim": 1}, "night_vision_compatible": false}, "position": 0},
+                    {"name": "6x", "type": "magnification", "usage": null, "modifiers": {"stats": {"aim": 2}, "night_vision_compatible": false}, "position": 45},
+                    {"name": "9x", "type": "magnification", "usage": null, "modifiers": {"stats": {"aim": 3}, "night_vision_compatible": false}, "position": 90},
+                    {"name": "12x", "type": "magnification", "usage": null, "modifiers": {"stats": {"aim": 4}, "night_vision_compatible": false}, "position": 135},
+                    {"name": "15x", "type": "magnification", "usage": null, "modifiers": {"stats": {"aim": 5}, "night_vision_compatible": false}, "position": 180},
+                    {"name": "18x", "type": "magnification", "usage": null, "modifiers": {"stats": {"aim": 6}, "night_vision_compatible": false}, "position": 225},
                     {"mode_method": "dial"}
                 ]
             },
@@ -1411,7 +1442,7 @@
                 "attachment": true,
                 "slot": "muzzle_556",
                 "suppressor": true,
-                "modifiers": {"stats": {"stealth": 2}},
+                "modifiers": {"stats": {"stealth": 1}},
                 "can_stack": false
             },
             {
@@ -1424,7 +1455,7 @@
                 "id": 118,
                 "attachment": true,
                 "slot": "picatinny_optic",
-                "modifiers": {"stats": {"aim": 2}},
+                "modifiers": {"stats": {"aim": 1}},
                 "magnified": false,
                 "variable": false,
                 "night_vision_compatible": true,
@@ -1461,6 +1492,93 @@
                 "slot": "muzzle_556",
                 "suppressor": true,
                 "modifiers": {"stats": {"stealth": 2}},
+                "can_stack": false
+            },
+            {
+                "name": "EOTech G33 Magnifier",
+                "value": 600,
+                "description": "3x magnifier that pairs with holographic sights for improved medium-range target acquisition. Mounts to a picatinny rail.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 0.4,
+                "id": 122,
+                "attachment": true,
+                "slot": "magnifier",
+                "modes": [
+                    {"name": "Off", "type": "none", "usage": null, "modifiers": null},
+                    {"name": "3x", "type": "magnification", "usage": null, "modifiers": {"stats": {"aim": 1}, "night_vision_compatible": false}},
+                    {"mode_method": "slider"}
+                ],
+                "can_stack": false
+            },
+            {
+                "name": "EOTech SU-231A/PEQ Holographic Sight",
+                "value": 1200,
+                "description": "Advanced holographic sight providing rapid target acquisition at close to medium ranges. Mounts to a picatinny rail.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 0.75,
+                "id": 124,
+                "attachment": true,
+                "slot": "picatinny_optic",
+                "modifiers": {"stats": {"aim": 1}},
+                "magnified": false,
+                "variable": false,
+                "night_vision_compatible": true,
+                "subslots": [
+                    {"name": "Magnifier", "slot": "magnifier", "current": null}
+                ],
+                "can_stack": false
+            },
+            {
+                "name": "L3Harris AN/PEQ-15 LAM",
+                "value": 2000,
+                "description": "Combination IR laser/illuminator, and visible laser designator. Mounts to a picatinny rail.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 0.3,
+                "id": 125,
+                "attachment": true,
+                "slot": "picatinny_rifle",
+                "modifiers": null,
+                "electronic": true,
+                "battery_type": "CR123A",
+                "battery_life": 4,
+                "can_stack": false,
+                "modes": [
+                    {"name": "Laser IR", "type": "ir_laser", "usage": 2, "modifiers": {"stats": {"aim": 1}, "night_vision_compatible": true}, "position": 180},
+                    {"name": "Laser", "type": "visible_laser", "usage": 2, "modifiers": {"stats": {"aim": 1, "stealth": -1}, "night_vision_compatible": true}, "position": 225},
+                    {"name": "Light IR", "type": "ir_illuminator", "usage": 3, "modifiers": {"stats": {"perception": 1}, "night_vision_compatible": true}, "position": 45},
+                    {"name": "Light Laser", "type": "flashlight_visible_laser", "usage": 3, "modifiers": {"stats": {"aim": 1, "perception": 1, "stealth": -1}, "night_vision_compatible": false}, "position": 90},
+                    {"mode_method": "dial"}
+                ]
+            },
+            {
+                "name": "Rugged Suppressors Obsidian45 Suppressor",
+                "value": 1400,
+                "description": ".45 ACP suppressor that hides muzzle flash and dampens sound.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 0.3,
+                "id": 129,
+                "attachment": true,
+                "slot": "muzzle_45",
+                "suppressor": true,
+                "modifiers": {"stats": {"stealth": 1}},
+                "can_stack": false
+            },
+            {
+                "name": "Rugged Suppressors Obsidian45 Suppressor",
+                "value": 1400,
+                "description": ".45 ACP suppressor that hides muzzle flash and dampens sound.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 0.3,
+                "id": 130,
+                "attachment": true,
+                "slot": "muzzle_45",
+                "suppressor": true,
+                "modifiers": {"stats": {"stealth": 1}},
                 "can_stack": false
             }
         ],
@@ -2247,6 +2365,19 @@
                 "capacity": 30,
                 "magazinesystem": "AR-10",
                 "can_stack": false
+            },
+            {
+                "name": "H&K UMP-9 30-Round polymer magazine",
+                "value": 20,
+                "description": "Standard 30-round magazine for 9x19mm Parabellum chambered UMP submachine guns.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.3,
+                "id": 127,
+                "caliber": ["9x19mm Parabellum"],
+                "capacity": 30,
+                "magazinesystem": "UMP-9",
+                "can_stack": false
             }
         ],
         "melee": [
@@ -2479,7 +2610,7 @@
                 "jamrate": 0.01,
                 "accessories": [
                     {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": {"name":"EOTech SU-231/PEQ Holographic Sight","value":900,"description":"Holographic sight providing rapid target acquisition at close to medium ranges. Mounts to a picatinny rail.","rarity":"Uncommon","random_quantity":false,"weight":0.7,"id":118,"attachment":true,"slot":"picatinny_optic","modifiers":{"stats":{"aim":2}},"magnified":false,"variable":false,"night_vision_compatible":true,"subslots":[{"name":"Magnifier","slot":"magnifier","current":null}],"can_stack":false}},
-                    {"name": "Picatinny Rail (Handguard Top)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Top)", "slot": "picatinny_rifle", "current": {"name":"L3Harris AN/PEQ-15 LAM","value":2000,"description":"Combination IR laser/illuminator, and visible laser designator. Mounts to a picatinny rail.","rarity":"Uncommon","random_quantity":false,"weight":0.3,"id":125,"attachment":true,"slot":"picatinny_rifle","modifiers":null,"electronic":true,"battery_type":"CR123A","battery_life":4,"can_stack":false,"modes":[{"name":"Laser IR","type":"ir_laser","usage":2,"modifiers":{"stats":{"aim":1},"night_vision_compatible":true},"position":180},{"name":"Laser","type":"visible_laser","usage":2,"modifiers":{"stats":{"aim":1,"stealth":-1},"night_vision_compatible":true},"position":225},{"name":"Light IR","type":"ir_illuminator","usage":3,"modifiers":{"stats":{"perception":1},"night_vision_compatible":true},"position":45},{"name":"Light Laser","type":"flashlight_visible_laser","usage":3,"modifiers":{"stats":{"aim":1,"perception":1,"stealth":-1},"night_vision_compatible":false},"position":90},{"mode_method":"dial"}]}},
                     {"name": "Picatinny Rail (Handguard Left)", "slot": "picatinny_rifle", "current": null},
                     {"name": "Picatinny Rail (Handguard Right)", "slot": "picatinny_rifle", "current": null},
                     {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom", "current": {"name":"Knight's Armament VFG Vertical Foregrip","value":80,"description":"Vertical foregrip that improves weapon handling and reduces recoil. Mounts to a picatinny rail.","rarity":"Common","random_quantity":false,"weight":0.2,"id":9,"attachment":true,"slot":["picatinny_bottom","picatinny_bottom_nounderbarrel"],"modifiers":{"stats":{"aim":1}},"can_stack":false}},
@@ -2491,7 +2622,94 @@
             {
                 "name": "Heckler & Koch HK416",
                 "value": 3500,
-                "description": "Assault rifle suited for hybrid wet/dry environments, chambered in 5.56x45mm NATO. This rifle h"
+                "description": "Assault rifle suited for hybrid wet/dry environments, chambered in 5.56x45mm NATO. This rifle features a tan handguard and stock, and makes you feel angry.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 3.4,
+                "id": 123,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "AR-15",
+                "caliber": ["5.56x45mm NATO"],
+                "action": ["Semi", "Auto"],
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 850,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "STANAG 4179",
+                "jamrate": 0.01,
+                "accessories": [
+                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": {"name":"EOTech SU-231A/PEQ Holographic Sight","value":1200,"description":"Advanced holographic sight providing rapid target acquisition at close to medium ranges. Mounts to a picatinny rail.","rarity":"Rare","random_quantity":false,"weight":0.75,"id":124,"attachment":true,"slot":"picatinny_optic","modifiers":{"stats":{"aim":1}},"magnified":false,"variable":false,"night_vision_compatible":true,"subslots":[{"name":"Magnifier","slot":"magnifier","current":{"name":"EOTech G33 Magnifier","value":600,"description":"3x magnifier that pairs with holographic sights for improved medium-range target acquisition. Mounts to a picatinny rail.","rarity":"Uncommon","random_quantity":false,"weight":0.4,"id":122,"attachment":true,"slot":"magnifier","modes":[{"name":"Off","type":"none","usage":null,"modifiers":null},{"name":"3x","type":"magnification","usage":null,"modifiers":{"stats":{"aim":1},"night_vision_compatible":false}},{"mode_method":"slider"}],"can_stack":false}}],"can_stack":false}},
+                    {"name": "Picatinny Rail (Handguard Top)", "slot": "picatinny_rifle", "current": {"name":"L3Harris AN/PEQ-15 LAM","value":2000,"description":"Combination IR laser/illuminator, and visible laser designator. Mounts to a picatinny rail.","rarity":"Uncommon","random_quantity":false,"weight":0.3,"id":125,"attachment":true,"slot":"picatinny_rifle","modifiers":null,"electronic":true,"battery_type":"CR123A","battery_life":4,"can_stack":false,"modes":[{"name":"Laser IR","type":"ir_laser","usage":2,"modifiers":{"stats":{"aim":1},"night_vision_compatible":true},"position":180},{"name":"Laser","type":"visible_laser","usage":2,"modifiers":{"stats":{"aim":1,"stealth":-1},"night_vision_compatible":true},"position":225},{"name":"Light IR","type":"ir_illuminator","usage":3,"modifiers":{"stats":{"perception":1},"night_vision_compatible":true},"position":45},{"name":"Light Laser","type":"flashlight_visible_laser","usage":3,"modifiers":{"stats":{"aim":1,"perception":1,"stealth":-1},"night_vision_compatible":false},"position":90},{"mode_method":"dial"}]}},
+                    {"name": "MLOK Mounts (Handguard Left)", "slot": "mlok_rifle", "current": null},
+                    {"name": "MLOK Mounts (Handguard Right)", "slot": "mlok_rifle", "current": null},
+                    {"name": "MLOK Mounts (Handguard Bottom)", "slot": "mlok_bottom", "current": {"name":"Magpul RVG Vertical Foregrip","value":25,"description":"Vertical foregrip that improves weapon handling and reduces recoil. Mounts to a picatinny rail.","rarity":"Common","random_quantity":false,"weight":0.2,"id":110,"attachment":true,"slot":["picatinny_bottom","picatinny_bottom_nounderbarrel"],"modifiers":{"stats":{"aim":1}},"can_stack":false}},
+                    {"name": "Muzzle Device", "slot": "muzzle_556", "current": {"name":"Knight's Armament QDSS-NT4 Suppressor","value":1200,"description":"5.56mm suppressor that hides muzzle flash and dampens sound.","rarity":"Rare","random_quantity":false,"weight":0.4,"id":7,"attachment":true,"slot":"muzzle_556","suppressor":true,"modifiers":{"stats":{"stealth":2}},"can_stack":false}}
+                ],
+                "can_stack": false
+            },
+            {
+                "name": "Heckler & Koch UMP-45",
+                "value": 1200,
+                "description": "A lightweight successor to the MP5, chambered in .45 ACP. Developed for law enforcement, but never used. This one makes you feel tiny and bratty.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 2.5,
+                "id": 128,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "smg",
+                "platform": "UMP",
+                "caliber": [".45 ACP"],
+                "action": ["Semi", "Burst", "Auto"],
+                "burst_count": 2,
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 600,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "UMP-45",
+                "jamrate": 0.015,
+                "accessories": [
+                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": {"name":"EOTech SU-231/PEQ Holographic Sight","value":900,"description":"Holographic sight providing rapid target acquisition at close to medium ranges. Mounts to a picatinny rail.","rarity":"Uncommon","random_quantity":false,"weight":0.7,"id":118,"attachment":true,"slot":"picatinny_optic","modifiers":{"stats":{"aim":1}},"magnified":false,"variable":false,"night_vision_compatible":true,"subslots":[{"name":"Magnifier","slot":"magnifier","current":null}],"can_stack":false}},
+                    {"name": "Picatinny Rail (Handguard Top)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Left)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Right)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom_nounderbarrel", "current": {"name":"Knight's Armament VFG Vertical Foregrip","value":80,"description":"Vertical foregrip that improves weapon handling and reduces recoil. Mounts to a picatinny rail.","rarity":"Common","random_quantity":false,"weight":0.2,"id":9,"attachment":true,"slot":["picatinny_bottom","picatinny_bottom_nounderbarrel"],"modifiers":{"stats":{"aim":1}},"can_stack":false}},
+                    {"name": "Muzzle Device", "slot": "muzzle_45", "current": {"name":"Rugged Suppressors Obsidian45 Suppressor","value":1400,"description":".45 ACP suppressor that hides muzzle flash and dampens sound.","rarity":"Rare","random_quantity":false,"weight":0.3,"id":129,"attachment":true,"slot":"muzzle_45","suppressor":true,"modifiers":{"stats":{"stealth":1}},"can_stack":false}}
+                ],
+                "can_stack": false
+            },
+            {
+                "name": "Heckler & Koch UMP-9",
+                "value": 1200,
+                "description": "A lightweight successor to the MP5, chambered in 9x19mm Parabellum. Developed for law enforcement, but never used. This one makes you horny.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 2.5,
+                "id": 131,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "smg",
+                "platform": "UMP",
+                "caliber": ["9x19mm Parabellum" ],
+                "action": ["Semi", "Burst", "Auto"],
+                "burst_count": 2,
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 600,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "UMP-9",
+                "jamrate": 0.015,
+                "accessories": [
+                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": {"name":"EOTech SU-231/PEQ Holographic Sight","value":900,"description":"Holographic sight providing rapid target acquisition at close to medium ranges. Mounts to a picatinny rail.","rarity":"Uncommon","random_quantity":false,"weight":0.7,"id":118,"attachment":true,"slot":"picatinny_optic","modifiers":{"stats":{"aim":1}},"magnified":false,"variable":false,"night_vision_compatible":true,"subslots":[{"name":"Magnifier","slot":"magnifier","current":null}],"can_stack":false}},
+                    {"name": "Picatinny Rail (Handguard Top)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Left)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Right)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom_nounderbarrel", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_9mm", "current": {"name":"Rugged Suppressors Obsidian9 Suppressor","value":1400,"description":"9mm suppressor that hides muzzle flash and dampens sound.","rarity":"Rare","random_quantity":false,"weight":0.3,"id":130,"attachment":true,"slot":"muzzle_9mm","suppressor":true,"modifiers":{"stats":{"stealth":1}},"can_stack":false}}
+                ],
+                "can_stack": false
             }
         ],
         "equipment": [

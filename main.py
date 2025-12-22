@@ -96,31 +96,314 @@ try:
     logging.info(f"{fact}")
 except requests.RequestException as e:
     logging.warning(f"Failed to fetch random fact: {e}")
-logging.info(f"Logging initialized at {log_filename}, log number {log_number}.")
-logging.info(f"Python version: {sys.version}")
-logging.info(f"Platform: {sys.platform}")
-logging.info(f"Working directory: {os.getcwd()}")
-logging.info(f"Executable: {sys.executable}")
-logging.info(f"Script: {os.path.abspath(__file__)}")
-logging.info(f"Arguments: {sys.argv}")
-logging.info(f"Process ID: {os.getpid()}")
-logging.info(f"Parent Process ID: {os.getppid()}")
-logging.info(f"User: {os.getlogin()}")
-logging.info(f"Machine: {platform.machine()}")
-logging.info(f"Processor: {platform.processor()}")
-logging.info(f"Cores: {os.cpu_count()}")
-logging.info(f"System: {platform.system()} {platform.release()}")
-if platform.system() == "Linux":
+
+def _human_seconds(seconds: float) -> str:
     try:
-        with open("/etc/os-release") as f:
-            for line in f:
-                if line.startswith("PRETTY_NAME"):
-                    distribution_info = line.split('=')[1].strip().strip('"')
+        seconds = int(seconds)
+        days, seconds = divmod(seconds, 86400)
+        hours, seconds = divmod(seconds, 3600)
+        minutes, seconds = divmod(seconds, 60)
+        parts = []
+        if days:
+            parts.append(f"{days}d")
+        if hours:
+            parts.append(f"{hours}h")
+        if minutes:
+            parts.append(f"{minutes}m")
+        parts.append(f"{seconds}s")
+        return " ".join(parts)
+    except Exception:
+        return str(seconds)
+
+
+def _run_cmd(cmd):
+    try:
+        p = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, timeout=6)
+        return p.stdout.strip()
+    except Exception:
+        return ""
+
+
+def _count_lines(text):
+    if not text:
+        return 0
+    return len([ln for ln in text.splitlines() if ln.strip()])
+
+
+def log_neofetch_like_info():
+    info = {}
+    system = platform.system().lower()
+    # OS
+    try:
+        if system == "linux":
+            # try /etc/os-release
+            try:
+                with open("/etc/os-release", "r") as f:
+                    data = f.read()
+                pretty = ""
+                for line in data.splitlines():
+                    if line.startswith("PRETTY_NAME="):
+                        pretty = line.split("=", 1)[1].strip().strip('"')
+                        break
+                info["OS"] = pretty or platform.platform()
+            except Exception:
+                info["OS"] = platform.platform()
+        elif system == "darwin":
+            out = _run_cmd(["sw_vers", "-productName"])
+            vers = _run_cmd(["sw_vers", "-productVersion"])
+            info["OS"] = f"{out} {vers}".strip()
+        elif system == "windows":
+            info["OS"] = platform.platform()
+        else:
+            info["OS"] = platform.platform()
     except Exception as e:
-        logging.warning(f"Failed to read Linux distribution info: {e}")
-logging.info(f"Architecture: {platform.architecture()[0]}")
-logging.info(f"RAM: {round(psutil.virtual_memory().total / (1024. ** 2), 2)} MB")
-logging.info(f"Python Implementation: {platform.python_implementation()}")
+        info["OS"] = f"Error: {e}"
+
+    # Kernel
+    try:
+        info["Kernel"] = platform.uname().release
+    except Exception:
+        info["Kernel"] = platform.uname().system
+
+    # Uptime
+    try:
+        boot = psutil.boot_time()
+        now = time.time()
+        info["Uptime"] = _human_seconds(now - boot)
+    except Exception:
+        info["Uptime"] = "Unknown"
+
+    # Packages
+    try:
+        pkg_count = None
+        if system == "linux":
+            if shutil.which("dpkg-query"):
+                out = _run_cmd(["dpkg-query", "-f", "${binary:Package}\n", "-W"])
+                pkg_count = _count_lines(out)
+            elif shutil.which("pacman"):
+                out = _run_cmd(["pacman", "-Qq"])
+                pkg_count = _count_lines(out)
+            elif shutil.which("rpm"):
+                out = _run_cmd(["rpm", "-qa"])
+                pkg_count = _count_lines(out)
+            else:
+                # snap/flatpak fallback
+                out = _run_cmd(["flatpak", "list"]) or _run_cmd(["snap", "list"])
+                pkg_count = _count_lines(out)
+        elif system == "darwin":
+            if shutil.which("brew"):
+                out = _run_cmd(["brew", "list", "--formula"]) + "\n" + _run_cmd(["brew", "list", "--cask"])
+                pkg_count = _count_lines(out)
+            else:
+                pkg_count = 0
+        elif system == "windows":
+            if shutil.which("winget"):
+                out = _run_cmd(["winget", "list"])
+                pkg_count = _count_lines(out) - 1  # header line
+            elif shutil.which("choco"):
+                out = _run_cmd(["choco", "list", "-lo"])
+                pkg_count = _count_lines(out)
+            else:
+                pkg_count = 0
+        info["Packages"] = pkg_count if pkg_count is not None else "Unknown"
+    except Exception:
+        info["Packages"] = "Unknown"
+
+    # Shell
+    try:
+        shell = os.environ.get("SHELL") or os.environ.get("COMSPEC") or os.environ.get("SHELL_PATH") or ""
+        if not shell and system == "windows":
+            shell = os.environ.get("WT_SESSION") or os.environ.get("TERM")
+        info["Shell"] = shell or "Unknown"
+    except Exception:
+        info["Shell"] = "Unknown"
+
+    # Resolution
+    try:
+        res = ""
+        try:
+            _root = _tk.Tk()
+            _root.withdraw()
+            w = _root.winfo_screenwidth()
+            h = _root.winfo_screenheight()
+            res = f"{w}x{h}"
+            try:
+                _root.destroy()
+            except Exception:
+                pass
+        except Exception:
+            # pygame fallback (pygame already inited)
+            try:
+                info_surf = pygame.display.Info()
+                res = f"{info_surf.current_w}x{info_surf.current_h}"
+            except Exception:
+                res = "Unknown"
+        info["Resolution"] = res
+    except Exception:
+        info["Resolution"] = "Unknown"
+
+    # Desktop Environment / WM / Themes / Icons (best-effort)
+    try:
+        de = ""
+        wm = ""
+        wm_theme = ""
+        theme = ""
+        icons = ""
+        if system == "linux":
+            de = os.environ.get("XDG_CURRENT_DESKTOP") or os.environ.get("DESKTOP_SESSION") or os.environ.get("GDMSESSION") or ""
+            wm = os.environ.get("XDG_SESSION_TYPE") or os.environ.get("WINDOW_MANAGER") or ""
+            # try gsettings for GNOME
+            if shutil.which("gsettings"):
+                t = _run_cmd(["gsettings", "get", "org.gnome.desktop.interface", "gtk-theme"])
+                i = _run_cmd(["gsettings", "get", "org.gnome.desktop.interface", "icon-theme"])
+                wt = _run_cmd(["gsettings", "get", "org.gnome.desktop.wm.preferences", "theme"])
+                theme = t.strip().strip("'\"") if t else theme
+                icons = i.strip().strip("'\"") if i else icons
+                wm_theme = wt.strip().strip("'\"") if wt else wm_theme
+            # try wmctrl for WM
+            if not wm and shutil.which("wmctrl"):
+                out = _run_cmd(["wmctrl", "-m"])
+                for line in out.splitlines():
+                    if line.lower().startswith("name:"):
+                        wm = line.split(":", 1)[1].strip()
+                        break
+        elif system == "darwin":
+            de = "Aqua"
+            wm = "Quartz Compositor"
+            # mac theme: Dark/Light
+            try:
+                pref = _run_cmd(["defaults", "read", "-g", "AppleInterfaceStyle"])
+                theme = pref or "Light"
+            except Exception:
+                theme = "Light"
+        elif system == "windows":
+            de = "Explorer"
+            wm = "DWM"
+            # Theme detection (light/dark) best-effort via registry
+            try:
+                reg = _run_cmd(["reg", "query", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize", "/v", "AppsUseLightTheme"])
+                if "0x0" in reg:
+                    theme = "Dark"
+                else:
+                    theme = "Light"
+            except Exception:
+                theme = ""
+        info["DE"] = de or "Unknown"
+        info["WM"] = wm or "Unknown"
+        info["WM Theme"] = wm_theme or "Unknown"
+        info["Theme"] = theme or "Unknown"
+        info["Icons"] = icons or "Unknown"
+    except Exception:
+        info.update({"DE": "Unknown", "WM": "Unknown", "WM Theme": "Unknown", "Theme": "Unknown", "Icons": "Unknown"})
+
+    # Terminal
+    try:
+        term = os.environ.get("TERM_PROGRAM") or os.environ.get("TERM") or os.environ.get("TERMINAL") or ""
+        # parent process (approx)
+        try:
+            p = psutil.Process(os.getppid())
+            parent_name = p.name()
+        except Exception:
+            parent_name = ""
+        info["Terminal"] = (term + (" (" + parent_name + ")" if parent_name else "")).strip() or "Unknown"
+    except Exception:
+        info["Terminal"] = "Unknown"
+
+    # CPU
+    try:
+        cpu_name = platform.processor() or ""
+        # try /proc/cpuinfo for linux for nicer name
+        if not cpu_name and system == "linux":
+            try:
+                with open("/proc/cpuinfo", "r") as f:
+                    for line in f:
+                        if "model name" in line:
+                            cpu_name = line.split(":", 1)[1].strip()
+                            break
+            except Exception:
+                pass
+        cpu_count = psutil.cpu_count(logical=False) or psutil.cpu_count(logical=True) or 0
+        cpu_freq = None
+        try:
+            cf = psutil.cpu_freq()
+            if cf and cf.max:
+                cpu_freq = f"{int(cf.max)}MHz"
+        except Exception:
+            cpu_freq = None
+        info["CPU"] = f"{cpu_name} ({cpu_count} cores{', ' + cpu_freq if cpu_freq else ''})"
+    except Exception:
+        info["CPU"] = "Unknown"
+
+    # GPU
+    try:
+        gpu = ""
+        if system == "linux":
+            if shutil.which("lspci"):
+                out = _run_cmd(["lspci", "-nnk"])
+                lines = [ln for ln in out.splitlines() if " vga " in ln.lower() or "3d controller" in ln.lower()]
+                if lines:
+                    gpu = "; ".join([ln.split(":", 2)[2].strip() if ":" in ln else ln.strip() for ln in lines])
+            # fallback to glxinfo
+            if not gpu and shutil.which("glxinfo"):
+                out = _run_cmd(["glxinfo", "-B"])
+                for ln in out.splitlines():
+                    if "device:" in ln.lower() or "vendor:" in ln.lower():
+                        gpu += ln.strip() + "; "
+                gpu = gpu.strip("; ")
+        elif system == "darwin":
+            out = _run_cmd(["system_profiler", "SPDisplaysDataType"])
+            lines = []
+            for ln in out.splitlines():
+                if "chipset model" in ln.lower() or "vendor" in ln.lower() or "vram" in ln.lower():
+                    lines.append(ln.strip())
+            gpu = " | ".join(lines)
+        elif system == "windows":
+            out = _run_cmd(["wmic", "path", "win32_VideoController", "get", "name"])
+            gpu = "; ".join([ln.strip() for ln in out.splitlines() if ln.strip() and "name" not in ln.lower()])
+        info["GPU"] = gpu or "Unknown"
+    except Exception:
+        info["GPU"] = "Unknown"
+
+    # Memory
+    try:
+        vm = psutil.virtual_memory()
+        total = vm.total
+        gb = total / (1024 ** 3)
+        info["Memory"] = f"{gb:.2f} GB"
+    except Exception:
+        info["Memory"] = "Unknown"
+
+    # Log all fields in requested order
+    fields_order = ["OS", "Kernel", "Uptime", "Packages", "Shell", "Resolution", "DE", "WM", "WM Theme", "Theme", "Icons", "Terminal", "CPU", "GPU", "Memory"]
+    for k in fields_order:
+        logging.info(f"{k}: {info.get(k, 'Unknown')}")
+
+    try:
+        colors = [
+            ("\033[0;30m", "black"),
+            ("\033[0;31m", "red"),
+            ("\033[0;32m", "green"),
+            ("\033[0;33m", "yellow"),
+            ("\033[0;34m", "blue"),
+            ("\033[0;35m", "magenta"),
+            ("\033[0;36m", "cyan"),
+            ("\033[0;37m", "white"),
+        ]
+        reset = "\033[0m"
+        blocks = "".join([f"{c[0]}██{reset}" for c in colors])
+        logging.info(blocks)
+        # bright variants
+        bright = "".join([f"\033[1;3{idx}m██{reset}" for idx in range(0, 8)])
+        logging.info(bright)
+    except Exception:
+        logging.info("Color test: (unable to render ANSI colors on this terminal)")
+
+
+# Run it once at startup
+try:
+    log_neofetch_like_info()
+except Exception as e:
+    logging.warning(f"Failed to gather neofetch-like info: {e}")
 
 global_variables = {
     "devmode": {"value": False, "forced": False},
@@ -1429,6 +1712,76 @@ class App:
         except Exception:
             try:
                 popup.geometry("+100+100")
+            except Exception:
+                pass
+
+            # Include equipment modifiers and set bonuses in effective aim
+            try:
+                equip_agg = {}
+                if save_data and isinstance(save_data, dict):
+                    equipment = save_data.get("equipment", {}) or {}
+                    if isinstance(equipment, dict):
+                        for slot_name, equipped_item in equipment.items():
+                            if not equipped_item or not isinstance(equipped_item, dict):
+                                continue
+                            mods = equipped_item.get("modifiers") or {}
+                            if isinstance(mods, dict):
+                                stats = mods.get("stats") or {}
+                                if isinstance(stats, dict):
+                                    for sk, sv in stats.items():
+                                        try:
+                                            equip_agg[sk] = equip_agg.get(sk, 0) + (int(sv) if isinstance(sv, (int, float)) else 0)
+                                        except Exception:
+                                            pass
+                            istats = equipped_item.get("stats") or {}
+                            if isinstance(istats, dict):
+                                for sk, sv in istats.items():
+                                    try:
+                                        equip_agg[sk] = equip_agg.get(sk, 0) + (int(sv) if isinstance(sv, (int, float)) else 0)
+                                    except Exception:
+                                        pass
+
+                        # Apply any set bonuses whose requirements are satisfied
+                        for slot_name, equipped_item in equipment.items():
+                            try:
+                                if not equipped_item or not isinstance(equipped_item, dict):
+                                    continue
+                                sb = equipped_item.get("set_bonus") or {}
+                                if not sb or not isinstance(sb, dict):
+                                    continue
+                                requires = sb.get("requires") or []
+                                if not isinstance(requires, list) or not requires:
+                                    continue
+                                ok = True
+                                for req in requires:
+                                    try:
+                                        rslot = req.get("slot")
+                                        rid = req.get("id")
+                                        cur = equipment.get(rslot)
+                                        if not cur or not isinstance(cur, dict) or cur.get("id") != rid:
+                                            ok = False
+                                            break
+                                    except Exception:
+                                        ok = False
+                                        break
+                                if not ok:
+                                    continue
+                                sstats = sb.get("stats") or {}
+                                if isinstance(sstats, dict):
+                                    for sk, sv in sstats.items():
+                                        try:
+                                            equip_agg[sk] = equip_agg.get(sk, 0) + (int(sv) if isinstance(sv, (int, float)) else 0)
+                                        except Exception:
+                                            pass
+                            except Exception:
+                                pass
+
+                # Add equipment aim bonus into effective_aim
+                try:
+                    if equip_agg and isinstance(equip_agg, dict):
+                        effective_aim += float(equip_agg.get('aim', 0) or 0)
+                except Exception:
+                    pass
             except Exception:
                 pass
         popup.deiconify()
@@ -3952,12 +4305,21 @@ class App:
                                 for subslot_data in equipped_item.get("subslots", []):
                                     if subslot_data.get("slot") != "weapon_slot" or subslot_data.get("current") is not None:
                                         continue
-                                    conflicts = subslot_data.get("conflicts_with", {})
+                                    conflicts = subslot_data.get("conflicts_with")
+                                    blocked = False
                                     if conflicts:
-                                        conflict_type = conflicts.get("type")
-                                        conflict_slot = conflicts.get("slot")
-                                        if conflict_type == "main" and conflict_slot in equipment and equipment[conflict_slot] is not None:
-                                            continue
+                                        if isinstance(conflicts, dict):
+                                            conflict_type = conflicts.get("type")
+                                            conflict_slot = conflicts.get("slot")
+                                            if conflict_type == "main" and conflict_slot in equipment and equipment.get(conflict_slot) is not None:
+                                                blocked = True
+                                        elif isinstance(conflicts, (list, tuple)):
+                                            for conflict_slot in conflicts:
+                                                if conflict_slot in equipment and equipment.get(conflict_slot) is not None:
+                                                    blocked = True
+                                                    break
+                                    if blocked:
+                                        continue
                                     label = f"{parent_slot.title()} - {subslot_data.get('name', 'Weapon Slot')}"
                                     add_choice(label, parent_slot=parent_slot, subslot=subslot_data)
 
@@ -3985,12 +4347,21 @@ class App:
                             for subslot_data in equipped_item["subslots"]:
                                 subslot_type = subslot_data.get("slot", "")
                                 if subslot_type in valid_slots and subslot_data.get("current") is None:
-                                    conflicts = subslot_data.get("conflicts_with", {})
+                                    conflicts = subslot_data.get("conflicts_with")
+                                    blocked = False
                                     if conflicts:
-                                        conflict_type = conflicts.get("type")
-                                        conflict_slot = conflicts.get("slot")
-                                        if conflict_type == "main" and conflict_slot in equipment and equipment[conflict_slot] is not None:
-                                            continue
+                                        if isinstance(conflicts, dict):
+                                            conflict_type = conflicts.get("type")
+                                            conflict_slot = conflicts.get("slot")
+                                            if conflict_type == "main" and conflict_slot in equipment and equipment.get(conflict_slot) is not None:
+                                                blocked = True
+                                        elif isinstance(conflicts, (list, tuple)):
+                                            for conflict_slot in conflicts:
+                                                if conflict_slot in equipment and equipment.get(conflict_slot) is not None:
+                                                    blocked = True
+                                                    break
+                                    if blocked:
+                                        continue
                                     label = f"{parent_slot.title()} - {subslot_data.get('name', subslot_type)}"
                                     add_choice(label, parent_slot=parent_slot, subslot=subslot_data)
 
@@ -4531,6 +4902,139 @@ class App:
                         parts.append(f"  {k}: {num}")
                 else:
                     parts.append("  (none)")
+
+                # Aggregate equipment modifiers and evaluate set bonuses (apply each set once)
+                try:
+                    equip_agg = {}
+                    active_sets = []
+                    applied_set_keys = set()
+                    equipment = save_data.get("equipment", {}) if isinstance(save_data, dict) else {}
+                    if isinstance(equipment, dict):
+                        # Sum item-level modifiers/stats
+                        for slot_name, equipped_item in equipment.items():
+                            if not equipped_item or not isinstance(equipped_item, dict):
+                                continue
+                            mods = equipped_item.get("modifiers") or {}
+                            if isinstance(mods, dict):
+                                stats = mods.get("stats") or {}
+                                if isinstance(stats, dict):
+                                    for sk, sv in stats.items():
+                                        try:
+                                            equip_agg[sk] = equip_agg.get(sk, 0) + (int(sv) if isinstance(sv, (int, float)) else 0)
+                                        except Exception:
+                                            pass
+                            istats = equipped_item.get("stats") or {}
+                            if isinstance(istats, dict):
+                                for sk, sv in istats.items():
+                                    try:
+                                        equip_agg[sk] = equip_agg.get(sk, 0) + (int(sv) if isinstance(sv, (int, float)) else 0)
+                                    except Exception:
+                                        pass
+
+                        # Find and apply set bonuses once per unique set when requirements satisfied
+                        for slot_name, equipped_item in equipment.items():
+                            try:
+                                if not equipped_item or not isinstance(equipped_item, dict):
+                                    continue
+                                sb = equipped_item.get("set_bonus") or {}
+                                if not sb or not isinstance(sb, dict):
+                                    continue
+                                requires = sb.get("requires") or []
+                                if not isinstance(requires, list) or not requires:
+                                    continue
+                                # Build a normalized key for this set from required (slot,id) pairs
+                                try:
+                                    req_pairs = []
+                                    for req in requires:
+                                        rslot = req.get("slot")
+                                        rid = req.get("id")
+                                        req_pairs.append((str(rslot), int(rid) if rid is not None and isinstance(rid, (int, float, str)) and str(rid).isdigit() else rid))
+                                    req_key = tuple(sorted(req_pairs))
+                                except Exception:
+                                    req_key = None
+                                if req_key is None:
+                                    continue
+                                if req_key in applied_set_keys:
+                                    continue
+                                # Check requirements are present and match
+                                ok = True
+                                member_names = []
+                                for req in requires:
+                                    try:
+                                        rslot = req.get("slot")
+                                        rid = req.get("id")
+                                        cur = equipment.get(rslot)
+                                        if not cur or not isinstance(cur, dict) or cur.get("id") != rid:
+                                            ok = False
+                                            break
+                                        member_names.append(cur.get("name", f"{rslot}"))
+                                    except Exception:
+                                        ok = False
+                                        break
+                                if not ok:
+                                    continue
+                                # Apply the bonus stats once
+                                sstats = sb.get("stats") or {}
+                                if isinstance(sstats, dict):
+                                    for sk, sv in sstats.items():
+                                        try:
+                                            equip_agg[sk] = equip_agg.get(sk, 0) + (int(sv) if isinstance(sv, (int, float)) else 0)
+                                        except Exception:
+                                            pass
+                                applied_set_keys.add(req_key)
+                                set_name = sb.get("name") or equipped_item.get("name") or "Set Bonus"
+                                active_sets.append({"name": set_name, "members": member_names, "stats": sstats})
+                            except Exception:
+                                pass
+
+                    # Display equipment modifiers (apply bonus clamp to aim display if present)
+                    parts.append("")
+                    parts.append("Equipment modifiers / Set bonuses:")
+                    try:
+                        clamp_val = None
+                        table_files = glob.glob(os.path.join("tables", "*.sldtbl"))
+                        if table_files:
+                            with open(table_files[0], 'r') as tf:
+                                td = json.load(tf)
+                                clamp_val = td.get('additional_settings', {}).get('bonus_clamp')
+                    except Exception:
+                        clamp_val = None
+
+                    if equip_agg:
+                        for k, v in equip_agg.items():
+                            try:
+                                num = int(v) if isinstance(v, (int, float)) else int(float(v))
+                            except Exception:
+                                try:
+                                    num = int(v)
+                                except Exception:
+                                    num = 0
+                            if k.lower() == 'aim' and clamp_val is not None:
+                                try:
+                                    cnum = int(float(clamp_val))
+                                    num = min(num, cnum)
+                                except Exception:
+                                    pass
+                            parts.append(f"  {k}: {num}")
+                    else:
+                        parts.append("  (none)")
+
+                    # Show active set bonuses with specific equipment members
+                    if active_sets:
+                        parts.append("")
+                        parts.append("Active set bonuses:")
+                        for s in active_sets:
+                            try:
+                                stats_text = []
+                                if isinstance(s.get('stats'), dict):
+                                    for sk, sv in s.get('stats', {}).items():
+                                        stats_text.append(f"+{sv} {sk}")
+                                members_text = ", ".join(s.get('members', []) or [])
+                                parts.append(f"  {s.get('name')}: {'; '.join(stats_text)} ({members_text})")
+                            except Exception:
+                                pass
+                except Exception as e:
+                    logging.debug("Failed aggregating equipment modifiers for combat stats: %s", e)
 
                 popup_text = "\n".join(parts)
             except Exception as e:
