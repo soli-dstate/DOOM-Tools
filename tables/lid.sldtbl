@@ -417,7 +417,6 @@
                 "magazinesystem": "M1 Carbine",
                 "jamrate": 0.01,
                 "accessories": [
-                    {"name": "M1 Carbine Scope Mount", "slot": "m1_scope", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
                 ],
                 "can_stack": false
@@ -534,6 +533,88 @@
                     {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
                 ],
                 "can_stack": false
+            },
+            {
+                "name": "Izhmash AK-74M",
+                "value": 1300,
+                "description": "A modernized version of the AK-74, chambered in 5.45x39mm. Known for its durability and reliability in harsh conditions.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 3.3,
+                "id": 178,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "AK-74",
+                "caliber": ["5.45x39mm Soviet"],
+                "action": ["Semi", "Auto"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 650,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "AK-74",
+                "jamrate": 0.001,
+                "accessories": [
+                    {"name": "Russian Sight Mount", "slot": "russian_mount", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_545", "current": null}
+                ],
+                "can_stack": false
+            },
+            {
+                "name": "FAF-439 Battle Rifle",
+                "value": 1500,
+                "description": "Standard issue Legionaire battle rifle, chambered in 7.62x51mm NATO. Known for its reliability and stopping power.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 4,
+                "id": 184,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "FAL",
+                "caliber": ["7.62x51mm NATO"],
+                "action": ["Semi", "Auto"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 600,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "FAL",
+                "jamrate": 0.01,
+                "accessories": [
+                    {"name": "SSA Accessory Mount", "slot": "ssa_mount", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
+                ],
+                "can_stack": false
+            },
+            {
+                "name": "FN Herstal FAL",
+                "value": 2000,
+                "description": "A battle rifle chambered in 7.62x51mm NATO. Known for its reliability and stopping power.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 4.3,
+                "id": 185,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "FAL",
+                "caliber": ["7.62x51mm NATO"],
+                "action": ["Semi", "Auto"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 600,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "FAL",
+                "jamrate": 0.01,
+                "accessories": [
+                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": null},
+                    {"name": "Picatinny Rail (Handguard Top)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Left)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Right)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
+                ],
+                "can_stack": false
             }
         ],
         "submachine_guns": [
@@ -629,7 +710,7 @@
                     {"name": "MLOK Mounts (Handguard Left)", "slot": "mlok_rifle", "current": null},
                     {"name": "MLOK Mounts (Handguard Right)", "slot": "mlok_rifle", "current": null},
                     {"name": "MLOK Mounts (Handguard Bottom)", "slot": "mlok_bottom", "current": null},
-                    {"name": "Muzzle Device", "slot": "muzzle_57", "current": null}
+                    {"name": "Muzzle Device", "slot": "muzzle_22", "current": null}
                 ],
                 "can_stack": false
             },
@@ -1503,7 +1584,7 @@
                 "accessories": [
                     {"name": "Pistol Picatinny Rail", "slot": "pistol_picatinny", "current": null},
                     {"name": "MOS Mount", "slot": "pistol_optic_mount", "current": null},
-                    {"name": "Muzzle Device", "slot": "muzzle_45acp", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_45", "current": null},
                     {"name": "Auto Sear", "slot": "glock_auto_sear", "current": null}
                 ],
                 "can_stack": false
@@ -1558,7 +1639,7 @@
                 "accessories": [
                     {"name": "Pistol Picatinny Rail", "slot": "pistol_picatinny", "current": null},
                     {"name": "MOS Mount", "slot": "pistol_optic_mount", "current": null},
-                    {"name": "Muzzle Device", "slot": "muzzle_57", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_22", "current": null},
                     {"name": "Auto Sear", "slot": "m19_auto_sear", "current": null}
                 ],
                 "can_stack": false
@@ -1586,7 +1667,7 @@
                 "accessories": [
                     {"name": "Pistol Picatinny Rail", "slot": "pistol_picatinny", "current": null},
                     {"name": "MOS Mount", "slot": "pistol_optic_mount", "current": null},
-                    {"name": "Muzzle Device", "slot": "muzzle_57", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_22", "current": null},
                     {"name": "Auto Sear", "slot": "m19_auto_sear", "current": null}
                 ],
                 "can_stack": false
@@ -1614,7 +1695,7 @@
                 "accessories": [
                     {"name": "Pistol Picatinny Rail", "slot": "pistol_picatinny", "current": null},
                     {"name": "MOS Mount", "slot": "pistol_optic_mount", "current": null},
-                    {"name": "Muzzle Device", "slot": "muzzle_57", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_22", "current": null},
                     {"name": "Auto Sear", "slot": "m19_auto_sear", "current": null}
                 ],
                 "can_stack": false
@@ -1689,7 +1770,7 @@
                 "jamrate": 0.01,
                 "accessories": [
                     {"name": "Pistol Picatinny Rail", "slot": "pistol_picatinny", "current": null},
-                    {"name": "Muzzle Device", "slot": "muzzle_45acp", "current": null}
+                    {"name": "Muzzle Device", "slot": "muzzle_45", "current": null}
                 ],
                 "can_stack": false
             },
@@ -1716,7 +1797,7 @@
                 "accessories": [
                     {"name": "MOS Mount", "slot": "pistol_optic_mount", "current": null},
                     {"name": "Pistol Picatinny Rail", "slot": "pistol_picatinny", "current": null},
-                    {"name": "Muzzle Device", "slot": "muzzle_45acp", "current": null}
+                    {"name": "Muzzle Device", "slot": "muzzle_45", "current": null}
                 ],
                 "can_stack": false
             },
@@ -1797,7 +1878,7 @@
                 "accessories": [
                     {"name": "MOS Mount", "slot": "pistol_optic_mount", "current": null},
                     {"name": "Pistol Picatinny Rail", "slot": "pistol_picatinny", "current": null},
-                    {"name": "Muzzle Device", "slot": "muzzle_45acp", "current": null}
+                    {"name": "Muzzle Device", "slot": "muzzle_45", "current": null}
                 ],
                 "can_stack": false
             },
@@ -1824,7 +1905,61 @@
                 "accessories": [
                     {"name": "MOS Mount", "slot": "pistol_optic_mount", "current": null},
                     {"name": "Pistol Picatinny Rail", "slot": "pistol_picatinny", "current": null},
-                    {"name": "Muzzle Device", "slot": "muzzle_45acp", "current": null}
+                    {"name": "Muzzle Device", "slot": "muzzle_45", "current": null}
+                ],
+                "can_stack": false
+            },
+            {
+                "name": "FN Herstal Five-seveN",
+                "value": 1500,
+                "description": "Semi-automatic pistol chambered in 5.7x28mm NATO, known for its high magazine capacity, low recoil, and ability to penetrate body armor.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 0.61,
+                "id": 176,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "pistol",
+                "platform": "Five-seveN",
+                "caliber": ["5.7x28mm NATO"],
+                "action": ["Semi"],
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 400,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "Five-seveN",
+                "jamrate": 0.0015,
+                "accessories": [
+                    {"name": "MOS Mount", "slot": "pistol_optic_mount", "current": null},
+                    {"name": "Pistol Picatinny Rail", "slot": "pistol_picatinny", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_22", "current": null}
+                ],
+                "can_stack": false
+            },
+            {
+                "name": "IMI Desert Eagle Mark XIX",
+                "value": 2000,
+                "description": "Iconic semi-automatic pistol chambered in .50 AE, known for its powerful cartridge and distinctive design.",
+                "rarity": "Legendary",
+                "random_quantity": false,
+                "weight": 2.0,
+                "id": 177,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "pistol",
+                "platform": "Desert Eagle",
+                "caliber": [".50 AE"],
+                "action": ["Semi"],
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 400,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "Desert Eagle .50 AE",
+                "jamrate": 0.02,
+                "accessories": [
+                    {"name": "Picatinny Rail (slide)", "slot": "picatinny_optic", "current": null},
+                    {"name": "Pistol Picatinny Rail", "slot": "pistol_picatinny", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_50", "current": null}
                 ],
                 "can_stack": false
             }
@@ -2216,7 +2351,6 @@
                     {"name": "Laser IR", "type": "ir_laser", "usage": 2, "modifiers": {"stats": {"aim": 1}, "night_vision_compatible": true, "wavelength": "infrared"}, "position": 180},
                     {"name": "Laser", "type": "visible_laser", "usage": 2, "modifiers": {"stats": {"aim": 1, "stealth": -1}, "night_vision_compatible": true, "wavelength": "visible"}, "position": 225},
                     {"name": "Light IR", "type": "ir_illuminator", "usage": 3, "modifiers": {"stats": {"perception": 1}, "night_vision_compatible": true, "wavelength": "infrared"}, "position": 45},
-                    {"name": "Light Laser", "type": "flashlight_visible_laser", "usage": 3, "modifiers": {"stats": {"aim": 1, "perception": 1, "stealth": -1}, "night_vision_compatible": false, "wavelength": "visible"}, "position": 90},
                     {"mode_method": "dial"}
                 ]
             },
@@ -2229,23 +2363,450 @@
                 "weight": 0.3,
                 "id": 129,
                 "attachment": true,
-                "slot": "muzzle_45",
+                "slot": ["muzzle_10mm", "muzzle_45", "muzzle_40sw"],
                 "suppressor": true,
                 "modifiers": {"stats": {"stealth": 1}},
                 "can_stack": false
             },
             {
-                "name": "Rugged Suppressors Obsidian45 Suppressor",
-                "value": 1400,
-                "description": ".45 ACP suppressor that hides muzzle flash and dampens sound.",
+                "name": "Rugged Suppressors Obsidian9 Suppressor",
+                "value" :1400,
+                "description": "9mm suppressor that hides muzzle flash and dampens sound.",
                 "rarity": "Rare",
                 "random_quantity": false,
                 "weight": 0.3,
                 "id": 130,
                 "attachment": true,
-                "slot": "muzzle_45",
+                "slot": "muzzle_9mm",
+                "suppressor": true,
+                "modifiers":{"stats":{"stealth":1}},
+                "can_stack":false
+            },
+            {
+                "name": "Dueck Defense Glock RMR adapter",
+                "value": 50,
+                "description": "Adapter plate that mounts to the iron sight mount of a Glock pistol, allowing the attachment of RMR-style red dot sights.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.1,
+                "id": 189,
+                "attachment": true,
+                "slot": "glock_iron_sight",
+                "subslots": [
+                    {"name": "RMR", "slot": "pistol_optic_mount", "current": null}
+                ],
+                "can_stack": false
+            },
+            {
+                "name": "Brownells Colt 4x carry handle mount scope",
+                "value": 300,
+                "description": "4x magnification optic that mounts to the carry handle of a Colt AR-15 rifle.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 0.4,
+                "id": 190,
+                "attachment": true,
+                "slot": "m16_carryhandle",
+                "modifiers": {"stats": {"aim": 2}},
+                "magnified": true,
+                "variable": false,
+                "night_vision_compatible": false,
+                "can_stack": false
+            },
+            {
+                "name": "IMI AR-15 carry handle picatinny adapter",
+                "value": 100,
+                "description": "Adapter that allows mounting picatinny rail accessories to the carry handle of a Colt AR-15 rifle.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.2,
+                "id": 191,
+                "attachment": true,
+                "slot": "m16_carryhandle",
+                "subslots": [
+                    {"name": "Picatinny Rail", "slot": "picatinny_optic", "current": null}
+                ],
+                "can_stack": false
+            },
+            {
+                "name": "EGW RMR mount for Beretta 92FS iron sight mount",
+                "value": 75,
+                "description": "Adapter plate that mounts to the iron sight mount of a Beretta 92FS pistol, allowing the attachment of RMR-style red dot sights.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.1,
+                "id": 192,
+                "attachment": true,
+                "slot": "m9_iron_sight",
+                "subslots": [
+                    {"name": "RMR", "slot": "pistol_optic_mount", "current": null}
+                ],
+                "can_stack": false
+            },
+            {
+                "name": "SureFire Scout MLOK mount",
+                "value": 150,
+                "description": "Mounting system that allows attachment of a SureFire Scout flashlight to an M-LOK handguard.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.2,
+                "id": 193,
+                "attachment": true,
+                "slot": "mlok_rifle",
+                "subslots": [
+                    {"name": "Scout light", "slot": "scout", "current": null}
+                ],
+                "can_stack": false
+            },
+            {
+                "name": "SureFire Scout picatinny mount",
+                "value": 150,
+                "description": "Mounting system that allows attachment of a SureFire Scout flashlight to a picatinny rail.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.2,
+                "id": 194,
+                "attachment": true,
+                "slot": "picatinny_rifle",
+                "subslots": [
+                    {"name": "Scout light", "slot": "scout", "current": null}
+                ],
+                "can_stack": false
+            },
+            {
+                "name": "SureFire Scout Light Pro",
+                "value": 300,
+                "description": "High-performance tactical flashlight designed for weapon mounting, providing intense illumination in low-light situations.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 0.3,
+                "id": 195,
+                "attachment": true,
+                "slot": "scout",
+                "modifiers": {"stats": {"perception": 2, "stealth": -1}},
+                "wavelength": "visible",
+                "electronic": true,
+                "battery_type": "CR123A",
+                "battery_life": 6,
+                "can_stack": false
+            },
+            {
+                "name": "SureFire Scout Light Pro IR",
+                "value": 400,
+                "description": "High-performance tactical IR illuminator designed for weapon mounting, providing intense infrared illumination for use with night vision devices.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 0.3,
+                "id": 196,
+                "attachment": true,
+                "slot": "scout",
+                "modifiers": {"stats": {"perception": 2}},
+                "wavelength": "infrared",
+                "electronic": true,
+                "battery_type": "CR123A",
+                "battery_life": 6,
+                "can_stack": false
+            },
+            {
+                "name": "Magpul 7-slot M-LOK picatinny adapter",
+                "value": 100,
+                "description": "Adapter that provides 7 picatinny rail slots for mounting accessories on an M-LOK handguard.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.3,
+                "id": 197,
+                "attachment": true,
+                "slot": "mlok_rifle",
+                "subslots": [
+                    {"name": "Picatinny Rail", "slot": "picatinny_rifle", "current": null}
+                ],
+                "can_stack": false
+            },
+            {
+                "name": "L3Harris NGAL Laser Aiming Module",
+                "value": 2500,
+                "description": "Advanced laser aiming module that combines visible and infrared lasers for precise target designation. Mounts to a picatinny rail.",
+                "rarity": "Mythic",
+                "random_quantity": false,
+                "weight": 0.35,
+                "id": 198,
+                "attachment": true,
+                "slot": "picatinny_rifle",
+                "electronic": true,
+                "battery_type": "Rechargeable",
+                "battery_life": 10,
+                "modes": [
+                    {"name": "Laser IR", "type": "ir_laser", "usage": 2, "modifiers": {"stats": {"aim": 1}, "night_vision_compatible": true, "wavelength": "infrared"}, "position": 180},
+                    {"name": "Laser", "type": "visible_laser", "usage": 2, "modifiers": {"stats": {"aim": 1, "stealth": -1}, "night_vision_compatible": true, "wavelength": "visible"}, "position": 225},
+                    {"name": "Light IR", "type": "ir_illuminator", "usage": 3, "modifiers": {"stats": {"perception": 1}, "night_vision_compatible": true, "wavelength": "infrared"}, "position": 45},
+                    {"mode_method": "dial"}
+                ],
+                "can_stack": false
+            },
+            {
+                "name": "EOTech OGL Laser Aiming Module",
+                "value": 2200,
+                "description": "Advanced laser aiming module that combines visible and infrared lasers for precise target designation. Mounts to a picatinny rail.",
+                "rarity": "Mythic",
+                "random_quantity": false,
+                "weight": 0.35,
+                "id": 199,
+                "attachment": true,
+                "slot": "picatinny_rifle",
+                "electronic": true,
+                "battery_type": "Rechargeable",
+                "battery_life": 10,
+                "modes": [
+                    {"name": "Laser IR", "type": "ir_laser", "usage": 2, "modifiers": {"stats": {"aim": 1}, "night_vision_compatible": true, "wavelength": "infrared"}, "position": 180},
+                    {"name": "Laser", "type": "visible_laser", "usage": 2, "modifiers": {"stats": {"aim": 1, "stealth": -1}, "night_vision_compatible": true, "wavelength": "visible"}, "position": 225},
+                    {"name": "Light IR", "type": "ir_illuminator", "usage": 3, "modifiers": {"stats": {"perception": 1}, "night_vision_compatible": true, "wavelength": "infrared"}, "position": 45},
+                    {"mode_method": "dial"}
+                ],
+                "can_stack": false
+            },
+            {
+                "name": "Wilcox Raid XE Laser Aiming Module",
+                "value": 3000,
+                "description": "Cutting-edge laser aiming module that combines visible and infrared lasers for precise target designation. Mounts to a picatinny rail.",
+                "rarity": "Mythic",
+                "random_quantity": false,
+                "weight": 0.35,
+                "id": 200,
+                "attachment": true,
+                "slot": "picatinny_rifle",
+                "electronic": true,
+                "battery_type": "Rechargeable",
+                "battery_life": 10,
+                "modes": [
+                    {"name": "Laser IR", "type": "ir_laser", "usage": 2, "modifiers": {"stats": {"aim": 1}, "night_vision_compatible": true, "wavelength": "infrared"}, "position": 180},
+                    {"name": "Laser", "type": "visible_laser", "usage": 2, "modifiers": {"stats": {"aim": 1, "stealth": -1}, "night_vision_compatible": true, "wavelength": "visible"}, "position": 225},
+                    {"name": "Light IR", "type": "ir_illuminator", "usage": 3, "modifiers": {"stats": {"perception": 1}, "night_vision_compatible": true, "wavelength": "infrared"}, "position": 45},
+                    {"mode_method": "dial"}
+                ],
+                "can_stack": false
+            },
+            {
+                "name": "Griffin Bushwhacker 46 Suppressor",
+                "value": 1800,
+                "description": "Multi-caliber suppressor that hides muzzle flash and dampens sound.",
+                "rarity": "Mythic",
+                "random_quantity": false,
+                "weight": 0.5,
+                "id": 201,
+                "attachment": true,
+                "slot": ["muzzle_10mm", "muzzle_45", "muzzle_762", "muzzle_40sw", "muzzle_65"],
+                "suppressor": true,
+                "modifiers": {"stats": {"stealth": 2}},
+                "can_stack": false
+            },
+            {
+                "name": "YHM Sidewinder M2 .45 suppressor",
+                "value": 1600,
+                "description": "Multi-caliber suppressor that hides muzzle flash and dampens sound.",
+                "rarity": "Mythic",
+                "random_quantity": false,
+                "weight": 0.5,
+                "id": 202,
+                "attachment": true,
+                "slot": ["muzzle_10mm", "muzzle_45", "muzzle_40sw"],
+                "suppressor": true,
+                "modifiers": {"stats": {"stealth": 2}},
+                "can_stack": false
+            },
+            {
+                "name": "SilencerCo Osprey 45 Suppressor",
+                "value": 1700,
+                "description": "Multi-caliber suppressor that hides muzzle flash and dampens sound.",
+                "rarity": "Mythic",
+                "random_quantity": false,
+                "weight": 0.5,
+                "id": 203,
+                "attachment": true,
+                "slot": ["muzzle_10mm", "muzzle_45", "muzzle_40sw"],
+                "suppressor": true,
+                "modifiers": {"stats": {"stealth": 2}},
+                "can_stack": false
+            },
+            {
+                "name": "SilencerCo Osprey 9 Suppressor",
+                "value": 1500,
+                "description": "9mm suppressor that hides muzzle flash and dampens sound.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 0.5,
+                "id": 204,
+                "attachment": true,
+                "slot": ["muzzle_9mm"],
+                "suppressor": true,
+                "modifiers": {"stats": {"stealth": 2}},
+                "can_stack": false
+            },
+            {
+                "name": "Sig Sauer MODX-45 Suppressor",
+                "value": 1600,
+                "description": "Multi-caliber suppressor that hides muzzle flash and dampens sound.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 0.3,
+                "id": 205,
+                "attachment": true,
+                "slot": ["muzzle_10mm", "muzzle_45", "muzzle_40sw"],
                 "suppressor": true,
                 "modifiers": {"stats": {"stealth": 1}},
+                "can_stack": false
+            },
+            {
+                "name": "ANECHOIC AnechoX 45L Suppressor",
+                "value": 1800,
+                "description": "Multi-caliber suppressor that hides muzzle flash and dampens sound.",
+                "rarity": "Mythic",
+                "random_quantity": false,
+                "weight": 0.4,
+                "id": 206,
+                "attachment": true,
+                "slot": ["muzzle_10mm", "muzzle_45", "muzzle_40sw"],
+                "suppressor": true,
+                "modifiers": {"stats": {"stealth": 2}},
+                "can_stack": false
+            },
+            {
+                "name": "YHM Victra-12 Shotgun Suppressor",
+                "value": 2000,
+                "description": "12 Gauge suppressor that hides muzzle flash and dampens sound.",
+                "rarity": "Mythic",
+                "random_quantity": false,
+                "weight": 0.6,
+                "id": 207,
+                "attachment": true,
+                "slot": "muzzle_12g",
+                "suppressor": true,
+                "modifiers": {"stats": {"stealth": 2}},
+                "can_stack": false
+            },
+            {
+                "name": "SilencerCo Salvo-12 Shotgun Suppressor",
+                "value": 2200,
+                "description": "12 Gauge suppressor that hides muzzle flash and dampens sound.",
+                "rarity": "Mythic",
+                "random_quantity": false,
+                "weight": 0.7,
+                "id": 208,
+                "attachment": true,
+                "slot": "muzzle_12g",
+                "suppressor": true,
+                "modifiers": {"stats": {"stealth": 2}},
+                "can_stack": false
+            },
+            {
+                "name": "Bowers Vers 50 Suppressor",
+                "value": 2500,
+                "description": ".50 caliber (not .50 BMG) suppressor that hides muzzle flash and dampens sound.",
+                "rarity": "Mythic",
+                "random_quantity": false,
+                "weight": 0.8,
+                "id": 209,
+                "attachment": true,
+                "slot": "muzzle_50",
+                "suppressor": true,
+                "modifiers": {"stats": {"stealth": 2}},
+                "can_stack": false
+            },
+            {
+                "name": "Dead Air Wolverine 5.45mm Suppressor",
+                "value": 1800,
+                "description": "5.45mm suppressor that hides muzzle flash and dampens sound.",
+                "rarity": "Mythic",
+                "random_quantity": false,
+                "weight": 0.4,
+                "id": 210,
+                "attachment": true,
+                "slot": "muzzle_545",
+                "suppressor": true,
+                "modifiers": {"stats": {"stealth": 2}},
+                "can_stack": false
+            },
+            {
+                "name": "TSNIITochMash PBS-1 7.62mm Suppressor",
+                "value": 2000,
+                "description": "7.62mm suppressor that hides muzzle flash and dampens sound.",
+                "rarity": "Mythic",
+                "random_quantity": false,
+                "weight": 0.5,
+                "id": 211,
+                "attachment": true,
+                "slot": "muzzle_762",
+                "suppressor": true,
+                "modifiers": {"stats": {"stealth": 2}},
+                "can_stack": false
+            },
+            {
+                "name": "TSNIITochMash PBS-4 5.45mm Suppressor",
+                "value": 1800,
+                "description": "5.45mm suppressor that hides muzzle flash and dampens sound.",
+                "rarity": "Mythic",
+                "random_quantity": false,
+                "weight": 0.4,
+                "id": 212,
+                "attachment": true,
+                "slot": "muzzle_545",
+                "suppressor": true,
+                "modifiers": {"stats": {"stealth": 2}},
+                "can_stack": false
+            },
+            {
+                "name": "Dead Air Mask22 Suppressor",
+                "value": 1500,
+                "description": ".22 caliber suppressor that hides muzzle flash and dampens sound.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 0.2,
+                "id": 213,
+                "attachment": true,
+                "slot": "muzzle_22",
+                "suppressor": true,
+                "modifiers": {"stats": {"stealth": 1}},
+                "can_stack": false
+            },
+            {
+                "name": "Rugged Suppressors Oculus22 Suppressor",
+                "value": 1400,
+                "description": ".22 caliber suppressor that hides muzzle flash and dampens sound.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 0.2,
+                "id": 214,
+                "attachment": true,
+                "slot": "muzzle_22",
+                "suppressor": true,
+                "modifiers": {"stats": {"stealth": 1}},
+                "can_stack": false
+            },
+            {
+                "name": "Dead Air RXD22Ti Suppressor",
+                "value": 1600,
+                "description": ".22 caliber suppressor that hides muzzle flash and dampens sound.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 0.25,
+                "id": 215,
+                "attachment": true,
+                "slot": "muzzle_22",
+                "suppressor": true,
+                "modifiers": {"stats": {"stealth": 1}},
+                "can_stack": false
+            },
+            {
+                "name": "Omega 300DT 7.62mm Suppressor",
+                "value": 2200,
+                "description": "7.62mm suppressor that hides muzzle flash and dampens sound.",
+                "rarity": "Mythic",
+                "random_quantity": false,
+                "weight": 0.5,
+                "id": 216,
+                "attachment": true,
+                "slot": ["muzzle_762", "muzzle_65"],
+                "suppressor": true,
+                "modifiers": {"stats": {"stealth": 2}},
                 "can_stack": false
             }
         ],
@@ -2829,6 +3390,51 @@
                         "tip": null
                     }
                 ]
+            },
+            {
+                "name": "5.45x39mm Soviet",
+                "value": 0.5,
+                "description": "Standard rifle round used by Soviet and Russian forces, known for its high velocity and effectiveness at medium ranges.",
+                "rarity": "Common",
+                "random_quantity": {"min": 10, "max": 100},
+                "weight": 0.01,
+                "id": 183,
+                "caliber": ["5.45x39mm Soviet"],
+                "sounds": "545_39",
+                "variants": [
+                    {
+                        "name": "7N6 Ball",
+                        "type": "Ball",
+                        "pen": "II",
+                        "modifiers": null,
+                        "rarity": "Common",
+                        "tip": null
+                    },
+                    {
+                        "name": "7N10 AP",
+                        "type": "AP",
+                        "pen": "III",
+                        "modifiers": null,
+                        "rarity": "Uncommon",
+                        "tip": null
+                    },
+                    {
+                        "name": "7N24 AP",
+                        "type": "AP",
+                        "pen": "IV",
+                        "modifiers": null,
+                        "rarity": "Rare",
+                        "tip": null
+                    },
+                    {
+                        "name": "T-46 Tracer",
+                        "type": "Tracer",
+                        "pen": "II",
+                        "modifiers": {"stats": {"aim": 1, "stealth": -1}},
+                        "rarity": "Rare",
+                        "tip": null
+                    }
+                ]
             }
         ],
         "magazines": [
@@ -3324,6 +3930,136 @@
                 "caliber": [".45 ACP"],
                 "capacity": 20,
                 "magazinesystem": "2011 .45 ACP",
+                "can_stack": false
+            },
+            {
+                "name": "Heckler & Koch 15-Round 9x19mm Parabellum USP hybrid magazine",
+                "value": 15,
+                "description": "Standard 15-round magazine for 9x19mm Parabellum chambered H&K USP pistols.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.2,
+                "id": 173,
+                "caliber": ["9x19mm Parabellum"],
+                "capacity": 15,
+                "magazinesystem": "USP 9x19mm Parabellum",
+                "can_stack": false
+            },
+            {
+                "name": "Heckler & Koch 13-Round .40 S&W USP hybrid magazine",
+                "value": 15,
+                "description": "Standard 13-round magazine for .40 S&W chambered H&K USP pistols.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.25,
+                "id": 174,
+                "caliber": [".40 S&W"],
+                "capacity": 13,
+                "magazinesystem": "USP .40 S&W",
+                "can_stack": false
+            },
+            {
+                "name": "Heckler & Koch 12-Round .45 ACP USP hybrid magazine",
+                "value": 15,
+                "description": "Standard 12-round magazine for .45 ACP chambered H&K USP pistols.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.3,
+                "id": 175,
+                "caliber": [".45 ACP"],
+                "capacity": 12,
+                "magazinesystem": "USP .45 ACP",
+                "can_stack": false
+            },
+            {
+                "name": "FN Herstal 20-Round 5.7x28mm NATO Five-seveN magazine",
+                "value": 20,
+                "description": "Standard 20-round magazine for 5.7x28mm NATO chambered FN Five-seveN pistols.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.15,
+                "id": 180,
+                "caliber": ["5.7x28mm NATO"],
+                "capacity": 20,
+                "magazinesystem": "Five-seveN",
+                "can_stack": false
+            },
+            {
+                "name": "FN Herstal 30-Round 5.7x28mm NATO Five-seveN magazine",
+                "value": 25,
+                "description": "Extended 30-round magazine for 5.7x28mm NATO chambered FN Five-seveN pistols.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 0.2,
+                "id": 181,
+                "caliber": ["5.7x28mm NATO"],
+                "capacity": 30,
+                "magazinesystem": "Five-seveN",
+                "can_stack": false
+            },
+            {
+                "name": "IMI 7-Round .50 AE Desert Eagle magazine",
+                "value": 30,
+                "description": "Standard 7-round magazine for .50 AE chambered Desert Eagle pistols.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 0.4,
+                "id": 179,
+                "caliber": [".50 AE"],
+                "capacity": 7,
+                "magazinesystem": "Desert Eagle .50 AE",
+                "can_stack": false
+            },
+            {
+                "name": "Izmash 30-Round 5.45x39mm Soviet bakelite AK-74 magazine",
+                "value": 25,
+                "description": "Standard 30-round magazine for 5.45x39mm Soviet chambered AK-74 platform rifles.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.25,
+                "id": 182,
+                "caliber": ["5.45x39mm Soviet"],
+                "capacity": 30,
+                "magazinesystem": "AK-74",
+                "can_stack": false
+            },
+            {
+                "name": "Legionaire 20-Round 7.62x51mm NATO FAF-439 magazine",
+                "value": 30,
+                "description": "Standard 20-round magazine for 7.62x51mm NATO chambered Legionaire FAF-439 rifles.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.4,
+                "id": 186,
+                "caliber": ["7.62x51mm NATO"],
+                "capacity": 20,
+                "magazinesystem": "FAL",
+                "can_stack": false
+            },
+            {
+                "name": "FN Herstal 20-Round 7.62x51mm NATO FAL magazine",
+                "value": 30,
+                "description": "Standard 20-round magazine for 7.62x51mm NATO chambered FN FAL rifles.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.4,
+                "id": 187,
+                "caliber": ["7.62x51mm NATO"],
+                "capacity": 20,
+                "magazinesystem": "FAL",
+                "can_stack": false
+            },
+            {
+                "name": "FN Herstal 30-Round 7.62x51mm NATO FAL magazine",
+                "value": 40,
+                "description": "Extended 30-round magazine for 7.62x51mm NATO chambered FN FAL rifles.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 0.45,
+                "id": 188,
+                "caliber": ["7.62x51mm NATO"],
+                "capacity": 30,
+                "magazinesystem": "FAL",
                 "can_stack": false
             }
         ],
@@ -3979,6 +4715,36 @@
                 "encumbrance_reduction": 0.5,
                 "slot": ["ear_protection", "head"],
                 "ear_protection": true
+            },
+            {
+                "name": "Wilcox Aeronox Battery Pack",
+                "value": 300,
+                "description": "Rechargeable battery pack for powering night vision goggles (NVG) and other electronic accessories. Compatible with helmets equipped with NVG battery slots.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.2,
+                "id": 217,
+                "equippable": true,
+                "encumbrance_reduction": 0,
+                "slot": "nvg_battery",
+                "battery_pack": true,
+                "battery_type": "Rechargeable",
+                "battery_life": 6
+            },
+            {
+                "name": "AB Night Vision Low Profile Battery Pack",
+                "value": 250,
+                "description": "Low profile battery pack for powering night vision goggles (NVG) and other electronic accessories. Compatible with helmets equipped with NVG battery slots.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.15,
+                "id": 218,
+                "equippable": true,
+                "encumbrance_reduction": 0,
+                "slot": "nvg_battery",
+                "battery_pack": true,
+                "battery_type": "AA",
+                "battery_life": 4
             }
         ],
         "enemy_drops": [

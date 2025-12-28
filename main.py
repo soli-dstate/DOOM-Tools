@@ -10,6 +10,7 @@ import requests
 import platform
 import pygame
 import customtkinter
+import tkinter as _tk
 import base64
 import pickle
 import json
@@ -25,8 +26,6 @@ import ctypes
 import threading
 import queue
 import pyperclip
-import numpy
-import io
 import sys
 import inspect
 import distro
@@ -464,50 +463,39 @@ try:
 
 except Exception as e:
     logging.error(f"Failed to populate themes: {e}")
-finally:
-    try:
-        if extract_dir:
-            shutil.rmtree(extract_dir, ignore_errors = True)
-    except Exception:
-        pass
-    try:
-        if tmp_zip and os.path.exists(tmp_zip):
-            os.remove(tmp_zip)
-    except Exception:
-        pass
 
-ide_indicators =[
-'PYCHARM_HOSTED',
-'VSCODE_PID',
-'SPYDER_KERNELS_NAMESPACE',
-'PYDEVD_USE_FRAME_EVAL',
-'TERM_PROGRAM',
-'JUPYTER_RUNTIME_DIR',
-'JPY_PARENT_PID',
-'IPYTHONDIR',
-'PYCHARM_MATPLOTLIB_INTERACTIVE',
-'PYCHARM_DISPLAY_PORT',
-'INTELLIJ_ENVIRONMENT_READER',
-'IDEA_INITIAL_DIRECTORY',
-'PYTHONIOENCODING',
-'PYDEV_CONSOLE_ENCODING',
-'VSCODE_CLI',
-'VSCODE_GIT_ASKPASS_NODE',
-'VSCODE_INJECTION'
+ide_indicators = [
+    'PYCHARM_HOSTED',
+    'VSCODE_PID',
+    'SPYDER_KERNELS_NAMESPACE',
+    'PYDEVD_USE_FRAME_EVAL',
+    'TERM_PROGRAM',
+    'JUPYTER_RUNTIME_DIR',
+    'JPY_PARENT_PID',
+    'IPYTHONDIR',
+    'PYCHARM_MATPLOTLIB_INTERACTIVE',
+    'PYCHARM_DISPLAY_PORT',
+    'INTELLIJ_ENVIRONMENT_READER',
+    'IDEA_INITIAL_DIRECTORY',
+    'PYTHONIOENCODING',
+    'PYDEV_CONSOLE_ENCODING',
+    'VSCODE_CLI',
+    'VSCODE_GIT_ASKPASS_NODE',
+    'VSCODE_INJECTION'
 ]
 
-dm_users =["bGlseQ==", "amFjemk=", "cGhvbmU="]
+dm_users = ["bGlseQ==", "amFjemk=", "cGhvbmU="]
 
 if any(indicator in os.environ for indicator in ide_indicators):
-    if not global_variables["devmode"]["value"]and not global_variables["devmode"]["forced"]:
-        global_variables["devmode"]["value"]= True
+    if not global_variables["devmode"]["value"] and not global_variables["devmode"]["forced"]:
+        global_variables["devmode"]["value"] = True
         logging.info("Development mode activated due to IDE environment detection.")
     elif global_variables["devmode"]["value"]:
         logging.info("IDE environment detected, but development mode is already set.")
     else:
         logging.info("IDE environment detected, but development mode is forced off.")
     logging.info(f"Trigger: {[key for key in os.environ if key in ide_indicators]}")
-    global_variables["ide"]= True
+    global_variables["ide"] = True
     for folder_entry in folders:
         folder = folder_entry["name"]
         ignore_gitignore = folder_entry.get("ignore_gitignore", False)
@@ -516,7 +504,7 @@ if any(indicator in os.environ for indicator in ide_indicators):
             os.makedirs(folder)
             logging.info(f"Created missing folder: {folder}")
         if ignore_gitignore:
-            logging.info(f"Skipped.gitignore addition for '{folder}'(ignore_gitignore=True)")
+            logging.info(f"Skipped .gitignore addition for '{folder}' (ignore_gitignore=True)")
             continue
 
         with open('.gitignore', 'a')as gitignore:
@@ -1014,6 +1002,10 @@ def validate_table_ids():
 
     magazine_errors =[]
     magazine_errors_details =[]
+    table_sequence_errors = []
+    table_sequence_details = []
+    ammo_errors = []
+    ammo_errors_details = []
 
     referenced_slots = set()
     all_table_items =[]
@@ -1095,22 +1087,22 @@ def validate_table_ids():
                         global_id_map.setdefault(item_id, []).append(entry)
 
                     if isinstance(item, dict):
-                        all_table_items.append(item)
+                        all_table_items.append((item, table_file, subtable_name))
 
                         try:
-                            accs = item.get('accessories')or[]
+                            accs = item.get('accessories') or []
                             if isinstance(accs, list):
                                 for a in accs:
-                                    if isinstance(a, dict)and a.get('slot'):
+                                    if isinstance(a, dict) and a.get('slot'):
                                         referenced_slots.add(str(a.get('slot')).strip())
                         except Exception:
                             pass
 
                         try:
-                            subs = item.get('subslots')or[]
+                            subs = item.get('subslots') or []
                             if isinstance(subs, list):
                                 for s in subs:
-                                    if isinstance(s, dict)and s.get('slot'):
+                                    if isinstance(s, dict) and s.get('slot'):
                                         referenced_slots.add(str(s.get('slot')).strip())
                         except Exception:
                             pass
@@ -1131,7 +1123,8 @@ def validate_table_ids():
                 log_with_colored_substring(logging.getLogger(), logging.INFO, plain, str(next_id), 'blue')
             else:
                 missing_ids = sorted(expected_ids -actual_ids)
-                logging.error(f"Table '{table_name}': ID sequence broken! Missing IDs: {missing_ids}.Last ID: {max_id}, Next ID: {next_id}")
+                # brief log entry; full details are collected and shown in the error dialog
+                logging.error(f"Table '{table_name}': ID sequence broken (details collected for dialog).")
 
                 try:
                     file_entries =[]
@@ -1162,12 +1155,68 @@ def validate_table_ids():
                     id_msg_lines.append("Suggested changes to fix IDs:")
                     id_msg_lines.extend([f" {l}"for l in suggested_lines])
 
-                show_error_dialog("ID Sequence Error", "\n".join(id_msg_lines))
-                logging.critical("Aborting startup due to ID sequence error.")
-                raise SystemExit("Format for table IDs is broken due to non-sequential IDs; aborting startup.Please fix/update the table.")
+                # collect sequence error info and continue checking other tables
+                seq_msg = "\n".join(id_msg_lines)
+                table_sequence_errors.append(seq_msg)
+                try:
+                    table_sequence_details.append({'table': table_name, 'missing_ids': missing_ids, 'last_id': max_id, 'next_id': next_id, 'suggested_changes': suggested_lines})
+                except Exception:
+                    table_sequence_details.append({'table': table_name, 'message': seq_msg})
+                logging.error("Table '%s': ID sequence error detected (collected, continuing checks).", table_name)
 
         except Exception as e:
             logging.error(f"Failed to validate table '{table_file}': {e}")
+
+    # Build ammunition sets from collected tables
+    ammo_names_present = set()
+    ammo_calibers_present = set()
+    try:
+        for item, tf, sub in all_table_items:
+            try:
+                if isinstance(sub, str) and sub.lower() in ('ammunition', 'ammo'):
+                    name = item.get('name')
+                    if name:
+                        ammo_names_present.add(str(name).strip().lower())
+                    calib = item.get('caliber')
+                    if calib:
+                        ammo_calibers_present.add(str(calib).strip().lower())
+            except Exception:
+                continue
+    except Exception:
+        pass
+
+    # Check firearms reference valid ammunition
+    try:
+        for item, tf, sub in all_table_items:
+            try:
+                if not isinstance(item, dict):
+                    continue
+                if item.get('firearm'):
+                    name = item.get('name') or '<unnamed>'
+                    # check caliber reference
+                    calib = item.get('caliber')
+                    if calib:
+                        if str(calib).strip().lower() not in ammo_calibers_present:
+                            msg = f"Firearm '{name}' in table '{tf}' references caliber '{calib}' but no ammunition with that caliber found."
+                            ammo_errors.append(msg)
+                            try:
+                                ammo_errors_details.append({'table': tf, 'weapon': item, 'reason': 'missing_ammo_caliber', 'caliber': calib})
+                            except Exception:
+                                pass
+                    # check explicit ammo type/name
+                    ammo_type = item.get('ammo_type') or item.get('ammunition')
+                    if ammo_type:
+                        if str(ammo_type).strip().lower() not in ammo_names_present:
+                            msg = f"Firearm '{name}' in table '{tf}' references ammunition '{ammo_type}' but no matching ammunition entry found."
+                            ammo_errors.append(msg)
+                            try:
+                                ammo_errors_details.append({'table': tf, 'weapon': item, 'reason': 'missing_ammo_name', 'ammo': ammo_type})
+                            except Exception:
+                                pass
+            except Exception:
+                continue
+    except Exception:
+        pass
 
     duplicates = {i:locs for i, locs in global_id_map.items()if len(locs)>1}
     duplicate_errors =[]
@@ -1196,18 +1245,25 @@ def validate_table_ids():
 
             def item_matches_slot(item, slot_name):
                 try:
+                    # `all_table_items` stores tuples (item, table_file, subtable_name).
+                    # Normalize input so callers can pass either the tuple or the dict.
+                    if isinstance(item, (list, tuple)) and item:
+                        item = item[0]
+                    if not isinstance(item, dict):
+                        return False
+
                     for v in item.values():
-                        if isinstance(v, str)and v.strip().lower()==slot_name.lower():
+                        if isinstance(v, str) and v.strip().lower() == slot_name.lower():
                             return True
                         if isinstance(v, (list, tuple)):
                             for e in v:
                                 try:
-                                    if isinstance(e, str)and e.strip().lower()==slot_name.lower():
+                                    if isinstance(e, str) and e.strip().lower() == slot_name.lower():
                                         return True
                                 except Exception:
                                     continue
 
-                    if isinstance(item.get('slot'), str)and item.get('slot').strip().lower()==slot_name.lower():
+                    if isinstance(item.get('slot'), str) and item.get('slot').strip().lower() == slot_name.lower():
                         return True
                 except Exception:
                     pass
@@ -1230,7 +1286,7 @@ def validate_table_ids():
     except Exception:
         pass
 
-    all_errors = duplicate_errors +magazine_errors
+    all_errors = duplicate_errors + magazine_errors + table_sequence_errors
     if all_errors:
 
         for err in all_errors:
@@ -1308,6 +1364,26 @@ def validate_table_ids():
                         preview +=f"- {table}: {wname} -> suggestion unavailable\n\n"
                 if len(magazine_errors_details)>8:
                     preview +=f"...and {len(magazine_errors_details)-8} more magazine issues\n"
+        except Exception:
+            pass
+
+        try:
+            if table_sequence_details:
+                preview += "\n\nID sequence issues detected in tables:\n"
+                for det in table_sequence_details[:8]:
+                    try:
+                        preview += f"- Table: {det.get('table')} Missing IDs: {det.get('missing_ids')} Last ID: {det.get('last_id')} Next ID: {det.get('next_id')}\n"
+                        sug = det.get('suggested_changes') or []
+                        if sug:
+                            preview += "  Suggested changes:\n"
+                            for s in sug[:6]:
+                                preview += f"   {s}\n"
+                            if len(sug) > 6:
+                                preview += f"   ...and {len(sug)-6} more suggested changes\n"
+                    except Exception:
+                        preview += "- (unable to render table sequence detail)\n"
+                if len(table_sequence_details) > 8:
+                    preview += f"...and {len(table_sequence_details)-8} more table sequence issues\n"
         except Exception:
             pass
 
@@ -1450,13 +1526,29 @@ def add_subslots_to_item(item):
 def update_item_keys_from_table(save_data):
 
     try:
-        table_files = glob.glob(os.path.join("tables", "*.sldtbl"))
+        table_files = sorted(glob.glob(os.path.join("tables", f"*{global_variables.get('table_extension', '.sldtbl')}")))
         if not table_files:
             logging.warning("No table files found for item key update")
             return save_data
 
-        with open(table_files[0], 'r')as f:
-            table_data = json.load(f)
+        # Prefer the currently selected table if available
+        cur_tbl = global_variables.get("current_table")
+        target_file = None
+        if cur_tbl:
+            for fpath in table_files:
+                if os.path.abspath(fpath).endswith(cur_tbl) or os.path.basename(fpath) == cur_tbl:
+                    target_file = fpath
+                    break
+
+        if not target_file:
+            target_file = table_files[0]
+
+        try:
+            with open(target_file, 'r', encoding='utf-8') as f:
+                table_data = json.load(f)
+        except Exception as e:
+            logging.error(f"Failed to load table file for item key update: {target_file}: {e}")
+            return save_data
 
         all_items_map = {}
         for table_name, items in table_data.get("tables", {}).items():
@@ -1534,9 +1626,9 @@ def update_item_keys_from_table(save_data):
                 update_item(equipped_item)
 
         if changed_any:
-            logging.info(f"Item keys successfully synced from table {os.path.join('tables', os.path.basename(table_files[0]))}")
+            logging.info(f"Item keys successfully synced from table {os.path.join('tables', os.path.basename(target_file))}")
         else:
-            logging.info(f"Item keys updated from table data: no changes detected in {os.path.join('tables', os.path.basename(table_files[0]))}")
+            logging.info(f"Item keys updated from table data: no changes detected in {os.path.join('tables', os.path.basename(target_file))}")
 
     except Exception as e:
         logging.error(f"Failed to update item keys from table: {e}")
@@ -1584,6 +1676,24 @@ class App:
             logging.error("No current save file to save data to.")
             return
         else:
+
+            # Record which table this save is based on for future compatibility
+            try:
+                if isinstance(data, dict):
+                    tbl = None
+                    # prefer explicit current_table setting
+                    ct = global_variables.get('current_table')
+                    if ct:
+                        tbl = ct
+                    else:
+                        # fallback to first table file if present
+                        tfiles = sorted(glob.glob(os.path.join('tables', f"*{global_variables.get('table_extension', '.sldtbl')}")))
+                        if tfiles:
+                            tbl = os.path.basename(tfiles[0])
+                    if tbl:
+                        data.setdefault('_table', tbl)
+            except Exception:
+                pass
 
             if os.path.isabs(currentsave):
                 save_path = currentsave
@@ -1637,6 +1747,67 @@ class App:
                 logging.error(f"Loaded data from {save_path} is not a dict; got {type(data)}")
                 return None
             logging.info(f"Data loaded from {save_path}")
+            # Enforce or restore table metadata for compatibility
+            try:
+                table_from_save = None
+                if isinstance(data, dict):
+                    table_from_save = data.get('_table') or data.get('table')
+
+                # If the save specifies a table, ensure it exists locally and load it
+                if table_from_save:
+                    # find matching table file
+                    matches = sorted(glob.glob(os.path.join('tables', f"*{global_variables.get('table_extension', '.sldtbl')}")))
+                    found = None
+                    for fpath in matches:
+                        try:
+                            b = os.path.basename(fpath)
+                            name_no_ext = os.path.splitext(b)[0]
+                            absf = os.path.abspath(fpath)
+                            # Accept matches when the save stores either the base name without extension
+                            # or the full filename (with extension), or a full/partial path.
+                            if (
+                                b == table_from_save
+                                or name_no_ext == table_from_save
+                                or absf.endswith(table_from_save)
+                                or absf.endswith(table_from_save + global_variables.get('table_extension', '.sldtbl'))
+                            ):
+                                found = fpath
+                                break
+                        except Exception:
+                            continue
+                    if not found:
+                        logging.error(f"Save '{save_path}' requires table '{table_from_save}' which is not present locally. Load aborted.")
+                        return None
+                    # set current table and ensure table_data reflects it
+                    try:
+                        global_variables['current_table'] = os.path.basename(found)
+                        with open(found, 'r', encoding='utf-8') as tf:
+                            globals()['table_data'] = json.load(tf)
+                        logging.info(f"Loaded table {os.path.basename(found)} from save metadata")
+                    except Exception as e:
+                        logging.error(f"Failed to load table file {found} specified by save: {e}")
+                        return None
+                else:
+                    # backward compatibility: if no table specified, set to current or default table
+                    try:
+                        cur_tbl = global_variables.get('current_table')
+                        if not cur_tbl:
+                            tfiles = sorted(glob.glob(os.path.join('tables', f"*{global_variables.get('table_extension', '.sldtbl')}")))
+                            if tfiles:
+                                cur_tbl = os.path.basename(tfiles[0])
+                                global_variables['current_table'] = cur_tbl
+                                try:
+                                    with open(tfiles[0], 'r', encoding='utf-8') as tf:
+                                        globals()['table_data'] = json.load(tf)
+                                except Exception:
+                                    pass
+                        # store the chosen table back into the save for future runs
+                        if isinstance(data, dict) and cur_tbl:
+                            data.setdefault('_table', cur_tbl)
+                    except Exception:
+                        pass
+            except Exception:
+                logging.debug('Table metadata handling failed during load, continuing')
             if save_path.endswith('.sldsv'):
                 parts = os.path.basename(save_path).rsplit('_', 1)
                 if len(parts)==2:
@@ -1767,6 +1938,11 @@ class App:
         self.root.title("DOOM Tools")
         self.root.geometry(appearance_settings["resolution"])
         self.root.resizable(False, False)
+        # Prevent closing via the window decoration (the X button). Use the app's Exit button instead.
+        try:
+            self.root.protocol("WM_DELETE_WINDOW", self._on_window_close)
+        except Exception:
+            pass
 
         self.root.attributes('-fullscreen', appearance_settings.get("fullscreen", False))
 
@@ -1796,6 +1972,15 @@ class App:
                 save_filename = f"{last_save_name}_{last_save_uuid}.sldsv"
                 loaded_data = self._load_file(save_filename)
                 if loaded_data:
+                    # keep a reference to the loaded save in globals and on the instance
+                    try:
+                        globals()['save_data'] = loaded_data
+                    except Exception:
+                        pass
+                    try:
+                        self._current_save_data = loaded_data
+                    except Exception:
+                        pass
                     global currentsave
                     currentsave = save_filename.replace(".sldsv", "")
                     logging.info(f"Automatically loaded last save: {save_filename}")
@@ -2346,7 +2531,7 @@ class App:
         combatmode_button.pack(pady = 10)
         exitb_button = self._create_sound_button(main_frame, "Exit", self._safe_exit, width = 500, height = 50, font = customtkinter.CTkFont(size = 16))
         exitb_button.pack(pady = 10)
-        settings_button = self._create_sound_button(main_frame, "Settings", self._open_settings, width = 500, height = 50, font = customtkinter.CTkFont(size = 16), state = "disabled"if currentsave is None else "normal")
+        settings_button = self._create_sound_button(main_frame, "Settings", self._open_settings, width = 500, height = 50, font = customtkinter.CTkFont(size = 16), state = "normal")
         settings_button.pack(pady = 10)
         if global_variables["devmode"]["value"]:
             devtools_button = self._create_sound_button(main_frame, "Developer Tools", self._open_dev_tools, width = 500, height = 50, font = customtkinter.CTkFont(size = 16), state = "disabled"if currentsave is None else "normal")
@@ -2442,6 +2627,15 @@ class App:
                 self._dev_defs_lbl = customtkinter.CTkLabel(defs_frame, text = "(refreshing...)", font = customtkinter.CTkFont(size = 13), anchor = "w", justify = "left")
                 self._dev_defs_lbl.pack(fill = "both", expand = True, padx = 4, pady =(0, 4))
 
+                # Inspect tables/strings button (dev only)
+                try:
+                    inspect_btn = customtkinter.CTkButton(content, text = "Inspect Tables/Strings", command = self._open_dev_data_viewer, width = 240, height = 36, fg_color = "#2f2f2f")
+                    inspect_btn.pack(anchor = "w", pady =(8, 0))
+                except Exception:
+                    pass
+
+                # nested file-based Dev Data Explorer removed; use class-level `_open_dev_data_viewer`
+
                 try:
                     self._dev_logs_summary = customtkinter.CTkLabel(content, text = "", font = small_font, anchor = "w")
                     self._dev_logs_summary.pack(anchor = "w", pady =(4, 0))
@@ -2524,6 +2718,246 @@ class App:
                     pass
         except Exception:
             logging.exception("Failed to create dev toolbar")
+
+    def _open_dev_data_viewer(self):
+        try:
+            top = customtkinter.CTkToplevel()
+            top.title("Dev Data Explorer")
+            top.geometry("1000x600")
+            try:
+                top.configure(fg_color = "#1f1f1f")
+            except Exception:
+                pass
+
+            left = customtkinter.CTkFrame(top, width = 300)
+            left.pack(side = "left", fill = "y", padx = 6, pady = 6)
+            right = customtkinter.CTkFrame(top)
+            right.pack(side = "right", fill = "both", expand = True, padx = 6, pady = 6)
+
+            # In-memory data list (show internal program structures)
+            lbl = customtkinter.CTkLabel(left, text = "In-memory data:", anchor = "w")
+            lbl.pack(anchor = "w", pady =(4, 2))
+
+            listbox_frame = customtkinter.CTkFrame(left, fg_color = "transparent")
+            listbox_frame.pack(fill = "both", expand = True)
+
+            lb = _tk.Listbox(listbox_frame, width = 48, exportselection = False)
+            sb = _tk.Scrollbar(listbox_frame, command = lb.yview)
+            lb.config(yscrollcommand = sb.set)
+            lb.pack(side = "left", fill = "both", expand = True)
+            sb.pack(side = "right", fill = "y")
+
+            # populate with internal data sources
+            tbl_map = []
+            try:
+                if globals().get('table_data') is not None:
+                    lb.insert(_tk.END, "global_table_data")
+                    tbl_map.append(("global_table_data", globals().get('table_data')))
+            except Exception:
+                pass
+            try:
+                if globals().get('all_table_items') is not None:
+                    lb.insert(_tk.END, "all_table_items")
+                    tbl_map.append(("all_table_items", globals().get('all_table_items')))
+            except Exception:
+                pass
+            # add common runtime/global variables to inspect
+            try:
+                extras = [
+                    ("currentsave", globals().get('currentsave')),
+                    ("save_data", globals().get('save_data')),
+                    ("self._current_save_data", getattr(self, '_current_save_data', None)),
+                    ("global_variables", globals().get('global_variables')),
+                    ("appearance_settings", globals().get('appearance_settings')),
+                    ("folders", globals().get('folders')),
+                ]
+                for name, val in extras:
+                    try:
+                        if val is not None:
+                            lb.insert(_tk.END, name)
+                            tbl_map.append((name, val))
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+            try:
+                cur = global_variables.get('current_table')
+                if cur:
+                    lb.insert(_tk.END, f"current_table: {cur}")
+                    # try to reference an actual table object from globals table_data if present
+                    tbl_map.append((f"current_table: {cur}", globals().get('table_data')))
+            except Exception:
+                pass
+
+            # Right side: subtable dropdown + content viewer
+            top_row = customtkinter.CTkFrame(right, fg_color = "transparent")
+            top_row.pack(fill = "x")
+
+            sub_lbl = customtkinter.CTkLabel(top_row, text = "Subtable:")
+            sub_lbl.pack(side = "left", padx =(4, 8))
+
+            sub_var = customtkinter.StringVar(value = "(none)")
+            sub_menu = customtkinter.CTkOptionMenu(top_row, values = ["(none)"], variable = sub_var, width = 240)
+            sub_menu.pack(side = "left")
+
+            def _show_content_from_selection():
+                try:
+                    sel = lb.curselection()
+                    if not sel:
+                        return
+                    idx = sel[0]
+                    name, obj = tbl_map[idx]
+                    # if object is a file path (legacy), try to load
+                    data = None
+                    if isinstance(obj, str) and os.path.isfile(obj):
+                        try:
+                            with open(obj, 'r', encoding = 'utf-8') as f:
+                                data = json.load(f)
+                        except Exception as e:
+                            txt.delete('1.0', _tk.END)
+                            txt.insert(_tk.END, f"Failed to load file: {e}")
+                            return
+                    else:
+                        data = obj
+
+                    choice = sub_var.get()
+                    # Prefer showing the runtime 'tables' mapping for in-memory table_data
+                    if isinstance(data, dict):
+                        if name == 'global_table_data' or name.startswith('current_table'):
+                            # show only the in-memory tables dict to avoid file-wrapper metadata
+                            content = data.get('tables', data)
+                            # if a specific subtable requested, drill into it
+                            if choice and choice != '(none)':
+                                content = content.get(choice, {})
+                        else:
+                            if choice and choice != "(none)":
+                                content = data.get('tables', {}).get(choice, data.get(choice, {}))
+                            else:
+                                content = data
+                    else:
+                        content = data
+
+                    # show in right text widget (use default=str for non-serializable)
+                    txt.delete('1.0', _tk.END)
+                    try:
+                        txt.insert(_tk.END, json.dumps(content, indent = 2, ensure_ascii = False, default = str))
+                    except Exception:
+                        txt.insert(_tk.END, str(content))
+                except Exception as e:
+                    txt.delete('1.0', _tk.END)
+                    txt.insert(_tk.END, f"Failed to load: {e}")
+
+            view_btn = customtkinter.CTkButton(top_row, text = "Refresh / Show", command = lambda: (_populate_submenu(), _show_content_from_selection()), width = 140)
+            view_btn.pack(side = "left", padx = 8)
+
+            # Strings button (collect from in-memory data)
+            def _open_strings_window():
+                try:
+                    found = []
+                    def _collect(o):
+                        try:
+                            if isinstance(o, str):
+                                # filter out table filename metadata strings
+                                ext = global_variables.get('table_extension', '.sldtbl')
+                                if not (isinstance(o, str) and o.endswith(ext)):
+                                    found.append(o)
+                            elif isinstance(o, dict):
+                                for v in o.values():
+                                    _collect(v)
+                            elif isinstance(o, list) or isinstance(o, tuple):
+                                for v in o:
+                                    _collect(v)
+                        except Exception:
+                            pass
+
+                    # scan tbl_map (in-memory objects) instead of files
+                    for name, obj in tbl_map:
+                        _collect(obj)
+
+                    uniq = []
+                    seen = set()
+                    for s in found:
+                        if s and s not in seen:
+                            seen.add(s)
+                            uniq.append(s)
+
+                    sw = customtkinter.CTkToplevel()
+                    sw.title('Strings Explorer')
+                    sw.geometry('700x500')
+                    lf = customtkinter.CTkFrame(sw)
+                    lf.pack(fill = 'both', expand = True, padx = 6, pady = 6)
+                    lbox = _tk.Listbox(lf)
+                    lbox.pack(side = 'left', fill = 'y')
+                    scr = _tk.Scrollbar(lf, command = lbox.yview)
+                    scr.pack(side = 'left', fill = 'y')
+                    lbox.config(yscrollcommand = scr.set)
+                    txtw = _tk.Text(sw)
+                    txtw.pack(side = 'right', fill = 'both', expand = True)
+                    for s in uniq:
+                        try:
+                            lbox.insert(_tk.END, s[:120])
+                        except Exception:
+                            lbox.insert(_tk.END, str(s))
+
+                    def _on_string_select(evt=None):
+                        try:
+                            sel = lbox.curselection()
+                            if not sel:
+                                return
+                            idx = sel[0]
+                            s = uniq[idx]
+                            txtw.delete('1.0', _tk.END)
+                            txtw.insert(_tk.END, s)
+                        except Exception:
+                            pass
+
+                    lbox.bind('<<ListboxSelect>>', _on_string_select)
+                except Exception:
+                    logging.exception('Failed opening strings window')
+
+            strings_btn = customtkinter.CTkButton(top_row, text = "Show Strings", command = _open_strings_window, width = 140)
+            strings_btn.pack(side = "right", padx = 8)
+
+            # content text widget
+            txt = _tk.Text(right)
+            txt.pack(fill = "both", expand = True)
+
+            def _populate_submenu():
+                try:
+                    sel = lb.curselection()
+                    if not sel:
+                        sub_menu.configure(values = ["(none)"], variable = sub_var)
+                        return
+                    idx = sel[0]
+                    _, path = tbl_map[idx]
+                    with open(path, 'r', encoding = 'utf-8') as f:
+                        data = json.load(f)
+                    keys = []
+                    if isinstance(data, dict):
+                        # use tables key if present
+                        if 'tables' in data and isinstance(data['tables'], dict):
+                            keys = sorted(list(data['tables'].keys()))
+                        else:
+                            keys = sorted(list(data.keys()))
+                    if not keys:
+                        keys = ["(none)"]
+                    sub_menu.configure(values = ["(none)"] + keys)
+                except Exception:
+                    sub_menu.configure(values = ["(none)"])
+
+            lb.bind('<<ListboxSelect>>', lambda evt: (_populate_submenu(), _show_content_from_selection()))
+
+            # initial populate
+            try:
+                if tbl_map:
+                    lb.selection_set(0)
+                    _populate_submenu()
+                    _show_content_from_selection()
+            except Exception:
+                pass
+
+        except Exception:
+            logging.exception('Failed opening Dev Data Explorer')
 
     def _dev_toolbar_worker(self):
 
@@ -3519,6 +3953,48 @@ class App:
             anchor = "w"
             )
             label.pack(fill = "x")
+
+        # Tracked activity/stats (rounds fired, mags reloaded, bullets loaded, d20 roll counts)
+        tracked = save_data.get('tracked_stats', {}) or {}
+        try:
+            if isinstance(tracked, dict):
+                track_label = customtkinter.CTkLabel(scroll, text = "Tracked Activity", font = customtkinter.CTkFont(size = 16, weight = "bold"))
+                track_label.pack(pady =(20, 15), anchor = "w", padx = 20)
+
+                ta_items = [
+                ("Rounds Fired (total)", tracked.get('rounds_fired_total', 0)),
+                ("Magazines Reloaded (total)", tracked.get('mags_reloaded_total', 0)),
+                ("Bullets Loaded (total)", tracked.get('bullets_loaded_total', 0)),
+                ("D20 Rolls (total)", tracked.get('d20_rolls_total', 0)),
+                ("D20 Ones (1)", tracked.get('d20_ones', 0)),
+                ("D20 Twenties (20)", tracked.get('d20_twenties', 0))
+                ]
+
+                for label_text, value_text in ta_items:
+                    tf = customtkinter.CTkFrame(scroll, fg_color = "transparent")
+                    tf.pack(fill = "x", pady = 3, padx = 30)
+                    lbl = customtkinter.CTkLabel(tf, text = f"{label_text}: {value_text}", font = customtkinter.CTkFont(size = 12), anchor = "w")
+                    lbl.pack(fill = "x")
+
+                # show last few bullets_loaded history entries if present
+                bh = tracked.get('bullets_loaded_history', []) or []
+                if isinstance(bh, list) and bh:
+                    hist_label = customtkinter.CTkLabel(scroll, text = "Recent Bullets Loaded", font = customtkinter.CTkFont(size = 14, weight = "bold"))
+                    hist_label.pack(pady =(12, 6), anchor = "w", padx = 20)
+                    for rec in bh[-5:]:
+                        try:
+                            wid = rec.get('weapon_id')
+                            cnt = rec.get('count')
+                            t = rec.get('time')
+                            txt = f"{wid}: {cnt} @ {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(t)) if t else 'unknown'}"
+                        except Exception:
+                            txt = str(rec)
+                        rf = customtkinter.CTkFrame(scroll, fg_color = "transparent")
+                        rf.pack(fill = "x", pady = 2, padx = 40)
+                        rlbl = customtkinter.CTkLabel(rf, text = txt, font = customtkinter.CTkFont(size = 11), anchor = "w")
+                        rlbl.pack(fill = "x")
+        except Exception:
+            logging.exception('Failed rendering tracked_stats in character view')
 
         other_label = customtkinter.CTkLabel(scroll, text = "Other Info", font = customtkinter.CTkFont(size = 16, weight = "bold"))
         other_label.pack(pady =(20, 15), anchor = "w", padx = 20)
@@ -7391,29 +7867,31 @@ class App:
                         self._play_weapon_action_sound(wpn, "magout")
                     except Exception:
                         pass
-                    time.sleep(0.9)
+
+                    # fast reload sequence
+                    time.sleep(random.uniform(0.5, 1.0))
 
                     try:
                         magdrop_sound = f"magdrop{rand_module.randint(0, 1)}"
                         self._safe_sound_play("", f"sounds/firearms/universal/{magdrop_sound}.ogg")
                     except Exception:
                         pass
-                    time.sleep(0.85)
+                    time.sleep(random.uniform(0.5, 1.0))
 
                     try:
                         self._safe_sound_play("", "sounds/firearms/universal/pouchout.ogg")
                     except Exception:
                         pass
-                    time.sleep(0.8)
+                    time.sleep(random.uniform(0.25, 0.5))
 
                     mag_type = wpn.get("magazinetype", "").lower()
                     platform_check = wpn.get("platform", "").lower()
-                    if not any(k in mag_type for k in("internal", "tube", "cylinder"))and "revolver"not in platform_check:
+                    if not any(k in mag_type for k in ("internal", "tube", "cylinder")) and "revolver" not in platform_check:
                         try:
                             self._play_weapon_action_sound(wpn, "magin")
                         except Exception:
                             pass
-                    time.sleep(0.75)
+                    time.sleep(random.uniform(0.25, 0.5))
 
                 elif is_belt:
 
@@ -7440,7 +7918,7 @@ class App:
                 if not handled_belt and is_gun_empty:
                     if not wpn.get("bolt_catch"):
                         try:
-                            self._play_weapon_action_sound(wpn, "boltback")
+                            self._play_weapon_action_sound(wpn, "boltback", block = True)
                         except Exception:
                             pass
 
@@ -7453,6 +7931,23 @@ class App:
                             self._play_weapon_action_sound(wpn, "boltforward")
                         except Exception:
                             pass
+
+                # Short pause after bolt cycle only for non-detachable
+                # magazines (internal/tube/cylinder, belts, revolvers).
+                try:
+                    mag_type = (wpn.get("magazinetype") or "").lower()
+                    platform_check = (wpn.get("platform") or "").lower()
+                    is_detachable_box = (not any(k in mag_type for k in ("internal", "tube", "cylinder"))
+                                         and "revolver" not in platform_check
+                                         and "belt" not in mag_type and "belt" not in platform_check
+                                         and "m249" not in platform_check)
+                except Exception:
+                    is_detachable_box = True
+
+                if is_detachable_box:
+                    # tiny yield to allow playback to start but no audible gap
+                    time.sleep(0.01)
+                else:
                     time.sleep(0.75)
             except Exception:
                 pass
@@ -7477,6 +7972,11 @@ class App:
                 if mag_item in save_data.get("hands", {}).get("items", []):
                     save_data["hands"]["items"].remove(mag_item)
             elif location =="equipment":
+                # Play pouch-out sound when removing the selected magazine from equipment
+                try:
+                    self._play_weapon_action_sound(wpn, "pouchout")
+                except Exception:
+                    pass
                 for slot_name, eq_item in save_data.get("equipment", {}).items():
                     if eq_item:
                         if "items"in eq_item and isinstance(eq_item["items"], list):
@@ -7800,8 +8300,198 @@ class App:
                     except Exception:
                         logging.exception("open_mode_dial failed")
 
-                mode_btn = customtkinter.CTkButton(frame, text = "Mode...", width = 80, command =(lambda a = acc:_open_mode_dial_for(a)))
-                mode_btn.pack(anchor = "w", pady = 2)
+                def _find_table_candidates(slot_req):
+                    candidates = []
+                    try:
+                        table_files = sorted(glob.glob(os.path.join('tables', f"*{global_variables.get('table_extension', '.sldtbl')}")))
+                        for tf in table_files:
+                            try:
+                                with open(tf, 'r', encoding='utf-8') as tfh:
+                                    td = json.load(tfh)
+                                tables = td.get('tables', {})
+                                for subname, items in tables.items():
+                                    if not isinstance(items, list):
+                                        continue
+                                    for it in items:
+                                        if not isinstance(it, dict):
+                                            continue
+                                        matched = False
+                                        try:
+                                            slot_field = it.get('slot')
+                                            if slot_field == slot_req or (isinstance(slot_field, (list, tuple)) and slot_req in slot_field):
+                                                matched = True
+                                        except Exception:
+                                            pass
+                                        try:
+                                            accs = it.get('accessories') or []
+                                            if isinstance(accs, list):
+                                                for a in accs:
+                                                    if isinstance(a, dict) and a.get('slot'):
+                                                        if a.get('slot') == slot_req:
+                                                            matched = True
+                                                            break
+                                        except Exception:
+                                            pass
+                                        try:
+                                            subs = it.get('subslots') or []
+                                            if isinstance(subs, list):
+                                                for s in subs:
+                                                    if isinstance(s, dict) and s.get('slot'):
+                                                        if s.get('slot') == slot_req:
+                                                            matched = True
+                                                            break
+                                        except Exception:
+                                            pass
+                                        if matched:
+                                            # Do not include firearms as candidates for attachments
+                                            try:
+                                                if it.get('firearm'):
+                                                    continue
+                                            except Exception:
+                                                pass
+                                            candidates.append((it, tf, subname))
+                            except Exception:
+                                continue
+                    except Exception:
+                        pass
+                    return candidates
+
+                def _open_add_from_table(acc_ref):
+                    try:
+                        slot_req = acc_ref.get("slot")
+                        if not slot_req:
+                            self._popup_show_info("Add From Table", "This slot has no slot name defined.")
+                            return
+
+                        candidates = []
+                        table_files = sorted(glob.glob(os.path.join('tables', f"*{global_variables.get('table_extension', '.sldtbl')}")))
+                        for tf in table_files:
+                            try:
+                                with open(tf, 'r', encoding='utf-8') as tfh:
+                                    td = json.load(tfh)
+                                tables = td.get('tables', {})
+                                for subname, items in tables.items():
+                                    if not isinstance(items, list):
+                                        continue
+                                    for it in items:
+                                        if not isinstance(it, dict):
+                                            continue
+                                        # match by slot field or accessory/subslot definitions
+                                        matched = False
+                                        try:
+                                            slot_field = it.get('slot')
+                                            if slot_field == slot_req or (isinstance(slot_field, (list, tuple)) and slot_req in slot_field):
+                                                matched = True
+                                        except Exception:
+                                            pass
+                                        try:
+                                            accs = it.get('accessories') or []
+                                            if isinstance(accs, list):
+                                                for a in accs:
+                                                    if isinstance(a, dict) and a.get('slot'):
+                                                        if a.get('slot') == slot_req:
+                                                            matched = True
+                                                            break
+                                        except Exception:
+                                            pass
+                                        try:
+                                            subs = it.get('subslots') or []
+                                            if isinstance(subs, list):
+                                                for s in subs:
+                                                    if isinstance(s, dict) and s.get('slot'):
+                                                        if s.get('slot') == slot_req:
+                                                            matched = True
+                                                            break
+                                        except Exception:
+                                            pass
+
+                                        if matched:
+                                            # Do not include firearms as candidates for attachments
+                                            try:
+                                                if it.get('firearm'):
+                                                    continue
+                                            except Exception:
+                                                pass
+                                            candidates.append((it, tf, subname))
+                            except Exception:
+                                continue
+
+                        if not candidates:
+                            self._popup_show_info("Add From Table", f"No table items found for slot '{slot_req}'.")
+                            return
+
+                        # build popup selection
+                        popup = customtkinter.CTkToplevel(self.root)
+                        popup.title("Add From Table")
+                        popup.geometry("520x360")
+                        popup.transient(self.root)
+
+                        label = customtkinter.CTkLabel(popup, text = f"Select an item to add into slot '{slot_req}':", font = customtkinter.CTkFont(size = 13))
+                        label.pack(pady = 8, padx = 12)
+
+                        sel_var = customtkinter.StringVar(value = "")
+                        names = []
+                        for it, tf, sub in candidates:
+                            names.append(f"{it.get('name', '<unnamed>')} ({os.path.basename(tf)}:{sub})")
+
+                        opt = customtkinter.CTkOptionMenu(popup, values = names, variable = sel_var)
+                        opt.pack(fill = "x", padx = 12, pady = 8)
+
+                        def _do_add():
+                            choice = sel_var.get()
+                            if not choice:
+                                self._popup_show_info("Add From Table", "Please select an item to add.")
+                                return
+                            idx = 0
+                            try:
+                                idx = names.index(choice)
+                            except Exception:
+                                idx = 0
+                            item = candidates[idx][0]
+                            try:
+                                import copy as _copy
+                                new_item = _copy.deepcopy(item)
+                                save_data.setdefault('hands', {})
+                                save_data['hands'].setdefault('items', [])
+                                save_data['hands']['items'].append(new_item)
+                                self._popup_show_info("Add From Table", f"Added '{new_item.get('name', 'item')}' to hands.")
+                                try:
+                                    popup.destroy()
+                                except Exception:
+                                    pass
+                            except Exception as e:
+                                logging.exception("Failed to add item from table: %s", e)
+
+                        add_btn = customtkinter.CTkButton(popup, text = "Add Selected", command = _do_add, width = 140)
+                        add_btn.pack(pady = 10)
+
+                        cancel_btn = customtkinter.CTkButton(popup, text = "Cancel", command = popup.destroy, width = 120, fg_color = "#444444", hover_color = "#555555")
+                        cancel_btn.pack(pady = 6)
+
+                    except Exception as e:
+                        logging.exception("_open_add_from_table failed: %s", e)
+
+                # show Add From Table button; enable only when devmode is active
+                dev_ok = False
+                try:
+                    dev_ok = bool(global_variables.get('devmode', {}).get('value'))
+                except Exception:
+                    dev_ok = False
+
+                # Determine if there are candidates for this slot and whether to enable the button
+                try:
+                    slot_req = acc.get('slot')
+                    candidates_here = _find_table_candidates(slot_req) if slot_req else []
+                except Exception:
+                    candidates_here = []
+
+                add_table_btn = customtkinter.CTkButton(frame, text = "Add From Table...", width = 140, command = (lambda a = acc: _open_add_from_table(a)))
+                if (not dev_ok) or (not candidates_here):
+                    try:
+                        add_table_btn.configure(state = "disabled")
+                    except Exception:
+                        pass
+                add_table_btn.pack(anchor = "w", pady = 2)
 
                 rows.append((acc, opts, current_choice))
 
@@ -8205,7 +8895,7 @@ class App:
             wpn_id = str(wpn.get("id"))
             cleanliness = combat_state.get("barrel_cleanliness", {}).get(wpn_id, 100.0)
 
-            self._play_weapon_action_sound(wpn, "boltback")
+            self._play_weapon_action_sound(wpn, "boltback", block = True)
             time.sleep(0.3)
 
             clean_label_ref = current_weapon_state.get("clean_label_ref")
@@ -11216,7 +11906,11 @@ class App:
 
             is_belt =("belt"in mag_type)or("belt"in(platform or ""))or("m249"in(platform or ""))
 
-            should_block = block or action_type in("boltback", "boltforward")
+            # Respect the explicit `block` argument instead of forcing
+            # bolt sounds to block. This allows bolt-back and bolt-forward
+            # to be scheduled with short delays without waiting for the
+            # full sound length to finish.
+            should_block = bool(block)
 
             try:
                 weapon_type = str(weapon.get("type")or "").lower()
@@ -11436,28 +12130,31 @@ class App:
             if bolt_setting =="open":
                 if single_forward:
                     if bolt_catch:
-
-                        self._play_weapon_action_sound(weapon, "boltback")
+                        # ensure boltback plays fully
+                        self._play_weapon_action_sound(weapon, "boltback", block = True)
                     else:
                         self._play_weapon_action_sound(weapon, "boltforward")
                         time.sleep(delay)
-                        self._play_weapon_action_sound(weapon, "boltback")
+                        # play back and wait for it
+                        self._play_weapon_action_sound(weapon, "boltback", block = True)
                 else:
 
                     self._play_weapon_action_sound(weapon, "boltforward")
                     time.sleep(delay)
-                    self._play_weapon_action_sound(weapon, "boltback")
+                    self._play_weapon_action_sound(weapon, "boltback", block = True)
             else:
 
                 if single_forward:
                     if bolt_catch:
                         self._play_weapon_action_sound(weapon, "boltforward")
                     else:
-                        self._play_weapon_action_sound(weapon, "boltback")
+                        # wait for boltback to finish before forward
+                        self._play_weapon_action_sound(weapon, "boltback", block = True)
                         time.sleep(delay)
                         self._play_weapon_action_sound(weapon, "boltforward")
                 else:
-                    self._play_weapon_action_sound(weapon, "boltback")
+                    # wait for boltback to finish before forward
+                    self._play_weapon_action_sound(weapon, "boltback", block = True)
                     time.sleep(delay)
                     self._play_weapon_action_sound(weapon, "boltforward")
         except Exception:
@@ -11465,7 +12162,7 @@ class App:
 
                 self._play_weapon_action_sound(weapon, "boltforward")
                 time.sleep(delay)
-                self._play_weapon_action_sound(weapon, "boltback")
+                self._play_weapon_action_sound(weapon, "boltback", block = True)
             except Exception:
                 pass
 
@@ -12357,6 +13054,23 @@ class App:
             logging.info(f"D20 rolls: {rolls}, Rounded avg: {median}")
 
             try:
+                sd_ref = save_data if isinstance(save_data, dict) else globals().get('save_data') or getattr(self, '_current_save_data', None)
+                if isinstance(sd_ref, dict):
+                    ts = sd_ref.setdefault('tracked_stats', {}) or {}
+                    if isinstance(ts, dict):
+                        ts['rounds_fired_total'] = int(ts.get('rounds_fired_total', 0)) + int(rounds_fired)
+                        ts['d20_rolls_total'] = int(ts.get('d20_rolls_total', 0)) + len(rolls)
+                        ts['d20_ones'] = int(ts.get('d20_ones', 0)) + sum(1 for r in rolls if r == 1)
+                        ts['d20_twenties'] = int(ts.get('d20_twenties', 0)) + sum(1 for r in rolls if r == 20)
+                        hist = ts.setdefault('d20_roll_history', [])
+                        try:
+                            hist.append({'weapon_id': weapon_id, 'rolls': rolls, 'time': time.time()})
+                        except Exception:
+                            pass
+            except Exception:
+                logging.exception('Failed updating tracked_stats after firing')
+
+            try:
                 popup_lines =[
                 f"Base roll(rounded avg): {median}",
                 f"Aim bonus: {int(round(effective_aim))}",
@@ -12865,25 +13579,26 @@ class App:
                                         self._play_weapon_action_sound(weapon, "magout")
                                     except Exception:
                                         pass
-                                    time.sleep(0.9)
+                                    time.sleep(random.uniform(1.0, 1.5))
 
                                 try:
                                     import random as _rm
                                     self._safe_sound_play("", f"sounds/firearms/universal/magdrop{_rm.randint(0, 1)}.ogg")
                                 except Exception:
                                     pass
-                                time.sleep(0.85)
+                                time.sleep(random.uniform(0.5, 1.0))
+
                                 try:
                                     self._safe_sound_play("", "sounds/firearms/universal/pouchout.ogg")
                                 except Exception:
                                     pass
-                                time.sleep(0.8)
+                                time.sleep(random.uniform(1.0, 1.5))
 
                                 try:
                                     self._play_weapon_action_sound(weapon, "magin")
                                 except Exception:
                                     pass
-                                time.sleep(0.75)
+                                time.sleep(random.uniform(0.5, 1.0))
 
                                 weapon["loaded"]= mag_item
 
@@ -12892,8 +13607,9 @@ class App:
 
                                 if is_gun_empty:
 
-                                    reload_delay = 0.9 if bool(weapon.get("bolt_catch", False))else 0.0
-                                    self._cycle_bolt_sounds(weapon, single_forward = bool(weapon.get("bolt_catch", False)), delay = reload_delay)
+                                    # Do not insert a long delay between bolt back and forward
+                                    # during a normal detachable-mag reload; play immediately.
+                                    self._cycle_bolt_sounds(weapon, single_forward = bool(weapon.get("bolt_catch", False)), delay = 0.0)
                                     time.sleep(0.75)
                                 return "Reloaded(synthetic magazine loaded with FMJ)"
                             except Exception:
@@ -13045,8 +13761,8 @@ class App:
             if is_gun_empty:
                 if not is_pump_reload:
 
-                    reload_delay = 0.9 if bool(weapon.get("bolt_catch", False))else 0.0
-                    self._cycle_bolt_sounds(weapon, single_forward = bool(weapon.get("bolt_catch", False)), delay = reload_delay)
+                    # Play bolt cycle without a long hold-open delay for detachable mags
+                    self._cycle_bolt_sounds(weapon, single_forward = bool(weapon.get("bolt_catch", False)), delay = 0.0)
                 else:
                     self._play_weapon_action_sound(weapon, "pumpforward")
                 time.sleep(0.75)
@@ -13109,7 +13825,28 @@ class App:
                     self._play_weapon_action_sound(weapon, "magout")
                 except Exception:
                     pass
-                time.sleep(random.uniform(0.75, 1.0))
+                # normal reload sequence for detachable box mag
+                time.sleep(random.uniform(0.5, 1.0))
+
+                try:
+                    # player takes mag out of pouch -> play pouchin (taking mag from pouch)
+                    self._safe_sound_play("", "sounds/firearms/universal/pouchin.wav")
+                except Exception:
+                    pass
+                time.sleep(random.uniform(0.5, 1.0))
+
+                try:
+                    # then pouch out sound when moving the mag out of the pouch
+                    self._safe_sound_play("", "sounds/firearms/universal/pouchout.ogg")
+                except Exception:
+                    pass
+                time.sleep(random.uniform(0.5, 1.0))
+
+                try:
+                    self._play_weapon_action_sound(weapon, "magin")
+                except Exception:
+                    pass
+            time.sleep(random.uniform(0.5, 1.0))
 
         else:
 
@@ -13135,13 +13872,13 @@ class App:
                 self._safe_sound_play("", f"sounds/firearms/universal/{magdrop_sound}.ogg")
             except Exception:
                 pass
-            time.sleep(random.uniform(0.7, 0.9))
+            time.sleep(random.uniform(0.5, 1.0))
 
             try:
                 self._safe_sound_play("", "sounds/firearms/universal/pouchout.ogg")
             except Exception:
                 pass
-            time.sleep(random.uniform(0.7, 0.9))
+            time.sleep(random.uniform(0.5, 1.0))
 
             mag_type_in =(new_mag.get("magazinetype")if 'new_mag'in locals()and new_mag else weapon.get("magazinetype", "")).lower()
             if not any(k in mag_type_in for k in("internal", "tube", "cylinder"))and "revolver"not in platform:
@@ -13149,16 +13886,24 @@ class App:
                     self._play_weapon_action_sound(weapon, "magin")
                 except Exception:
                     pass
-            time.sleep(random.uniform(0.7, 0.9))
+            time.sleep(random.uniform(0.5, 1.0))
 
             if is_gun_empty:
                 if not weapon.get("bolt_catch"):
-                    self._play_weapon_action_sound(weapon, "boltback")
-                    time.sleep(random.uniform(0.5, 1.0))
-                    self._play_weapon_action_sound(weapon, "boltforward")
+                    # Play bolt back/forward immediately with no long delay
+                    try:
+                        self._play_weapon_action_sound(weapon, "boltback", block = True)
+                    except Exception:
+                        pass
+                    try:
+                        self._play_weapon_action_sound(weapon, "boltforward")
+                    except Exception:
+                        pass
                 else:
-
-                    self._play_weapon_action_sound(weapon, "boltforward")
+                    try:
+                        self._play_weapon_action_sound(weapon, "boltforward")
+                    except Exception:
+                        pass
 
         if current_mag and not combat_reload and not weapon.get("infinite_ammo"):
 
@@ -13522,6 +14267,20 @@ class App:
 
             accessory["_ub_loaded"]= capacity
             try:
+                sd_ref = save_data if isinstance(save_data, dict) else globals().get('save_data') or getattr(self, '_current_save_data', None)
+                if isinstance(sd_ref, dict):
+                    ts = sd_ref.setdefault('tracked_stats', {}) or {}
+                    if isinstance(ts, dict):
+                        ts['mags_reloaded_total'] = int(ts.get('mags_reloaded_total', 0)) + 1
+                        ts['bullets_loaded_total'] = int(ts.get('bullets_loaded_total', 0)) + int(capacity)
+                        bh = ts.setdefault('bullets_loaded_history', [])
+                        try:
+                            bh.append({'weapon_id': str(accessory.get('id', 'ub')), 'count': int(capacity), 'time': time.time()})
+                        except Exception:
+                            pass
+            except Exception:
+                logging.exception('Failed updating tracked_stats after underbarrel reload')
+            try:
                 accessory["_ub_loaded_item"]= found_item.get("id")or found_item.get("name")
             except Exception:
                 pass
@@ -13752,23 +14511,40 @@ class App:
                         pass
                 else:
                     if not weapon.get("bolt_catch"):
-                        self._play_weapon_action_sound(weapon, "boltback")
+                            self._play_weapon_action_sound(weapon, "boltback", block = True)
 
-                        if weapon.get("gas_melted", False):
-                            if current_rounds:
-                                weapon["chambered"]= current_rounds.pop(0)
-                            self._play_weapon_action_sound(weapon, "boltforward")
-                        else:
-                            time.sleep(0.12)
-                            if current_rounds:
-                                weapon["chambered"]= current_rounds.pop(0)
-                            self._play_weapon_action_sound(weapon, "boltforward")
+                            if weapon.get("gas_melted", False):
+                                if current_rounds:
+                                    weapon["chambered"]= current_rounds.pop(0)
+                                self._play_weapon_action_sound(weapon, "boltforward")
+                            else:
+                                if current_rounds:
+                                    weapon["chambered"]= current_rounds.pop(0)
+                                self._play_weapon_action_sound(weapon, "boltforward")
                     else:
                         if current_rounds:
                             weapon["chambered"]= current_rounds.pop(0)
                         self._play_weapon_action_sound(weapon, "boltforward")
 
             weapon["rounds"]= current_rounds
+        try:
+            sd_ref = save_data if isinstance(save_data, dict) else globals().get('save_data') or getattr(self, '_current_save_data', None)
+            if isinstance(sd_ref, dict):
+                ts = sd_ref.setdefault('tracked_stats', {}) or {}
+                if isinstance(ts, dict):
+                    ts['mags_reloaded_total'] = int(ts.get('mags_reloaded_total', 0)) + 1
+                    try:
+                        added = int(ammo_loaded)
+                    except Exception:
+                        added = 0
+                    ts['bullets_loaded_total'] = int(ts.get('bullets_loaded_total', 0)) + added
+                    bh = ts.setdefault('bullets_loaded_history', [])
+                    try:
+                        bh.append({'weapon_id': str(weapon.get('id', 'unknown')), 'count': added, 'time': time.time()})
+                    except Exception:
+                        pass
+        except Exception:
+            logging.exception('Failed updating tracked_stats after internal reload')
             return f"Internal magazine reloaded with {ammo_loaded} rounds(total: {len(current_rounds)}/{capacity})"
 
         for item in save_data.get("hands", {}).get("items", []):
@@ -13875,7 +14651,7 @@ class App:
                 else:
 
                     if not weapon.get("bolt_catch"):
-                        self._play_weapon_action_sound(weapon, "boltback")
+                        self._play_weapon_action_sound(weapon, "boltback", block = True)
 
                         if weapon.get("gas_melted", False):
 
@@ -13883,7 +14659,6 @@ class App:
                                 weapon["chambered"]= current_rounds.pop(0)
                             self._play_weapon_action_sound(weapon, "boltforward")
                         else:
-                            time.sleep(0.12)
 
                             if current_rounds:
                                 weapon["chambered"]= current_rounds.pop(0)
@@ -13895,6 +14670,24 @@ class App:
                         self._play_weapon_action_sound(weapon, "boltforward")
 
         weapon["rounds"]= current_rounds
+        try:
+            sd_ref = save_data if isinstance(save_data, dict) else globals().get('save_data') or getattr(self, '_current_save_data', None)
+            if isinstance(sd_ref, dict):
+                ts = sd_ref.setdefault('tracked_stats', {}) or {}
+                if isinstance(ts, dict):
+                    ts['mags_reloaded_total'] = int(ts.get('mags_reloaded_total', 0)) + 1
+                    try:
+                        added = int(ammo_loaded)
+                    except Exception:
+                        added = 0
+                    ts['bullets_loaded_total'] = int(ts.get('bullets_loaded_total', 0)) + added
+                    bh = ts.setdefault('bullets_loaded_history', [])
+                    try:
+                        bh.append({'weapon_id': str(weapon.get('id', 'unknown')), 'count': added, 'time': time.time()})
+                    except Exception:
+                        pass
+        except Exception:
+            logging.exception('Failed updating tracked_stats after internal reload')
         return f"Internal magazine reloaded with {ammo_loaded} rounds(total: {len(current_rounds)}/{capacity})"
 
     def _reload_revolver(self, weapon, save_data):
@@ -13959,6 +14752,24 @@ class App:
         time.sleep(0.1)
 
         weapon["rounds"]= current_rounds
+        try:
+            sd_ref = save_data if isinstance(save_data, dict) else globals().get('save_data') or getattr(self, '_current_save_data', None)
+            if isinstance(sd_ref, dict):
+                ts = sd_ref.setdefault('tracked_stats', {}) or {}
+                if isinstance(ts, dict):
+                    ts['mags_reloaded_total'] = int(ts.get('mags_reloaded_total', 0)) + 1
+                    try:
+                        added = int(ammo_loaded)
+                    except Exception:
+                        added = 0
+                    ts['bullets_loaded_total'] = int(ts.get('bullets_loaded_total', 0)) + added
+                    bh = ts.setdefault('bullets_loaded_history', [])
+                    try:
+                        bh.append({'weapon_id': str(weapon.get('id', 'unknown')), 'count': added, 'time': time.time()})
+                    except Exception:
+                        pass
+        except Exception:
+            logging.exception('Failed updating tracked_stats after revolver reload')
         return f"Revolver reloaded with {ammo_loaded} rounds(total: {len(current_rounds)}/{capacity})"
 
     def _clean_weapon(self, weapon, combat_state):
@@ -13993,8 +14804,7 @@ class App:
         chambered = weapon.get("chambered")
         if chambered:
             logging.info("Bolt cycle: ejecting chambered round")
-            self._play_weapon_action_sound(weapon, "boltback")
-            time.sleep(0.3)
+            self._play_weapon_action_sound(weapon, "boltback", block = True)
             self._play_weapon_action_sound(weapon, "shelleject")
             time.sleep(0.2)
 
@@ -14006,20 +14816,17 @@ class App:
         loaded_mag = weapon.get("loaded")
 
         if not loaded_mag:
-            self._play_weapon_action_sound(weapon, "boltback")
-            time.sleep(0.3)
+            self._play_weapon_action_sound(weapon, "boltback", block = True)
             self._play_weapon_action_sound(weapon, "boltforward")
             return message +"No magazine loaded - bolt cycled but no round chambered."
 
         rounds = loaded_mag.get("rounds", [])
         if not rounds:
-            self._play_weapon_action_sound(weapon, "boltback")
-            time.sleep(0.3)
+            self._play_weapon_action_sound(weapon, "boltback", block = True)
             self._play_weapon_action_sound(weapon, "boltforward")
             return message +"Magazine empty - bolt cycled but no round chambered."
 
-        self._play_weapon_action_sound(weapon, "boltback")
-        time.sleep(0.3)
+        self._play_weapon_action_sound(weapon, "boltback", block = True)
         next_round = rounds.pop(0)
         weapon["chambered"]= next_round
         self._play_weapon_action_sound(weapon, "boltforward")
@@ -14203,13 +15010,16 @@ class App:
                     self._play_weapon_action_sound(weapon, "magout")
                 except Exception:
                     pass
+                # normal reload timing: magout -> 1.0-1.5s
                 time.sleep(random.uniform(1.0, 1.5))
 
             try:
-                self._safe_sound_play("", "sounds/firearms/universal/pouchin.ogg")
+                # use .wav for pouchin as requested
+                self._safe_sound_play("", "sounds/firearms/universal/pouchin.wav")
             except Exception:
                 pass
             time.sleep(random.uniform(1.0, 1.5))
+
             try:
                 self._safe_sound_play("", "sounds/firearms/universal/pouchout.ogg")
             except Exception:
@@ -14219,17 +15029,29 @@ class App:
             mag_type = weapon.get("magazinetype", "").lower()
             platform = weapon.get("platform", "").lower()
             if not any(k in mag_type for k in("internal", "tube", "cylinder"))and "revolver"not in platform:
-                self._play_weapon_action_sound(weapon, "magin")
-                time.sleep(random.uniform(1.0, 1.5))
+                try:
+                    self._play_weapon_action_sound(weapon, "magin")
+                except Exception:
+                    pass
+                # after magin -> 0.5-1.0s
+                time.sleep(random.uniform(0.5, 1.0))
 
             if is_gun_empty:
                 if not weapon.get("bolt_catch"):
-                    self._play_weapon_action_sound(weapon, "boltback")
-                    time.sleep(random.uniform(1.0, 1.5))
-                    self._play_weapon_action_sound(weapon, "boltforward")
+                    try:
+                        self._play_weapon_action_sound(weapon, "boltback", block = True)
+                    except Exception:
+                        pass
+                    try:
+                        self._play_weapon_action_sound(weapon, "boltforward")
+                    except Exception:
+                        pass
                 else:
 
-                    self._play_weapon_action_sound(weapon, "boltforward")
+                    try:
+                        self._play_weapon_action_sound(weapon, "boltforward")
+                    except Exception:
+                        pass
 
             if current_mag and not weapon.get("infinite_ammo"):
 
@@ -14500,12 +15322,105 @@ class App:
         return message
 
     def _safe_exit(self):
-        if currentsave is not None:
-            logging.info("Exiting with current save loaded(no auto-save on exit).")
-        else:
-            logging.info("No current save loaded at exit.")
-        logging.info("Program exited safely.")
-        self.root.quit()
+        try:
+            autosaved = False
+            if currentsave is not None:
+                # First try module-global `save_data` which many routines use
+                try:
+                    global_save = globals().get('save_data')
+                    if isinstance(global_save, dict):
+                        try:
+                            self._save_file(global_save)
+                            logging.info("Autosaved current save using globals()['save_data'].")
+                            autosaved = True
+                        except Exception as e:
+                            logging.error(f"Autosave failed for globals()['save_data']: {e}")
+                except Exception:
+                    pass
+
+                # Next check instance attribute we set on load
+                if not autosaved and hasattr(self, '_current_save_data') and isinstance(getattr(self, '_current_save_data'), dict):
+                    try:
+                        self._save_file(getattr(self, '_current_save_data'))
+                        logging.info("Autosaved current save using self._current_save_data.")
+                        autosaved = True
+                    except Exception as e:
+                        logging.error(f"Autosave failed for self._current_save_data: {e}")
+
+                # Fallback: look for other common attributes on the instance
+                if not autosaved:
+                    candidate_names = (
+                        'current_save_data', '_current_save_data', 'save_data', '_save_data',
+                        'current_data', 'data', '_data'
+                    )
+                    for name in candidate_names:
+                        try:
+                            if hasattr(self, name):
+                                d = getattr(self, name)
+                                if isinstance(d, dict):
+                                    try:
+                                        self._save_file(d)
+                                        logging.info(f"Autosaved current save using attribute '{name}'.")
+                                        autosaved = True
+                                    except Exception as e:
+                                        logging.error(f"Autosave failed using attribute '{name}': {e}")
+                                    break
+                        except Exception:
+                            continue
+
+                if not autosaved:
+                    logging.info("Exiting with current save loaded (no in-memory autosave performed).")
+            else:
+                logging.info("No current save loaded at exit.")
+
+            # Always persist persistent data
+            try:
+                self._save_persistent_data()
+            except Exception as e:
+                logging.error(f"Failed to save persistent data on exit: {e}")
+
+            logging.info("Program exited safely.")
+        except Exception as e:
+            logging.exception("Error during safe exit: %s", e)
+        try:
+            self.root.quit()
+        except Exception:
+            try:
+                self.root.destroy()
+            except Exception:
+                pass
+
+    def _on_window_close(self):
+        """
+        Handler for WM_DELETE_WINDOW: ask user to confirm exit.
+        If user confirms, call `_safe_exit()` so autosave/persistence runs.
+        """
+        logging.info("Window close requested; prompting for confirmation.")
+        try:
+            import tkinter as _tk
+            from tkinter import messagebox as _mb
+            _root = _tk.Tk()
+            _root.withdraw()
+            try:
+                should_exit = _mb.askyesno(
+                    "Confirm Exit",
+                    "Do you want to exit? Any unsaved changes will be autosaved before exiting."
+                )
+            except Exception:
+                should_exit = False
+
+            if should_exit:
+                try:
+                    self._safe_exit()
+                except Exception:
+                    logging.exception("Error while exiting via window close")
+
+            try:
+                _root.destroy()
+            except Exception:
+                pass
+        except Exception:
+            logging.info("Window close attempted but confirmation unavailable; ignored.")
     def _open_settings(self):
         logging.info("Settings definition called")
 
