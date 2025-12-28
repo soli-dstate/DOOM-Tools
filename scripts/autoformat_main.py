@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Autoformat main.py files: remove comments/docstrings, normalize spacing, backup files."""
+"""Autoformat main.py files: remove comments/docstrings, normalize spacing, backup files.
+
+This script is intended to be run from `./scripts/` and will default the root
+search directory to the repository root (parent of `scripts/`) when run from
+that location. You can also pass `--root` to operate on any path.
+"""
 from __future__ import annotations
 import argparse
 import ast
@@ -11,6 +16,7 @@ import shutil
 import tokenize
 import sys
 from typing import Set
+from pathlib import Path
 
 
 def find_main_files(root: str) -> list[str]:
@@ -210,6 +216,15 @@ def main(argv=None):
     p.add_argument("--dry-run", action="store_true", help="Print changes instead of writing files")
     p.add_argument("--verbose", "-v", action="store_true", help="Verbose output")
     args = p.parse_args(argv)
+
+    # If running from scripts/, default root to repo root (parent of scripts)
+    if args.root == ".":
+        try:
+            script_parent = Path(__file__).resolve().parent
+            if script_parent.name == 'scripts':
+                args.root = str(script_parent.parent)
+        except Exception:
+            pass
 
     mains = find_main_files(args.root)
     if not mains:

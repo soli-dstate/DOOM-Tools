@@ -2852,10 +2852,17 @@ class App:
                     def _collect(o):
                         try:
                             if isinstance(o, str):
-
-                                ext = global_variables.get('table_extension', '.sldtbl')
-                                if not(isinstance(o, str)and o.endswith(ext)):
-                                    found.append(o)
+                                # skip any strings that look like table filenames or contain the table extension
+                                try:
+                                    ext = str(global_variables.get('table_extension', '.sldtbl')).lower()
+                                except Exception:
+                                    ext = '.sldtbl'
+                                low = o.lower()
+                                if ext and ext in low:
+                                    return
+                                if re.search(r"\.sldtbl\b", low):
+                                    return
+                                found.append(o)
                             elif isinstance(o, dict):
                                 for v in o.values():
                                     _collect(v)
@@ -2923,8 +2930,17 @@ class App:
                         return
                     idx = sel[0]
                     _, path = tbl_map[idx]
-                    with open(path, 'r', encoding = 'utf-8')as f:
-                        data = json.load(f)
+                    # If the mapped object is a filename string that exists, load it.
+                    # Otherwise treat the mapped object as in-memory data.
+                    data = None
+                    if isinstance(path, str) and os.path.isfile(path):
+                        try:
+                            with open(path, 'r', encoding = 'utf-8')as f:
+                                data = json.load(f)
+                        except Exception:
+                            data = None
+                    else:
+                        data = path
                     keys =[]
                     if isinstance(data, dict):
 
