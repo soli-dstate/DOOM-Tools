@@ -6,16 +6,16 @@ permissions:
   pull-requests: write
   packages: write
   deployments: write
-  id-token: write
+  id-token:  write
 
 on:
-  push:
-    branches: [ main ]
+  push: 
+    branches: [ master ]  # Changed from 'main' to 'master'
     tags: [ "*" ]
   workflow_dispatch:
 
 env:
-  ENTRY_PATH: main.py
+  ENTRY_PATH:  main.py
   APP_NAME: DOOM-Tools
   PYTHON_VERSION: "3.12.3"
 
@@ -30,7 +30,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          python-version:  ${{ env.PYTHON_VERSION }}
 
       - name: Install dependencies
         shell: bash
@@ -49,7 +49,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.APP_NAME }}-windows
-          path: dist/${{ env.APP_NAME }}.exe
+          path: dist/${{ env. APP_NAME }}.exe
 
   build-linux:
     runs-on: ubuntu-latest
@@ -61,7 +61,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          python-version:  ${{ env.PYTHON_VERSION }}
 
       - name: Install dependencies
         shell: bash
@@ -80,7 +80,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.APP_NAME }}-linux
-          path: dist/${{ env.APP_NAME }}
+          path: dist/${{ env. APP_NAME }}
 
   build-macos:
     runs-on: macos-latest
@@ -92,7 +92,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          python-version:  ${{ env.PYTHON_VERSION }}
 
       - name: Install dependencies
         shell: bash
@@ -146,14 +146,14 @@ jobs:
           fi
         shell: bash
 
-      - name: Create GitHub Release
+      - name:  Create GitHub Release
         uses: softprops/action-gh-release@v2
-        with:
+        with: 
           files: |
             release-assets/windows/${{ env.APP_NAME }}.exe
-            release-assets/linux/${{ env.APP_NAME }}
-            release-assets/macos/${{ env.APP_NAME }}
-          draft: false
+            release-assets/linux/${{ env. APP_NAME }}
+            release-assets/macos/${{ env. APP_NAME }}
+          draft:  false
           prerelease: ${{ steps.check-prerelease.outputs.is_prerelease }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets. GITHUB_TOKEN }}
