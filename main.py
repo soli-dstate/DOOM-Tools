@@ -496,6 +496,17 @@ if any(indicator in os.environ for indicator in ide_indicators):
         logging.info("IDE environment detected, but development mode is forced off.")
     logging.info(f"Trigger: {[key for key in os.environ if key in ide_indicators]}")
     global_variables["ide"]= True
+    try:
+        # When running inside an IDE, refresh `requirements.txt` fully from the current environment
+        try:
+            out = subprocess.check_output([sys.executable, '-m', 'pip', 'freeze'], text=True, stderr=subprocess.DEVNULL)
+            with open('requirements.txt', 'w', encoding='utf-8') as _rq:
+                _rq.write(out)
+            logging.info('Updated requirements.txt from pip freeze (IDE mode)')
+        except Exception:
+            logging.exception('Failed to refresh requirements.txt in IDE mode')
+    except Exception:
+        pass
     for folder_entry in folders:
         folder = folder_entry["name"]
         ignore_gitignore = folder_entry.get("ignore_gitignore", False)
