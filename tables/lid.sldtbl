@@ -3,7 +3,7 @@
     "filename": "lid.sldtbl",
     "version": "1.0.0",
     "additional_settings": {
-        "bonus_clamp": 6,
+        "bonus_clamp": 5,
         "stat_clamp": 4,
         "slot_disable_points": 1,
         "style": "classic"
@@ -2124,7 +2124,8 @@
                 "attachment": true,
                 "slot": "m19_auto_sear",
                 "overrides": {
-                    "action": ["Auto"],
+                    "action": ["Semi", "Burst", "Auto"],
+                    "burst_count": 3,
                     "cyclic": 1200
                 },
                 "can_stack": false
@@ -2348,9 +2349,9 @@
                 "battery_life": 4,
                 "can_stack": false,
                 "modes": [
-                    {"name": "Laser IR", "type": "ir_laser", "usage": 2, "modifiers": {"stats": {"aim": 1}, "night_vision_compatible": true, "wavelength": "infrared"}, "position": 180},
-                    {"name": "Laser", "type": "visible_laser", "usage": 2, "modifiers": {"stats": {"aim": 1, "stealth": -1}, "night_vision_compatible": true, "wavelength": "visible"}, "position": 225},
-                    {"name": "Light IR", "type": "ir_illuminator", "usage": 3, "modifiers": {"stats": {"perception": 1}, "night_vision_compatible": true, "wavelength": "infrared"}, "position": 45},
+                    {"name": "Laser IR", "type": "ir_laser", "usage": 2, "modifiers": {"stats": {"aim": 1}, "night_vision_compatible": true, "wavelength": "infrared"}, "position":90},
+                    {"name": "Laser", "type": "visible_laser", "usage": 2, "modifiers": {"stats": {"aim": 1, "stealth": -1}, "night_vision_compatible": true, "wavelength": "visible"}, "position": 135},
+                    {"name": "Light IR", "type": "ir_illuminator", "usage": 3, "modifiers": {"stats": {"perception": 1}, "night_vision_compatible": true, "wavelength": "infrared"}, "position": 180},
                     {"mode_method": "dial"}
                 ]
             },
@@ -2536,9 +2537,9 @@
                 "battery_type": "Rechargeable",
                 "battery_life": 10,
                 "modes": [
-                    {"name": "Laser IR", "type": "ir_laser", "usage": 2, "modifiers": {"stats": {"aim": 1}, "night_vision_compatible": true, "wavelength": "infrared"}, "position": 180},
-                    {"name": "Laser", "type": "visible_laser", "usage": 2, "modifiers": {"stats": {"aim": 1, "stealth": -1}, "night_vision_compatible": true, "wavelength": "visible"}, "position": 225},
-                    {"name": "Light IR", "type": "ir_illuminator", "usage": 3, "modifiers": {"stats": {"perception": 1}, "night_vision_compatible": true, "wavelength": "infrared"}, "position": 45},
+                    {"name": "Laser IR", "type": "ir_laser", "usage": 2, "modifiers": {"stats": {"aim": 1}, "night_vision_compatible": true, "wavelength": "infrared"}, "position":90},
+                    {"name": "Laser", "type": "visible_laser", "usage": 2, "modifiers": {"stats": {"aim": 1, "stealth": -1}, "night_vision_compatible": true, "wavelength": "visible"}, "position": 135},
+                    {"name": "Light IR", "type": "ir_illuminator", "usage": 3, "modifiers": {"stats": {"perception": 1}, "night_vision_compatible": true, "wavelength": "infrared"}, "position": 180},
                     {"mode_method": "dial"}
                 ],
                 "can_stack": false
@@ -2557,9 +2558,9 @@
                 "battery_type": "Rechargeable",
                 "battery_life": 10,
                 "modes": [
-                    {"name": "Laser IR", "type": "ir_laser", "usage": 2, "modifiers": {"stats": {"aim": 1}, "night_vision_compatible": true, "wavelength": "infrared"}, "position": 180},
-                    {"name": "Laser", "type": "visible_laser", "usage": 2, "modifiers": {"stats": {"aim": 1, "stealth": -1}, "night_vision_compatible": true, "wavelength": "visible"}, "position": 225},
-                    {"name": "Light IR", "type": "ir_illuminator", "usage": 3, "modifiers": {"stats": {"perception": 1}, "night_vision_compatible": true, "wavelength": "infrared"}, "position": 45},
+                    {"name": "Laser IR", "type": "ir_laser", "usage": 2, "modifiers": {"stats": {"aim": 1}, "night_vision_compatible": true, "wavelength": "infrared"}, "position":90},
+                    {"name": "Laser", "type": "visible_laser", "usage": 2, "modifiers": {"stats": {"aim": 1, "stealth": -1}, "night_vision_compatible": true, "wavelength": "visible"}, "position": 135},
+                    {"name": "Light IR", "type": "ir_illuminator", "usage": 3, "modifiers": {"stats": {"perception": 1}, "night_vision_compatible": true, "wavelength": "infrared"}, "position": 180},
                     {"mode_method": "dial"}
                 ],
                 "can_stack": false
@@ -2578,9 +2579,9 @@
                 "battery_type": "Rechargeable",
                 "battery_life": 10,
                 "modes": [
-                    {"name": "Laser IR", "type": "ir_laser", "usage": 2, "modifiers": {"stats": {"aim": 1}, "night_vision_compatible": true, "wavelength": "infrared"}, "position": 180},
-                    {"name": "Laser", "type": "visible_laser", "usage": 2, "modifiers": {"stats": {"aim": 1, "stealth": -1}, "night_vision_compatible": true, "wavelength": "visible"}, "position": 225},
-                    {"name": "Light IR", "type": "ir_illuminator", "usage": 3, "modifiers": {"stats": {"perception": 1}, "night_vision_compatible": true, "wavelength": "infrared"}, "position": 45},
+                    {"name": "Laser IR", "type": "ir_laser", "usage": 2, "modifiers": {"stats": {"aim": 1}, "night_vision_compatible": true, "wavelength": "infrared"}, "position":90},
+                    {"name": "Laser", "type": "visible_laser", "usage": 2, "modifiers": {"stats": {"aim": 1, "stealth": -1}, "night_vision_compatible": true, "wavelength": "visible"}, "position": 135},
+                    {"name": "Light IR", "type": "ir_illuminator", "usage": 3, "modifiers": {"stats": {"perception": 1}, "night_vision_compatible": true, "wavelength": "infrared"}, "position": 180},
                     {"mode_method": "dial"}
                 ],
                 "can_stack": false
@@ -2807,6 +2808,277 @@
                 "slot": ["muzzle_762", "muzzle_65"],
                 "suppressor": true,
                 "modifiers": {"stats": {"stealth": 2}},
+                "can_stack": false
+            },
+            {
+                "name": "SureFire SOCOM 65-RC2 Suppressor",
+                "value": 2400,
+                "description": "6.5mm suppressor that hides muzzle flash and dampens sound.",
+                "rarity": "Mythic",
+                "random_quantity": false,
+                "weight": 0.6,
+                "id": 219,
+                "attachment": true,
+                "slot": "muzzle_65",
+                "suppressor": true,
+                "modifiers": {"stats": {"stealth": 2}},
+                "can_stack": false
+            },
+            {
+                "name": "LVGFPLD 8x fixed magnification PAMS scope",
+                "value": 800,
+                "description": "8x fixed magnification precision scope for long-range engagements. Mounts to a Moxarian PAMS accessory rail.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 0.6,
+                "id": 220,
+                "attachment": true,
+                "slot": "pams_mount",
+                "modifiers": {"stats": {"aim": 3}},
+                "magnified": true,
+                "variable": false,
+                "night_vision_compatible": false,
+                "can_stack": false
+            },
+            {
+                "name": "Vortex Optics Defender-XL red dot sight",
+                "value": 400,
+                "description": "Durable red dot sight providing quick target acquisition at close to medium ranges. Mounts to an MOS mount.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.5,
+                "id": 221,
+                "attachment": true,
+                "slot": "pistol_optic_mount",
+                "modifiers": {"stats": {"aim": 1}},
+                "magnified": false,
+                "variable": false,
+                "night_vision_compatible": true,
+                "can_stack": false
+            },
+            {
+                "name": "HOLOSUN 509 red dot sight",
+                "value": 450,
+                "description": "Durable red dot sight providing quick target acquisition at close to medium ranges. Mounts to an MOS mount.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 0.5,
+                "id": 222,
+                "attachment": true,
+                "slot": "pistol_optic_mount",
+                "modifiers": {"stats": {"aim": 1}},
+                "magnified": false,
+                "variable": false,
+                "night_vision_compatible": true,
+                "can_stack": false
+            },
+            {
+                "name": "Trijicon RMR red dot sight",
+                "value": 500,
+                "description": "Durable red dot sight providing quick target acquisition at close to medium ranges. Mounts to an MOS mount.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 0.5,
+                "id": 223,
+                "attachment": true,
+                "slot": "pistol_optic_mount",
+                "modifiers": {"stats": {"aim": 1}},
+                "magnified": false,
+                "variable": false,
+                "night_vision_compatible": true,
+                "can_stack": false
+            },
+            {
+                "name": "PAMS Picatinny adapter",
+                "value": 150,
+                "description": "Adapter that allows mounting picatinny rail accessories to a Moxarian PAMS accessory rail.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.2,
+                "id": 224,
+                "attachment": true,
+                "slot": "pams_mount",
+                "subslots": [
+                    {"name": "Picatinny Rail", "slot": "picatinny_optic", "current": null}
+                ],
+                "can_stack": false
+            },
+            {
+                "name": "SureFire X400T-A Weaponlight",
+                "value": 350,
+                "description": "Tactical weaponlight with integrated laser sight, providing bright illumination and precise aiming capabilities.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 0.4,
+                "id": 225,
+                "attachment": true,
+                "slot": "pistol_picatinny",
+                "modifiers": null,
+                "electronic": true,
+                "battery_type": "CR123A",
+                "battery_life": 5,
+                "modes": [
+                    {"name": "Laser", "type": "visible_laser", "usage": 2, "modifiers": {"stats": {"aim": 1, "stealth": -1}, "night_vision_compatible": true, "wavelength": "visible"}, "position": 90},
+                    {"name": "Light", "type": "flashlight", "usage": 3, "modifiers": {"stats": {"perception": 1, "stealth": -1}, "night_vision_compatible": true, "wavelength": "visible"}, "position": 45},
+                    {"mode_method": "dial"}
+                ],
+                "can_stack": false
+            },
+            {
+                "name": "SureFire XC3 Weaponlight",
+                "value": 300,
+                "description": "Compact tactical weaponlight providing bright illumination in low-light situations.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.3,
+                "id": 226,
+                "attachment": true,
+                "slot": "pistol_picatinny",
+                "modifiers": {"stats": {"perception": 1, "stealth": -1}},
+                "electronic": true,
+                "battery_type": "CR123A",
+                "battery_life": 4,
+                "can_stack": false
+            },
+            {
+                "name": "Streamlight TLR-6 Weaponlight",
+                "value": 250,
+                "description": "Compact tactical weaponlight with integrated laser sight, providing bright illumination and precise aiming capabilities.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.25,
+                "id": 227,
+                "attachment": true,
+                "slot": "pistol_picatinny",
+                "modifiers": null,
+                "electronic": true,
+                "battery_type": "CR123A",
+                "battery_life": 4,
+                "modes": [
+                    {"name": "Laser", "type": "visible_laser", "usage": 2, "modifiers": {"stats": {"aim": 1, "stealth": -1}, "night_vision_compatible": true, "wavelength": "visible"}, "position": 90},
+                    {"name": "Light", "type": "flashlight", "usage": 3, "modifiers": {"stats": {"perception": 1, "stealth": -1}, "night_vision_compatible": true, "wavelength": "visible"}, "position": 45},
+                    {"mode_method": "dial"}
+                ],
+                "can_stack": false
+            },
+            {
+                "name": "PSO-1 Scope",
+                "value": 1200,
+                "description": "4x24 scope with illuminated reticle, designed for the Dragunov SVD sniper rifle.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 0.5,
+                "id": 228,
+                "attachment": true,
+                "slot": "russian_mount",
+                "modifiers": {"stats": {"aim": 2}},
+                "magnified": true,
+                "variable": false,
+                "night_vision_compatible": true,
+                "can_stack": false
+            },
+            {
+                "name": "1P87 red dot sight",
+                "value": 600,
+                "description": "Durable red dot sight providing quick target acquisition at close to medium ranges. Mounts to a Russian rifle mount.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.4,
+                "id": 229,
+                "attachment": true,
+                "slot": "russian_mount",
+                "modifiers": {"stats": {"aim": 1}},
+                "magnified": false,
+                "variable": false,
+                "night_vision_compatible": true,
+                "can_stack": false
+            },
+            {
+                "name": "Kobra red dot sight",
+                "value": 650,
+                "description": "Durable red dot sight providing quick target acquisition at close to medium ranges. Mounts to a Russian rifle mount.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 0.4,
+                "id": 230,
+                "attachment": true,
+                "slot": "russian_mount",
+                "modifiers": {"stats": {"aim": 1}},
+                "magnified": false,
+                "variable": false,
+                "night_vision_compatible": true,
+                "can_stack": false
+            },
+            {
+                "name": "Russian picatinny adapter",
+                "value": 200,
+                "description": "Adapter that allows mounting picatinny rail accessories to a Russian rifle mount.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.2,
+                "id": 231,
+                "attachment": true,
+                "slot": "russian_mount",
+                "subslots": [
+                    {"name": "Picatinny Rail", "slot": "picatinny_optic", "current": null}
+                ],
+                "can_stack": false
+            },
+            {
+                "name": "MSVN night vision scope",
+                "value": 2000,
+                "description": "Experimental early night vision sight designed for the Legion SSA accessory rail.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 0.7,
+                "id": 232,
+                "attachment": true,
+                "slot": "ssa_mount",
+                "modifiers": {"stats": {"aim": 2}, "night_vision_compatible": true},
+                "magnified": true,
+                "variable": false,
+                "night_vision_compatible": true,
+                "can_stack": false
+            },
+            {
+                "name": "SSA picatinny adapter",
+                "value": 250,
+                "description": "Adapter that allows mounting picatinny rail accessories to a Legion SSA accessory rail.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.2,
+                "id": 233,
+                "attachment": true,
+                "slot": "ssa_mount",
+                "subslots": [
+                    {"name": "Picatinny Rail", "slot": "picatinny_optic", "current": null}
+                ],
+                "can_stack": false
+            },
+            {
+                "name": "Vortex AN/PSQ-157 LPVO",
+                "value": 1500,
+                "description": "Low-power variable optic (1-8x) designed for close to mid-range engagements for the LEDF. Mounts to a picatinny rail.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 0.6,
+                "id": 234,
+                "attachment": true,
+                "slot": "picatinny_optic",
+                "modifiers": null,
+                "magnified": true,
+                "variable": true,
+                "modes": [
+                    {"name": "1x", "type": "low_power", "usage": null, "modifiers": {"stats": {"aim": 1}, "night_vision_compatible": true}, "position": 0},
+                    {"name": "2x", "type": "low_power", "usage": null, "modifiers": {"stats": {"aim": 1}, "night_vision_compatible": true}, "position": 45},
+                    {"name": "3x", "type": "low_power", "usage": null, "modifiers": {"stats": {"aim": 1}, "night_vision_compatible": false}, "position": 90},
+                    {"name": "4x", "type": "mid_power", "usage": null, "modifiers": {"stats": {"aim": 2}, "night_vision_compatible": false}, "position": 135},
+                    {"name": "5x", "type": "mid_power", "usage": null, "modifiers": {"stats": {"aim": 2}, "night_vision_compatible": false}, "position": 180},
+                    {"name": "6x", "type": "mid_power", "usage": null, "modifiers": {"stats": {"aim": 2}, "night_vision_compatible": false}, "position": 225},
+                    {"name": "7x", "type": "high_power", "usage": null, "modifiers": {"stats": {"aim": 3}, "night_vision_compatible": false}, "position": 270},
+                    {"name": "8x", "type": "high_power", "usage": null, "modifiers": {"stats": {"aim": 3}, "night_vision_compatible": false}, "position": 315},
+                    {"mode_method": "dial"}
+                ],
                 "can_stack": false
             }
         ],

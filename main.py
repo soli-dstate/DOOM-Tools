@@ -34,6 +34,72 @@ pygame.init()
 
 pygame.mixer.init(channels = 4096)
 
+# Monkeypatch Tkinter focus methods to avoid TclError when widgets are
+# destroyed between scheduling and execution (e.g., async callbacks).
+try:
+    _orig_focus = getattr(_tk.Misc, 'focus', None)
+    _orig_focus_set = getattr(_tk.Misc, 'focus_set', None)
+    _orig_focus_force = getattr(_tk.Misc, 'focus_force', None)
+
+    def _wrapped_focus(self, *a, **k):
+        try:
+            if getattr(self, 'winfo_exists', lambda: False)():
+                if _orig_focus:
+                    return _orig_focus(self, *a, **k)
+        except Exception:
+            pass
+
+    def _wrapped_focus_set(self, *a, **k):
+        try:
+            self_obj = a[0] if a else None
+        except Exception:
+            self_obj = None
+        try:
+            widget = self_obj if self_obj is not None else None
+            if widget is None:
+                widget = getattr(k.get('self', None), 'winfo_exists', None)
+        except Exception:
+            widget = None
+        try:
+            # Use attribute on bound method if available
+            obj = getattr(self_obj, '__self__', None) or self_obj
+            if obj and getattr(obj, 'winfo_exists', lambda: False)():
+                if _orig_focus_set:
+                    return _orig_focus_set(obj, *a[1:], **k) if a else _orig_focus_set(obj, **k)
+        except Exception:
+            try:
+                if getattr(self, 'winfo_exists', lambda: False)():
+                    if _orig_focus_set:
+                        return _orig_focus_set(self, *a, **k)
+            except Exception:
+                pass
+
+    def _wrapped_focus_force(self, *a, **k):
+        try:
+            if getattr(self, 'winfo_exists', lambda: False)():
+                if _orig_focus_force:
+                    return _orig_focus_force(self, *a, **k)
+        except Exception:
+            pass
+
+    try:
+        if _orig_focus is not None:
+            _tk.Misc.focus = _wrapped_focus
+    except Exception:
+        pass
+    try:
+        if _orig_focus_set is not None:
+            _tk.Misc.focus_set = _wrapped_focus_set
+    except Exception:
+        pass
+    try:
+        if _orig_focus_force is not None:
+            _tk.Misc.focus_force = _wrapped_focus_force
+    except Exception:
+        pass
+except Exception:
+    pass
+
 class ColoredFormatter(logging.Formatter):
     COLORS = {
     'DEBUG':'\033[36m',
@@ -484,7 +550,7 @@ ide_indicators =[
 'VSCODE_INJECTION'
 ]
 
-dm_users =["bGlseQ==", "amFjemk=", "cGhvbmU="]
+dm_users =["bGlseQ==", "amFjemk=", "cGhvbmU=", "YWlkZW4="]
 
 if any(indicator in os.environ for indicator in ide_indicators):
     if not global_variables["devmode"]["value"]and not global_variables["devmode"]["forced"]:
@@ -1472,9 +1538,50 @@ def populate_equipment_with_subslots(save_data):
                         equipped_item["subslots"]=[{
                         "name":subslot.get("name"),
                         "slot":subslot.get("slot"),
-                        "current":subslot.get("current", None)
+                        "current": None
                         }for subslot in table_item["subslots"]]
                         logging.debug(f"Added {len(equipped_item['subslots'])} subslots to equipped item ID {item_id} in slot {slot_name}")
+                        # ensure any nested currents/accessories in the newly-added subslots are populated
+                        for sub in equipped_item.get("subslots", []):
+                            try:
+                                cur = sub.get("current")
+                                if isinstance(cur, dict):
+                                    add_subslots_to_item(cur)
+                            except Exception:
+                                pass
+                        # also ensure accessories on the equipped item get their subslots populated
+                        for acc in equipped_item.get("accessories", []) or []:
+                            try:
+                                cur = acc.get("current")
+                                if isinstance(cur, dict):
+                                    add_subslots_to_item(cur)
+                            except Exception:
+                                pass
+                        # Mirror created subslots as accessory-like entries so older logic
+                        # which treats accessories as attachment slots will see them
+                        try:
+                            equipped_item.setdefault('accessories', [])
+                            for sub in equipped_item.get('subslots', []) or []:
+                                try:
+                                    s_slot = sub.get('slot')
+                                    s_name = sub.get('name') or s_slot
+                                    exists = False
+                                    for a in equipped_item.get('accessories', []) or []:
+                                        try:
+                                            if a and isinstance(a, dict) and (a.get('slot') == s_slot or a.get('name') == s_name):
+                                                exists = True
+                                                break
+                                        except Exception:
+                                            pass
+                                    if not exists:
+                                        try:
+                                            equipped_item['accessories'].append({'name': s_name, 'slot': s_slot, 'current': sub.get('current'), 'attachment': True})
+                                        except Exception:
+                                            pass
+                                except Exception:
+                                    pass
+                        except Exception:
+                            pass
 
         for item in save_data.get("storage", []):
             if isinstance(item, dict):
@@ -1484,6 +1591,17 @@ def populate_equipment_with_subslots(save_data):
             for item in save_data["hands"]["items"]:
                 if isinstance(item, dict):
                     add_subslots_to_item(item)
+
+        # populate subslots for accessories attached directly to equipped items
+        for slot_name, equipped_item in save_data.get("equipment", {}).items():
+            if equipped_item and isinstance(equipped_item, dict):
+                for acc in equipped_item.get("accessories", []) or []:
+                    try:
+                        cur = acc.get("current")
+                        if isinstance(cur, dict):
+                            add_subslots_to_item(cur)
+                    except Exception:
+                        pass
 
         for slot_name, equipped_item in save_data.get("equipment", {}).items():
             if equipped_item and isinstance(equipped_item, dict)and "items"in equipped_item:
@@ -1499,34 +1617,150 @@ def populate_equipment_with_subslots(save_data):
 def add_subslots_to_item(item):
 
     try:
-        if not item:
-            return item
-
-        if "subslots"in item:
-            return item
-
-        table_files = glob.glob(os.path.join("tables", "*.sldtbl"))
-        if not table_files:
-            return item
-
-        with open(table_files[0], 'r')as f:
-            table_data = json.load(f)
-
-        equipment_items = table_data.get("tables", {}).get("equipment", [])
-        equipment_map = {it.get("id"):it for it in equipment_items}
-
-        item_id = item.get("id")
-        if item_id is not None and item_id in equipment_map:
-            table_item = equipment_map[item_id]
-            if "subslots"in table_item:
-                item["subslots"]=[{
-                "name":subslot.get("name"),
-                "slot":subslot.get("slot"),
-                "current":subslot.get("current", None)
-                }for subslot in table_item["subslots"]]
-                logging.debug(f"Added {len(item['subslots'])} subslots to item ID {item_id}({item.get('name')})")
+        return _add_subslots_to_item_recursive(item, seen=None)
     except Exception as e:
         logging.warning(f"Failed to add subslots to item: {e}")
+        return item
+
+
+def _add_subslots_to_item_recursive(item, seen=None):
+    if not item or not isinstance(item, dict):
+        return item
+
+    if seen is None:
+        seen = set()
+
+    obj_id = id(item)
+    if obj_id in seen:
+        return item
+    seen.add(obj_id)
+
+    try:
+        # If subslots already present, skip adding from table, but still recurse into nested structures
+        if "subslots" not in item:
+            table_files = sorted(glob.glob(os.path.join("tables", f"*{global_variables.get('table_extension', '.sldtbl')}")))
+            if table_files:
+                item_id = item.get("id")
+                if item_id is not None:
+                    found = False
+                    for tf in table_files:
+                        try:
+                            with open(tf, 'r', encoding='utf-8') as f:
+                                table_data = json.load(f)
+                        except Exception:
+                            continue
+                        tables = table_data.get("tables", {})
+                        for tbl_items in tables.values():
+                            if not isinstance(tbl_items, list):
+                                continue
+                            for it in tbl_items:
+                                try:
+                                    if isinstance(it, dict) and it.get("id") == item_id:
+                                        table_item = it
+                                        if "subslots" in table_item:
+                                            # resolve any numeric/current ids in subslots to dicts when possible
+                                            resolved_subslots = []
+                                            for subslot in table_item["subslots"]:
+                                                cur = subslot.get("current", None)
+                                                resolved_cur = cur
+                                                if cur is not None and (isinstance(cur, int) or (isinstance(cur, str) and str(cur).isdigit())):
+                                                    try:
+                                                        iid = int(cur)
+                                                        # try to find the full item definition from table files
+                                                        for _tf in table_files:
+                                                            try:
+                                                                with open(_tf, 'r', encoding='utf-8') as _f:
+                                                                    _td = json.load(_f)
+                                                            except Exception:
+                                                                continue
+                                                            for arr in _td.get('tables', {}).values():
+                                                                if isinstance(arr, list):
+                                                                    for candidate in arr:
+                                                                        if isinstance(candidate, dict) and candidate.get('id') == iid:
+                                                                            resolved_cur = candidate.copy()
+                                                                            break
+                                                                    if isinstance(resolved_cur, dict):
+                                                                        break
+                                                            if isinstance(resolved_cur, dict):
+                                                                break
+                                                    except Exception:
+                                                        resolved_cur = cur
+
+                                                    resolved_subslots.append({
+                                                        "name": subslot.get("name"),
+                                                        "slot": subslot.get("slot"),
+                                                        "current": None
+                                                    })
+                                            # When creating subslots for an item, also mirror them as
+                                            # accessory-like entries on that item so existing code
+                                            # that enumerates `accessories` will treat them as normal
+                                            # attachment slots.
+                                            try:
+                                                if isinstance(item, dict):
+                                                    item.setdefault('accessories', [])
+                                                    for sub in resolved_subslots:
+                                                        try:
+                                                            s_slot = sub.get('slot')
+                                                            s_name = sub.get('name') or s_slot
+                                                            found = False
+                                                            for a in item.get('accessories', []) or []:
+                                                                try:
+                                                                    if a and isinstance(a, dict) and (a.get('slot') == s_slot or a.get('name') == s_name):
+                                                                        found = True
+                                                                        break
+                                                                except Exception:
+                                                                    pass
+                                                            if not found:
+                                                                try:
+                                                                    item['accessories'].append({'name': s_name, 'slot': s_slot, 'current': None, 'attachment': True})
+                                                                except Exception:
+                                                                    pass
+                                                        except Exception:
+                                                            pass
+                                            except Exception:
+                                                pass
+                                            item["subslots"] = resolved_subslots
+                                            logging.debug(f"Added {len(item['subslots'])} subslots to item ID {item_id}({item.get('name')})")
+                                        found = True
+                                        break
+                                except Exception:
+                                    continue
+                            if found:
+                                break
+                        if found:
+                            break
+    except Exception:
+        pass
+
+    # Recurse into nested containers that may contain items needing subslots
+    try:
+        # items list
+        for sub in item.get("items", []) or []:
+            try:
+                if isinstance(sub, dict):
+                    _add_subslots_to_item_recursive(sub, seen)
+            except Exception:
+                pass
+
+        # subslots -> current
+        for subslot in item.get("subslots", []) or []:
+            try:
+                cur = subslot.get("current")
+                if isinstance(cur, dict):
+                    _add_subslots_to_item_recursive(cur, seen)
+            except Exception:
+                pass
+
+        # accessories -> current
+        for acc in item.get("accessories", []) or []:
+            try:
+                cur = acc.get("current")
+                if isinstance(cur, dict):
+                    _add_subslots_to_item_recursive(cur, seen)
+            except Exception:
+                pass
+    except Exception:
+        pass
 
     return item
 
@@ -1648,6 +1882,9 @@ persistentdata = {
 "transfer_uuids":{}
 }
 
+# Increment this whenever attachments/accessories change so UI can refresh
+ATTACHMENTS_VERSION = 0
+
 dm_users =[base64.b64decode(user).decode('utf-8').lower()for user in dm_users]
 
 for user in dm_users:
@@ -1659,6 +1896,229 @@ for user in dm_users:
             logging.info(f"DM user '{user}' detected.DM mode already active.")
         else:
             logging.info(f"DM user '{user}' detected.DM mode is forced off.")
+
+        # Console command handler (devmode only)
+        def _console_command_loop():
+            try:
+                log_console_colored(logging.getLogger(), logging.INFO, "Console command thread started. Type 'help' for commands.", 'cyan')
+            except Exception:
+                pass
+
+            # Small, intentionally-safe evaluator for basic expressions.
+            import ast
+
+            ALLOWED_FUNCS = {
+                'len': len, 'str': str, 'int': int, 'float': float, 'bool': bool,
+                'sum': sum, 'min': min, 'max': max, 'sorted': sorted, 'repr': repr,
+                'json': json
+            }
+
+            ALLOWED_NAMES = {
+                'dm_users': dm_users,
+                'global_variables': global_variables,
+            }
+
+            ALLOWED_NODE_TYPES = (
+                ast.Expression, ast.Tuple, ast.List, ast.Dict, ast.Set,
+                ast.Load, ast.Constant, ast.BinOp, ast.UnaryOp, ast.BoolOp,
+                ast.Compare, ast.IfExp, ast.Subscript, ast.Slice, ast.Index,
+                ast.Name, ast.Call, ast.Attribute, ast.ListComp, ast.DictComp,
+                ast.comprehension
+            )
+
+            def _is_ast_safe(node):
+                # Recursively verify AST nodes are in allowed set and names/calls are whitelisted.
+                if not isinstance(node, ALLOWED_NODE_TYPES):
+                    return False
+                for child in ast.iter_child_nodes(node):
+                    if isinstance(child, ast.Name):
+                        if child.id in ('True', 'False', 'None'):
+                            continue
+                        if child.id not in ALLOWED_NAMES and child.id not in ALLOWED_FUNCS:
+                            return False
+                    if isinstance(child, ast.Call):
+                        # Only allow simple Name calls (no attribute calls) and whitelisted functions
+                        func = child.func
+                        if isinstance(func, ast.Name):
+                            if func.id not in ALLOWED_FUNCS:
+                                return False
+                        elif isinstance(func, ast.Attribute):
+                            # allow json.dumps via the json name in ALLOWED_FUNCS
+                            value = func.value
+                            if not (isinstance(value, ast.Name) and value.id in ALLOWED_FUNCS):
+                                return False
+                        else:
+                            return False
+                    if not _is_ast_safe(child):
+                        return False
+                return True
+
+            def safe_eval(expr: str):
+                try:
+                    parsed = ast.parse(expr, mode='eval')
+                except Exception as e:
+                    raise ValueError(f"Invalid expression: {e}")
+                if not _is_ast_safe(parsed):
+                    raise ValueError("Expression contains disallowed operations or names")
+                env = {}
+                env.update(ALLOWED_FUNCS)
+                env.update(ALLOWED_NAMES)
+                return eval(compile(parsed, '<safe_eval>', 'eval'), {'__builtins__': {}}, env)
+
+            while True:
+                try:
+                    try:
+                        # Read a single line from stdin with a visible prompt showing the user.
+                        prompt = f"{os.getlogin()}:~ "
+                        try:
+                            import sys
+                            # ensure the prompt starts on a fresh line so logs don't append to it
+                            sys.stdout.write('\n')
+                            sys.stdout.flush()
+                        except Exception:
+                            pass
+                        cmd = input(prompt)
+                        # Echo the entered command to the log so it's distinguishable from other output
+                        try:
+                            log_console_colored(logging.getLogger(), logging.INFO, f"CMD: {os.getlogin()}:~ {cmd}", 'magenta')
+                        except Exception:
+                            pass
+                    except EOFError:
+                        time.sleep(0.25)
+                        continue
+                    if not cmd:
+                        continue
+                    cmd = cmd.strip()
+                    dev_ok = bool(global_variables.get('devmode', {}).get('value')) or bool(global_variables.get('devmode', {}).get('forced'))
+                    if not dev_ok:
+                        log_console_colored(logging.getLogger(), logging.WARNING, "Console commands are disabled (devmode off).", 'yellow')
+                        continue
+
+                    lower = cmd.lower()
+                    if lower in ('help', '?'):
+                        out = "Commands: help, print dm users, print globals, print global <key>, exit, pause <secs>, eval <expr>"
+                        log_console_colored(logging.getLogger(), logging.INFO, out, 'green')
+                        continue
+
+                    if lower in ('print dm users', 'print dm_users', 'print dmusers'):
+                        try:
+                            log_console_colored(logging.getLogger(), logging.INFO, f"dm_users (decoded): {dm_users}", 'cyan')
+                        except Exception:
+                            logging.exception('Failed to print dm_users')
+                        continue
+
+                    if lower in ('print globals', 'print global_variables'):
+                        try:
+                            safe = json.dumps(global_variables, indent=2, default=str)
+                            log_console_colored(logging.getLogger(), logging.INFO, safe, 'cyan')
+                        except Exception:
+                            logging.exception('Failed to print global_variables')
+                        continue
+
+                    if lower.startswith('print global '):
+                        key = cmd[len('print global '):].strip()
+                        try:
+                            val = global_variables.get(key)
+                            log_console_colored(logging.getLogger(), logging.INFO, f"global {key}: {val}", 'cyan')
+                        except Exception:
+                            logging.exception('Failed to print global %s', key)
+                        continue
+
+                    # exit / quit — attempt graceful shutdown via the app's _safe_exit(), falling
+                    # back to process termination if necessary.
+                    if lower in ('exit', 'quit'):
+                        try:
+                            log_console_colored(logging.getLogger(), logging.INFO, 'Exit requested from console — attempting graceful shutdown', 'green')
+                        except Exception:
+                            pass
+                        try:
+                            # If an App instance exists as `app`, prefer its _safe_exit method
+                            app_obj = globals().get('app')
+                            if app_obj and hasattr(app_obj, '_safe_exit'):
+                                try:
+                                    app_obj._safe_exit()
+                                except Exception:
+                                    logging.exception('App._safe_exit() raised an exception')
+                                # give a moment for cleanup then ensure termination
+                                time.sleep(0.25)
+                                if 'os' in globals():
+                                    globals()['os']._exit(0)
+                                else:
+                                    import os as _os
+                                    _os._exit(0)
+                            else:
+                                # Try a module-level safe exit function if present
+                                safe_fn = globals().get('safe_exit') or globals().get('_safe_exit')
+                                if callable(safe_fn):
+                                    try:
+                                        safe_fn()
+                                    except Exception:
+                                        logging.exception('Module-level safe exit raised an exception')
+                                    time.sleep(0.25)
+                                    if 'os' in globals():
+                                        globals()['os']._exit(0)
+                                    else:
+                                        import os as _os
+                                        _os._exit(0)
+                                else:
+                                    # No graceful handler found — force quit
+                                    if 'os' in globals():
+                                        globals()['os']._exit(0)
+                                    else:
+                                        import os as _os
+                                        _os._exit(0)
+                        except Exception:
+                            try:
+                                import sys
+                                sys.exit(0)
+                            except Exception:
+                                return
+
+                    # pause / sleep N
+                    if lower.startswith('pause ') or lower.startswith('sleep '):
+                        try:
+                            parts = cmd.split()
+                            secs = float(parts[1]) if len(parts) > 1 else 1.0
+                            log_console_colored(logging.getLogger(), logging.INFO, f'Pausing for {secs} seconds', 'green')
+                            time.sleep(max(0.0, secs))
+                        except Exception:
+                            log_console_colored(logging.getLogger(), logging.WARNING, 'Usage: pause <seconds>', 'yellow')
+                        continue
+
+                    # eval <expr> -- safe evaluation of basic expressions
+                    if lower.startswith('eval '):
+                        expr = cmd[len('eval '):].strip()
+                        try:
+                            res = safe_eval(expr)
+                            log_console_colored(logging.getLogger(), logging.INFO, f"=> {repr(res)}", 'cyan')
+                        except Exception as e:
+                            log_console_colored(logging.getLogger(), logging.WARNING, f"Eval error: {e}", 'yellow')
+                        continue
+
+                    # Try to evaluate a bare expression safely
+                    try:
+                        res = safe_eval(cmd)
+                        log_console_colored(logging.getLogger(), logging.INFO, f"=> {repr(res)}", 'cyan')
+                        continue
+                    except Exception:
+                        pass
+
+                    # Unknown or disallowed command
+                    log_console_colored(logging.getLogger(), logging.WARNING, f"Unknown or disallowed command: {cmd}", 'yellow')
+
+                except Exception:
+                    try:
+                        logging.exception('Console command loop error')
+                    except Exception:
+                        pass
+
+
+        # Start console thread so developers can type commands when devmode is enabled
+        try:
+            t = threading.Thread(target=_console_command_loop, daemon=True)
+            t.start()
+        except Exception:
+            logging.exception('Failed to start console command thread')
 
 class App:
 
@@ -1677,6 +2137,61 @@ class App:
             logging.info(f"Persistent data saved to {persistent_path}")
         except Exception as e:
             logging.error(f"Failed to save persistent data: {e}")
+    def _safe_focus(self, widget):
+        """Safely focus a widget if it exists. Swallows exceptions when widget is destroyed."""
+        try:
+            if widget and getattr(widget, 'winfo_exists', lambda: False)():
+                try:
+                    widget.focus()
+                except Exception:
+                    try:
+                        widget.focus_set()
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+    def _write_save_to_path(self, path, data):
+        try:
+            if not path.endswith(global_variables.get("save_extension", ".sldsv")):
+                path += global_variables.get("save_extension", ".sldsv")
+            pickled = pickle.dumps(data)
+            encoded = base64.b85encode(pickled).decode('utf-8')
+            with open(path, 'w', encoding='utf-8') as f:
+                f.write(encoded)
+            logging.info(f"Data written to {path} (pickled+base85)")
+        except Exception as e:
+            logging.error(f"Failed to write save to {path}: {e}")
+
+    def _read_save_from_path(self, path):
+        try:
+            if not path.endswith(global_variables.get("save_extension", ".sldsv")):
+                path += global_variables.get("save_extension", ".sldsv")
+            if not os.path.exists(path):
+                logging.error(f"Save file '{path}' does not exist.")
+                return None
+            with open(path, 'r', encoding='utf-8') as f:
+                text = f.read()
+            # Try pickled/base85 first
+            try:
+                pickled = base64.b85decode(text.encode('utf-8'))
+                data = pickle.loads(pickled)
+                if isinstance(data, dict):
+                    logging.info(f"Loaded save from {path} (pickled+base85)")
+                    return data
+            except Exception:
+                pass
+            # Fallback to JSON
+            try:
+                data = json.loads(text)
+                if isinstance(data, dict):
+                    logging.info(f"Loaded save from {path} (json)")
+                    return data
+            except Exception:
+                pass
+            logging.error(f"Failed to parse save file: {path}")
+            return None
+        except Exception as e:
+            logging.error(f"Failed to read save from {path}: {e}")
     def _save_file(self, data):
         if currentsave is None:
             logging.error("No current save file to save data to.")
@@ -1704,12 +2219,32 @@ class App:
                 save_path = currentsave
             else:
                 save_path = os.path.join(saves_folder or "saves", currentsave or "")
-            if not save_path.endswith(".sldsv"):
-                save_path +=".sldsv"
             try:
-                with open(save_path, 'w')as f:
-                    json.dump(data, f, indent = 4)
-                logging.info(f"Data saved to {save_path}")
+                # Ensure in-memory/global save_data references reflect this change so autosave/exit writes the latest
+                try:
+                    if isinstance(data, dict):
+                        if 'save_data' in globals():
+                            outer = globals().get('save_data')
+                            if isinstance(outer, dict) and outer is not data:
+                                try:
+                                    outer.clear()
+                                    outer.update(data)
+                                    globals()['save_data'] = outer
+                                except Exception:
+                                    globals()['save_data'] = data
+                            else:
+                                globals()['save_data'] = data
+                        else:
+                            globals()['save_data'] = data
+                except Exception:
+                    pass
+                try:
+                    setattr(self, '_current_save_data', data)
+                except Exception:
+                    pass
+
+                # Use pickled + base85 encoding for save files to avoid accidental JSON overwrites
+                self._write_save_to_path(save_path, data)
             except Exception as e:
                 logging.error(f"Failed to save data to {currentsave}: {e}")
         self._save_persistent_data()
@@ -1746,8 +2281,11 @@ class App:
             return None
 
         try:
-            with open(save_path, 'r')as f:
-                data = json.load(f)
+            # Attempt to read pickled/base85 save first, fallback to JSON
+            data = self._read_save_from_path(save_path)
+            if data is None:
+                logging.error(f"Failed to load data from {save_path}")
+                return None
             if not isinstance(data, dict):
                 logging.error(f"Loaded data from {save_path} is not a dict; got {type(data)}")
                 return None
@@ -2344,7 +2882,7 @@ class App:
         popup.deiconify()
         popup.grab_set()
         popup.lift()
-        popup.focus()
+        self._safe_focus(popup)
 
     def _popup_progress(self, title, message):
 
@@ -2398,7 +2936,6 @@ class App:
         popup.geometry(f"+{x}+{y}")
         popup.deiconify()
         popup.lift()
-
         return {"update":update, "close":close, "popup":popup}
 
     def _popup_confirm(self, title, message, on_confirm):
@@ -2494,12 +3031,6 @@ class App:
         popup.grab_set()
         popup.wait_window()
         return result.get("value")
-        y =(screen_height //2)-(popup_height //2)
-        popup.geometry(f"+{x}+{y}")
-        popup.deiconify()
-        popup.grab_set()
-        popup.lift()
-        popup.focus()
     def _clear_window(self):
         for widget in self.root.winfo_children():
             try:
@@ -3455,8 +3986,9 @@ class App:
                         return
 
                     save_path = os.path.join(saves_folder or "", (currentsave or "")+".sldsv")
-                    with open(save_path, 'r')as f:
-                        save_data = json.load(f)
+                    save_data = self._load_file((currentsave or "") + ".sldsv")
+                    if save_data is None:
+                        raise RuntimeError("Failed to load current save for add_item")
 
                     available_items =[]
                     for entry in crate.get("loot_table", []):
@@ -3767,8 +4299,11 @@ class App:
                     else:
                         remaining_items.append(available_items[idx])
 
-                with open(save_path, 'w')as f:
-                    json.dump(save_data, f, indent = 4)
+                # write save using pickled+base85
+                try:
+                    self._write_save_to_path(save_path, save_data)
+                except Exception as e:
+                    logging.error(f"Failed to write updated save: {e}")
 
                 if crate_file_path and os.path.exists(crate_file_path):
                     if remaining_items:
@@ -4193,11 +4728,18 @@ class App:
                     if not checkbox.get():
                         del new_save["equipment"][slot]
                 char_uuid = str(uuid.uuid4())
-                save_filename = f"{saves_folder}/{char_name}_{char_uuid}.sldsv"
-                with open(save_filename, 'w')as f:
-                    json.dump(new_save, f, indent = 4)
+                save_basename = f"{char_name}_{char_uuid}"
+                save_filename = os.path.join(saves_folder or "saves", save_basename + ".sldsv")
+                # write using pickled+base85 to avoid accidental JSON overwrites
+                self._write_save_to_path(save_filename, new_save)
                 persistentdata["save_uuids"][char_uuid]= char_name
                 persistentdata["last_loaded_save"]= char_uuid
+                # set currentsave so subsequent saves go to the new file
+                try:
+                    global currentsave
+                    currentsave = save_basename
+                except Exception:
+                    pass
                 self._save_persistent_data()
                 logging.info(f"Character '{char_name}' created successfully with UUID: {char_uuid}")
                 self._popup_show_info("Success", f"Character '{char_name}' created successfully!", sound = "success")
@@ -4233,7 +4775,18 @@ class App:
 
         create_button = self._create_sound_button(button_frame, "Create Character", create_character, width = 200, height = 50, font = customtkinter.CTkFont(size = 14))
         create_button.grid(row = 0, column = 0, padx =(0, 10))
-        back_button = self._create_sound_button(button_frame, "Cancel", go_back, width = 200, height = 50, font = customtkinter.CTkFont(size = 14))
+        back_button = self._create_sound_button(
+        button_frame,
+        "Cancel",
+        lambda: self._popup_confirm(
+            "Cancel Character Creation",
+            "Are you sure you want to cancel? Unsaved changes will be lost.",
+            go_back
+        ),
+        width = 200,
+        height = 50,
+        font = customtkinter.CTkFont(size = 14)
+        )
         back_button.grid(row = 0, column = 1, padx =(10, 0))
     def _load_existing_character(self):
         import json
@@ -4249,8 +4802,10 @@ class App:
                 if filename.endswith(".sldsv")and filename not in["persistent_data.sldsv", "settings.sldsv"]:
                     save_path = os.path.join(saves_folder or "saves", filename)
                     try:
-                        with open(save_path, 'r')as f:
-                            save_data = json.load(f)
+                        save_data = self._read_save_from_path(save_path)
+                        if save_data is None:
+                            char_name = "Unknown"
+                        else:
                             char_name = save_data.get("charactername", "Unknown")
 
                             uuid_part = filename.replace(".sldsv", "").split("_")[-1]
@@ -4511,8 +5066,9 @@ class App:
 
             save_path = os.path.join(saves_folder or "", (currentsave or "")+".sldsv")
             try:
-                with open(save_path, 'r')as f:
-                    save_data = json.load(f)
+                save_data = self._load_file((currentsave or "") + ".sldsv")
+                if save_data is None:
+                    raise RuntimeError("Failed to load current save for export")
 
                 storage_items = save_data.get("storage", [])
 
@@ -4550,8 +5106,9 @@ class App:
         def create_export():
             try:
                 save_path = os.path.join(saves_folder or "", (currentsave or "")+".sldsv")
-                with open(save_path, 'r')as f:
-                    save_data = json.load(f)
+                save_data = self._load_file((currentsave or "") + ".sldsv")
+                if save_data is None:
+                    raise RuntimeError("Failed to load current save for export")
 
                 money_amount = int(money_entry.get()or 0)
 
@@ -4577,8 +5134,8 @@ class App:
 
                 save_data["storage"]= storage_items
 
-                with open(save_path, 'w')as f:
-                    json.dump(save_data, f, indent = 4)
+                # persist changes to current save
+                self._save_file(save_data)
 
                 pickled_data = pickle.dumps(transfer_data)
                 encoded_data = base64.b85encode(pickled_data).decode('utf-8')
@@ -4626,17 +5183,13 @@ class App:
                         pickled_data = base64.b85decode(encoded_data.encode('utf-8'))
                         transfer_data = pickle.loads(pickled_data)
 
-                        save_path = os.path.join(saves_folder or "", (currentsave or "")+".sldsv")
-                        with open(save_path, 'r')as f:
-                            save_data = json.load(f)
-
+                        save_data = self._load_file((currentsave or "") + ".sldsv")
+                        if save_data is None:
+                            raise RuntimeError("Failed to load current save for import")
                         save_data["money"]= save_data.get("money", 0)+transfer_data.get("money", 0)
-
                         for item in transfer_data.get("items", []):
                             save_data["storage"].append(item)
-
-                        with open(save_path, 'w')as f:
-                            json.dump(save_data, f, indent = 4)
+                        self._save_file(save_data)
 
                         os.remove(filepath)
 
@@ -5579,6 +6132,37 @@ class App:
                                     label = f"{parent_slot.title()} - {subslot_data.get('name', subslot_type)}"
                                     add_choice(label, parent_slot = parent_slot, subslot = subslot_data)
 
+                    # Also include subslots that belong to accessories attached to the equipped item
+                    for parent_slot, equipped_item in equipment.items():
+                        if isinstance(equipped_item, dict) and isinstance(equipped_item.get("accessories"), list):
+                            for acc in equipped_item.get("accessories") or []:
+                                try:
+                                    cur = acc.get("current")
+                                    if not isinstance(cur, dict):
+                                        continue
+                                    for subslot_data in (cur.get("subslots") or []):
+                                        subslot_type = subslot_data.get("slot", "")
+                                        if subslot_type in valid_slots and subslot_data.get("current") is None:
+                                            conflicts = subslot_data.get("conflicts_with")
+                                            blocked = False
+                                            if conflicts:
+                                                if isinstance(conflicts, dict):
+                                                    conflict_type = conflicts.get("type")
+                                                    conflict_slot = conflicts.get("slot")
+                                                    if conflict_type == "main" and conflict_slot in equipment and equipment.get(conflict_slot) is not None:
+                                                        blocked = True
+                                                elif isinstance(conflicts, (list, tuple)):
+                                                    for conflict_slot in conflicts:
+                                                        if conflict_slot in equipment and equipment.get(conflict_slot) is not None:
+                                                            blocked = True
+                                                            break
+                                            if blocked:
+                                                continue
+                                            parent_label = f"{parent_slot.title()} - {acc.get('name', 'Accessory')} -> {subslot_data.get('name', subslot_type)}"
+                                            add_choice(parent_label, parent_slot = parent_slot, subslot = subslot_data)
+                                except Exception:
+                                    pass
+
                     if not choices:
                         self._popup_show_info("Error", f"No available slots for this item.Valid slots: {', '.join(valid_slots)}", sound = "error")
                         return
@@ -5599,6 +6183,10 @@ class App:
                         choice["subslot"]["current"]= removed_item
 
                     self._save_file(save_data)
+                    try:
+                        globals()['ATTACHMENTS_VERSION'] = globals().get('ATTACHMENTS_VERSION', 0) + 1
+                    except Exception:
+                        pass
                     refresh_display()
 
                     try:
@@ -5714,7 +6302,7 @@ class App:
 
                 popup.grab_set()
                 popup.lift()
-                popup.focus()
+                self._safe_focus(popup)
             except Exception as e:
                 logging.error(f"Equip failed: {e}")
                 self._popup_show_info("Error", f"Equip failed: {e}", sound = "error")
@@ -5784,8 +6372,33 @@ class App:
                 except Exception:
                     played = False
 
+                # if current_item is a numeric id reference, try to resolve it to a dict first
+                try:
+                    if not isinstance(current_item, dict) and (isinstance(current_item, int) or (isinstance(current_item, str) and current_item.isdigit())):
+                        iid = int(current_item)
+                        # search table files for matching item definition
+                        table_files = sorted(glob.glob(os.path.join("tables", f"*{global_variables.get('table_extension', '.sldtbl')}")))
+                        for tf in table_files:
+                            try:
+                                with open(tf, 'r', encoding='utf-8') as f:
+                                    td = json.load(f)
+                            except Exception:
+                                continue
+                            for arr in td.get('tables', {}).values():
+                                if isinstance(arr, list):
+                                    for cand in arr:
+                                        if isinstance(cand, dict) and cand.get('id') == iid:
+                                            current_item = cand.copy()
+                                            break
+                                    if isinstance(current_item, dict):
+                                        break
+                            if isinstance(current_item, dict):
+                                break
+                except Exception:
+                    pass
+
                 save_data["storage"].append(current_item)
-                subslot_data["current"]= None
+                subslot_data["current"] = None
 
                 self._save_file(save_data)
 
@@ -5868,7 +6481,7 @@ class App:
                 popup.update_idletasks()
                 popup.grab_set()
                 popup.lift()
-                popup.focus()
+                self._safe_focus(popup)
             except Exception as e:
                 logging.error(f"View container failed: {e}")
                 self._popup_show_info("Error", f"Failed to view container: {e}", sound = "error")
@@ -5896,8 +6509,11 @@ class App:
             save_path = os.path.join(saves_folder or "saves", currentsave or "")
             if not save_path.endswith('.sldsv'):
                 save_path +='.sldsv'
-            with open(save_path, 'r')as f:
-                save_data = json.load(f)
+            save_data = self._load_file((currentsave or "") + ".sldsv")
+            if save_data is None:
+                logging.error("Failed to load save for combat mode")
+                self._popup_show_info("Error", "Failed to load save.", sound = "error")
+                return
         except Exception as e:
             logging.error(f"Failed to load save: {e}")
             self._popup_show_info("Error", f"Failed to load save: {e}", sound = "error")
@@ -6554,6 +7170,10 @@ class App:
         details_frame = customtkinter.CTkFrame(main_frame)
         details_frame.pack(fill = "both", expand = True, pady =(0, 20))
 
+        try:
+            self._apply_item_overrides(current_weapon)
+        except Exception:
+            pass
         self._display_weapon_details(details_frame, current_weapon, combat_state, save_data, table_data, current_weapon_state)
 
         def update_weapon_view():
@@ -6564,6 +7184,10 @@ class App:
                 child.destroy()
 
             sd = globals().get('save_data')if 'save_data'in globals()else save_data
+            try:
+                self._apply_item_overrides(wpn)
+            except Exception:
+                pass
             self._display_weapon_details(details_frame, wpn, combat_state, sd, table_data, current_weapon_state)
 
             try:
@@ -7191,11 +7815,56 @@ class App:
             else:
                 acc_with_modes = sel[1]
                 cur =(acc_with_modes.get("current")if isinstance(acc_with_modes, dict)else None)or {}
-                acc_modes = cur.get("modes")or[]
+                orig_modes = cur.get("modes")or[]
+                # Remove any entries that only declare `mode_method` and have
+                # no `name` — these are not selectable modes and should not
+                # appear on the dial.
+                try:
+                    cleaned = [m for m in orig_modes if not (isinstance(m, dict) and m.get("mode_method") is not None and not m.get("name"))]
+                except Exception:
+                    cleaned = orig_modes
+                # Remap stored index (if present) from original list to the
+                # cleaned list so an existing _mode_index remains consistent.
+                try:
+                    if acc_with_modes.get("_mode_index") is None:
+                        acc_with_modes["_mode_index"] = 0
+                    else:
+                        old_idx = int(acc_with_modes.get("_mode_index") or 0)
+                        if 0 <= old_idx < len(orig_modes):
+                            try:
+                                elem = orig_modes[old_idx]
+                                if elem in cleaned:
+                                    acc_with_modes["_mode_index"] = int(cleaned.index(elem))
+                                else:
+                                    acc_with_modes["_mode_index"] = 0
+                            except Exception:
+                                acc_with_modes["_mode_index"] = 0
+                except Exception:
+                    try:
+                        acc_with_modes["_mode_index"] = int(acc_with_modes.get("_mode_index") or 0)
+                    except Exception:
+                        acc_with_modes["_mode_index"] = 0
+
+                acc_modes = cleaned
                 acc_slot_ref = acc_with_modes
 
-                if acc_with_modes.get("_mode_index")is None:
-                    acc_with_modes["_mode_index"]= 0
+                # Set the dial start angle to the currently-selected mode
+                # (or the first mode) so the dial opens pointing at that
+                # mode instead of the bottom.
+                try:
+                    if acc_modes:
+                        idx = int(acc_with_modes.get("_mode_index") or 0)
+                        idx = max(0, min(idx, len(acc_modes) - 1))
+                        mode_obj = acc_modes[idx]
+                        pos_deg = mode_obj.get("position") if isinstance(mode_obj, dict) else None
+                        if pos_deg is None:
+                            pos_deg = (idx * (360.0 / max(1, len(acc_modes))))
+                        try:
+                            attach_state["current_angle"] = float(pos_deg)
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
 
                 _refresh_mode_controls()
             draw_attach_dial()
@@ -7424,7 +8093,7 @@ class App:
             try:
                 mi = int(acc_with_modes.get("_mode_index")or 0)
                 pos_deg = acc_modes[mi].get("position")if isinstance(acc_modes[mi], dict)and acc_modes[mi].get("position")is not None else(mi *(360.0 /max(1, len(acc_modes))))
-                attach_state["current_angle"]= float(pos_deg)
+                attach_state["current_angle"]= float(pos_deg) # type: ignore
             except Exception:
                 pass
 
@@ -7532,7 +8201,7 @@ class App:
                 except Exception:
                     pass
             chosen_angle = acc_modes[best_idx].get("position")if isinstance(acc_modes[best_idx], dict)and acc_modes[best_idx].get("position")is not None else(best_idx *(360.0 /max(1, len(acc_modes))))
-            return best_idx, float(chosen_angle)
+            return best_idx, float(chosen_angle) # type: ignore
 
         def attach_on_mouse_down(event):
             center_x, center_y = 70, 70
@@ -8335,16 +9004,11 @@ class App:
                                                             break
                                         except Exception:
                                             pass
-                                        try:
-                                            subs = it.get('subslots')or[]
-                                            if isinstance(subs, list):
-                                                for s in subs:
-                                                    if isinstance(s, dict)and s.get('slot'):
-                                                        if s.get('slot')==slot_req:
-                                                            matched = True
-                                                            break
-                                        except Exception:
-                                            pass
+                                        # NOTE: Do NOT match items just because they *define* subslots
+                                        # that match the requested slot. An item that provides subslots
+                                        # for other attachments is not itself valid to be installed into
+                                        # that subslot. Only match an item if its own `slot` (or any
+                                        # accessory declarations) indicate it fits the requested slot.
                                         if matched:
 
                                             try:
@@ -8493,10 +9157,73 @@ class App:
                         pass
                 add_table_btn.pack(anchor = "w", pady = 2)
 
-                rows.append((acc, opts, current_choice))
+                # store tuple as (acc_ref, opts, choice_var, subslot_ref)
+                rows.append((acc, opts, current_choice, None))
+
+                # If this accessory has an installed item that provides subslots, expose those as nested attachment slots
+                try:
+                    cur_inst = acc.get("current")
+                    if isinstance(cur_inst, dict):
+                        for subslot in (cur_inst.get("subslots") or []):
+                            try:
+                                s_slot = subslot.get("slot")
+                                s_name = subslot.get("name") or s_slot or "Subslot"
+                                s_opts = [(None, "None")]
+                                for itm in candidates_for_slot(s_slot):
+                                    s_opts.append((itm, itm.get("name", "Attachment")))
+
+                                # include currently installed item in this subslot if present
+                                try:
+                                    s_cur = subslot.get("current")
+                                    if s_cur and isinstance(s_cur, dict):
+                                        found = False
+                                        s_id = s_cur.get("id")
+                                        for itm, lbl in s_opts:
+                                            try:
+                                                if itm is s_cur or (isinstance(itm, dict) and s_id is not None and itm.get("id") == s_id):
+                                                    found = True
+                                                    break
+                                            except Exception:
+                                                pass
+                                        if not found:
+                                            s_opts.append((s_cur, s_cur.get("name", "Installed"))) # type: ignore
+                                except Exception:
+                                    pass
+
+                                s_choice = customtkinter.StringVar(value = s_opts[0][1] if s_opts else "None")
+                                # pack a smaller label for the nested subslot
+                                try:
+                                    sub_frame = customtkinter.CTkFrame(frame, fg_color = "transparent")
+                                    sub_frame.pack(fill = "x", padx = 18, pady = 2)
+                                    customtkinter.CTkLabel(sub_frame, text = f"→ {s_name}", font = customtkinter.CTkFont(size = 11)).pack(side = "left")
+                                    s_option = customtkinter.CTkOptionMenu(sub_frame, values = [o[1] for o in s_opts], variable = s_choice, width = 180)
+                                    s_option.pack(side = "left", padx = 6)
+
+                                    # Add a small "Add From Table..." button for this nested subslot
+                                    try:
+                                        s_add_btn = customtkinter.CTkButton(sub_frame, text = "Add From Table...", width = 140, command =(lambda s = subslot: _open_add_from_table(s)))
+                                        # If there are no candidates for this subslot, disable the button
+                                        try:
+                                            s_slot_req = subslot.get('slot')
+                                            s_cands = _find_table_candidates(s_slot_req) if s_slot_req else []
+                                            if not s_cands:
+                                                s_add_btn.configure(state = "disabled")
+                                        except Exception:
+                                            pass
+                                        s_add_btn.pack(side = "left", padx = 6)
+                                    except Exception:
+                                        pass
+                                except Exception:
+                                    pass
+
+                                rows.append((acc, s_opts, s_choice, subslot))
+                            except Exception:
+                                pass
+                except Exception:
+                    pass
 
             def apply_changes():
-                for acc, opts, var in rows:
+                for acc, opts, var, subslot_ref in rows:
                     chosen_label = var.get()
                     chosen_item = None
                     for itm, lbl in opts:
@@ -8541,65 +9268,186 @@ class App:
                         except Exception:
                             pass
 
-                    if acc.get("current"):
+                    # If this row targets an accessory subslot, set the subslot's current
+                    if subslot_ref is not None:
+                        # remove references from previous installed in the subslot
+                        if subslot_ref.get("current"):
+                            try:
+                                _remove_all_references(subslot_ref.get("current"))
+                            except Exception:
+                                pass
+                            save_data.get("hands", {}).get("items", []).append(subslot_ref.get("current"))
 
-                        try:
-                            _remove_all_references(acc["current"])
-                        except Exception:
-                            pass
-                        save_data.get("hands", {}).get("items", []).append(acc["current"])
+                        if chosen_item is None:
+                            subslot_ref["current"] = None
+                        else:
+                            try:
+                                _remove_all_references(chosen_item)
+                            except Exception:
+                                pass
+                            hands_items = save_data.get("hands", {}).get("items", [])
+                            try:
+                                if chosen_item in hands_items:
+                                    hands_items.remove(chosen_item)
+                            except Exception:
+                                pass
+                            try:
+                                for slot_name, eq_item in save_data.get("equipment", {}).items():
+                                    if eq_item and "items" in eq_item and isinstance(eq_item["items"], list):
+                                        try:
+                                            while chosen_item in eq_item["items"]:
+                                                eq_item["items"].remove(chosen_item)
+                                        except Exception:
+                                            pass
 
-                    if chosen_item is None:
+                                    if eq_item and "subslots" in eq_item:
+                                        for sub in eq_item.get("subslots", []):
+                                            if sub and sub.get("current") and "items" in sub.get("current", {}):
+                                                try:
+                                                    while chosen_item in sub["current"]["items"]:
+                                                        sub["current"]["items"].remove(chosen_item)
+                                                except Exception:
+                                                    pass
+                            except Exception:
+                                pass
 
-                        acc["current"]= None
-                    else:
+                            try:
+                                import copy as _copy
+                                new_installed = _copy.deepcopy(chosen_item) if isinstance(chosen_item, dict) else chosen_item
+                            except Exception:
+                                new_installed = chosen_item
 
-                        try:
-                            _remove_all_references(chosen_item)
-                        except Exception:
-                            pass
+                            subslot_ref["current"] = new_installed
 
-                        hands_items = save_data.get("hands", {}).get("items", [])
-                        try:
-                            if chosen_item in hands_items:
-                                hands_items.remove(chosen_item)
-                        except Exception:
-                            pass
-
-                        try:
-                            for slot_name, eq_item in save_data.get("equipment", {}).items():
-                                if eq_item and "items"in eq_item and isinstance(eq_item["items"], list):
+                            # Also ensure the saved copy of this accessory (if present)
+                            # has its subslot updated so the change persists on disk.
+                            try:
+                                def _sync_subslot_to_save(accessory_obj, subslot_obj, installed_obj):
                                     try:
-                                        while chosen_item in eq_item["items"]:
-                                            eq_item["items"].remove(chosen_item)
+                                        # search equipment for a matching accessory by id/name/slot
+                                        aid = accessory_obj.get('id') if isinstance(accessory_obj, dict) else None
+                                        aname = accessory_obj.get('name') if isinstance(accessory_obj, dict) else None
+                                        aslot = accessory_obj.get('slot') if isinstance(accessory_obj, dict) else None
+                                        for slot_name, eq_item in save_data.get('equipment', {}).items():
+                                            if not eq_item or not isinstance(eq_item, dict):
+                                                continue
+                                            # accessories directly on equipped item
+                                            for acc in eq_item.get('accessories', []) or []:
+                                                try:
+                                                    if not isinstance(acc, dict):
+                                                        continue
+                                                    match = False
+                                                    if aid is not None and acc.get('id') == aid:
+                                                        match = True
+                                                    elif aname and acc.get('name') == aname:
+                                                        match = True
+                                                    elif aslot and acc.get('slot') == aslot:
+                                                        match = True
+                                                    if match:
+                                                        # find the corresponding subslot by slot or name
+                                                        for sub in acc.get('current', {}).get('subslots', []) if acc.get('current') else []:
+                                                            try:
+                                                                if (sub.get('slot') and sub.get('slot') == subslot_obj.get('slot')) or (sub.get('name') and sub.get('name') == subslot_obj.get('name')):
+                                                                    # write a deepcopy into the save structure to avoid shared refs
+                                                                    try:
+                                                                        import copy as _c
+                                                                        sub['current'] = _c.deepcopy(installed_obj) if isinstance(installed_obj, dict) else installed_obj
+                                                                    except Exception:
+                                                                        sub['current'] = installed_obj
+                                                                    return True
+                                                            except Exception:
+                                                                pass
+                                                except Exception:
+                                                    pass
+                                        return False
                                     except Exception:
-                                        pass
+                                        return False
 
-                                if eq_item and "subslots"in eq_item:
-                                    for sub in eq_item.get("subslots", []):
-                                        if sub and sub.get("current")and "items"in sub.get("current", {}):
-                                            try:
-                                                while chosen_item in sub["current"]["items"]:
-                                                    sub["current"]["items"].remove(chosen_item)
-                                            except Exception:
-                                                pass
-                        except Exception:
-                            pass
+                                try:
+                                    _sync_subslot_to_save(acc, subslot_ref, new_installed)
+                                except Exception:
+                                    pass
+                            except Exception:
+                                pass
 
-                        acc["current"]= chosen_item
+                    else:
+                        # top-level accessory slot handling
+                        if acc.get("current"):
+                            try:
+                                _remove_all_references(acc["current"])
+                            except Exception:
+                                pass
+                            save_data.get("hands", {}).get("items", []).append(acc["current"])
 
-                        try:
-                            modes = chosen_item.get("modes")or[]
-                            if isinstance(modes, list)and modes:
-                                if acc.get("_mode_index")is None and acc.get("mode_index")is None:
-                                    acc["_mode_index"]= 0
-                        except Exception:
-                            pass
+                        if chosen_item is None:
+                            acc["current"] = None
+                        else:
+                            try:
+                                _remove_all_references(chosen_item)
+                            except Exception:
+                                pass
+
+                            hands_items = save_data.get("hands", {}).get("items", [])
+                            try:
+                                if chosen_item in hands_items:
+                                    hands_items.remove(chosen_item)
+                            except Exception:
+                                pass
+
+                            try:
+                                for slot_name, eq_item in save_data.get("equipment", {}).items():
+                                    if eq_item and "items"in eq_item and isinstance(eq_item["items"], list):
+                                        try:
+                                            while chosen_item in eq_item["items"]:
+                                                eq_item["items"].remove(chosen_item)
+                                        except Exception:
+                                            pass
+
+                                    if eq_item and "subslots"in eq_item:
+                                        for sub in eq_item.get("subslots", []):
+                                            if sub and sub.get("current")and "items"in sub.get("current", {}):
+                                                try:
+                                                    while chosen_item in sub["current"]["items"]:
+                                                        sub["current"]["items"].remove(chosen_item)
+                                                except Exception:
+                                                    pass
+                            except Exception:
+                                pass
+
+                            # create a distinct copy for save_data to avoid shared table references
+                            try:
+                                import copy as _copy
+                                new_installed = _copy.deepcopy(chosen_item) if isinstance(chosen_item, dict) else chosen_item
+                            except Exception:
+                                new_installed = chosen_item
+
+                            acc["current"] = new_installed
+
+                            # ensure the newly-installed attachment has its subslots populated on the saved copy
+                            try:
+                                if isinstance(acc.get("current"), dict):
+                                    add_subslots_to_item(acc.get("current"))
+                            except Exception:
+                                pass
+
+                            try:
+                                modes = acc.get("current", {}).get("modes") or []
+                                if isinstance(modes, list) and modes:
+                                    if acc.get("_mode_index") is None and acc.get("mode_index") is None:
+                                        acc["_mode_index"] = 0
+                            except Exception:
+                                pass
 
                 try:
                     self._apply_item_overrides(wpn)
                 except Exception:
                     logging.exception("Failed to apply attachment overrides")
+
+                # persist changes to the save file
+                try:
+                    self._save_file(save_data)
+                except Exception:
+                    logging.exception("Failed to save save_data after applying attachments")
 
                 popup.destroy()
                 update_weapon_view()
@@ -8887,7 +9735,7 @@ class App:
             popup.deiconify()
             popup.grab_set()
             popup.lift()
-            popup.focus()
+            self._safe_focus(popup)
 
         def check_cleanliness():
             import time
@@ -9119,7 +9967,7 @@ class App:
                 try:
                     popup.grab_set()
                     popup.lift()
-                    popup.focus()
+                    self._safe_focus(popup)
                 except Exception:
                     pass
             except Exception:
@@ -9865,7 +10713,7 @@ class App:
             try:
                 popup.grab_set()
                 popup.lift()
-                popup.focus()
+                self._safe_focus(popup)
             except Exception:
                 pass
 
@@ -9920,7 +10768,7 @@ class App:
                 try:
                     popup.grab_set()
                     popup.lift()
-                    popup.focus()
+                    self._safe_focus(popup)
                 except Exception:
                     pass
             except Exception:
@@ -10247,8 +11095,9 @@ class App:
                     else:
 
                         try:
-                            with open(save_path, 'r')as f:
-                                file_sd = json.load(f)
+                            file_sd = self._read_save_from_path(save_path)
+                            if file_sd is None:
+                                file_sd = {}
                         except Exception:
                             file_sd = {}
                         try:
@@ -10926,6 +11775,11 @@ class App:
         MISSING = object()
 
         applied = weapon.get("_applied_overrides", {})or {}
+        if applied:
+            try:
+                logging.info("_apply_item_overrides: restoring previous applied overrides keys=%s for weapon id=%s", list(applied.keys()), weapon.get('id'))
+            except Exception:
+                pass
         for k, orig in list(applied.items()):
             try:
                 if orig is MISSING:
@@ -10939,9 +11793,60 @@ class App:
 
         weapon["_applied_overrides"]= {}
 
+        def _resolve_table_current(cur_val):
+            # Return dict for dict inputs, else try to resolve numeric id to table entry
+            if cur_val and isinstance(cur_val, dict):
+                return cur_val
+            try:
+                if isinstance(cur_val, int) or (isinstance(cur_val, str) and str(cur_val).isdigit()):
+                    tid = int(cur_val)
+                else:
+                    return None
+            except Exception:
+                return None
+
+            # Prefer already-loaded global table_data
+            try:
+                tdata = globals().get('table_data')
+                if isinstance(tdata, dict):
+                    tables = tdata.get('tables', {})
+                    for arr in tables.values():
+                        if isinstance(arr, list):
+                            for it in arr:
+                                if isinstance(it, dict) and it.get('id') == tid:
+                                    return it
+            except Exception:
+                pass
+
+            # Fallback: search table files on disk
+            try:
+                import json, os, glob
+                table_files = sorted(glob.glob(os.path.join('tables', f"*{global_variables.get('table_extension', '.sldtbl')}")))
+                for tf in table_files:
+                    try:
+                        with open(tf, 'r', encoding='utf-8') as fh:
+                            td = json.load(fh)
+                    except Exception:
+                        continue
+                    for arr in td.get('tables', {}).values():
+                        if isinstance(arr, list):
+                            for it in arr:
+                                if isinstance(it, dict) and it.get('id') == tid:
+                                    return it
+            except Exception:
+                pass
+
+            return None
+
         for acc in weapon.get("accessories", [])or[]:
-            cur = acc.get("current")
+            cur_raw = acc.get("current")
+            cur = _resolve_table_current(cur_raw) if cur_raw is not None else None
+
             if cur and isinstance(cur, dict):
+                try:
+                    logging.info("_apply_item_overrides: found accessory for overrides: id=%s name=%s on weapon id=%s", cur.get('id'), cur.get('name'), weapon.get('id'))
+                except Exception:
+                    pass
                 overrides = cur.get("overrides")or {}
                 if isinstance(overrides, dict):
                     for k, v in overrides.items():
@@ -10949,16 +11854,24 @@ class App:
                         if k not in weapon.get("_applied_overrides", {}):
                             orig = weapon.get(k, MISSING)
                             weapon.setdefault("_applied_overrides", {})[k]= orig
+                            try:
+                                logging.info("_apply_item_overrides: recording original value for key=%s orig=%s", k, orig)
+                            except Exception:
+                                pass
 
                         try:
                             weapon[k]= copy.deepcopy(v)
                         except Exception:
                             weapon[k]= v
+                        try:
+                            logging.info("_apply_item_overrides: applied override key=%s value=%s from accessory id=%s", k, v, cur.get('id'))
+                        except Exception:
+                            pass
 
         try:
             agg = {"stats":{}}
             for acc in weapon.get("accessories", [])or[]:
-                cur = acc.get("current")
+                cur = _resolve_table_current(acc.get("current")) if acc.get("current") is not None else None
 
                 def _wavelength_allows(item):
                     try:
@@ -11020,6 +11933,28 @@ class App:
                                                             agg["stats"][sname]= agg["stats"].get(sname, 0)+(int(sval)if isinstance(sval, (int, float))else 0)
                                                         except Exception:
                                                             pass
+                                # Apply any mode-specific overrides (e.g., burst_count)
+                                try:
+                                    mode_overrides = mode.get("overrides") if isinstance(mode, dict) else None
+                                    if isinstance(mode_overrides, dict):
+                                        for k, v in mode_overrides.items():
+                                            if k not in weapon.get("_applied_overrides", {}):
+                                                orig = weapon.get(k, MISSING)
+                                                weapon.setdefault("_applied_overrides", {})[k] = orig
+                                                try:
+                                                    logging.info("_apply_item_overrides: recording original value for key=%s orig=%s (mode override)", k, orig)
+                                                except Exception:
+                                                    pass
+                                            try:
+                                                weapon[k] = copy.deepcopy(v)
+                                            except Exception:
+                                                weapon[k] = v
+                                            try:
+                                                logging.info("_apply_item_overrides: applied mode override key=%s value=%s from accessory id=%s", k, v, cur.get('id'))
+                                            except Exception:
+                                                pass
+                                except Exception:
+                                    pass
                     except Exception:
 
                         pass
@@ -11500,12 +12435,9 @@ class App:
     def _save_combat_state(self, save_data):
 
         try:
-            save_path = os.path.join(saves_folder or "saves", currentsave or "")
-            if not save_path.endswith(global_variables.get("save_extension", ".sldsv")):
-                save_path +=global_variables.get("save_extension", ".sldsv")
-            with open(save_path, 'w')as f:
-                json.dump(save_data, f, indent = 4)
-            logging.info("Combat state saved to %s", save_path)
+            # Persist combat state to the current save using pickled format
+            self._save_file(save_data)
+            logging.info("Combat state saved for %s", (currentsave or "<unknown>"))
         except Exception as e:
             logging.error(f"Failed to save combat state: {e}")
 
@@ -11954,7 +12886,29 @@ class App:
                     if candidates:
                         sound_file = random.choice(candidates)
                         logging.debug("Reload action sound: %s -> %s", action_type, sound_file)
-                        self._safe_sound_play("", sound_file, block = should_block)
+                        # Ensure mag-insertion sounds play fully and include a small
+                        # extra human delay even when callers didn't request blocking.
+                        if action_type == "magin":
+                            # Ensure the mag insertion sound plays fully.
+                            try:
+                                self._safe_sound_play("", sound_file, block = True)
+                            except Exception:
+                                try:
+                                    self._safe_sound_play("", sound_file, block = should_block)
+                                except Exception:
+                                    pass
+                            # Add a small additional human delay: much shorter for
+                            # fast (non-blocking) contexts, slightly shorter for
+                            # normal (blocking) contexts.
+                            try:
+                                if should_block:
+                                    time.sleep(random.uniform(0.15, 0.35))
+                                else:
+                                    time.sleep(random.uniform(0.05, 0.12))
+                            except Exception:
+                                pass
+                        else:
+                            self._safe_sound_play("", sound_file, block = should_block)
                         return
             except Exception:
                 logging.exception("Error in reload action sound lookup")
@@ -12111,7 +13065,25 @@ class App:
                     sound_path = f"sounds/firearms/universal/{sound_name}.ogg"
                     if os.path.exists(sound_path):
                         logging.debug("_play_weapon_action_sound: universal %s -> %s", action_type, sound_path)
-                        self._safe_sound_play("", sound_path, block = should_block)
+                        # For mag insertion, wait for the full sound plus a short
+                        # human delay when caller didn't ask for blocking.
+                        if action_type == "magin":
+                            try:
+                                self._safe_sound_play("", sound_path, block = True)
+                            except Exception:
+                                try:
+                                    self._safe_sound_play("", sound_path, block = should_block)
+                                except Exception:
+                                    pass
+                            try:
+                                if should_block:
+                                    time.sleep(random.uniform(0.15, 0.35))
+                                else:
+                                    time.sleep(random.uniform(0.05, 0.12))
+                            except Exception:
+                                pass
+                        else:
+                            self._safe_sound_play("", sound_path, block = should_block)
                         break
 
         except Exception as e:
@@ -12464,6 +13436,19 @@ class App:
             burst_cyclic = None
         burst_base_delay = max(0.0, 60.0 /burst_cyclic)if burst_cyclic and burst_cyclic >0 else base_delay
 
+        # Pause between burst groups (human trigger reset). Can be overridden
+        # per-weapon by setting `burst_pause` (seconds). Default chosen to be
+        # noticeably longer than the intra-burst spacing.
+        try:
+            burst_pause = float(weapon.get("burst_pause"))
+            if burst_pause < 0:
+                burst_pause = None
+        except Exception:
+            burst_pause = None
+        if burst_pause is None:
+            # default: either 1.5x the base delay or 0.22s, whichever is larger
+            burst_pause = max(0.22, base_delay * 1.5)
+
         actual_rounds_to_fire = rounds_to_fire
         burst_count = weapon.get("burst_count", 0)
 
@@ -12767,10 +13752,11 @@ class App:
 
                 shots_in_burst =(i +1)%burst_count
                 if shots_in_burst ==0 and i +1 <actual_rounds_to_fire:
-
-                    time.sleep(0.18)
+                    # end of a burst group: pause to simulate human trigger
+                    # reset between bursts
+                    time.sleep(burst_pause)
                 else:
-
+                    # intra-burst spacing (high cyclic rate)
                     time.sleep(burst_base_delay)
             else:
 
@@ -15141,7 +16127,7 @@ class App:
         popup.deiconify()
         popup.grab_set()
         popup.lift()
-        popup.focus()
+        self._safe_focus(popup)
 
     def _check_for_reloader_item(self, save_data):
 
@@ -15866,8 +16852,11 @@ class App:
             def add_item_to_inventory(item):
                 try:
                     save_path = os.path.join(saves_folder or "", (currentsave or "")+".sldsv")
-                    with open(save_path, 'r')as f:
-                        save_data = json.load(f)
+                    save_data = self._read_save_from_path(save_path)
+                    if save_data is None:
+                        file_sd = {}
+                    else:
+                        file_sd = save_data
 
                     item_to_add = {k:v for k, v in item.items()if k !="table_category"}
 
@@ -15887,8 +16876,7 @@ class App:
                         except Exception:
                             added_location = "unknown"
 
-                    with open(save_path, 'w')as f:
-                        json.dump(save_data, f, indent = 4)
+                    self._save_file(save_data)
 
                     logging.info(f"Added item ID {item.get('id')}({item.get('name')}) to {added_location}")
                     self._popup_show_info("Success", f"Added '{item.get('name')}' to {added_location}!", sound = "success")
@@ -16035,7 +17023,7 @@ class App:
         create_magazine_transfer_button = self._create_sound_button(scroll_frame, "Create Loaded Magazine Transfer", self._open_create_magazine_transfer_tool, width = 500, height = 50, font = customtkinter.CTkFont(size = 16))
         create_magazine_transfer_button.pack(pady = 10)
 
-        create_belt_transfer_button = self._create_sound_button(scroll_frame, "Create Belt Transfer", self._open_create_belt_transfer_tool, width = 500, height = 50, font = customtkinter.CTkFont(size = 16))
+        create_belt_transfer_button = self._create_sound_button(scroll_frame, "Create Belt Transfer", self._open_create_belt_transfer_tool, width = 500, height = 50, font = customtkinter.CTkFont(size = 16), state = "disabled")
         create_belt_transfer_button.pack(pady = 10)
 
         modify_settings_button = self._create_sound_button(scroll_frame, "Modify Settings", self._open_modify_settings_tool, width = 500, height = 50, font = customtkinter.CTkFont(size = 16))
