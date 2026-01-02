@@ -22,8 +22,8 @@
             {
                 "name": "Colt M4A1 Carbine",
                 "value": 950,
-                "description": "Versatile carbine, once standard issue for the LEDF, now adopted by the Kyntarians. Chambered in 5.56x45mm NATO, featuring many picatinny rails for attachments.",
-                "rarity": "Uncommon",
+                "description": "Verstaile carbine designed by Colt USA, manufactured in Hartford, Connecticut. This rifle was once used by the US military, the LEDF, and is presently used by the Kyntarian resistance.",
+                "rarity": "Common",
                 "random_quantity": false,
                 "weight": 2.9,
                 "id": 0,
@@ -53,8 +53,8 @@
             {
                 "name": "Remington M24 Sniper Weapon System",
                 "value": 1500,
-                "description": "Bolt-action sniper rifle, used by military and law enforcement. Chambered in 7.62x51mm NATO, known for its accuracy and reliability.",
-                "rarity": "Rare",
+                "description": "Bolt-action precision rifle based off of the Remington 700, used by the LEDF and Kyntarian resistance.",
+                "rarity": "Legendary",
                 "random_quantity": false,
                 "weight": 5.4,
                 "id": 40,
@@ -77,8 +77,8 @@
             },
             {
                 "name": "Remington M40 Sniper Weapon System",
-                "value": 1750,
-                "description": "Bolt-action sniper rifle, used by military and law enforcement. Chambered in 7.62x51mm NATO, known for its accuracy and reliability.",
+                "value": 1150,
+                "description": "Bolt-action precision rifle based off of the Remington 700, this variant of the M24 has an internal box fed magazine rather than a detachable AICS magazine. Used by the LEDF and Kyntarian resistance.",
                 "rarity": "Rare",
                 "random_quantity": false,
                 "weight": 7.5,
@@ -103,9 +103,9 @@
             },
             {
                 "name": "Colt M8 Carbine",
-                "value": 1500,
-                "description": "Replacement for the standard issue M4A1 carbine. Fires 6.5x45mm Colt with an 11.5 inch barrel.",
-                "rarity": "Common",
+                "value": 1250,
+                "description": "Replacement for the standard issue M4A1 carbine. Fires 6.5x45mm Colt with an 11.5 inch barrel. Used by the LEDF.",
+                "rarity": "Uncommon",
                 "random_quantity": false,
                 "weight": 3.1,
                 "id": 64,
@@ -136,9 +136,9 @@
             },
             {
                 "name": "Colt M17 Rifle",
-                "value": 1500,
-                "description": "Replacement for the standard issue M16A4. Fires 6.5x45mm Colt with a 20 inch barrel.",
-                "rarity": "Uncommon",
+                "value": 1300,
+                "description": "Replacement for the standard issue M16A4. Fires 6.5x45mm Colt with a 20 inch barrel. Used by the LEDF.",
+                "rarity": "Rare",
                 "random_quantity": false,
                 "weight": 3.1,
                 "id": 65,
@@ -169,7 +169,7 @@
             },
             {
                 "name": "US FRL439 Repeating Rifle",
-                "value": 450,
+                "value": 350,
                 "description": "A Moxarian designed magic bolt action rifle. Looks similar to the MAS-36 bolt action rifle.",
                 "rarity": "Common",
                 "random_quantity": false,
@@ -250,7 +250,7 @@
                 "name": "Armalite AR-10 20\" Tactical Rifle",
                 "value": 2500,
                 "description": "A civilian semi-automatic AR-10, firing 7.62x51mm NATO. This one has a 20 inch barrel for improved accuracy at range.",
-                "rarity": "Uncommon",
+                "rarity": "Rare",
                 "random_quantity": false,
                 "weight": 4.5,
                 "id": 99,
@@ -281,7 +281,7 @@
                 "name": "SIG Sauer MCX Spear",
                 "value": 4200,
                 "description": "A civilian semi-automatic rifle based on the MCX platform, chambered in 7.62x51mm NATO.",
-                "rarity": "Rare",
+                "rarity": "Legendary",
                 "random_quantity": false,
                 "weight": 3.8,
                 "id": 100,
@@ -311,7 +311,7 @@
             {
                 "name": "Spike's Tactical 10th Anniversary AR-15",
                 "value": 8500,
-                "description": "A civilian semi-automatic AR-15, firing 5.56x45mm NATO. A special edition model released to commemorate Spike's Tactical's 10th anniversary.",
+                "description": "A high-end civilian semi-automatic AR-15, firing 5.56x45mm NATO. A special edition model released to commemorate Spike's Tactical's 10th anniversary.",
                 "rarity": "Mythic",
                 "random_quantity": false,
                 "weight": 3.2,
@@ -424,7 +424,7 @@
             {
                 "name": "Remington ACR",
                 "value": 3000,
-                "description": "A modular assault rifle platform, chambered in 5.56x45mm NATO. Known for its adaptability and ease of customization.",
+                "description": "A modular assault rifle platform, chambered in 5.56x45mm NATO. This rifle is unique in that it has a quick-change barrel.",
                 "rarity": "Rare",
                 "random_quantity": false,
                 "weight": 3.6,
@@ -453,9 +453,9 @@
             },
             {
                 "name": "Robinson Armament XCR-H",
-                "value": 3200,
-                "description": "A modular assault rifle platform, chambered in 7.62x51mm NATO. Known for its unique design and reliability.",
-                "rarity": "Rare",
+                "value": 7500,
+                "description": "A modular assault rifle platform, chambered in 7.62x51mm NATO. Known for its unique design and reliability. Failed contestant in the USSOCOM SOF Combat Automatic Rifle (SCAR) program.",
+                "rarity": "Mythic",
                 "random_quantity": false,
                 "weight": 3.8,
                 "id": 158,
@@ -484,7 +484,7 @@
             {
                 "name": "Heckler & Koch G36C",
                 "value": 2800,
-                "description": "A compact variant of the G36 assault rifle, chambered in 5.56x45mm NATO. Known for its German build quality and reliability.",
+                "description": "A compact variant of the G36 assault rifle, chambered in 5.56x45mm NATO. Katz is gonna KILL me for putting this one in here.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
                 "weight": 3.3,
@@ -512,7 +512,7 @@
                 "name": "Izhmash AKM",
                 "value": 1200,
                 "description": "A modernized version of the AK-47, chambered in 7.62x39mm. Known for its durability and reliability in harsh conditions.",
-                "rarity": "Common",
+                "rarity": "Legendary",
                 "random_quantity": false,
                 "weight": 3.4,
                 "id": 160,
@@ -538,7 +538,7 @@
                 "name": "Izhmash AK-74M",
                 "value": 1300,
                 "description": "A modernized version of the AK-74, chambered in 5.45x39mm. Known for its durability and reliability in harsh conditions.",
-                "rarity": "Uncommon",
+                "rarity": "Mythic",
                 "random_quantity": false,
                 "weight": 3.3,
                 "id": 178,
@@ -563,7 +563,7 @@
             {
                 "name": "FAF-439 Battle Rifle",
                 "value": 1500,
-                "description": "Standard issue Legionaire battle rifle, chambered in 7.62x51mm NATO. Known for its reliability and stopping power.",
+                "description": "Standard issue Legionaire battle rifle, chambered in 7.62x51mm NATO. Looks a lot like an FN FAL.",
                 "rarity": "Common",
                 "random_quantity": false,
                 "weight": 4,
@@ -589,7 +589,7 @@
             {
                 "name": "FN Herstal FAL",
                 "value": 2000,
-                "description": "A battle rifle chambered in 7.62x51mm NATO. Known for its reliability and stopping power.",
+                "description": "A battle rifle chambered in 7.62x51mm NATO. The right arm of the free world.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
                 "weight": 4.3,
@@ -612,6 +612,203 @@
                     {"name": "Picatinny Rail (Handguard Left)", "slot": "picatinny_rifle", "current": null},
                     {"name": "Picatinny Rail (Handguard Right)", "slot": "picatinny_rifle", "current": null},
                     {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
+                ],
+                "can_stack": false
+            },
+            {
+                "name": "FAF-439TS Marksman Rifle",
+                "value": 1500,
+                "description": "Standard issue Legionaire marksman rifle, chambered in 7.62x51mm NATO. Known for its reliability and stopping power.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 4,
+                "id": 238,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "FAL",
+                "caliber": ["7.62x51mm NATO"],
+                "action": ["Semi"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 600,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "FAL",
+                "jamrate": 0.01,
+                "accessories": [
+                    {"name": "SSA Accessory Mount", "slot": "ssa_mount", "current": {"name":"VLR fixed magnification 4x scope","value":900,"description":"4x fixed magnification scope for mid-range engagements. Mounts to a Legion SSA accessory rail.","rarity":"Common","random_quantity":false,"weight":0.5,"id":239,"attachment":true,"slot":"ssa_mount","modifiers":{"stats":{"aim":2}},"magnified":true,"variable":false,"night_vision_compatible":false,"can_stack":false}},
+                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
+                ],
+                "can_stack": false
+            },
+            {
+                "name": "FAF-439VN Battle Rifle",
+                "value": 1500,
+                "description": "Standard issue Legionaire battle rifle, chambered in 7.62x51mm NATO. Known for its reliability and stopping power. This one is used by the Night Battalion.",
+                "rarity": "Mythic",
+                "random_quantity": false,
+                "weight": 4,
+                "id": 245,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "FAL",
+                "caliber": ["7.62x51mm NATO"],
+                "action": ["Semi", "Auto"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 600,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "FAL",
+                "jamrate": 0.01,
+                "accessories": [
+                    {"name": "SSA Accessory Mount", "slot": "ssa_mount", "current": {"name":"MSVN night vision scope","value":2000,"description":"Experimental early night vision sight designed for the Legion SSA accessory rail.","rarity":"Rare","random_quantity":false,"weight":2.26,"id":232,"attachment":true,"slot":"ssa_mount","modifiers":{"stats":{"aim":2},"night_vision_compatible":true},"magnified":true,"variable":false,"night_vision_compatible":true,"can_stack":false}},
+                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
+                ],
+                "can_stack": false
+            },
+            {
+                "name": "FN Herstal Mk. 16 MOD 0",
+                "value": 2500,
+                "description": "Rifle developed for USSOCOM, used by the LEDF special forces... the key word is special. This variant is the Light, which fires 5.56x45mm NATO.",
+                "rarity": "Legendary",
+                "random_quantity": false,
+                "weight": 3.29,
+                "id": 291,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "SCAR",
+                "caliber": ["5.56x45mm NATO"],
+                "action": ["Semi", "Auto"],
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 650,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "STANAG 4179",
+                "jamrate": 0.001,
+                "accessories": [
+                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": null},
+                    {"name": "Picatinny Rail (Handguard Top)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Left)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Right)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
+                ],
+                "can_stack": false
+            },
+            {
+                "name": "FN Herstal Mk. 17 MOD 0",
+                "value": 3000,
+                "description": "Rifle developed for USSOCOM, used by the LEDF special forces... the key word is special. This variant is the Heavy, which fires 7.62x51mm NATO.",
+                "rarity": "Legendary",
+                "random_quantity": false,
+                "weight": 3.29,
+                "id": 292,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "SCAR",
+                "caliber": ["7.62x51mm NATO"],
+                "action": ["Semi", "Auto"],
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 550,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "SCAR-H",
+                "jamrate": 0.001,
+                "accessories": [
+                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": null},
+                    {"name": "Picatinny Rail (Handguard Top)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Left)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Right)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
+                ],
+                "can_stack": false
+            },
+            {
+                "name": "FN Herstal Mk. 20 SSR",
+                "value": 3000,
+                "description": "Rifle developed for USSOCOM, used by the LEDF special forces... the key word is special. This is the designated marksman variant, which is semi automatic. Lame.",
+                "rarity": "Legendary",
+                "random_quantity": false,
+                "weight": 3.29,
+                "id": 297,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "SCAR",
+                "caliber": ["7.62x51mm NATO"],
+                "action": ["Semi"],
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 550,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "SCAR-H",
+                "jamrate": 0.001,
+                "accessories": [
+                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": null},
+                    {"name": "Picatinny Rail (Handguard Top)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Left)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Right)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
+                ],
+                "can_stack": false
+            },
+            {
+                "name": "Daniel Defense Mk. 18 MOD 1",
+                "value": 1800,
+                "description": "Carbine developed by the US Navy, specifically for the Navy SEALs. This rifle features a 10.3\" barrel and rails, where the standard M4A1 carbine does not.",
+                "rarity": "Legendary",
+                "random_quantity": false,
+                "weight": 2.72,
+                "id": 296,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "AR-15",
+                "caliber": ["5.56x45mm NATO"],
+                "action": ["Semi", "Auto"],
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 950,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "STANAG 4179",
+                "jamrate": 0.001,
+                "accessories": [
+                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": null},
+                    {"name": "Picatinny Rail (Handguard Top)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Left)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Right)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_556", "current": null}
+                ],
+                "can_stack": false
+            },
+            {
+                "name": "Llew-Ellis L8 repeating rifle",
+                "value": 850,
+                "description": "A rifle of Avian origin, chambered in 7.62x51mm NATO. Looks like a Lee-Enfield.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 3.5,
+                "id": 299,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "Lee-Enfield",
+                "caliber": ["7.62x51mm NATO"],
+                "action": ["Bolt"],
+                "bolt": "open",
+                "cyclic": 300,
+                "magazinetype": "Internal Box",
+                "capacity": 10,
+                "jamrate": 0.02,
+                "accessories": [
+                    {"name": "SSA Accessory Mount", "slot": "ssa_mount", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
                 ],
                 "can_stack": false
@@ -967,7 +1164,7 @@
             {
                 "name": "KRISS Vector .40 S&W",
                 "value": 1600,
-                "description": "Modern submachine gun chambered in .40 S&W. Known for its unique recoil mitigation system and futuristic design.",
+                "description": "Modern submachine gun chambered in .40 S&W. Known for its unique recoil mitigation system and futuristic design. Ewww... .40 S&W.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
                 "weight": 2.6,
@@ -998,7 +1195,7 @@
             {
                 "name": "KRISS Vector .45 ACP",
                 "value": 1600,
-                "description": "Modern submachine gun chambered in .45 ACP. Known for its unique recoil mitigation system and futuristic design.",
+                "description": "Modern submachine gun chambered in .45 ACP. Known for its unique recoil mitigation system and futuristic design. God's caliber.",
                 "rarity": "Rare",
                 "random_quantity": false,
                 "weight": 2.6,
@@ -1029,7 +1226,7 @@
             {
                 "name": "KRISS Vector 9x19mm Parabellum",
                 "value": 1500,
-                "description": "Modern submachine gun chambered in 9x19mm Parabellum. Known for its unique recoil mitigation system and futuristic design.",
+                "description": "Modern submachine gun chambered in 9x19mm Parabellum. Known for its unique recoil mitigation system and futuristic design. Bone standard.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
                 "weight": 2.6,
@@ -1060,7 +1257,7 @@
             {
                 "name": "KRISS Vector 10mm Auto",
                 "value": 1550,
-                "description": "Modern submachine gun chambered in 10mm Auto. Known for its unique recoil mitigation system and futuristic design.",
+                "description": "Modern submachine gun chambered in 10mm Auto. Known for its unique recoil mitigation system and futuristic design. YAAAY! 10MM AUTO!",
                 "rarity": "Rare",
                 "random_quantity": false,
                 "weight": 2.6,
@@ -1091,7 +1288,7 @@
             {
                 "name": "Izhmash PP-19 Bizon",
                 "value": 900,
-                "description": "Russian submachine gun chambered in 9x19mm Parabellum. Known for its helical magazine design, providing high ammunition capacity in a compact form.",
+                "description": "Russian submachine gun chambered in 9x19mm Parabellum. Known for its helical magazine design, providing high ammunition capacity in a compact form. The magazine loves to jam.",
                 "rarity": "Mythic",
                 "random_quantity": false,
                 "weight": 2.8,
@@ -1107,7 +1304,7 @@
                 "cyclic": 750,
                 "magazinetype": "Detachable box",
                 "magazinesystem": "Bizon",
-                "jamrate": 0.02,
+                "jamrate": 1.5,
                 "accessories": [
                     {"name": "Russian Sight Mount", "slot": "russian_mount", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_9mm", "current": null}
@@ -1117,7 +1314,7 @@
             {
                 "name": "Kalashnikov Concern PP-19-01 Vityaz",
                 "value": 950,
-                "description": "Modern Russian submachine gun chambered in 9x19mm Parabellum. Based on the AK platform, known for its reliability and durability.",
+                "description": "Modern Russian submachine gun chambered in 9x19mm Parabellum. Based on the AK platform, known for its reliability and durability. Thanks to not having a helical magazine like it's younger brother.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
                 "weight": 3,
@@ -1136,6 +1333,58 @@
                 "jamrate": 0.02,
                 "accessories": [
                     {"name": "Russian Sight Mount", "slot": "russian_mount", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_9mm", "current": null}
+                ],
+                "can_stack": false
+            },
+            {
+                "name": "CACPPF-439 Submachine Gun",
+                "value": 800,
+                "description": "A Legion designed submachine gun, chambered in 9x19mm Parabellum. Looks similar to the Beretta Modello 38.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 2.9,
+                "id": 240,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "smg",
+                "platform": "CACPPF-439",
+                "caliber": ["9x19mm Parabellum"],
+                "action": ["Semi", "Auto"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 550,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "CACPPF-439",
+                "jamrate": 0.02,
+                "accessories": [
+                    {"name": "SSA Accessory Mount", "slot": "ssa_mount", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_9mm", "current": null}
+                ],
+                "can_stack": false
+            },
+            {
+                "name": "CACPPF-439VN Submachine Gun",
+                "value": 800,
+                "description": "A Legion designed submachine gun, chambered in 9x19mm Parabellum. Looks similar to the Beretta Modello 38. This one is used by the Night Batallion.",
+                "rarity": "Mythic",
+                "random_quantity": false,
+                "weight": 2.9,
+                "id": 246,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "smg",
+                "platform": "CACPPF-439",
+                "caliber": ["9x19mm Parabellum"],
+                "action": ["Semi", "Auto"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 550,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "CACPPF-439",
+                "jamrate": 0.02,
+                "accessories": [
+                    {"name": "SSA Accessory Mount", "slot": "ssa_mount", "current": {"name":"MSVN night vision scope","value":2000,"description":"Experimental early night vision sight designed for the Legion SSA accessory rail.","rarity":"Rare","random_quantity":false,"weight":2.26,"id":232,"attachment":true,"slot":"ssa_mount","modifiers":{"stats":{"aim":2},"night_vision_compatible":true},"magnified":true,"variable":false,"night_vision_compatible":true,"can_stack":false}},
                     {"name": "Muzzle Device", "slot": "muzzle_9mm", "current": null}
                 ],
                 "can_stack": false
@@ -1418,6 +1667,32 @@
                 "jamrate": 0.01,
                 "accessories": [
                     {"name": "Plateforme d'accessoires de la Manufacture d'armes de Solle", "slot": "pams_mount", "current": null}
+                ],
+                "can_stack": false
+            },
+            {
+                "name": "MPF-439 Machine Gun",
+                "value": 900,
+                "description": "A Legion designed machine gun, chambered in 7.62x51mm NATO. Looks similar to the Lewis Gun.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 6.5,
+                "id": 247,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "MPF-439",
+                "caliber": ["7.62x51mm NATO"],
+                "action": ["Auto"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 600,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "MPF-439",
+                "jamrate": 0.02,
+                "accessories": [
+                    {"name": "SSA Accessory Mount", "slot": "ssa_mount", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
                 ],
                 "can_stack": false
             }
@@ -3030,7 +3305,7 @@
                 "description": "Experimental early night vision sight designed for the Legion SSA accessory rail.",
                 "rarity": "Rare",
                 "random_quantity": false,
-                "weight": 0.7,
+                "weight": 2.26,
                 "id": 232,
                 "attachment": true,
                 "slot": "ssa_mount",
@@ -3079,6 +3354,22 @@
                     {"name": "8x", "type": "high_power", "usage": null, "modifiers": {"stats": {"aim": 3}, "night_vision_compatible": false}, "position": 315},
                     {"mode_method": "dial"}
                 ],
+                "can_stack": false
+            },
+            {
+                "name": "VLR fixed magnification 4x scope",
+                "value": 900,
+                "description": "4x fixed magnification scope for mid-range engagements. Mounts to a Legion SSA accessory rail.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.5,
+                "id": 239,
+                "attachment": true,
+                "slot": "ssa_mount",
+                "modifiers": {"stats": {"aim": 2}},
+                "magnified": true,
+                "variable": false,
+                "night_vision_compatible": false,
                 "can_stack": false
             }
         ],
@@ -3409,7 +3700,7 @@
                         "type": "APERS",
                         "pen": "IV",
                         "modifiers": null,
-                        "rarity": "Epic",
+                        "rarity": "Legendary",
                         "tip": "#ff0000"
                     },
                     {
@@ -4333,6 +4624,110 @@
                 "capacity": 30,
                 "magazinesystem": "FAL",
                 "can_stack": false
+            },
+            {
+                "name": "Legionaire 10-Round 9x19mm Parabellum CACPPF-439 magazine",
+                "value": 15,
+                "description": "Reduced size 10-round magazine for 9x19mm Parabellum chambered Legionaire CACPPF-439 submachine guns.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.2,
+                "id": 241,
+                "caliber": ["9x19mm Parabellum"],
+                "capacity": 10,
+                "magazinesystem": "CACPPF-439",
+                "can_stack": false
+            },
+            {
+                "name": "Legionaire 20-Round 9x19mm Parabellum CACPPF-439 magazine",
+                "value": 25,
+                "description": "Standard 20-round magazine for 9x19mm Parabellum chambered Legionaire CACPPF-439 submachine guns.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.25,
+                "id": 242,
+                "caliber": ["9x19mm Parabellum"],
+                "capacity": 20,
+                "magazinesystem": "CACPPF-439",
+                "can_stack": false
+            },
+            {
+                "name": "Legionaire 30-Round 9x19mm Parabellum CACPPF-439 magazine",
+                "value": 35,
+                "description": "Extended 30-round magazine for 9x19mm Parabellum chambered Legionaire CACPPF-439 submachine guns.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 0.3,
+                "id": 243,
+                "caliber": ["9x19mm Parabellum"],
+                "capacity": 30,
+                "magazinesystem": "CACPPF-439",
+                "can_stack": false
+            },
+            {
+                "name": "Legionaire 40-Round 9x19mm Parabellum CACPPF-439 magazine",
+                "value": 45,
+                "description": "Extended 40-round magazine for 9x19mm Parabellum chambered Legionaire CACPPF-439 submachine guns.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 0.35,
+                "id": 244,
+                "caliber": ["9x19mm Parabellum"],
+                "capacity": 40,
+                "magazinesystem": "CACPPF-439",
+                "can_stack": false
+            },
+            {
+                "name": "Legionaire 47-Round 7.62x51mm NATO MPF-439 pan magazine",
+                "value": 80,
+                "description": "Standard-capacity 47-round pan magazine for 7.62x51mm NATO chambered Legionaire MPF-439 machine guns.",
+                "rarity": "Legendary",
+                "random_quantity": false,
+                "weight": 1.0,
+                "id": 248,
+                "caliber": ["7.62x51mm NATO"],
+                "capacity": 47,
+                "magazinesystem": "MPF-439",
+                "can_stack": false
+            },
+            {
+                "name": "Legionaire 97-Round 7.62x51mm NATO MPF-439 drum magazine",
+                "value": 150,
+                "description": "High-capacity 97-round drum magazine for 7.62x51mm NATO chambered Legionaire MPF-439 machine guns.",
+                "rarity": "Mythic",
+                "random_quantity": false,
+                "weight": 1.5,
+                "id": 249,
+                "caliber": ["7.62x51mm NATO"],
+                "capacity": 97,
+                "magazinesystem": "MPF-439",
+                "can_stack": false
+            },
+            {
+                "name": "FN Herstal 10-Round 7.62x51mm NATO SCAR-H magazine",
+                "value": 20,
+                "description": "Low-capacity designated marksman magazine for the Mk. 20 SSR.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 0.45,
+                "id": 293,
+                "caliber": ["7.62x51mm NATO"],
+                "capacity": 10,
+                "magazinesystem": "SCAR-H",
+                "can_stack": false
+            },
+            {
+                "name": "FN Herstal 10-Round 7.62x51mm NATO SCAR-H magazine",
+                "value": 20,
+                "description": "Normal-capacity battle rifle magazine for the Mk. 17 Mod 0.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 0.246,
+                "id": 294,
+                "caliber": ["7.62x51mm NATO"],
+                "capacity": 10,
+                "magazinesystem": "SCAR-H",
+                "can_stack": false
             }
         ],
         "melee": [
@@ -4421,10 +4816,565 @@
                 "weight": 0.8,
                 "id": 23,
                 "consumable": true,
-                "type": "ifak",
+                "consumable_sounds": [
+                    "mreopen.ogg",
+                    "bandage.ogg"
+                ],
+                "used_up": true,
                 "uses_left": 3,
                 "equippable": true,
                 "slot": ["left leg", "right leg", "molle_back", "molle_front", "molle_side"]
+            },
+            {
+                "name": "CAT 7 Tourniquet",
+                "value": 100,
+                "description": "Combat Application Tourniquet (CAT) used to control severe bleeding from limb injuries in emergency situations.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.2,
+                "id": 252,
+                "consumable": true,
+                "consumable_sounds": [
+                    "tourniquet.ogg"
+                ],
+                "used_up": false,
+                "disinfectant_required": true,
+                "equippable": true,
+                "slot": ["left leg", "right leg", "molle_back", "molle_front", "molle_side"]
+            },
+            {
+                "name": "Pack of cigarettes",
+                "value": 10,
+                "description": "A pack of cigarettes. Smoking is hazardous to your health.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.1,
+                "id": 253,
+                "consumable": true,
+                "consumable_sounds": [
+                    "cigarettepackopen.ogg",
+                    "lightingdevice",
+                    "cigaretteuse.ogg"
+                ],
+                "used_up": true,
+                "uses_left": 20,
+                "lighting_device_required": true
+            },
+            {
+                "name": "Cigarette",
+                "value": 0.1,
+                "description": "A single cigarette. Smoking is hazardous to your health.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.005,
+                "id": 254,
+                "consumable": true,
+                "consumable_sounds": [
+                    "lightingdevice",
+                    "cigaretteuse.ogg"
+                ],
+                "used_up": true,
+                "lighting_device_required": true
+            },
+            {
+                "name": "Lighter",
+                "value": 5,
+                "description": "A standard lighter used to ignite cigarettes or other items.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.05,
+                "id": 255,
+                "consumable": true,
+                "consumable_sounds": [
+                    "lighter.ogg"
+                ],
+                "used_up": false,
+                "lighting_device": true,
+                "can_stack": false
+            },
+            {
+                "name": "Matchbook",
+                "value": 2,
+                "description": "A small matchbook containing several matches for igniting cigarettes or other items.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.02,
+                "id": 256,
+                "consumable": true,
+                "consumable_sounds": [
+                    "match.ogg"
+                ],
+                "used_up": true,
+                "uses_left": 20,
+                "lighting_device": true,
+                "can_stack": false
+            },
+            {
+                "name": "Bottle of isopropyl alcohol",
+                "value": 15,
+                "description": "A small bottle of isopropyl alcohol used for disinfecting wounds before applying a tourniquet or bandage.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.25,
+                "id": 257,
+                "consumable": true,
+                "consumable_sounds": [
+                    "antiseptic.ogg"
+                ],
+                "used_up": true,
+                "uses_left": 5,
+                "can_stack": false
+            },
+            {
+                "name": "Bandage roll",
+                "value": 10,
+                "description": "A roll of sterile bandage used for dressing wounds and controlling bleeding.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.2,
+                "id": 258,
+                "consumable": true,
+                "consumable_sounds": [
+                    "bandage.ogg"
+                ],
+                "used_up": true,
+                "uses_left": 5,
+                "can_stack": false
+            },
+            {
+                "name": "Gauze roll",
+                "value": 8,
+                "description": "A roll of sterile gauze used for dressing wounds and controlling bleeding.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.15,
+                "id": 259,
+                "consumable": true,
+                "consumable_sounds": [
+                    "bandage.ogg"
+                ],
+                "used_up": true,
+                "uses_left": 5,
+                "can_stack": false
+            },
+            {
+                "name": "Hemostatic dressing",
+                "value": 25,
+                "description": "A hemostatic dressing used to quickly stop severe bleeding from wounds.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 0.3,
+                "id": 260,
+                "consumable": true,
+                "consumable_sounds": [
+                    "bandage.ogg"
+                ],
+                "used_up": true,
+                "uses_left": 3,
+                "can_stack": false
+            },
+            {
+                "name": "Antidote",
+                "value": 50,
+                "description": "A medical antidote used to counteract the effects of certain poisons or toxins.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 0.2,
+                "id": 261,
+                "consumable": true,
+                "consumable_sounds": [
+                    "potionuse.ogg"
+                ],
+                "used_up": true,
+                "can_stack": false
+            },
+            {
+                "name": "Panacea",
+                "value": 100,
+                "description": "A rare and potent medical panacea used to cure a wide range of ailments and injuries.",
+                "rarity": "Legendary",
+                "random_quantity": false,
+                "weight": 0.3,
+                "id": 262,
+                "consumable": true,
+                "consumable_sounds": [
+                    "potionuse.ogg"
+                ],
+                "used_up": true,
+                "can_stack": false
+            },
+            {
+                "name": "Mana Potion",
+                "value": 75,
+                "description": "A mystical potion that restores magical energy (mana) when consumed.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 0.25,
+                "id": 263,
+                "consumable": true,
+                "consumable_sounds": [
+                    "potionuse.ogg"
+                ],
+                "used_up": true,
+                "can_stack": false
+            },
+            {
+                "name": "Apple",
+                "value": 5,
+                "description": "A fresh apple. Eating it restores a small amount of health.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.2,
+                "id": 264,
+                "consumable": true,
+                "consumable_sounds": [
+                    "eat.ogg"
+                ],
+                "used_up": true,
+                "can_stack": true
+            },
+            {
+                "name": "Bread",
+                "value": 8,
+                "description": "A loaf of bread. Eating it restores a moderate amount of health.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.5,
+                "id": 265,
+                "consumable": true,
+                "consumable_sounds": [
+                    "eat.ogg"
+                ],
+                "used_up": true,
+                "can_stack": true
+            },
+            {
+                "name": "Cheese wheel",
+                "value": 12,
+                "description": "A wheel of cheese. Eating it restores a good amount of health.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 40,
+                "id": 266,
+                "consumable": true,
+                "consumable_sounds": [
+                    "eat.ogg"
+                ],
+                "used_up": true,
+                "uses_left": 5,
+                "can_stack": true
+            },
+            {
+                "name": "Steak",
+                "value": 20,
+                "description": "A cooked steak. Eating it restores a large amount of health.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 0.6,
+                "id": 267,
+                "consumable": true,
+                "consumable_sounds": [
+                    "eat.ogg"
+                ],
+                "used_up": true,
+                "can_stack": false
+            },
+            {
+                "name": "Hardtack",
+                "value": 15,
+                "description": "A piece of hardtack. Eating it restores a small amount of health and provides sustenance for a long duration.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.4,
+                "id": 268,
+                "consumable": true,
+                "consumable_sounds": [
+                    "eat.ogg"
+                ],
+                "used_up": true,
+                "can_stack": false
+            },
+            {
+                "name": "Honey",
+                "value": 10,
+                "description": "A jar of honey. Eating it restores a moderate amount of health and provides a quick energy boost.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.5,
+                "id": 269,
+                "consumable": true,
+                "consumable_sounds": [
+                    "eat.ogg"
+                ],
+                "used_up": true,
+                "uses_left": 5,
+                "can_stack": false
+            },
+            {
+                "name": "Sandwich",
+                "value": 18,
+                "description": "A freshly made sandwich. Eating it restores a good amount of health and provides sustenance.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 0.7,
+                "id": 270,
+                "consumable": true,
+                "consumable_sounds": [
+                    "sandwicheat.ogg"
+                ],
+                "used_up": true,
+                "can_stack": false
+            },
+            {
+                "name": "Chips",
+                "value": 7,
+                "description": "A bag of chips. Eating it restores a small amount of health and provides a quick snack.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.3,
+                "id": 271,
+                "consumable": true,
+                "consumable_sounds": [
+                    "chipsopen.ogg",
+                    "chipseat.ogg"
+                ],
+                "used_up": true,
+                "can_stack": true
+            },
+            {
+                "name": "Energy Drink",
+                "value": 12,
+                "description": "An energy drink that provides a temporary boost to stamina and alertness.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.4,
+                "id": 272,
+                "consumable": true,
+                "consumable_sounds": [
+                    "drinkcanopen.ogg",
+                    "drink.ogg"
+                ],
+                "used_up": true,
+                "can_stack": false
+            },
+            {
+                "name": "Health Cure",
+                "value": 500,
+                "description": "A rare and potent health cure that fully restores health and cures all ailments.",
+                "rarity": "Mythic",
+                "random_quantity": false,
+                "weight": 0.5,
+                "id": 273,
+                "consumable": true,
+                "consumable_sounds": [
+                    "potionuse.ogg"
+                ],
+                "used_up": true,
+                "can_stack": false
+            },
+            {
+                "name": "Moonshine",
+                "value": 30,
+                "description": "A bottle of homemade moonshine. Drinking it causes intoxication effects.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 0.75,
+                "id": 274,
+                "consumable": true,
+                "consumable_sounds": [
+                    "drinkbottleopen.ogg",
+                    "drink.ogg"
+                ],
+                "used_up": true,
+                "can_stack": false
+            },
+            {
+                "name": "Bitters",
+                "value": 20,
+                "description": "A small bottle of bitters. Used to mix cocktails or consumed directly for a bitter taste.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.2,
+                "id": 275,
+                "consumable": true,
+                "consumable_sounds": [
+                    "drinkbottleopen.ogg",
+                    "drink.ogg"
+                ],
+                "used_up": true,
+                "can_stack": false
+            },
+            {
+                "name": "Snake Oil",
+                "value": 100,
+                "description": "A dubious concoction claimed to have miraculous healing properties. Its effectiveness is questionable.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 0.3,
+                "id": 276,
+                "consumable": true,
+                "consumable_sounds": [
+                    "potionuse.ogg"
+                ],
+                "used_up": true,
+                "can_stack": false
+            },
+            {
+                "name": "Miracle Tonic",
+                "value": 250,
+                "description": "A rare and potent tonic said to cure all ailments and restore vitality. Its effects are legendary.",
+                "rarity": "Legendary",
+                "random_quantity": false,
+                "weight": 0.4,
+                "id": 277,
+                "consumable": true,
+                "consumable_sounds": [
+                    "potionuse.ogg"
+                ],
+                "used_up": true,
+                "can_stack": false
+            },
+            {
+                "name": "Phoenix feather",
+                "value": 1000,
+                "description": "A rare feather from a mythical phoenix. Said to have powerful healing properties.",
+                "rarity": "Mythic",
+                "random_quantity": false,
+                "weight": 0.1,
+                "id": 278,
+                "consumable": true,
+                "consumable_sounds": [
+                    "phoenixfeather.ogg"
+                ],
+                "used_up": true,
+                "can_stack": false
+            },
+            {
+                "name": "Compound Red",
+                "value": 50,
+                "description": "A medicinal compound used to treat minor injuries and illnesses.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.3,
+                "id": 279,
+                "consumable": true,
+                "consumable_sounds": [
+                    "syringe.ogg"
+                ],
+                "used_up": true,
+                "can_stack": false
+            },
+            {
+                "name": "Compound Blue",
+                "value": 75,
+                "description": "A stronger medicinal compound used to treat more serious injuries and illnesses.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 0.4,
+                "id": 280,
+                "consumable": true,
+                "consumable_sounds": [
+                    "syringe.ogg"
+                ],
+                "used_up": true,
+                "can_stack": false
+            },
+            {
+                "name": "Case of beer",
+                "value": 60,
+                "description": "A case containing 24 bottles of beer. Drinking beer causes intoxication effects.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 12.0,
+                "id": 281,
+                "consumable": true,
+                "consumable_sounds": [
+                    "beeropen.ogg",
+                    "beerdrink.ogg",
+                    "bottlethrow.ogg"
+                ],
+                "used_up": true,
+                "uses_left": 24,
+                "can_stack": false
+            },
+            {
+                "name": "Bottle of beer",
+                "value": 3,
+                "description": "A bottle of beer. Drinking it causes intoxication effects.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.5,
+                "id": 282,
+                "consumable": true,
+                "consumable_sounds": [
+                    "beeropen.ogg",
+                    "beerdrink.ogg",
+                    "bottlethrow.ogg"
+                ],
+                "used_up": true,
+                "can_stack": false
+            },
+            {
+                "name": "Pack of sausages",
+                "value": 15,
+                "description": "A pack of sausages. Cooking and eating them restores a moderate amount of health.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.6,
+                "id": 283,
+                "consumable": true,
+                "consumable_sounds": [
+                    "sausageopen.ogg",
+                    "sausageeat.ogg"
+                ],
+                "used_up": true,
+                "can_stack": false
+            },
+            {
+                "name": "Pizza slice",
+                "value": 10,
+                "description": "A slice of pizza. Eating it restores a good amount of health.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.4,
+                "id": 284,
+                "consumable": true,
+                "consumable_sounds": [
+                    "pizza.ogg",
+                    "eat.ogg"
+                ],
+                "used_up": true,
+                "can_stack": false
+            },
+            {
+                "name": "Riot cuffs",
+                "value": 50,
+                "description": "A pair of ziptie-style riot cuffs used for restraining individuals.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 0.5,
+                "id": 285,
+                "consumable": true,
+                "consumable_sounds": [
+                    "riotcuff.ogg"
+                ],
+                "used_up": true,
+                "can_stack": false
+            },
+            {
+                "name": "Handcuffs",
+                "value": 100,
+                "description": "A pair of metal handcuffs used for restraining individuals.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 0.7,
+                "id": 286,
+                "consumable": true,
+                "consumable_sounds": [
+                    "handcuff.ogg"
+                ],
+                "used_up": false,
+                "can_stack": false
             }
         ],
         "special_items": [
@@ -4695,6 +5645,73 @@
                 "has_magazine_in_pool": false,
                 "mag_to_load": {"capacity": 50},
                 "can_stack": false
+            },
+            {
+                "name": "M4A1's boots",
+                "value": 200,
+                "description": "A pair of combat boots worn by M4A1. They look sturdy and reliable.",
+                "rarity": "Uncommon",
+                "random_quantity": {"min": 2, "max": 2},
+                "weight": 1.2,
+                "id": 287,
+                "equippable": true,
+                "encumbrance_reduction": 1.0,
+                "slot": ["left leg", "right leg"],
+                "set_bonus": {"stats": {"resistance": 2}, "requires": [{"slot": "left leg", "id": 287}, {"slot": "right leg", "id": 287}]}
+            },
+            {
+                "name": "Persica water",
+                "value": 5,
+                "description": "A bottle of Persica brand water. Drinking it restores a small amount of health.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.5,
+                "id": 288,
+                "consumable": true,
+                "consumable_sounds": [
+                    "spit.ogg"
+                ],
+                "used_up": true,
+                "can_stack": false
+            },
+            {
+                "name": "Eagle 500KG bomb stratagem",
+                "value": 10000,
+                "description": "A stratagem that calls in an Eagle 500KG bomb strike on a designated target area.",
+                "rarity": "Legendary",
+                "random_quantity": false,
+                "weight": 0.0,
+                "id": 289,
+                "stratagem": true,
+                "rounds": 1,
+                "round_1": ["up","right","down","down","down"],
+                "can_stack": false
+            },
+            {
+                "name": "Glock 17 Gen 1",
+                "value": 700,
+                "description": "There is something very wrong with this Glock 17. It has a purple and black checkered pattern on it that never scuffs and glows faintly in the dark.",
+                "rarity": "Legendary",
+                "random_quantity": false,
+                "weight": 2.0,
+                "id": 295,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "pistol",
+                "platform": "Glock",
+                "caliber": ["5.56x45mm NATO","12 Gauge",".45 ACP","9x19mm Parabellum","7.62x51mm NATO","10mm Auto","6.5x45mm Colt","5.7x28mm NATO",".30 Carbine",".40 S&W","7.62x39mm Soviet","5.45x39mm Soviet"],
+                "action": ["Semi", "Burst", "Auto", "Bolt", "Pump"],
+                "burst_count": 3,
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 1200,
+                "magazinetype": "Internal Box",
+                "capacity": 17,
+                "jamrate": 0,
+                "accessories": [
+                    {"name": "Muzzle Device", "slot": "muzzle_9mm", "current": null}
+                ],
+                "can_stack": false
             }
         ],
         "equipment": [
@@ -4805,9 +5822,11 @@
                 "weight": 0.2,
                 "id": 31,
                 "equippable": true,
+                "container": true,
+                "items": [],
                 "encumbrance_reduction": 2,
                 "capacity": 2.5,
-                "slot": ["molle_front", "molle_side"],
+                "slot": ["molle_front", "molle_side", "molle_front_belt", "molle_side_belt", "molle_back_belt"],
                 "can_equip_multiple": true,
                 "max_equip": 3
             },
@@ -4824,7 +5843,7 @@
                 "container": true,
                 "capacity": 5,
                 "items": [],
-                "slot": ["molle_front", "molle_back", "molle_side"]
+                "slot": ["molle_front", "molle_side", "molle_back", "molle_front_belt", "molle_side_belt", "molle_back_belt"]
             },
             {
                 "name": "MOLLE Rucksack Large",
@@ -4868,7 +5887,7 @@
                 "id": 35,
                 "equippable": true,
                 "encumbrance_reduction": 2,
-                "slot": ["chest","back","left leg","right leg","molle_front","molle_side"],
+                "slot": ["chest","back","left leg","right leg","molle_front","molle_side", "molle_front_belt", "molle_side_belt", "molle_back_belt"],
                 "holster_sling": true,
                 "weapon_types": ["pistol"],
                 "subslots": [
@@ -4920,7 +5939,7 @@
                 "reloader": true
             },
             {
-                "name": "Crye CPC",
+                "name": "Crye Precision CPC",
                 "value": 750,
                 "description": "Standard issue plate carrier for the LEDF. Provides a balance of protection and mobility.",
                 "rarity": "Uncommon",
@@ -5017,16 +6036,168 @@
                 "battery_pack": true,
                 "battery_type": "AA",
                 "battery_life": 4
+            },
+            {
+                "name": "MOLLE Rucksack Medium",
+                "value": 300,
+                "description": "Medium Modular Lightweight Load-carrying Equipment (MOLLE) rucksack for carrying additional gear and supplies. Attaches to MOLLE webbing on plate carriers and tactical vests.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 0.8,
+                "id": 235,
+                "equippable": true,
+                "encumbrance_reduction": 3,
+                "container": true,
+                "capacity": 20,
+                "items": [],
+                "slot": ["molle_back"]
+            },
+            {
+                "name": "Messenger bag",
+                "value": 150,
+                "description": "A durable messenger bag for carrying personal items and small gear.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 1.0,
+                "id": 236,
+                "equippable": true,
+                "encumbrance_reduction": 2,
+                "container": true,
+                "capacity": 15,
+                "items": [],
+                "slot": ["left shoulder", "right shoulder", "back"]
+            },
+            {
+                "name": "Ferro Concepts Bora Belt",
+                "value": 100,
+                "description": "A sturdy belt designed to hold pouches and holsters for easy access to gear.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.5,
+                "id": 237,
+                "equippable": true,
+                "encumbrance_reduction": 1,
+                "slot": ["waist"],
+                "subslots": [
+                    {"name": "MOLLE Webbing left side", "slot": "molle_side_belt", "current": null},
+                    {"name": "MOLLE Webbing right side", "slot": "molle_side_belt", "current": null},
+                    {"name": "MOLLE Webbing front", "slot": "molle_front_belt", "current": null},
+                    {"name": "MOLLE Webbing back", "slot": "molle_back_belt", "current": null}
+                ]
+            },
+            {
+                "name": "Legionaire shoulder armor",
+                "value": 200,
+                "description": "Shoulder armor pieces designed by the Legion. Provides additional ballistic protection for the shoulders.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 1.0,
+                "id": 250,
+                "equippable": true,
+                "encumbrance_reduction": 1,
+                "slot": ["left shoulder", "right shoulder"],
+                "protection": "IIIa",
+                "material": "steel"
+            },
+            {
+                "name": "Legionaire chest plate armor",
+                "value": 400,
+                "description": "Chest plate armor designed by the Legion. Provides enhanced ballistic protection for the torso.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 3.0,
+                "id": 251,
+                "equippable": true,
+                "encumbrance_reduction": 2,
+                "slot": ["torso"],
+                "protection": "IIIa",
+                "material": "steel"
+            },
+            {
+                "name": "Tactical Ordnance and Equipment Improved Combat Sling",
+                "value": 200,
+                "description": "A two-point sling designed for carrying and stabilizing rifles and submachine guns.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 0.2,
+                "id": 290,
+                "equippable": true,
+                "encumbrance_reduction": 2,
+                "slot": ["chest","back","left shoulder","right shoulder"],
+                "holster_sling": true,
+                "weapon_types": ["rifle", "smg", "shotgun", "mg"],
+                "subslots": [
+                    {"name": "Weapon", "slot": "weapon_slot", "current": null}
+                ]
+            },
+            {
+                "name": "Moxarian steel armor plate",
+                "value": 600,
+                "description": "A frontal steel plate used by the Moxarians. Stops rifle rounds.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 4.0,
+                "id": 298,
+                "equippable": true,
+                "encumbrance_reduction": 1,
+                "slot": ["torso"],
+                "protection": "III",
+                "material": "steel"
             }
         ],
         "enemy_drops": [
             {
-                "name": "Example Enemy",
+                "name": "Legion Rifleman",
                 "difficulty": "Easy",
                 "items": [
-                    {"type": "table", "table": "pistols", "guaranteed": true},
-                    {"type": "table", "table": "magazines", "rarity": "Common"},
-                    {"type": "id", "id": 18, "rarity": "Uncommon"}
+                    {"type": "id", "id": 184, "guaranteed": true, "spawn_magazine": true, "magazines_to_spawn": {"min": 1, "max": 3}, "loading": "random"},
+                    {"type": "id", "id": [250,250,251], "guaranteed": true, "multi_type": "and"},
+                    {"type": "table", "table": "pistols", "rarity": "Mythic"}
+                ]
+            },
+            {
+                "name": "Legion Machinegunner",
+                "difficulty": "Medium",
+                "items": [
+                    {"type": "id", "id": 247, "guaranteed": true, "spawn_magazine": true, "magazines_to_spawn": {"min": 1, "max": 2}, "loading": "random"},
+                    {"type": "id", "id": [250,250,251], "guaranteed": true, "multi_type": "and"},
+                    {"type": "table", "table": "pistols", "rarity": "Mythic"}
+                ]
+            },
+            {
+                "name": "Legion Marksman",
+                "difficulty": "Hard",
+                "items": [
+                    {"type": "id", "id": 238, "guaranteed": true, "spawn_magazine": true, "magazines_to_spawn": {"min": 1, "max": 3}, "loading": "random"},
+                    {"type": "id", "id": [250,250,251], "guaranteed": true, "multi_type": "and"},
+                    {"type": "table", "table": "pistols", "rarity": "Mythic"}
+                ]
+            },
+            {
+                "name": "Legion Medic",
+                "difficulty": "Easy",
+                "items": [
+                    {"type": "id", "id": 240, "guaranteed": true, "spawn_magazine": true, "magazines_to_spawn": {"min": 1, "max": 3}, "loading": "random"},
+                    {"type": "id", "id": [250,250,251], "guaranteed": true, "multi_type": "and"},
+                    {"type": "table", "table": "pistols", "rarity": "Mythic"}
+                ]
+            },
+            {
+                "name": "Legion Signaler",
+                "difficulty": "Medium",
+                "items": [
+                    {"type": "id", "id": 240, "guaranteed": true, "spawn_magazine": true, "magazines_to_spawn": {"min": 1, "max": 3}, "loading": "random"},
+                    {"type": "id", "id": [250,250,251], "guaranteed": true, "multi_type": "and"},
+                    {"type": "table", "table": "pistols", "rarity": "Mythic"}
+                ]
+            },
+            {
+                "name": "Legion Night Battalion Soldier",
+                "difficulty": "Hard",
+                "items": [
+                    {"type": "id", "id": [245,246], "guaranteed": true, "multi_type": "or", "spawn_magazine": true, "magazines_to_spawn": {"min": 1, "max": 3}, "loading": "random"},
+                    {"type": "id", "id": [250,250,251], "guaranteed": true, "multi_type": "and"},
+                    {"type": "table", "table": "pistols", "rarity": "Mythic"}
                 ]
             }
         ],
