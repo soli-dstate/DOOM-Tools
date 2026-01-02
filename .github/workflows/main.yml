@@ -10,7 +10,7 @@ permissions:
 
 on:
   push: 
-    tags: [ "v*" ]  # Only run on version tags (e.g., v1.0.0)
+    tags: [ "v*" ]
   workflow_dispatch:
 
 env:
