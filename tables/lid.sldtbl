@@ -812,6 +812,56 @@
                     {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
                 ],
                 "can_stack": false
+            },
+            {
+                "name": "FAF-439P Battle Rifle",
+                "value": 1500,
+                "description": "Standard issue Avian battle rifle, chambered in 7.62x51mm NATO. This one has a folding stock to accomodate their flight.",
+                "rarity": "Mythic",
+                "random_quantity": false,
+                "weight": 4,
+                "id": 307,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "FAL",
+                "caliber": ["7.62x51mm NATO"],
+                "action": ["Semi", "Auto"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 600,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "FAL",
+                "jamrate": 0.01,
+                "accessories": [
+                    {"name": "SSA Accessory Mount", "slot": "ssa_mount", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
+                ],
+                "can_stack": false
+            },
+            {
+                "name": "US FRL439LP Repeating Rifle",
+                "value": 350,
+                "description": "A Moxarian designed magic bolt action rifle. Looks similar to the MAS-36 bolt action rifle. This one has a scope mounted for longer ranges.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 4.2,
+                "id": 308,
+                "firearm": true,
+                "type": "magic",
+                "subtype": "rifle",
+                "magicsoundsystem": "rf",
+                "temp_gain_per_shot": 35,
+                "temp_loss_per_cooling_cycle": 25,
+                "platform": "FRL439",
+                "action": ["Bolt"],
+                "bolt": "closed",
+                "cyclic": 60,
+                "jamrate": 0.005,
+                "accessories": [
+                    {"name": "Plateforme d'accessoires de la Manufacture d'armes de Solle", "slot": "pams_mount", "current": {"name":"LVGFPLD 8x fixed magnification PAMS scope","value":800,"description":"8x fixed magnification precision scope for long-range engagements. Mounts to a Moxarian PAMS accessory rail.","rarity":"Uncommon","random_quantity":false,"weight":0.6,"id":220,"attachment":true,"slot":"pams_mount","modifiers":{"stats":{"aim":3}},"magnified":true,"variable":false,"night_vision_compatible":false,"can_stack":false}}
+                ],
+                "can_stack": false
             }
         ],
         "submachine_guns": [
@@ -1695,6 +1745,36 @@
                     {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
                 ],
                 "can_stack": false
+            },
+            {
+                "name": "FN Herstal SCAR HAMR",
+                "value": 2000,
+                "description": "Heavy automatic rifle variant of the SCAR platform. Chambered in 7.62x51mm NATO, designed for sustained fire support with enhanced accuracy and range.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 6.8,
+                "id": 306,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "SCAR",
+                "caliber": ["5.56x45mm NATO"],
+                "action": ["Auto"],
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 600,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "STANAG 4179",
+                "jamrate": 0.0015,
+                "accessories": [
+                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": null},
+                    {"name": "Picatinny Rail (Handguard Top)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Left)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Right)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
+                ],
+                "can_stack": false
             }
         ],
         "pistols": [
@@ -2236,6 +2316,53 @@
                     {"name": "Pistol Picatinny Rail", "slot": "pistol_picatinny", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_50", "current": null}
                 ],
+                "can_stack": false
+            },
+            {
+                "name": "Baines F439 Pistol",
+                "value": 300,
+                "description": "An Avian designed handgun. Looks similar to the Colt M1911 pistol.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 1.1,
+                "id": 300,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "pistol",
+                "platform": "1911",
+                "caliber": [".45 ACP"],
+                "action": ["Semi"],
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 400,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "1911 .45 ACP",
+                "jamrate": 0.01,
+                "accessories": [
+                    {"name": "Muzzle Device", "slot": "muzzle_45", "current": null}
+                ],
+                "can_stack": false
+            },
+            {
+                "name": "Williams Revolver",
+                "value": 400,
+                "description": "An Avian designed service revolver, chambered in .45 ACP. Looks similar to the Webley Revolver.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 1.2,
+                "id": 302,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "pistol",
+                "platform": "Webley",
+                "caliber": [".45 ACP"],
+                "action": ["Double"],
+                "bolt": "closed",
+                "cyclic": 100,
+                "magazinetype": "Cylinder",
+                "capacity": 6,
+                "jamrate": 0.005,
+                "accessories": null,
                 "can_stack": false
             }
         ],
@@ -4728,6 +4855,19 @@
                 "capacity": 10,
                 "magazinesystem": "SCAR-H",
                 "can_stack": false
+            },
+            {
+                "name": "Baines F439 7-Round .45 ACP M1911 magazine",
+                "value": 15,
+                "description": "Standard 7-round magazine for .45 ACP chambered F439 pistols.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.25,
+                "id": 301,
+                "caliber": [".45 ACP"],
+                "capacity": 7,
+                "magazinesystem": "1911 .45 ACP",
+                "can_stack": false
             }
         ],
         "melee": [
@@ -6143,6 +6283,48 @@
                 "slot": ["torso"],
                 "protection": "III",
                 "material": "steel"
+            },
+            {
+                "name": "Moxarian Adrian helmet",
+                "value": 300,
+                "description": "A steel Adrian helmet used by the Moxarians. Provides basic shrapnel protection for the head.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 1,
+                "id": 303,
+                "equippable": true,
+                "encumbrance_reduction": 1,
+                "slot": "head",
+                "protection": "I",
+                "material": "steel"
+            },
+            {
+                "name": "Moxarian Brodie helmet",
+                "value": 300,
+                "description": "A steel Brodie helmet used by the Moxarians. Provides basic shrapnel protection for the head.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 1,
+                "id": 304,
+                "equippable": true,
+                "encumbrance_reduction": 1,
+                "slot": "head",
+                "protection": "I",
+                "material": "steel"
+            },
+            {
+                "name": "Avian chest rig",
+                "value": 250,
+                "description": "A lightweight chest rig used by Avian mercenaries. Provides storage for magazines and small gear.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 1.5,
+                "id": 305,
+                "equippable": true,
+                "encumbrance_reduction": 2,
+                "slot": "torso",
+                "container": true,
+                "capacity": 30
             }
         ],
         "enemy_drops": [
@@ -6199,50 +6381,80 @@
                     {"type": "id", "id": [250,250,251], "guaranteed": true, "multi_type": "and"},
                     {"type": "table", "table": "pistols", "rarity": "Mythic"}
                 ]
+            },
+            {
+                "name": "Moxarian Rifleman",
+                "difficulty": "Medium",
+                "items": [
+                    {"type": "id", "id": 87, "guaranteed": true},
+                    {"type": "id", "id": 90, "rarity": "Mythic"},
+                    {"type": "id", "id": 298, "guaranteed": true},
+                    {"type": "id", "id": [303,304], "guaranteed": true, "multi_type": "or"}
+                ]
+            },
+            {
+                "name": "Moxarian Machinegunner",
+                "difficulty": "Hard",
+                "items": [
+                    {"type": "id", "id": 89, "guaranteed": true},
+                    {"type": "id", "id": 90, "rarity": "Mythic"},
+                    {"type": "id", "id": 298, "guaranteed": true},
+                    {"type": "id", "id": [303,304], "guaranteed": true, "multi_type": "or"}
+                ]
+            },
+            {
+                "name": "Moxarian Marksman",
+                "difficulty": "Hard",
+                "items": [
+                    {"type": "id", "id": 308, "guaranteed": true},
+                    {"type": "id", "id": 90, "rarity": "Mythic"},
+                    {"type": "id", "id": 298, "guaranteed": true},
+                    {"type": "id", "id": [303,304], "guaranteed": true, "multi_type": "or"}
+                ]
+            },
+            {
+                "name": "Moxarian Medic",
+                "difficulty": "Easy",
+                "items": [
+                    {"type": "id", "id": 87, "guaranteed": true},
+                    {"type": "id", "id": 90, "rarity": "Mythic"},
+                    {"type": "id", "id": 298, "guaranteed": true},
+                    {"type": "id", "id": [303,304], "guaranteed": true, "multi_type": "or"}
+                ]
+            },
+            {
+                "name": "Moxarian AT Rifleman",
+                "difficulty": "Hard",
+                "items": [
+                    {"type": "id", "id": 91, "guaranteed": true},
+                    {"type": "id", "id": 90, "rarity": "Mythic"},
+                    {"type": "id", "id": 298, "guaranteed": true},
+                    {"type": "id", "id": [303,304], "guaranteed": true, "multi_type": "or"}
+                ]
+            },
+            {
+                "name": "Megumin",
+                "difficulty": "Friendly"
             }
         ],
         "lootcrates": [
             {
-                "name": "Debug Lootbox",
-                "description": "A debug lootbox for testing. Contains random items.",
+                "name": "Standard crate",
+                "description": "A standard crate, has the entire pool of items.",
                 "rarity": "Common",
                 "locked": false,
                 "pulls": 3,
                 "loot_table": [
-                    {"type": "table", "table": "rifles", "rarity": "Common"},
-                    {"type": "table", "table": "pistols", "rarity": "Common"}
-                ]
-            },
-            {
-                "name": "Debug Locked Lootbox",
-                "description": "A locked debug lootbox for testing lockpicking",
-                "rarity": "Uncommon",
-                "locked": true,
-                "pulls": {"min": 2, "max": 4},
-                "loot_table": [
-                    {"type": "id", "id": 4, "rarity": "Common"}
-                ]
-            },
-            {
-                "name": "Rare Equipment Cache",
-                "description": "A cache of rare equipment.",
-                "rarity": "Rare",
-                "locked": false,
-                "pulls": {"min": 3, "max": 5},
-                "loot_table": [
-                    {"type": "table", "table": "equipment", "rarity": "Rare"},
-                    {"type": "table", "table": "attachments", "rarity": "Uncommon"}
-                ]
-            },
-            {
-                "name": "Basic Crate",
-                "description": "A basic crate with some common items.",
-                "rarity": "Common",
-                "locked": false,
-                "pulls": 2,
-                "loot_table": [
-                    {"type": "id", "id": 10, "rarity": "Common"},
-                    {"type": "id", "id": 23, "rarity": "Uncommon"}
+                    {"type": "table", "table": "rifles", "rarity": "Rare"},
+                    {"type": "table", "table": "submachine_guns", "rarity": "Rare"},
+                    {"type": "table", "table": "machine_guns", "rarity": "Mythic"},
+                    {"type": "table", "table": "shotguns", "rarity": "Uncommon"},
+                    {"type": "table", "table": "pistols", "rarity": "Uncommon"},
+                    {"type": "table", "table": "melee", "rarity": "Common"},
+                    {"type": "table", "table": "attachments", "rarity": "Uncommon"},
+                    {"type": "table", "table": "consumables", "rarity": "Common"},
+                    {"type": "table", "table": "throwables", "rarity": "Legendary"},
+                    {"type": "table", "table": "equipment", "rarity": "Common"}
                 ]
             }
         ]

@@ -18,6 +18,7 @@ import subprocess
 import shutil
 import zipfile
 import tempfile
+import re
 from datetime import datetime
 import logging
 from pathlib import Path
@@ -29,6 +30,18 @@ MAIN_PY = ROOT / 'main.py'
 SOUNDS_DIR = ROOT / 'sounds'
 BUILD_DIR = ROOT / 'build'
 DIST_DIR = ROOT / 'dist'
+
+
+def get_version_from_main():
+    """Read version from line 1 of main.py"""
+    if not MAIN_PY.exists():
+        return '0.0.0'
+    with open(MAIN_PY, 'r', encoding='utf-8') as f:
+        first_line = f.readline().strip()
+    match = re.match(r'version\s*=\s*["\']([^"\']+)["\']', first_line)
+    if match:
+        return match.group(1)
+    return '0.0.0'
 
 
 def run(cmd, **kwargs):
@@ -71,10 +84,10 @@ def find_executable(name='DOOM-Tools'):
     return None
 
 
-def make_release_zip(exe_path: Path, out_dir: Path, include_sounds=True):
+def make_release_zip(exe_path: Path, out_dir: Path, version: str = '0.0.0', include_sounds=True):
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     out_dir.mkdir(parents=True, exist_ok=True)
-    zip_name = out_dir / f'{exe_path.stem}_{timestamp}.zip'
+    zip_name = out_dir / f'DOOM-Tools-v{version}-{timestamp}.zip'
 
     tmpdir = Path(tempfile.mkdtemp(prefix='doom_release_'))
     try:
@@ -111,6 +124,10 @@ def main():
     p.add_argument('--no-sounds', dest='sounds', action='store_false', default=True)
     args = p.parse_args()
 
+    # Get version from main.py
+    version = get_version_from_main()
+    logging.info('Detected version: %s', version)
+
     logging.info('Starting release build')
 
     # Check PyInstaller availability
@@ -130,7 +147,7 @@ def main():
         logging.error('Could not find built executable in dist/')
         return 1
 
-    zip_path = make_release_zip(exe, BUILD_DIR, include_sounds=args.sounds)
+    zip_path = make_release_zip(exe, BUILD_DIR, version=version, include_sounds=args.sounds)
     logging.info('Release is ready: %s', zip_path)
     return 0
 
