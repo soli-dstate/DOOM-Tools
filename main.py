@@ -615,34 +615,21 @@ if any(indicator in os.environ for indicator in ide_indicators):
     except Exception as e:
         logging.warning(f"Failed to update requirements.txt: {e}")
 
-    saves_folder = "saves"
+saves_folder = "saves"
 
-    if not global_variables["devmode"]["value"]:
-        logging.info("Running in production mode.")
-        if os.name =='nt':
-            base_ld = os.getenv('LOCALAPPDATA')or os.path.expanduser('~')
-            saves_folder = os.path.join(base_ld, 'DOOM Tools', 'saves')
-        else:
-            saves_folder = os.path.expanduser('~/.local/share/DOOM Tools/saves')
+if not global_variables["devmode"]["value"]:
+    logging.info("Running in production mode.")
+    if os.name =='nt':
+        base_ld = os.getenv('LOCALAPPDATA')or os.path.expanduser('~')
+        saves_folder = os.path.join(base_ld, 'soli_dstate', 'DOOM-Tools', 'saves')
     else:
-        logging.info("Running in development mode.")
-        saves_folder = "saves"
-        folders.append({"name":"saves", "ignore_gitignore":False})
-    with open('.gitignore', 'a')as gitignore:
-        existing_gitignore = set()
-        try:
-            with open('.gitignore', 'r')as read_gitignore:
-                existing_gitignore = set(line.strip()for line in read_gitignore)
-        except FileNotFoundError:
-            pass
-        entry = '/saves/'
-        if entry not in existing_gitignore:
-            gitignore.write(f'{entry}\n')
-            logging.info(f"Added '{entry}' to.gitignore")
-        else:
-            logging.info(f"'{entry}' already exists in.gitignore")
+        saves_folder = os.path.expanduser('~/.local/share/soli_dstate/DOOM-Tools/saves')
+else:
+    logging.info("Running in development mode.")
+    saves_folder = "saves"
+    folders.append({"name":"saves", "ignore_gitignore":False})
 
-    os.makedirs(saves_folder or "saves", exist_ok = True)
+os.makedirs(saves_folder or "saves", exist_ok = True)
 
 try:
     appearance_settings_path = os.path.join("saves", "appearance_settings.sldsv")
@@ -9127,8 +9114,11 @@ class App:
         stats_btn = self._create_sound_button(temp_frame, "Show Stats", _show_combat_stats, width = 160, height = 36)
         stats_btn.pack(side = "right", padx = 8, pady = 10)
 
-        weapon_switch_frame = customtkinter.CTkFrame(main_frame)
-        weapon_switch_frame.pack(fill = "x", pady =(0, 20))
+        weapon_switch_outer = customtkinter.CTkFrame(main_frame)
+        weapon_switch_outer.pack(fill = "x", pady =(0, 20))
+
+        weapon_switch_frame = customtkinter.CTkScrollableFrame(weapon_switch_outer, orientation = "horizontal", height = 60, fg_color = "transparent")
+        weapon_switch_frame.pack(fill = "x", expand = True)
 
         def refresh_weapon_display():
 
@@ -9850,8 +9840,11 @@ class App:
             except Exception:
                 pass
 
-        actions_frame = customtkinter.CTkFrame(main_frame)
-        actions_frame.pack(fill = "x", pady =(0, 20))
+        actions_outer_frame = customtkinter.CTkFrame(main_frame)
+        actions_outer_frame.pack(fill = "x", pady =(0, 20))
+
+        actions_frame = customtkinter.CTkScrollableFrame(actions_outer_frame, orientation = "horizontal", height = 280, fg_color = "transparent")
+        actions_frame.pack(fill = "x", expand = True)
 
         rounds_label_frame = customtkinter.CTkFrame(actions_frame)
         rounds_label_frame.pack(fill = "x", padx = 10, pady = 5)
@@ -13892,8 +13885,11 @@ class App:
             manage_attach_btn = None
 
         if global_variables.get("devmode", {}).get("value", False):
-            devmode_frame = customtkinter.CTkFrame(main_frame)
-            devmode_frame.pack(fill = "x", pady =(0, 20))
+            devmode_outer_frame = customtkinter.CTkFrame(main_frame)
+            devmode_outer_frame.pack(fill = "x", pady =(0, 20))
+
+            devmode_frame = customtkinter.CTkScrollableFrame(devmode_outer_frame, orientation = "horizontal", height = 60, fg_color = "transparent")
+            devmode_frame.pack(fill = "x", expand = True)
 
             customtkinter.CTkLabel(
             devmode_frame,
