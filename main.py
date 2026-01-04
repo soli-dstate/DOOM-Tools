@@ -629,6 +629,12 @@ else:
     saves_folder = "saves"
     folders.append({"name":"saves", "ignore_gitignore":False})
 
+for folder_entry in folders:
+    folder = folder_entry["name"]
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+        logging.info(f"Created missing folder: {folder}")
+
 os.makedirs(saves_folder or "saves", exist_ok = True)
 
 try:
