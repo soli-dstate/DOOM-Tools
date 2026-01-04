@@ -115,6 +115,46 @@ def make_release_zip(exe_path: Path, out_dir: Path, version: str = '0.0.0', incl
             pass
 
 
+def send_windows_notification(title: str, message: str):
+    """Send a Windows toast notification with sound."""
+    if os.name != 'nt':
+        return
+    try:
+        from winotify import Notification, audio
+        toast = Notification(
+            app_id="DOOM-Tools Build",
+            title=title,
+            msg=message,
+            duration="short"
+        )
+        toast.set_audio(audio.Default, loop=False)
+        toast.show()
+    except ImportError:
+        try:
+            ps_script = f'''
+            [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null
+            [Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime] | Out-Null
+            $template = @"
+            <toast>
+                <visual>
+                    <binding template="ToastText02">
+                        <text id="1">{title}</text>
+                        <text id="2">{message}</text>
+                    </binding>
+                </visual>
+                <audio src="ms-winsoundevent:Notification.Default"/>
+            </toast>
+"@
+            $xml = New-Object Windows.Data.Xml.Dom.XmlDocument
+            $xml.LoadXml($template)
+            $toast = [Windows.UI.Notifications.ToastNotification]::new($xml)
+            [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier("DOOM-Tools").Show($toast)
+            '''
+            subprocess.run(['powershell', '-Command', ps_script], capture_output=True)
+        except Exception:
+            pass
+
+
 def main():
     import argparse
     p = argparse.ArgumentParser()
@@ -149,6 +189,7 @@ def main():
 
     zip_path = make_release_zip(exe, BUILD_DIR, version=version, include_sounds=args.sounds)
     logging.info('Release is ready: %s', zip_path)
+    send_windows_notification("DOOM-Tools Build Complete", f"Release v{version} is ready!\n{zip_path.name}")
     return 0
 
 
