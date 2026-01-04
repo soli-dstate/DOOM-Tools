@@ -28,6 +28,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s | %(levelname)s | %(
 ROOT = Path(__file__).resolve().parents[1]
 MAIN_PY = ROOT / 'main.py'
 SOUNDS_DIR = ROOT / 'sounds'
+TABLES_DIR = ROOT / 'tables'
 BUILD_DIR = ROOT / 'build'
 DIST_DIR = ROOT / 'dist'
 
@@ -97,6 +98,11 @@ def make_release_zip(exe_path: Path, out_dir: Path, version: str = '0.0.0', incl
         if include_sounds and SOUNDS_DIR.exists():
             dest_sounds = tmpdir / 'sounds'
             shutil.copytree(SOUNDS_DIR, dest_sounds)
+
+        # copy tables dir
+        if TABLES_DIR.exists():
+            dest_tables = tmpdir / 'tables'
+            shutil.copytree(TABLES_DIR, dest_tables)
 
         # create zip
         with zipfile.ZipFile(zip_name, 'w', compression=zipfile.ZIP_DEFLATED) as zf:
