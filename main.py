@@ -1,4 +1,4 @@
-version = "1.0.5"
+version = "1.0.6"
 
 import os
 import logging
@@ -1630,52 +1630,48 @@ def populate_equipment_with_subslots(save_data):
     return save_data
 
 def _add_attachment_subslots_to_weapon(weapon, parent_accessory, attachment):
-    """Add an attachment's subslots directly to the weapon's accessories list.
-    
-    When an attachment has subslots (e.g., an optic with a magnifier slot),
-    those subslots should appear as new attachment slots on the weapon itself.
-    """
+
     try:
         if not weapon or not isinstance(weapon, dict):
             return
         if not attachment or not isinstance(attachment, dict):
             return
-        
-        attachment_subslots = attachment.get('subslots', []) or []
+
+        attachment_subslots = attachment.get('subslots', [])or[]
         if not attachment_subslots:
             return
-        
+
         weapon.setdefault('accessories', [])
         parent_slot = parent_accessory.get('slot')
         attachment_name = attachment.get('name', 'Attachment')
-        
+
         for sub in attachment_subslots:
             try:
                 s_slot = sub.get('slot')
-                s_name = sub.get('name') or s_slot
+                s_name = sub.get('name')or s_slot
                 display_name = f"{attachment_name} → {s_name}"
-                
+
                 exists = False
-                for a in weapon.get('accessories', []) or []:
+                for a in weapon.get('accessories', [])or[]:
                     try:
                         if a and isinstance(a, dict):
-                            if a.get('_is_attachment_subslot') and a.get('_parent_accessory_slot') == parent_slot and a.get('_subslot_slot') == s_slot:
+                            if a.get('_is_attachment_subslot')and a.get('_parent_accessory_slot')==parent_slot and a.get('_subslot_slot')==s_slot:
                                 exists = True
-                                a['current'] = sub.get('current')
-                                a['name'] = display_name
+                                a['current']= sub.get('current')
+                                a['name']= display_name
                                 break
                     except Exception:
                         pass
-                
+
                 if not exists:
                     weapon['accessories'].append({
-                        'name': display_name,
-                        'slot': s_slot,
-                        'current': sub.get('current'),
-                        'attachment': True,
-                        '_parent_accessory_slot': parent_slot,
-                        '_subslot_slot': s_slot,
-                        '_is_attachment_subslot': True
+                    'name':display_name,
+                    'slot':s_slot,
+                    'current':sub.get('current'),
+                    'attachment':True,
+                    '_parent_accessory_slot':parent_slot,
+                    '_subslot_slot':s_slot,
+                    '_is_attachment_subslot':True
                     })
             except Exception:
                 pass
@@ -11497,27 +11493,27 @@ class App:
 
             def apply_changes():
                 def _sync_attachment_subslot(weapon, flattened_acc, new_value):
-                    """Sync changes from a flattened attachment subslot back to the original subslot."""
+
                     try:
                         parent_slot = flattened_acc.get('_parent_accessory_slot')
                         subslot_slot = flattened_acc.get('_subslot_slot')
                         if not parent_slot or not subslot_slot:
                             return
-                        
-                        for parent_acc in weapon.get('accessories', []) or []:
+
+                        for parent_acc in weapon.get('accessories', [])or[]:
                             try:
-                                if parent_acc.get('slot') != parent_slot:
+                                if parent_acc.get('slot')!=parent_slot:
                                     continue
                                 cur = parent_acc.get('current')
                                 if not cur or not isinstance(cur, dict):
                                     continue
-                                for sub in cur.get('subslots', []) or []:
-                                    if sub.get('slot') == subslot_slot:
+                                for sub in cur.get('subslots', [])or[]:
+                                    if sub.get('slot')==subslot_slot:
                                         try:
                                             import copy as _c
-                                            sub['current'] = _c.deepcopy(new_value) if isinstance(new_value, dict) else new_value
+                                            sub['current']= _c.deepcopy(new_value)if isinstance(new_value, dict)else new_value
                                         except Exception:
-                                            sub['current'] = new_value
+                                            sub['current']= new_value
                                         return
                             except Exception:
                                 pass
@@ -11750,17 +11746,17 @@ class App:
                         continue
                     try:
                         acc_slot = acc.get('slot')
-                        to_remove = []
-                        for i, other_acc in enumerate(wpn.get('accessories', []) or []):
-                            if other_acc.get('_is_attachment_subslot') and other_acc.get('_parent_accessory_slot') == acc_slot:
+                        to_remove =[]
+                        for i, other_acc in enumerate(wpn.get('accessories', [])or[]):
+                            if other_acc.get('_is_attachment_subslot')and other_acc.get('_parent_accessory_slot')==acc_slot:
                                 to_remove.append(other_acc)
                         for r in to_remove:
                             try:
                                 wpn['accessories'].remove(r)
                             except Exception:
                                 pass
-                        
-                        if acc.get('current') and isinstance(acc.get('current'), dict):
+
+                        if acc.get('current')and isinstance(acc.get('current'), dict):
                             try:
                                 _add_attachment_subslots_to_weapon(wpn, acc, acc.get('current'))
                             except Exception:
@@ -16844,12 +16840,12 @@ class App:
                     is_single_action = False
                     weapon_action = weapon.get("action", "")
                     if isinstance(weapon_action, (list, tuple)):
-                        weapon_action = weapon_action[0] if weapon_action else ""
+                        weapon_action = weapon_action[0]if weapon_action else ""
                     weapon_action = str(weapon_action).lower()
-                    if weapon_action == "single":
+                    if weapon_action =="single":
                         is_single_action = True
 
-                    is_cylinder = "cylinder" in magazine_type
+                    is_cylinder = "cylinder"in magazine_type
 
                     if is_single_action and is_cylinder:
                         time.sleep(0.08)
@@ -18339,14 +18335,14 @@ class App:
 
         elif "box"in magazine_type:
 
-            rt_action_raw = weapon.get("action", "") or ""
+            rt_action_raw = weapon.get("action", "")or ""
             if isinstance(rt_action_raw, (list, tuple)):
-                rt_action_raw = rt_action_raw[0] if rt_action_raw else ""
+                rt_action_raw = rt_action_raw[0]if rt_action_raw else ""
             rt_action = str(rt_action_raw).lower()
-            is_bolt_action = (rt_action == "bolt" or "bolt" in rt_action)
+            is_bolt_action =(rt_action =="bolt"or "bolt"in rt_action)
 
             if is_bolt_action:
-                self._play_weapon_action_sound(weapon, "boltback", block=True)
+                self._play_weapon_action_sound(weapon, "boltback", block = True)
                 time.sleep(0.2)
 
             insert_index = 0
@@ -18465,10 +18461,10 @@ class App:
         ammo_needed = capacity -len(current_rounds)
         ammo_loaded = 0
 
-        self._play_weapon_action_sound(weapon, "cylinderopen", block=True)
+        self._play_weapon_action_sound(weapon, "cylinderopen", block = True)
         time.sleep(0.2)
 
-        self._play_weapon_action_sound(weapon, "cylinderrelease", block=True)
+        self._play_weapon_action_sound(weapon, "cylinderrelease", block = True)
         time.sleep(0.15)
         current_rounds.clear()
 
@@ -18521,115 +18517,115 @@ class App:
         capacity = weapon.get("capacity", 6)
         current_rounds = weapon.get("rounds", [])
 
-        compatible_ammo = []
-        caliber_list = weapon.get("caliber", []) or []
-        caliber = caliber_list[0] if caliber_list else None
+        compatible_ammo =[]
+        caliber_list = weapon.get("caliber", [])or[]
+        caliber = caliber_list[0]if caliber_list else None
 
         if not caliber:
             return "Weapon has no caliber defined."
 
         for item in save_data.get("hands", {}).get("items", []):
-            if item and isinstance(item, dict) and item.get("caliber") == caliber:
+            if item and isinstance(item, dict)and item.get("caliber")==caliber:
                 qty = item.get("quantity", 0)
-                if qty > 0:
+                if qty >0:
                     compatible_ammo.append((item, qty))
 
         for slot_name, eq_item in save_data.get("equipment", {}).items():
-            if eq_item and "items" in eq_item:
+            if eq_item and "items"in eq_item:
                 for item in eq_item["items"]:
-                    if item and isinstance(item, dict) and item.get("caliber") == caliber:
+                    if item and isinstance(item, dict)and item.get("caliber")==caliber:
                         qty = item.get("quantity", 0)
-                        if qty > 0:
+                        if qty >0:
                             compatible_ammo.append((item, qty))
 
         if not compatible_ammo:
             return "No compatible ammunition found!"
 
-        ammo_needed = capacity - len(current_rounds)
+        ammo_needed = capacity -len(current_rounds)
         ammo_loaded = 0
 
-        self._play_cylinder_sound(weapon, "cylinderopen", block=True)
+        self._play_cylinder_sound(weapon, "cylinderopen", block = True)
         time.sleep(0.2)
 
-        self._play_cylinder_sound(weapon, "cylinderrelease", block=True)
+        self._play_cylinder_sound(weapon, "cylinderrelease", block = True)
         time.sleep(0.15)
         current_rounds.clear()
 
         insert_index = 0
-        while ammo_loaded < ammo_needed and compatible_ammo:
+        while ammo_loaded <ammo_needed and compatible_ammo:
             ammo_item, qty = compatible_ammo[0]
-            rounds_to_load = min(1, qty, ammo_needed - ammo_loaded)
+            rounds_to_load = min(1, qty, ammo_needed -ammo_loaded)
 
             for _ in range(rounds_to_load):
-                sound_action = f"bulletinsert{insert_index % 2}"
-                self._play_cylinder_sound(weapon, sound_action, block=False)
+                sound_action = f"bulletinsert{insert_index %2}"
+                self._play_cylinder_sound(weapon, sound_action, block = False)
                 time.sleep(0.5)
                 current_rounds.append(f"{caliber}")
-                ammo_loaded += 1
-                insert_index += 1
-                ammo_item["quantity"] -= 1
+                ammo_loaded +=1
+                insert_index +=1
+                ammo_item["quantity"]-=1
 
-            if ammo_item["quantity"] <= 0:
+            if ammo_item["quantity"]<=0:
                 compatible_ammo.pop(0)
 
         time.sleep(0.1)
         self._play_cylinder_sound(weapon, "cylinderclose")
         time.sleep(0.1)
 
-        weapon["rounds"] = current_rounds
+        weapon["rounds"]= current_rounds
 
         action = weapon.get("action", "")
         if isinstance(action, (list, tuple)):
-            action = action[0] if action else ""
+            action = action[0]if action else ""
         action = str(action).lower()
-        if action == "single":
+        if action =="single":
             time.sleep(0.1)
             self._play_cylinder_sound(weapon, "hammerdown")
 
         try:
-            sd_ref = save_data if isinstance(save_data, dict) else globals().get('save_data') or getattr(self, '_current_save_data', None)
+            sd_ref = save_data if isinstance(save_data, dict)else globals().get('save_data')or getattr(self, '_current_save_data', None)
             if isinstance(sd_ref, dict):
                 ts = sd_ref.setdefault('tracked_stats', {})
                 if isinstance(ts, dict):
-                    ts['mags_reloaded_total'] = int(ts.get('mags_reloaded_total', 0)) + 1
+                    ts['mags_reloaded_total']= int(ts.get('mags_reloaded_total', 0))+1
                     try:
                         added = int(ammo_loaded)
                     except Exception:
                         added = 0
-                    ts['bullets_loaded_total'] = int(ts.get('bullets_loaded_total', 0)) + added
+                    ts['bullets_loaded_total']= int(ts.get('bullets_loaded_total', 0))+added
                     bh = ts.setdefault('bullets_loaded_history', [])
                     try:
-                        bh.append({'weapon_id': str(weapon.get('id', 'unknown')), 'count': added, 'time': time.time()})
+                        bh.append({'weapon_id':str(weapon.get('id', 'unknown')), 'count':added, 'time':time.time()})
                     except Exception:
                         pass
         except Exception:
             logging.exception('Failed updating tracked_stats after cylinder reload')
-        return f"Cylinder reloaded with {ammo_loaded} rounds (total: {len(current_rounds)}/{capacity})"
+        return f"Cylinder reloaded with {ammo_loaded} rounds(total: {len(current_rounds)}/{capacity})"
 
-    def _play_cylinder_sound(self, weapon, action_type, block=False):
+    def _play_cylinder_sound(self, weapon, action_type, block = False):
 
         try:
-            platform = str(weapon.get("platform", "") or "").lower()
-            sound_folder = weapon.get("sounds") or weapon.get("sound_folder") or weapon.get("fire_sounds") or weapon.get("reload_sounds")
+            platform = str(weapon.get("platform", "")or "").lower()
+            sound_folder = weapon.get("sounds")or weapon.get("sound_folder")or weapon.get("fire_sounds")or weapon.get("reload_sounds")
 
-            candidates = []
+            candidates =[]
 
             if sound_folder:
                 wf = os.path.join("sounds", "firearms", "weaponsounds", str(sound_folder).lower())
-                candidates = glob.glob(os.path.join(wf, f"{action_type}*.ogg")) + glob.glob(os.path.join(wf, f"{action_type}*.wav"))
+                candidates = glob.glob(os.path.join(wf, f"{action_type}*.ogg"))+glob.glob(os.path.join(wf, f"{action_type}*.wav"))
 
             if not candidates and platform:
                 wf = os.path.join("sounds", "firearms", "weaponsounds", platform)
-                candidates = glob.glob(os.path.join(wf, f"{action_type}*.ogg")) + glob.glob(os.path.join(wf, f"{action_type}*.wav"))
+                candidates = glob.glob(os.path.join(wf, f"{action_type}*.ogg"))+glob.glob(os.path.join(wf, f"{action_type}*.wav"))
 
             if not candidates:
                 uni = os.path.join("sounds", "firearms", "universal")
-                candidates = glob.glob(os.path.join(uni, f"{action_type}*.ogg")) + glob.glob(os.path.join(uni, f"{action_type}*.wav"))
+                candidates = glob.glob(os.path.join(uni, f"{action_type}*.ogg"))+glob.glob(os.path.join(uni, f"{action_type}*.wav"))
 
             if candidates:
                 sound_file = random.choice(candidates)
                 logging.debug("_play_cylinder_sound: %s -> %s", action_type, sound_file)
-                self._safe_sound_play("", sound_file, block=block)
+                self._safe_sound_play("", sound_file, block = block)
             else:
                 logging.debug("_play_cylinder_sound: no sound found for %s", action_type)
         except Exception as e:
@@ -20454,7 +20450,7 @@ class App:
         content_frame.pack(fill = "both", expand = True, pady = 10)
 
         loot_list_frame = customtkinter.CTkScrollableFrame(content_frame, width = 400, height = 300)
-        loot_list_frame.pack(side = "left", fill = "both", expand = True, padx = (0, 10))
+        loot_list_frame.pack(side = "left", fill = "both", expand = True, padx =(0, 10))
 
         loot_list_label = customtkinter.CTkLabel(
         loot_list_frame,
@@ -20464,7 +20460,7 @@ class App:
         loot_list_label.pack(pady = 10)
 
         right_frame = customtkinter.CTkFrame(content_frame, fg_color = "transparent")
-        right_frame.pack(side = "right", fill = "both", expand = True, padx = (10, 0))
+        right_frame.pack(side = "right", fill = "both", expand = True, padx =(10, 0))
 
         result_label = customtkinter.CTkLabel(
         right_frame,
@@ -20475,41 +20471,41 @@ class App:
         )
         result_label.pack(pady = 20)
 
-        encounter_state = {"spawned_enemies": [], "all_loot": []}
+        encounter_state = {"spawned_enemies":[], "all_loot":[]}
 
         def clear_loot_list():
             for widget in loot_list_frame.winfo_children():
-                if widget != loot_list_label:
+                if widget !=loot_list_label:
                     widget.destroy()
-            encounter_state["spawned_enemies"] = []
-            encounter_state["all_loot"] = []
+            encounter_state["spawned_enemies"]=[]
+            encounter_state["all_loot"]=[]
 
         def add_enemy_to_list(enemy_name, difficulty, loot_items):
             enemy_frame = customtkinter.CTkFrame(loot_list_frame)
             enemy_frame.pack(fill = "x", pady = 5, padx = 5)
 
             header_frame = customtkinter.CTkFrame(enemy_frame, fg_color = "transparent")
-            header_frame.pack(fill = "x", padx = 5, pady = (5, 2))
+            header_frame.pack(fill = "x", padx = 5, pady =(5, 2))
 
             enemy_header = customtkinter.CTkLabel(
-                header_frame,
-                text = f"▸ {enemy_name} ({difficulty})",
-                font = customtkinter.CTkFont(size = 13, weight = "bold"),
-                anchor = "w"
+            header_frame,
+            text = f"▸ {enemy_name}({difficulty})",
+            font = customtkinter.CTkFont(size = 13, weight = "bold"),
+            anchor = "w"
             )
             enemy_header.pack(side = "left", fill = "x", expand = True)
 
             if loot_items:
-                def save_this_enemy_loot(name=enemy_name, loot=loot_items):
+                def save_this_enemy_loot(name = enemy_name, loot = loot_items):
                     self._save_enemy_loot_transfer(name, loot)
 
                 save_btn = customtkinter.CTkButton(
-                    header_frame,
-                    text = "Save",
-                    width = 50,
-                    height = 24,
-                    font = customtkinter.CTkFont(size = 11),
-                    command = save_this_enemy_loot
+                header_frame,
+                text = "Save",
+                width = 50,
+                height = 24,
+                font = customtkinter.CTkFont(size = 11),
+                command = save_this_enemy_loot
                 )
                 save_btn.pack(side = "right", padx = 2)
 
@@ -20517,31 +20513,31 @@ class App:
                 for item in loot_items:
                     item_name = item.get('name', 'Unknown Item')
                     qty = item.get('quantity', 1)
-                    item_text = f"   • {item_name}"
-                    if qty > 1:
-                        item_text += f" x{qty}"
+                    item_text = f" • {item_name}"
+                    if qty >1:
+                        item_text +=f" x{qty}"
                     item_label = customtkinter.CTkLabel(
-                        enemy_frame,
-                        text = item_text,
-                        font = customtkinter.CTkFont(size = 11),
-                        anchor = "w"
+                    enemy_frame,
+                    text = item_text,
+                    font = customtkinter.CTkFont(size = 11),
+                    anchor = "w"
                     )
                     item_label.pack(fill = "x", padx = 10)
                 encounter_state["all_loot"].extend(loot_items)
             else:
                 no_loot_label = customtkinter.CTkLabel(
-                    enemy_frame,
-                    text = "   (No items)",
-                    font = customtkinter.CTkFont(size = 11),
-                    text_color = "gray",
-                    anchor = "w"
+                enemy_frame,
+                text = "(No items)",
+                font = customtkinter.CTkFont(size = 11),
+                text_color = "gray",
+                anchor = "w"
                 )
                 no_loot_label.pack(fill = "x", padx = 10)
 
             encounter_state["spawned_enemies"].append({
-                "name": enemy_name,
-                "difficulty": difficulty,
-                "loot": loot_items
+            "name":enemy_name,
+            "difficulty":difficulty,
+            "loot":loot_items
             })
 
         def perform_roll():
@@ -20562,20 +20558,20 @@ class App:
 
             result_text = f"Roll: {roll}\nDifficulty: {difficulty}\n\n"
 
-            if difficulty == "None":
-                result_text += "No encounter!"
+            if difficulty =="None":
+                result_text +="No encounter!"
                 result_label.configure(text = result_text)
                 return
 
-            if difficulty == "Friendly":
-                friendly_enemies = [e for e in available_enemies if e.get("difficulty", "").lower() == "friendly"]
+            if difficulty =="Friendly":
+                friendly_enemies =[e for e in available_enemies if e.get("difficulty", "").lower()=="friendly"]
                 if not friendly_enemies:
                     friendly_enemies = available_enemies
 
                 selected_enemy = random.choice(friendly_enemies)
                 enemy_name = selected_enemy.get('name', 'Unknown')
-                result_text += f"Friendly encounter!\nEnemy: {enemy_name}\n\n"
-                result_text += "Friendly enemies have no loot."
+                result_text +=f"Friendly encounter!\nEnemy: {enemy_name}\n\n"
+                result_text +="Friendly enemies have no loot."
                 result_label.configure(text = result_text)
 
                 add_enemy_to_list(enemy_name, "Friendly", [])
@@ -20603,7 +20599,7 @@ class App:
             if not encounter_state["all_loot"]:
                 self._popup_show_info("Info", "No loot to save.", sound = "error")
                 return
-            enemy_names = ", ".join([e["name"] for e in encounter_state["spawned_enemies"]])
+            enemy_names = ", ".join([e["name"]for e in encounter_state["spawned_enemies"]])
             self._save_enemy_loot_transfer(enemy_names, encounter_state["all_loot"])
 
         self._create_sound_button(
@@ -20896,19 +20892,19 @@ class App:
                 debug_lines.append("")
 
         special_chance = rarity_weights.get("Special Chance", 0)
-        special_roll = random.random() * 100
+        special_roll = random.random()*100
 
         if global_variables.get("devmode", {}).get("value", False):
             debug_lines.append(f"--- Special Item Roll ---")
             debug_lines.append(f" Special chance: {special_chance}%")
             debug_lines.append(f" Roll: {special_roll:.2f}")
 
-        if special_roll < special_chance:
+        if special_roll <special_chance:
             special_table = table_data.get("tables", {}).get("special_items", [])
             if special_table:
                 selected_special = random.choice(special_table)
                 special_copy = selected_special.copy()
-                special_copy["table_category"] = "special_items"
+                special_copy["table_category"]= "special_items"
                 loot.append(special_copy)
 
                 if global_variables.get("devmode", {}).get("value", False):
@@ -20918,7 +20914,7 @@ class App:
                     debug_lines.append(f" Special roll succeeded but no special_items table found")
         else:
             if global_variables.get("devmode", {}).get("value", False):
-                debug_lines.append(f" No special item (needed < {special_chance})")
+                debug_lines.append(f" No special item(needed < {special_chance})")
 
         if global_variables.get("devmode", {}).get("value", False):
             debug_lines.append("")
