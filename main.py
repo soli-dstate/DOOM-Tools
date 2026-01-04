@@ -1,4 +1,4 @@
-version = "1.0.6"
+version = "1.0.7"
 
 import os
 import logging
@@ -632,7 +632,7 @@ else:
 os.makedirs(saves_folder or "saves", exist_ok = True)
 
 try:
-    appearance_settings_path = os.path.join("saves", "appearance_settings.sldsv")
+    appearance_settings_path = os.path.join(saves_folder, "appearance_settings.sldsv")
     if os.path.exists(appearance_settings_path):
         with open(appearance_settings_path, 'r')as f:
             loaded_settings = json.load(f)
@@ -642,7 +642,7 @@ except Exception as e:
     logging.warning(f"Failed to load appearance settings: {e}")
 
 try:
-    settings_path = os.path.join("saves", "settings.sldsv")
+    settings_path = os.path.join(saves_folder, "settings.sldsv")
     if os.path.exists(settings_path):
         with open(settings_path, 'r')as f:
             loaded_globals = json.load(f)
@@ -3247,6 +3247,8 @@ class App:
         version_label.pack()
         current_character = customtkinter.CTkLabel(main_frame, text = f"Current Character: {currentsave if currentsave else 'None'}", font = customtkinter.CTkFont(size = 14))
         current_character.pack(pady = 10)
+        current_table = customtkinter.CTkLabel(main_frame, text = f"Current Data Table: {global_variables.get('current_table', 'Default')}", font = customtkinter.CTkFont(size = 14))
+        current_table.pack(pady = 5)
         loot_button = self._create_sound_button(main_frame, "Looting", self._open_loot_tool, width = 500, height = 50, font = customtkinter.CTkFont(size = 16), state = "disabled"if currentsave is None else "normal")
         loot_button.pack(pady = 10)
         business_button = self._create_sound_button(main_frame, "Businesses", self._open_business_tool, width = 500, height = 50, font = customtkinter.CTkFont(size = 16), state = "disabled"if currentsave is None else "normal")
