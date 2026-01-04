@@ -1,4 +1,4 @@
-version = "1.0.4"
+version = "1.0.5"
 
 import os
 import logging
@@ -1593,11 +1593,25 @@ def populate_equipment_with_subslots(save_data):
         for item in save_data.get("storage", []):
             if isinstance(item, dict):
                 add_subslots_to_item(item)
+                for acc in item.get("accessories", [])or[]:
+                    try:
+                        cur = acc.get("current")
+                        if isinstance(cur, dict):
+                            _add_attachment_subslots_to_weapon(item, acc, cur)
+                    except Exception:
+                        pass
 
         if "hands"in save_data and "items"in save_data["hands"]:
             for item in save_data["hands"]["items"]:
                 if isinstance(item, dict):
                     add_subslots_to_item(item)
+                    for acc in item.get("accessories", [])or[]:
+                        try:
+                            cur = acc.get("current")
+                            if isinstance(cur, dict):
+                                _add_attachment_subslots_to_weapon(item, acc, cur)
+                        except Exception:
+                            pass
 
         for slot_name, equipped_item in save_data.get("equipment", {}).items():
             if equipped_item and isinstance(equipped_item, dict):
@@ -1606,6 +1620,7 @@ def populate_equipment_with_subslots(save_data):
                         cur = acc.get("current")
                         if isinstance(cur, dict):
                             add_subslots_to_item(cur)
+                            _add_attachment_subslots_to_weapon(equipped_item, acc, cur)
                     except Exception:
                         pass
 
@@ -1614,11 +1629,71 @@ def populate_equipment_with_subslots(save_data):
                 for item in equipped_item["items"]:
                     if isinstance(item, dict):
                         add_subslots_to_item(item)
+                        for acc in item.get("accessories", [])or[]:
+                            try:
+                                cur = acc.get("current")
+                                if isinstance(cur, dict):
+                                    _add_attachment_subslots_to_weapon(item, acc, cur)
+                            except Exception:
+                                pass
 
     except Exception as e:
         logging.warning(f"Failed to populate equipment subslots: {e}")
 
     return save_data
+
+def _add_attachment_subslots_to_weapon(weapon, parent_accessory, attachment):
+    """Add an attachment's subslots directly to the weapon's accessories list.
+    
+    When an attachment has subslots (e.g., an optic with a magnifier slot),
+    those subslots should appear as new attachment slots on the weapon itself.
+    """
+    try:
+        if not weapon or not isinstance(weapon, dict):
+            return
+        if not attachment or not isinstance(attachment, dict):
+            return
+        
+        attachment_subslots = attachment.get('subslots', []) or []
+        if not attachment_subslots:
+            return
+        
+        weapon.setdefault('accessories', [])
+        parent_slot = parent_accessory.get('slot')
+        attachment_name = attachment.get('name', 'Attachment')
+        
+        for sub in attachment_subslots:
+            try:
+                s_slot = sub.get('slot')
+                s_name = sub.get('name') or s_slot
+                display_name = f"{attachment_name} → {s_name}"
+                
+                exists = False
+                for a in weapon.get('accessories', []) or []:
+                    try:
+                        if a and isinstance(a, dict):
+                            if a.get('_is_attachment_subslot') and a.get('_parent_accessory_slot') == parent_slot and a.get('_subslot_slot') == s_slot:
+                                exists = True
+                                a['current'] = sub.get('current')
+                                a['name'] = display_name
+                                break
+                    except Exception:
+                        pass
+                
+                if not exists:
+                    weapon['accessories'].append({
+                        'name': display_name,
+                        'slot': s_slot,
+                        'current': sub.get('current'),
+                        'attachment': True,
+                        '_parent_accessory_slot': parent_slot,
+                        '_subslot_slot': s_slot,
+                        '_is_attachment_subslot': True
+                    })
+            except Exception:
+                pass
+    except Exception:
+        pass
 
 def add_subslots_to_item(item):
 
@@ -11427,66 +11502,35 @@ class App:
 
                 rows.append((acc, opts, current_choice, None))
 
-                try:
-                    cur_inst = acc.get("current")
-                    if isinstance(cur_inst, dict):
-                        for subslot in(cur_inst.get("subslots")or[]):
+            def apply_changes():
+                def _sync_attachment_subslot(weapon, flattened_acc, new_value):
+                    """Sync changes from a flattened attachment subslot back to the original subslot."""
+                    try:
+                        parent_slot = flattened_acc.get('_parent_accessory_slot')
+                        subslot_slot = flattened_acc.get('_subslot_slot')
+                        if not parent_slot or not subslot_slot:
+                            return
+                        
+                        for parent_acc in weapon.get('accessories', []) or []:
                             try:
-                                s_slot = subslot.get("slot")
-                                s_name = subslot.get("name")or s_slot or "Subslot"
-                                s_opts =[(None, "None")]
-                                for itm in candidates_for_slot(s_slot):
-                                    s_opts.append((itm, itm.get("name", "Attachment")))
-
-                                try:
-                                    s_cur = subslot.get("current")
-                                    if s_cur and isinstance(s_cur, dict):
-                                        found = False
-                                        s_id = s_cur.get("id")
-                                        for itm, lbl in s_opts:
-                                            try:
-                                                if itm is s_cur or(isinstance(itm, dict)and s_id is not None and itm.get("id")==s_id):
-                                                    found = True
-                                                    break
-                                            except Exception:
-                                                pass
-                                        if not found:
-                                            s_opts.append((s_cur, s_cur.get("name", "Installed")))# type: ignore
-                                except Exception:
-                                    pass
-
-                                s_choice = customtkinter.StringVar(value = s_opts[0][1]if s_opts else "None")
-
-                                try:
-                                    sub_frame = customtkinter.CTkFrame(frame, fg_color = "transparent")
-                                    sub_frame.pack(fill = "x", padx = 18, pady = 2)
-                                    customtkinter.CTkLabel(sub_frame, text = f"→ {s_name}", font = customtkinter.CTkFont(size = 11)).pack(side = "left")
-                                    s_option = customtkinter.CTkOptionMenu(sub_frame, values =[o[1]for o in s_opts], variable = s_choice, width = 180)
-                                    s_option.pack(side = "left", padx = 6)
-
-                                    try:
-                                        s_add_btn = customtkinter.CTkButton(sub_frame, text = "Add From Table...", width = 140, command =(lambda s = subslot:_open_add_from_table(s)))
-
+                                if parent_acc.get('slot') != parent_slot:
+                                    continue
+                                cur = parent_acc.get('current')
+                                if not cur or not isinstance(cur, dict):
+                                    continue
+                                for sub in cur.get('subslots', []) or []:
+                                    if sub.get('slot') == subslot_slot:
                                         try:
-                                            s_slot_req = subslot.get('slot')
-                                            s_cands = _find_table_candidates(s_slot_req)if s_slot_req else[]
-                                            if not s_cands:
-                                                s_add_btn.configure(state = "disabled")
+                                            import copy as _c
+                                            sub['current'] = _c.deepcopy(new_value) if isinstance(new_value, dict) else new_value
                                         except Exception:
-                                            pass
-                                        s_add_btn.pack(side = "left", padx = 6)
-                                    except Exception:
-                                        pass
-                                except Exception:
-                                    pass
-
-                                rows.append((acc, s_opts, s_choice, subslot))
+                                            sub['current'] = new_value
+                                        return
                             except Exception:
                                 pass
-                except Exception:
-                    pass
+                    except Exception:
+                        pass
 
-            def apply_changes():
                 for acc, opts, var, subslot_ref in rows:
                     chosen_label = var.get()
                     chosen_item = None
@@ -11642,6 +11686,11 @@ class App:
 
                         if chosen_item is None:
                             acc["current"]= None
+                            if acc.get("_is_attachment_subslot"):
+                                try:
+                                    _sync_attachment_subslot(wpn, acc, None)
+                                except Exception:
+                                    pass
                         else:
                             try:
                                 _remove_all_references(chosen_item)
@@ -11683,6 +11732,12 @@ class App:
 
                             acc["current"]= new_installed
 
+                            if acc.get("_is_attachment_subslot"):
+                                try:
+                                    _sync_attachment_subslot(wpn, acc, new_installed)
+                                except Exception:
+                                    pass
+
                             try:
                                 if isinstance(acc.get("current"), dict):
                                     add_subslots_to_item(acc.get("current"))
@@ -11696,6 +11751,29 @@ class App:
                                         acc["_mode_index"]= 0
                             except Exception:
                                 pass
+
+                for acc, opts, var, subslot_ref in rows:
+                    if acc.get('_is_attachment_subslot'):
+                        continue
+                    try:
+                        acc_slot = acc.get('slot')
+                        to_remove = []
+                        for i, other_acc in enumerate(wpn.get('accessories', []) or []):
+                            if other_acc.get('_is_attachment_subslot') and other_acc.get('_parent_accessory_slot') == acc_slot:
+                                to_remove.append(other_acc)
+                        for r in to_remove:
+                            try:
+                                wpn['accessories'].remove(r)
+                            except Exception:
+                                pass
+                        
+                        if acc.get('current') and isinstance(acc.get('current'), dict):
+                            try:
+                                _add_attachment_subslots_to_weapon(wpn, acc, acc.get('current'))
+                            except Exception:
+                                pass
+                    except Exception:
+                        pass
 
                 try:
                     self._apply_item_overrides(wpn)
