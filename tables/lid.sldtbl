@@ -1483,7 +1483,7 @@
                 "caliber": ["12 Gauge"],
                 "action": ["Pump"],
                 "bolt": "closed",
-                "bolt_catch": true,
+                "bolt_catch": false,
                 "cyclic": 250,
                 "magazinetype": "Internal tube",
                 "capacity": 6,
@@ -1578,6 +1578,112 @@
                     {"name": "MLOK Mounts (Handguard Left)", "slot": "mlok_rifle", "current": null},
                     {"name": "MLOK Mounts (Handguard Right)", "slot": "mlok_rifle", "current": null},
                     {"name": "MLOK Mounts (Handguard Bottom)", "slot": "mlok_bottom", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_12g", "current": null}
+                ],
+                "can_stack": false
+            },
+            {
+                "name": "Benelli M2 Super 90",
+                "value": 700,
+                "description": "Semi-automatic shotgun known for its reliability and versatility. Chambered in 12 gauge, popular among hunters, sport shooters, and law enforcement.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 3.4,
+                "id": 309,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "shotgun",
+                "platform": "M2 Super 90",
+                "caliber": ["12 Gauge"],
+                "action": ["Semi"],
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 300,
+                "magazinetype": "Internal tube",
+                "capacity": 5,
+                "can_chamber_extra": true,
+                "jamrate": 0.02,
+                "accessories": [
+                    {"name": "Picatinny Rail Optic", "slot": "picatinny_optic", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_12g", "current": null}
+                ],
+                "can_stack": false
+            },
+            {
+                "name": "Mossberg M590M",
+                "value": 600,
+                "description": "Magazine-fed variant of the Mossberg M590A1 pump-action shotgun. Chambered in 12 gauge, designed for tactical applications with improved reload speed.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 3.3,
+                "id": 310,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "shotgun",
+                "platform": "M590",
+                "caliber": ["12 Gauge"],
+                "action": ["Pump"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 250,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "M590M",
+                "jamrate": 0.02,
+                "accessories": [
+                    {"name": "Picatinny Rail Optic", "slot": "picatinny_optic", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_12g", "current": null}
+                ],
+                "can_stack": false
+            },
+            {
+                "name": "Kalashnikov Concern Saiga-12",
+                "value": 1100,
+                "description": "Russian semi-automatic shotgun based on the AK platform. Chambered in 12 gauge, known for its reliability and ruggedness.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 3.5,
+                "id": 311,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "shotgun",
+                "platform": "Saiga-12",
+                "caliber": ["12 Gauge"],
+                "action": ["Semi"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 400,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "Saiga-12",
+                "jamrate": 0.02,
+                "accessories": [
+                    {"name": "Russian Sight Mount", "slot": "russian_mount", "current": null},
+                    {"name": "AK-47 auto sear", "slot": "ak_auto_sear", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_12g", "current": null}
+                ],
+                "can_stack": false
+            },
+            {
+                "name": "Atchisson AA-12",
+                "value": 2500,
+                "description": "Fully automatic shotgun known for its high rate of fire and low recoil. Chambered in 12 gauge, designed for military and law enforcement applications.",
+                "rarity": "Mythic",
+                "random_quantity": false,
+                "weight": 5.5,
+                "id": 312,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "shotgun",
+                "platform": "AA-12",
+                "caliber": ["12 Gauge"],
+                "action": ["Semi","Auto"],
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 300,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "AA-12",
+                "jamrate": 0.01,
+                "accessories": [
+                    {"name": "Picatinny Rail Optic", "slot": "picatinny_optic", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_12g", "current": null}
                 ],
                 "can_stack": false
@@ -3498,6 +3604,21 @@
                 "variable": false,
                 "night_vision_compatible": false,
                 "can_stack": false
+            },
+            {
+                "name": "AK-47 auto sear",
+                "value": 1500,
+                "description": "Auto sear that allows the AK-47 to fire in fully automatic mode.",
+                "rarity": "Legendary",
+                "random_quantity": false,
+                "weight": 0.1,
+                "id": 313,
+                "attachment": true,
+                "slot": "ak_auto_sear",
+                "overrides": {
+                    "action": ["Semi", "Auto"]
+                },
+                "can_stack": false
             }
         ],
         "ammunition": [
@@ -4868,6 +4989,84 @@
                 "capacity": 7,
                 "magazinesystem": "1911 .45 ACP",
                 "can_stack": false
+            },
+            {
+                "name": "Mossberg M590M 10-Round 12 Gauge magazine",
+                "value": 30,
+                "description": "Standard 10-round magazine for 12 Gauge chambered Mossberg M590M shotguns.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.5,
+                "id": 314,
+                "caliber": ["12 Gauge"],
+                "capacity": 10,
+                "magazinesystem": "M590M",
+                "can_stack": false
+            },
+            {
+                "name": "Mossberg M590M 15-Round 12 Gauge magazine",
+                "value": 40,
+                "description": "Extended 15-round magazine for 12 Gauge chambered Mossberg M590M shotguns.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 0.7,
+                "id": 315,
+                "caliber": ["12 Gauge"],
+                "capacity": 15,
+                "magazinesystem": "M590M",
+                "can_stack": false
+            },
+            {
+                "name": "Izhmash 8-Round 12 Gauge Saiga-12 magazine",
+                "value": 25,
+                "description": "Standard 8-round magazine for 12 Gauge chambered Saiga-12 shotguns.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.4,
+                "id": 316,
+                "caliber": ["12 Gauge"],
+                "capacity": 8,
+                "magazinesystem": "Saiga-12",
+                "can_stack": false
+            },
+            {
+                "name": "ProMag Saiga-12 20-Round 12 Gauge drum magazine",
+                "value": 70,
+                "description": "High-capacity 20-round drum magazine for 12 Gauge chambered Saiga-12 shotguns.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 0.9,
+                "id": 317,
+                "caliber": ["12 Gauge"],
+                "capacity": 20,
+                "magazinesystem": "Saiga-12",
+                "can_stack": false
+            },
+            {
+                "name": "Atchisson AA-12 8-Round 12 Gauge magazine",
+                "value": 30,
+                "description": "Standard 8-round magazine for 12 Gauge chambered Atchisson AA-12 shotguns.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 0.5,
+                "id": 318,
+                "caliber": ["12 Gauge"],
+                "capacity": 8,
+                "magazinesystem": "AA-12",
+                "can_stack": false
+            },
+            {
+                "name": "Atchisson AA-12 20-Round 12 Gauge drum magazine",
+                "value": 90,
+                "description": "High-capacity 20-round drum magazine for 12 Gauge chambered Atchisson AA-12 shotguns.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 1.0,
+                "id": 319,
+                "caliber": ["12 Gauge"],
+                "capacity": 20,
+                "magazinesystem": "AA-12",
+                "can_stack": false
             }
         ],
         "melee": [
@@ -4894,6 +5093,50 @@
                 "type": "single handed",
                 "attachment": true,
                 "slot": "bayonet_mount_ar15"
+            },
+            {
+                "name": "Longsword",
+                "value": 500,
+                "description": "A medieval-style longsword with a double-edged blade and cruciform hilt. Effective for slashing and thrusting attacks.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 1.5,
+                "id": 325,
+                "melee": true,
+                "type": "two handed"
+            },
+            {
+                "name": "Tomahawk",
+                "value": 120,
+                "description": "A versatile throwing axe with a sharp blade and a sturdy handle. Can be used for both melee combat and as a ranged weapon.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.8,
+                "id": 326,
+                "melee": true,
+                "type": "single handed"
+            },
+            {
+                "name": "Baseball Bat",
+                "value": 80,
+                "description": "A standard wooden baseball bat. Can be used as a blunt melee weapon for close-quarters combat.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 1.2,
+                "id": 327,
+                "melee": true,
+                "type": "two handed"
+            },
+            {
+                "name": "Crowbar",
+                "value": 90,
+                "description": "A sturdy metal crowbar. Useful for prying open doors and containers, as well as a melee weapon.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 1.0,
+                "id": 328,
+                "melee": true,
+                "type": "two handed"
             }
         ],
         "throwables": [
@@ -6325,6 +6568,95 @@
                 "slot": "torso",
                 "container": true,
                 "capacity": 30
+            },
+            {
+                "name": "Legion combat rucksack",
+                "value": 400,
+                "description": "A large rucksack used by Legion soldiers. Provides ample storage for gear and supplies.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 2.0,
+                "id": 320,
+                "equippable": true,
+                "encumbrance_reduction": 3,
+                "container": true,
+                "capacity": 40,
+                "items": [],
+                "slot": ["back"]
+            },
+            {
+                "name": "Leather sling",
+                "value": 100,
+                "description": "A classic leather sling for carrying and stabilizing rifles, SMGs, shotguns, and machine guns.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.3,
+                "id": 321,
+                "equippable": true,
+                "encumbrance_reduction": 1,
+                "slot": ["chest","back","left shoulder","right shoulder"],
+                "holster_sling": true,
+                "weapon_types": ["rifle", "smg", "shotgun", "mg"],
+                "subslots": [
+                    {"name": "Weapon", "slot": "weapon_slot", "current": null}
+                ]
+            },
+            {
+                "name": "Gun belt",
+                "value": 150,
+                "description": "A classic leather holster belt for carrying pistols and small gear.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.5,
+                "id": 322,
+                "equippable": true,
+                "encumbrance_reduction": 1,
+                "slot": ["waist"],
+                "holster_sling": true,
+                "weapon_types": ["pistol"],
+                "subslots": [
+                    {"name": "Weapon", "slot": "weapon_slot", "current": null}
+                ],
+                "container": true,
+                "capacity": 10
+            },
+            {
+                "name": "Crye Precision JPC 2.0",
+                "value": 800,
+                "description": "Jumpable Plate Carrier (JPC) 2.0 providing lightweight ballistic protection for the torso. Favored by special operations forces for its mobility and modularity.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 2.5,
+                "id": 323,
+                "equippable": true,
+                "encumbrance_reduction": 2.0,
+                "slot": "torso",
+                "subslots": [
+                    {"name": "Front Armor Slot", "slot": "front_armor", "current": null},
+                    {"name": "Back Armor Slot", "slot": "back_armor", "current": null},
+                    {"name": "Left 6x6 Armor Slot", "slot": "6x6_armor", "current": null},
+                    {"name": "Right 6x6 Armor Slot", "slot": "6x6_armor", "current": null},
+                    {"name": "MOLLE Webbing front", "slot": "molle_front", "current": null},
+                    {"name": "MOLLE Webbing back", "slot": "molle_back", "current": null, "conflicts_with": {"type": "main", "slot": "back"}},
+                    {"name": "MOLLE Webbing left side", "slot": "molle_side", "current": null},
+                    {"name": "MOLLE Webbing right side", "slot": "molle_side", "current": null}
+                ]
+            },
+            {
+                "name": "Ferro Concepts The Slickster",
+                "value": 600,
+                "description": "A minimalist plate carrier designed for maximum mobility while still providing essential ballistic protection.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 2.0,
+                "id": 324,
+                "equippable": true,
+                "encumbrance_reduction": 2.0,
+                "slot": "torso",
+                "subslots": [
+                    {"name": "Front Armor Slot", "slot": "front_armor", "current": null},
+                    {"name": "Back Armor Slot", "slot": "back_armor", "current": null}
+                ]
             }
         ],
         "enemy_drops": [
@@ -6334,7 +6666,9 @@
                 "items": [
                     {"type": "id", "id": 184, "guaranteed": true, "spawn_magazine": true, "magazines_to_spawn": {"min": 1, "max": 3}, "loading": "random"},
                     {"type": "id", "id": [250,250,251], "guaranteed": true, "multi_type": "and"},
-                    {"type": "table", "table": "pistols", "rarity": "Mythic"}
+                    {"type": ["table", "id"], "table": "pistols", "id": 322, "rarity": "Mythic", "multi_type": "and", "magazines_to_spawn": {"min": 0, "max": 2}, "loading": "random"},
+                    {"type": "id", "id": 320, "guaranteed": true},
+                    {"type": "id", "id": 321, "guaranteed": true}
                 ]
             },
             {
@@ -6343,7 +6677,9 @@
                 "items": [
                     {"type": "id", "id": 247, "guaranteed": true, "spawn_magazine": true, "magazines_to_spawn": {"min": 1, "max": 2}, "loading": "random"},
                     {"type": "id", "id": [250,250,251], "guaranteed": true, "multi_type": "and"},
-                    {"type": "table", "table": "pistols", "rarity": "Mythic"}
+                    {"type": ["table", "id"], "table": "pistols", "id": 322, "rarity": "Mythic", "multi_type": "and", "magazines_to_spawn": {"min": 0, "max": 2}, "loading": "random"},
+                    {"type": "id", "id": 320, "guaranteed": true},
+                    {"type": "id", "id": 321, "guaranteed": true}
                 ]
             },
             {
@@ -6352,7 +6688,9 @@
                 "items": [
                     {"type": "id", "id": 238, "guaranteed": true, "spawn_magazine": true, "magazines_to_spawn": {"min": 1, "max": 3}, "loading": "random"},
                     {"type": "id", "id": [250,250,251], "guaranteed": true, "multi_type": "and"},
-                    {"type": "table", "table": "pistols", "rarity": "Mythic"}
+                    {"type": ["table", "id"], "table": "pistols", "id": 322, "rarity": "Mythic", "multi_type": "and", "magazines_to_spawn": {"min": 0, "max": 2}, "loading": "random"},
+                    {"type": "id", "id": 320, "guaranteed": true},
+                    {"type": "id", "id": 321, "guaranteed": true}
                 ]
             },
             {
@@ -6361,7 +6699,9 @@
                 "items": [
                     {"type": "id", "id": 240, "guaranteed": true, "spawn_magazine": true, "magazines_to_spawn": {"min": 1, "max": 3}, "loading": "random"},
                     {"type": "id", "id": [250,250,251], "guaranteed": true, "multi_type": "and"},
-                    {"type": "table", "table": "pistols", "rarity": "Mythic"}
+                    {"type": ["table", "id"], "table": "pistols", "id": 322, "rarity": "Mythic", "multi_type": "and", "magazines_to_spawn": {"min": 0, "max": 2}, "loading": "random"},
+                    {"type": "id", "id": 320, "guaranteed": true},
+                    {"type": "id", "id": 321, "guaranteed": true}
                 ]
             },
             {
@@ -6370,7 +6710,9 @@
                 "items": [
                     {"type": "id", "id": 240, "guaranteed": true, "spawn_magazine": true, "magazines_to_spawn": {"min": 1, "max": 3}, "loading": "random"},
                     {"type": "id", "id": [250,250,251], "guaranteed": true, "multi_type": "and"},
-                    {"type": "table", "table": "pistols", "rarity": "Mythic"}
+                    {"type": ["table", "id"], "table": "pistols", "id": 322, "rarity": "Mythic", "multi_type": "and", "magazines_to_spawn": {"min": 0, "max": 2}, "loading": "random"},
+                    {"type": "id", "id": 320, "guaranteed": true},
+                    {"type": "id", "id": 321, "guaranteed": true}
                 ]
             },
             {
@@ -6379,7 +6721,9 @@
                 "items": [
                     {"type": "id", "id": [245,246], "guaranteed": true, "multi_type": "or", "spawn_magazine": true, "magazines_to_spawn": {"min": 1, "max": 3}, "loading": "random"},
                     {"type": "id", "id": [250,250,251], "guaranteed": true, "multi_type": "and"},
-                    {"type": "table", "table": "pistols", "rarity": "Mythic"}
+                    {"type": ["table", "id"], "table": "pistols", "id": 322, "rarity": "Mythic", "multi_type": "and", "magazines_to_spawn": {"min": 0, "max": 2}, "loading": "random"},
+                    {"type": "id", "id": 320, "guaranteed": true},
+                    {"type": "id", "id": 321, "guaranteed": true}
                 ]
             },
             {
@@ -6387,9 +6731,10 @@
                 "difficulty": "Medium",
                 "items": [
                     {"type": "id", "id": 87, "guaranteed": true},
-                    {"type": "id", "id": 90, "rarity": "Mythic"},
+                    {"type": "id", "id": [90,322], "rarity": "Mythic", "multi_type": "and"},
                     {"type": "id", "id": 298, "guaranteed": true},
-                    {"type": "id", "id": [303,304], "guaranteed": true, "multi_type": "or"}
+                    {"type": "id", "id": [303,304], "guaranteed": true, "multi_type": "or"},
+                    {"type": "id", "id": 321, "guaranteed": true}
                 ]
             },
             {
@@ -6397,9 +6742,10 @@
                 "difficulty": "Hard",
                 "items": [
                     {"type": "id", "id": 89, "guaranteed": true},
-                    {"type": "id", "id": 90, "rarity": "Mythic"},
+                    {"type": "id", "id": [90,322], "rarity": "Mythic", "multi_type": "and"},
                     {"type": "id", "id": 298, "guaranteed": true},
-                    {"type": "id", "id": [303,304], "guaranteed": true, "multi_type": "or"}
+                    {"type": "id", "id": [303,304], "guaranteed": true, "multi_type": "or"},
+                    {"type": "id", "id": 321, "guaranteed": true}
                 ]
             },
             {
@@ -6407,9 +6753,10 @@
                 "difficulty": "Hard",
                 "items": [
                     {"type": "id", "id": 308, "guaranteed": true},
-                    {"type": "id", "id": 90, "rarity": "Mythic"},
+                    {"type": "id", "id": [90,322], "rarity": "Mythic", "multi_type": "and"},
                     {"type": "id", "id": 298, "guaranteed": true},
-                    {"type": "id", "id": [303,304], "guaranteed": true, "multi_type": "or"}
+                    {"type": "id", "id": [303,304], "guaranteed": true, "multi_type": "or"},
+                    {"type": "id", "id": 321, "guaranteed": true}
                 ]
             },
             {
@@ -6417,9 +6764,10 @@
                 "difficulty": "Easy",
                 "items": [
                     {"type": "id", "id": 87, "guaranteed": true},
-                    {"type": "id", "id": 90, "rarity": "Mythic"},
+                    {"type": "id", "id": [90,322], "rarity": "Mythic", "multi_type": "and"},
                     {"type": "id", "id": 298, "guaranteed": true},
-                    {"type": "id", "id": [303,304], "guaranteed": true, "multi_type": "or"}
+                    {"type": "id", "id": [303,304], "guaranteed": true, "multi_type": "or"},
+                    {"type": "id", "id": 321, "guaranteed": true}
                 ]
             },
             {
@@ -6427,9 +6775,10 @@
                 "difficulty": "Hard",
                 "items": [
                     {"type": "id", "id": 91, "guaranteed": true},
-                    {"type": "id", "id": 90, "rarity": "Mythic"},
+                    {"type": "id", "id": [90,322], "rarity": "Mythic", "multi_type": "and"},
                     {"type": "id", "id": 298, "guaranteed": true},
-                    {"type": "id", "id": [303,304], "guaranteed": true, "multi_type": "or"}
+                    {"type": "id", "id": [303,304], "guaranteed": true, "multi_type": "or"},
+                    {"type": "id", "id": 321, "guaranteed": true}
                 ]
             },
             {

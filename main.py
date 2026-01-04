@@ -4139,13 +4139,63 @@ class App:
                     if save_data is None:
                         raise RuntimeError("Failed to load current save for add_item")
 
-                    available_items =[]
-                    for entry in crate.get("loot_table", []):
-                        items_to_add = self._resolve_loot_entry(entry, table_data, save_data)
-                        for item in items_to_add:
-                            item_copy = {k:v for k, v in item.items()if k !="table_category"}
-                            item_copy = add_subslots_to_item(item_copy)
-                            available_items.append(item_copy)
+                    if crate.get("generated_items"):
+
+                        available_items = crate.get("generated_items", [])
+                        logging.info(f"Using {len(available_items)} pre-generated items from crate '{crate.get('name')}'")
+                    else:
+
+                        loot_table = crate.get("loot_table", [])
+                        pulls = crate.get("pulls", 3)
+                        if isinstance(pulls, dict):
+                            num_pulls = random.randint(pulls.get("min", 1), pulls.get("max", 3))
+                        else:
+                            num_pulls = int(pulls)
+
+                        rarity_weights = table_data.get("rarity_weights", {})
+
+                        luck_stat = save_data.get("stats", {}).get("luck", 0)if save_data else 0
+                        luck_effect = rarity_weights.get("Luck Effect", 1.5)
+
+                        available_items =[]
+                        for _ in range(num_pulls):
+
+                            weighted_entries =[]
+                            for entry in loot_table:
+                                entry_rarity = entry.get("rarity", "Common")
+                                base_weight = rarity_weights.get(entry_rarity, 1)
+
+                                if luck_stat >0:
+                                    weight = base_weight *(1 +(luck_stat *luck_effect /100))
+                                else:
+                                    weight = base_weight
+
+                                weight = max(1, int(weight))
+                                weighted_entries.extend([entry]*weight)
+
+                            if weighted_entries:
+                                selected_entry = random.choice(weighted_entries)
+                                items_to_add = self._resolve_loot_entry(selected_entry, table_data, save_data)
+                                for item in items_to_add:
+                                    item_copy = {k:v for k, v in item.items()if k !="table_category"}
+                                    item_copy = add_subslots_to_item(item_copy)
+                                    available_items.append(item_copy)
+
+                        if crate_file_path and available_items:
+                            updated_crate = crate.copy()
+                            updated_crate["generated_items"]= available_items
+                            updated_crate.pop("loot_table", None)
+                            try:
+                                pickled_crate = pickle.dumps(updated_crate)
+                                encoded_crate = base64.b85encode(pickled_crate).decode('utf-8')
+                                with open(crate_file_path, 'w')as cf:
+                                    cf.write(encoded_crate)
+                                logging.info(f"Saved {len(available_items)} generated items to crate file: {crate_file_path}")
+
+                                crate["generated_items"]= available_items
+                                crate.pop("loot_table", None)
+                            except Exception as e:
+                                logging.error(f"Failed to save generated items to crate file: {e}")
 
                     self._open_loot_selection_menu(crate, available_items, save_data, save_path, crate_file_path, table_data)
 
@@ -4344,7 +4394,7 @@ class App:
             if entry.get("type")=="table":
 
                 table_name = entry.get("table")
-                requested_rarity = entry.get("rarity")
+                entry_rarity = entry.get("rarity", "Common")
                 table = table_data.get("tables", {}).get(table_name, [])
 
                 luck_stat = 0
@@ -4357,7 +4407,7 @@ class App:
 
                 if global_variables.get("devmode", {}).get("value", False):
                     debug_info.append(f"[DEBUG]Resolving table entry: {table_name}")
-                    debug_info.append(f" Requested rarity: {requested_rarity or 'Any'}")
+                    debug_info.append(f" Entry rarity(selection weight): {entry_rarity}")
                     debug_info.append(f" Luck stat: {luck_stat}")
                     debug_info.append(f" Luck effect multiplier: {luck_effect}")
                     debug_info.append(f" Special chance: {special_chance}%")
@@ -4371,78 +4421,211 @@ class App:
 
                     special_table = table_data.get("tables", {}).get("special_items", [])
                     if special_table:
+                        selected_item = random.choice(special_table)
+                        item_copy = selected_item.copy()
+                        item_copy["table_category"]= "special_items"
+                        if global_variables.get("devmode", {}).get("value", False):
+                            debug_info.append(f" ★ SPECIAL ITEM TRIGGERED! Selected: {selected_item.get('name', 'Unknown')}")
+                            item_copy["_debug_info"]= "\n".join(debug_info)
+                        items.append(item_copy)
+                        return items
 
-                        if requested_rarity:
-                            special_items =[item for item in special_table if item.get("rarity")==requested_rarity]
-                        else:
-                            special_items = special_table
-
-                        if special_items:
-                            selected_item = random.choice(special_items)
-                            item_copy = selected_item.copy()
-                            item_copy["table_category"]= "special_items"
-                            if global_variables.get("devmode", {}).get("value", False):
-                                debug_info.append(f" ★ SPECIAL ITEM TRIGGERED! Selected: {selected_item.get('name', 'Unknown')}")
-                                item_copy["_debug_info"]= "\n".join(debug_info)
-                            items.append(item_copy)
-                            return items
-
-                if requested_rarity:
-
-                    matching_items =[item for item in table if item.get("rarity")==requested_rarity]
-
-                    weight = rarity_weights.get(requested_rarity, 1)
-                    original_weight = weight
+                weighted_pool =[]
+                rarity_counts = {}
+                for item in table:
+                    item_rarity = item.get("rarity", "Common")
+                    weight = rarity_weights.get(item_rarity, 1)
 
                     if luck_stat >0:
                         weight = weight *(1 +(luck_stat *luck_effect /100))
 
+                    count = max(1, int(weight))
+                    weighted_pool.extend([item]*count)
+                    rarity_counts[item_rarity]= rarity_counts.get(item_rarity, 0)+count
+
+                if global_variables.get("devmode", {}).get("value", False):
+                    debug_info.append(f" Weighted pool breakdown:")
+                    for rarity, count in sorted(rarity_counts.items(), key = lambda x:-x[1]):
+                        base_w = rarity_weights.get(rarity, 1)
+                        pct =(count /len(weighted_pool)*100)if weighted_pool else 0
+                        debug_info.append(f" {rarity}: {count} entries({pct:.1f}%)[base weight: {base_w}]")
+                    debug_info.append(f" Total pool size: {len(weighted_pool)}")
+
+                if weighted_pool:
+                    selected_item = random.choice(weighted_pool)
+                    item_copy = selected_item.copy()
+                    item_copy["table_category"]= table_name
                     if global_variables.get("devmode", {}).get("value", False):
-                        debug_info.append(f" Rarity '{requested_rarity}' base weight: {original_weight}")
-                        if luck_stat >0:
-                            debug_info.append(f" Weight after luck({luck_stat}): {weight:.2f}")
-                        debug_info.append(f" Matching items for rarity: {len(matching_items)}")
+                        debug_info.append(f" → Selected: {selected_item.get('name', 'Unknown')}({selected_item.get('rarity', 'Unknown')})")
+                        item_copy["_debug_info"]= "\n".join(debug_info)
+                    items.append(item_copy)
+
+            elif isinstance(entry.get("type"), list)and "table"in entry.get("type")and "id"in entry.get("type"):
+
+                table_name = entry.get("table")
+                item_id = entry.get("id")
+                requested_rarity = entry.get("rarity")
+                multi_type = entry.get("multi_type", "or")
+                spawn_magazine = entry.get("spawn_magazine", False)
+                magazines_to_spawn = entry.get("magazines_to_spawn", 1)
+                loading_type = entry.get("loading", "full")
+
+                if global_variables.get("devmode", {}).get("value", False):
+                    debug_info.append(f"[DEBUG]Resolving table+id entry: table={table_name}, id={item_id}")
+                    if requested_rarity:
+                        debug_info.append(f" Requested rarity: {requested_rarity}")
+                    if spawn_magazine:
+                        debug_info.append(f" Spawn magazines: {spawn_magazine}, count: {magazines_to_spawn}, loading: {loading_type}")
+
+                def spawn_magazines_for_item_tableid(firearm_item, table_data, debug_info):
+                    spawned_mags =[]
+                    mag_system = firearm_item.get("magazinesystem")
+                    caliber = firearm_item.get("caliber")
+
+                    if not mag_system:
+                        if global_variables.get("devmode", {}).get("value", False):
+                            debug_info.append(f" ⚠ No magazinesystem found for {firearm_item.get('name', 'Unknown')}")
+                        return spawned_mags
+
+                    if isinstance(caliber, str):
+                        caliber =[caliber]
+
+                    magazines_table = table_data.get("tables", {}).get("magazines", [])
+                    compatible_mags =[]
+                    for mag in magazines_table:
+                        if mag.get("magazinesystem")==mag_system:
+                            mag_caliber = mag.get("caliber")
+                            if isinstance(mag_caliber, str):
+                                mag_caliber =[mag_caliber]
+
+                            if caliber and mag_caliber and any(c in mag_caliber for c in caliber):
+                                compatible_mags.append(mag)
+
+                    if not compatible_mags:
+                        if global_variables.get("devmode", {}).get("value", False):
+                            debug_info.append(f" ⚠ No compatible magazines found for {mag_system}")
+                        return spawned_mags
+
+                    if isinstance(magazines_to_spawn, dict):
+                        num_mags = random.randint(magazines_to_spawn.get("min", 1), magazines_to_spawn.get("max", 1))
+                    else:
+                        num_mags = int(magazines_to_spawn)
+
+                    if global_variables.get("devmode", {}).get("value", False):
+                        debug_info.append(f" Spawning {num_mags} magazine(s) for {firearm_item.get('name', 'Unknown')}")
+
+                    ammo_table = table_data.get("tables", {}).get("ammunition", [])
+                    ammo_def = None
+                    first_variant = None
+                    for ammo in ammo_table:
+                        ammo_caliber = ammo.get("caliber")
+                        if isinstance(ammo_caliber, str):
+                            ammo_caliber =[ammo_caliber]
+                        if caliber and ammo_caliber and any(c in ammo_caliber for c in caliber):
+                            ammo_def = ammo
+                            variants = ammo.get("variants", [])
+                            if variants:
+                                first_variant = variants[0]
+                            break
+
+                    for i in range(num_mags):
+                        mag_template = random.choice(compatible_mags)
+                        mag_copy = json.loads(json.dumps(mag_template))
+                        mag_copy["table_category"]= "magazines"
+                        mag_copy["rounds"]=[]
+
+                        capacity = mag_copy.get("capacity", 30)
+
+                        if loading_type =="full":
+                            rounds_to_load = capacity
+                        elif loading_type =="random":
+                            if random.random()<0.5:
+                                rounds_to_load = capacity
+                            else:
+                                rounds_to_load = random.randint(1, capacity)
+                        else:
+                            rounds_to_load = capacity
+
+                        if ammo_def and first_variant:
+                            for _ in range(rounds_to_load):
+                                round_data = {
+                                "name":ammo_def.get("name"),
+                                "caliber":caliber[0]if caliber else ammo_def.get("caliber"),
+                                "variant":first_variant.get("name"),
+                                "type":first_variant.get("type"),
+                                "pen":first_variant.get("pen"),
+                                "modifiers":first_variant.get("modifiers"),
+                                "tip":first_variant.get("tip")
+                                }
+                                mag_copy["rounds"].append(round_data)
+
+                        if global_variables.get("devmode", {}).get("value", False):
+                            debug_info.append(f" → Spawned {mag_copy.get('name')} with {len(mag_copy['rounds'])}/{capacity} rounds({first_variant.get('name')if first_variant else 'unknown variant'})")
+
+                        spawned_mags.append(mag_copy)
+
+                    return spawned_mags
+
+                table = table_data.get("tables", {}).get(table_name, [])
+
+                if isinstance(item_id, list):
+
+                    matching_items =[]
+                    for single_id in item_id:
+                        for item in table:
+                            if item.get("id")==single_id:
+                                if not requested_rarity or item.get("rarity")==requested_rarity:
+                                    matching_items.append(item)
+                                    if global_variables.get("devmode", {}).get("value", False):
+                                        debug_info.append(f" Found ID {single_id} in '{table_name}': {item.get('name', 'Unknown')}")
+                                break
 
                     if matching_items:
-                        selected_item = random.choice(matching_items)
-                        item_copy = selected_item.copy()
-                        item_copy["table_category"]= table_name
-                        if global_variables.get("devmode", {}).get("value", False):
-                            debug_info.append(f" → Selected: {selected_item.get('name', 'Unknown')}({selected_item.get('rarity', 'Unknown')})")
-                            item_copy["_debug_info"]= "\n".join(debug_info)
-                        items.append(item_copy)
+                        if multi_type =="or":
+
+                            chosen_item = random.choice(matching_items)
+                            item_copy = chosen_item.copy()
+                            item_copy["table_category"]= table_name
+                            if global_variables.get("devmode", {}).get("value", False):
+                                debug_info.append(f" → OR logic: randomly selected '{chosen_item.get('name', 'Unknown')}'")
+                                item_copy["_debug_info"]= "\n".join(debug_info)
+                            items.append(item_copy)
+
+                            if spawn_magazine and item_copy.get("firearm"):
+                                spawned_mags = spawn_magazines_for_item_tableid(item_copy, table_data, debug_info)
+                                items.extend(spawned_mags)
+                        elif multi_type =="and":
+
+                            if global_variables.get("devmode", {}).get("value", False):
+                                debug_info.append(f" → AND logic: giving all {len(matching_items)} items")
+                            for idx, matched_item in enumerate(matching_items):
+                                item_copy = matched_item.copy()
+                                item_copy["table_category"]= table_name
+                                if global_variables.get("devmode", {}).get("value", False)and idx ==0:
+                                    item_copy["_debug_info"]= "\n".join(debug_info)
+                                items.append(item_copy)
+
+                                if spawn_magazine and item_copy.get("firearm"):
+                                    spawned_mags = spawn_magazines_for_item_tableid(item_copy, table_data, debug_info)
+                                    items.extend(spawned_mags)
                 else:
 
-                    weighted_pool =[]
-                    rarity_counts = {}
                     for item in table:
-                        item_rarity = item.get("rarity", "Common")
-                        weight = rarity_weights.get(item_rarity, 1)
-                        original_weight = weight
+                        if item.get("id")==item_id:
+                            if not requested_rarity or item.get("rarity")==requested_rarity:
+                                item_copy = item.copy()
+                                item_copy["table_category"]= table_name
+                                if global_variables.get("devmode", {}).get("value", False):
+                                    debug_info.append(f" Found ID {item_id} in '{table_name}': {item.get('name', 'Unknown')}")
+                                    item_copy["_debug_info"]= "\n".join(debug_info)
+                                items.append(item_copy)
 
-                        if luck_stat >0:
-                            weight = weight *(1 +(luck_stat *luck_effect /100))
+                                if spawn_magazine and item_copy.get("firearm"):
+                                    spawned_mags = spawn_magazines_for_item_tableid(item_copy, table_data, debug_info)
+                                    items.extend(spawned_mags)
+                            break
 
-                        count = int(weight)
-                        weighted_pool.extend([item]*count)
-                        rarity_counts[item_rarity]= rarity_counts.get(item_rarity, 0)+count
-
-                    if global_variables.get("devmode", {}).get("value", False):
-                        debug_info.append(f" Weighted pool breakdown:")
-                        for rarity, count in sorted(rarity_counts.items(), key = lambda x:-x[1]):
-                            base_w = rarity_weights.get(rarity, 1)
-                            pct =(count /len(weighted_pool)*100)if weighted_pool else 0
-                            debug_info.append(f" {rarity}: {count} entries({pct:.1f}%)[base weight: {base_w}]")
-                        debug_info.append(f" Total pool size: {len(weighted_pool)}")
-
-                    if weighted_pool:
-                        selected_item = random.choice(weighted_pool)
-                        item_copy = selected_item.copy()
-                        item_copy["table_category"]= table_name
-                        if global_variables.get("devmode", {}).get("value", False):
-                            debug_info.append(f" → Selected: {selected_item.get('name', 'Unknown')}({selected_item.get('rarity', 'Unknown')})")
-                            item_copy["_debug_info"]= "\n".join(debug_info)
-                        items.append(item_copy)
+                return items
 
             elif entry.get("type")=="id":
 
@@ -4998,9 +5181,8 @@ class App:
                     if remaining_items:
 
                         updated_crate = crate.copy()
-                        updated_crate["loot_table"]=[]
-                        for item in remaining_items:
-                            updated_crate["loot_table"].append({"type":"id", "id":item.get("id"), "rarity":item.get("rarity")})
+                        updated_crate["generated_items"]= remaining_items
+                        updated_crate.pop("loot_table", None)
 
                         pickled_crate = pickle.dumps(updated_crate)
                         encoded_crate = base64.b85encode(pickled_crate).decode('utf-8')
@@ -5010,7 +5192,7 @@ class App:
                     else:
 
                         os.remove(crate_file_path)
-                        logging.info(f"Deleted used loot crate file: {crate_file_path}")
+                        logging.info(f"Deleted empty loot crate file: {crate_file_path}")
 
                 item_summary = ", ".join([f"{item.get('name', 'Unknown')}"for item in items_to_take])
                 logging.info(f"Looted crate '{crate.get('name')}' into {selected_container_name}: {item_summary}")
@@ -10660,7 +10842,27 @@ class App:
                     time.sleep(0.8)
 
                 if not handled_belt and is_gun_empty:
-                    if not wpn.get("bolt_catch"):
+                    rt_mag_type = str(wpn.get("magazinetype", "")or "").lower()
+                    rt_platform_raw = wpn.get("platform", "")or ""
+                    if isinstance(rt_platform_raw, (list, tuple)):
+                        rt_platform_raw = rt_platform_raw[0]if rt_platform_raw else ""
+                    rt_platform = str(rt_platform_raw).lower()
+                    rt_action_raw = wpn.get("action", "")or ""
+                    if isinstance(rt_action_raw, (list, tuple)):
+                        rt_action_raw = rt_action_raw[0]if rt_action_raw else ""
+                    rt_action = str(rt_action_raw).lower()
+                    is_pump_reload =("pump"in rt_platform or rt_action =="pump"or "pump"in rt_mag_type)
+
+                    if is_pump_reload:
+                        try:
+                            self._play_weapon_action_sound(wpn, "pumpback", block = True)
+                        except Exception:
+                            pass
+                        try:
+                            self._play_weapon_action_sound(wpn, "pumpforward")
+                        except Exception:
+                            pass
+                    elif not wpn.get("bolt_catch"):
                         try:
                             self._play_weapon_action_sound(wpn, "boltback", block = True)
                         except Exception:
@@ -17391,395 +17593,6 @@ class App:
 
         return results
 
-        compatible_mags =[]
-
-        if weapon.get("has_magazine_in_pool")is False:
-            mag_to_load = weapon.get("mag_to_load")
-            if mag_to_load:
-                try:
-
-                    if isinstance(mag_to_load, dict):
-                        capacity = mag_to_load.get("capacity", 0)or 0
-                        caliber_list = weapon.get("caliber")or["Unknown"]
-                        mag_caliber = caliber_list[0]if isinstance(caliber_list, (list, tuple))and caliber_list else(caliber_list if isinstance(caliber_list, str)else "Unknown")
-                        mag_item = {
-                        "id":None,
-                        "name":f"Synthetic Mag({capacity})",
-                        "capacity":capacity,
-                        "magazinetype":weapon.get("magazinetype"),
-                        "magazinesystem":weapon.get("magazinesystem"),
-                        "rounds":[]
-                        }
-
-                        variant = "fmj"if weapon.get("has_ammo_in_pool")is False else "synthetic"
-                        for _ in range(capacity):
-                            mag_item["rounds"].append({"name":f"{mag_caliber} | FMJ", "caliber":mag_caliber, "variant":variant})
-                        compatible_mags.append(mag_item)
-
-                        if weapon.get("has_ammo_in_pool")is False:
-                            try:
-
-                                prior_mag = weapon.get("loaded")
-                                is_gun_empty = not weapon.get("chambered")and(not prior_mag or not prior_mag.get("rounds", []))
-
-                                if prior_mag:
-                                    try:
-                                        self._play_weapon_action_sound(weapon, "magout")
-                                    except Exception:
-                                        pass
-                                    time.sleep(random.uniform(1.0, 1.5))
-
-                                try:
-                                    import random as _rm
-                                    self._safe_sound_play("", f"sounds/firearms/universal/magdrop{_rm.randint(0, 1)}.ogg")
-                                except Exception:
-                                    pass
-                                time.sleep(random.uniform(0.5, 1.0))
-
-                                try:
-                                    self._safe_sound_play("", "sounds/firearms/universal/pouchout.ogg")
-                                except Exception:
-                                    pass
-                                time.sleep(random.uniform(1.0, 1.5))
-
-                                try:
-                                    self._play_weapon_action_sound(weapon, "magin")
-                                except Exception:
-                                    pass
-                                time.sleep(random.uniform(0.5, 1.0))
-
-                                weapon["loaded"]= mag_item
-
-                                if not weapon.get("chambered")and mag_item.get("rounds"):
-                                    weapon["chambered"]= mag_item["rounds"].pop(0)
-
-                                if is_gun_empty:
-
-                                    self._cycle_bolt_sounds(weapon, single_forward = bool(weapon.get("bolt_catch", False)), delay = 0.0)
-                                    time.sleep(0.75)
-                                return "Reloaded(synthetic magazine loaded with FMJ)"
-                            except Exception:
-                                logging.exception("Failed to assign synthetic magazine to weapon")
-                    else:
-                        table_files = glob.glob(os.path.join("tables", "*.sldtbl"))
-                        if table_files:
-                            with open(table_files[0], 'r')as tf:
-                                table_data = json.load(tf)
-                            magazines_list = table_data.get("magazines")or table_data.get("tables", {}).get("magazines", [])
-                            for m in magazines_list:
-                                if m.get("id")==mag_to_load:
-                                    import copy
-                                    mag_item = copy.deepcopy(m)
-
-                                    capacity = mag_item.get("capacity", 0)or 0
-                                    if not mag_item.get("rounds"):
-                                        caliber_list = mag_item.get("caliber")or weapon.get("caliber")or["Unknown"]
-                                        mag_caliber = caliber_list[0]if isinstance(caliber_list, (list, tuple))and caliber_list else(caliber_list if isinstance(caliber_list, str)else "Unknown")
-                                        mag_item["rounds"]=[]
-                                        for _ in range(capacity):
-
-                                            variant = "fmj"if weapon.get("has_ammo_in_pool")is False else "synthetic"
-                                            mag_item["rounds"].append({"name":f"{mag_caliber} | FMJ", "caliber":mag_caliber, "variant":variant})
-                                    compatible_mags.append(mag_item)
-
-                                    if weapon.get("has_ammo_in_pool")is False:
-                                        try:
-                                            weapon["loaded"]= mag_item
-                                            if not weapon.get("chambered")and mag_item.get("rounds"):
-                                                weapon["chambered"]= mag_item["rounds"].pop(0)
-                                            return "Reloaded(synthetic magazine loaded with FMJ)"
-                                        except Exception:
-                                            logging.exception("Failed to assign synthetic magazine to weapon")
-                                    break
-                except Exception:
-                    logging.exception("Failed to construct synthetic magazine from mag_to_load")
-
-        if weapon.get("infinite_ammo"):
-
-            prior_current_mag = weapon.get("loaded")
-            prior_chambered = weapon.get("chambered")
-
-            mag_to_load = weapon.get("mag_to_load")
-            mag_item = None
-            if mag_to_load:
-                try:
-
-                    if isinstance(mag_to_load, dict):
-                        capacity = mag_to_load.get("capacity", 0)or 0
-                        caliber_list = weapon.get("caliber")or["Unknown"]
-                        mag_caliber = caliber_list[0]if isinstance(caliber_list, (list, tuple))and caliber_list else(caliber_list if isinstance(caliber_list, str)else "Unknown")
-                        mag_item = {
-                        "id":None,
-                        "name":f"Synthetic Mag({capacity})",
-                        "capacity":capacity,
-                        "magazinetype":weapon.get("magazinetype"),
-                        "magazinesystem":weapon.get("magazinesystem"),
-                        "rounds":[]
-                        }
-                        for _ in range(capacity):
-                            mag_item["rounds"].append({"name":f"{mag_caliber} | Infinite", "caliber":mag_caliber, "variant":"infinite"})
-                        weapon["loaded"]= mag_item
-                    else:
-
-                        table_files = glob.glob(os.path.join("tables", "*.sldtbl"))
-                        if table_files:
-                            with open(table_files[0], 'r')as tf:
-                                table_data = json.load(tf)
-                            magazines_list = table_data.get("magazines")or table_data.get("tables", {}).get("magazines", [])
-                            for m in magazines_list:
-                                if m.get("id")==mag_to_load:
-                                    import copy
-                                    mag_item = copy.deepcopy(m)
-                                    break
-                            if mag_item:
-                                capacity = mag_item.get("capacity", 0)or 0
-                                caliber_list = mag_item.get("caliber")or weapon.get("caliber")or["Unknown"]
-                                mag_caliber = caliber_list[0]if isinstance(caliber_list, (list, tuple))and caliber_list else(caliber_list if isinstance(caliber_list, str)else "Unknown")
-                                mag_item["rounds"]=[]
-                                for _ in range(capacity):
-                                    mag_item["rounds"].append({"name":f"{mag_caliber} | Infinite", "caliber":mag_caliber, "variant":"infinite"})
-
-                                weapon["loaded"]= mag_item
-                except Exception:
-                    logging.exception("Failed to construct synthetic magazine from mag_to_load")
-
-            is_gun_empty = not prior_chambered and(not prior_current_mag or not prior_current_mag.get("rounds", []))
-
-            if prior_current_mag:
-                try:
-
-                    mag_type_check =(prior_current_mag.get("magazinetype")or weapon.get("magazinetype", "")).lower()
-                    platform_check = weapon.get("platform", "").lower()
-                    if "belt"in mag_type_check or "belt"in platform_check or "m249"in platform_check:
-
-                        pass
-                    else:
-                        self._play_weapon_action_sound(weapon, "magout")
-                except Exception:
-                    pass
-                time.sleep(0.9)
-
-            platform_check = weapon.get("platform", "").lower()
-            mag_type_prior =(prior_current_mag.get("magazinetype")if prior_current_mag else weapon.get("magazinetype", "")).lower()
-            is_belt_prior = "belt"in mag_type_prior or "belt"in platform_check or "m249"in platform_check
-            if not is_belt_prior:
-                try:
-                    import random as rand_module
-                    magdrop_sound = f"magdrop{rand_module.randint(0, 1)}"
-                    self._safe_sound_play("", f"sounds/firearms/universal/{magdrop_sound}.ogg")
-                except Exception:
-                    pass
-                time.sleep(0.85)
-
-                try:
-                    self._safe_sound_play("", "sounds/firearms/universal/pouchout.ogg")
-                except Exception:
-                    pass
-                time.sleep(0.8)
-            else:
-
-                logging.debug("fast-reload: skipping magdrop/pouch for belt-fed prior magazine(platform=%s)", platform_check)
-
-            mag_type_check = weapon.get("magazinetype", "").lower()
-            platform_check = weapon.get("platform", "").lower()
-            if not any(k in mag_type_check for k in("internal", "tube", "cylinder"))and "revolver"not in platform_check:
-                try:
-                    if "belt"in mag_type_check or "belt"in platform_check or "m249"in platform_check:
-
-                        pass
-                    else:
-                        self._play_weapon_action_sound(weapon, "magin")
-                except Exception:
-                    pass
-                time.sleep(0.75)
-
-            rt_mag_type = str(weapon.get("magazinetype", "")or "").lower()
-            rt_platform_raw = weapon.get("platform", "")or ""
-            if isinstance(rt_platform_raw, (list, tuple)):
-                rt_platform_raw = rt_platform_raw[0]if rt_platform_raw else ""
-            rt_platform = str(rt_platform_raw).lower()
-            rt_action_raw = weapon.get("action", "")or ""
-            if isinstance(rt_action_raw, (list, tuple)):
-                rt_action_raw = rt_action_raw[0]if rt_action_raw else ""
-            rt_action = str(rt_action_raw).lower()
-            is_pump_reload =("pump"in rt_platform or rt_action =="pump"or "pump"in rt_mag_type)
-
-            if is_gun_empty:
-                if not is_pump_reload:
-
-                    self._cycle_bolt_sounds(weapon, single_forward = bool(weapon.get("bolt_catch", False)), delay = 0.0)
-                else:
-                    self._play_weapon_action_sound(weapon, "pumpforward")
-                time.sleep(0.75)
-
-            if is_gun_empty:
-                loaded_mag = weapon.get("loaded")
-                if loaded_mag and loaded_mag.get("rounds"):
-                    weapon["chambered"]= loaded_mag["rounds"].pop(0)
-
-            return "Reloaded(infinite ammo - fast magdrop)"
-
-        if not compatible_mags:
-            for item in save_data.get("hands", {}).get("items", []):
-                if item and isinstance(item, dict)and item.get("magazinesystem")==magazine_system:
-                    rounds = item.get("rounds", [])
-                    if rounds and len(rounds)>0:
-                        compatible_mags.append(item)
-
-        if not compatible_mags:
-            return "No compatible loaded magazines found!"
-
-        compatible_mags.sort(key = lambda m:len(m.get("rounds", [])), reverse = True)
-
-        new_mag = compatible_mags[0]
-
-        current_mag = weapon.get("loaded")
-        chambered = weapon.get("chambered")
-
-        is_gun_empty = not chambered and(not current_mag or not current_mag.get("rounds", []))
-
-        rt_mag_type = str(weapon.get("magazinetype", "")or "").lower()
-        rt_platform_raw = weapon.get("platform", "")or ""
-        if isinstance(rt_platform_raw, (list, tuple)):
-            rt_platform_raw = rt_platform_raw[0]if rt_platform_raw else ""
-        rt_platform = str(rt_platform_raw).lower()
-        rt_action_raw = weapon.get("action", "")or ""
-        if isinstance(rt_action_raw, (list, tuple)):
-            rt_action_raw = rt_action_raw[0]if rt_action_raw else ""
-        rt_action = str(rt_action_raw).lower()
-        is_pump_reload =("pump"in rt_platform or rt_action =="pump"or "pump"in rt_mag_type)
-
-        mag_type_current =(current_mag.get("magazinetype")if current_mag else weapon.get("magazinetype", "")).lower()
-        platform = weapon.get("platform", "").lower()
-
-        is_belt_current = "belt"in mag_type_current or "belt"in platform or "m249"in platform
-
-        mag_is_detachable = False
-        if current_mag:
-            try:
-                cur_mag_type =(current_mag.get("magazinetype")or "").lower()
-                mag_is_detachable = not("belt"in cur_mag_type)
-            except Exception:
-                mag_is_detachable = True
-
-        if mag_is_detachable:
-
-            if current_mag:
-
-                try:
-                    self._play_weapon_action_sound(weapon, "magout")
-                except Exception:
-                    pass
-
-                time.sleep(random.uniform(0.5, 1.0))
-
-                try:
-
-                    self._safe_sound_play("", "sounds/firearms/universal/pouchin.wav")
-                except Exception:
-                    pass
-                time.sleep(random.uniform(0.5, 1.0))
-
-                try:
-
-                    self._safe_sound_play("", "sounds/firearms/universal/pouchout.ogg")
-                except Exception:
-                    pass
-                time.sleep(random.uniform(0.5, 1.0))
-
-                try:
-                    self._play_weapon_action_sound(weapon, "magin")
-                except Exception:
-                    pass
-            time.sleep(random.uniform(0.5, 1.0))
-
-        else:
-
-            if is_belt_current:
-                if weapon.get("dualfeed")and(weapon.get("submagazinesystem")or weapon.get("submagazinetype")):
-
-                    try:
-                        self._perform_dualfeed_belt_reload_sequence(weapon)
-                    except Exception:
-                        pass
-                else:
-
-                    try:
-                        self._perform_belt_reload_sequence(weapon)
-                    except Exception:
-                        pass
-
-                return
-
-            try:
-                import random as rand_module
-                magdrop_sound = f"magdrop{rand_module.randint(0, 1)}"
-                self._safe_sound_play("", f"sounds/firearms/universal/{magdrop_sound}.ogg")
-            except Exception:
-                pass
-            time.sleep(random.uniform(0.5, 1.0))
-
-            try:
-                self._safe_sound_play("", "sounds/firearms/universal/pouchout.ogg")
-            except Exception:
-                pass
-            time.sleep(random.uniform(0.5, 1.0))
-
-            mag_type_in =(new_mag.get("magazinetype")if 'new_mag'in locals()and new_mag else weapon.get("magazinetype", "")).lower()
-            if not any(k in mag_type_in for k in("internal", "tube", "cylinder"))and "revolver"not in platform:
-                try:
-                    self._play_weapon_action_sound(weapon, "magin")
-                except Exception:
-                    pass
-            time.sleep(random.uniform(0.5, 1.0))
-
-            if is_gun_empty:
-                if not weapon.get("bolt_catch"):
-
-                    try:
-                        self._play_weapon_action_sound(weapon, "boltback", block = True)
-                    except Exception:
-                        pass
-                    try:
-                        self._play_weapon_action_sound(weapon, "boltforward")
-                    except Exception:
-                        pass
-                else:
-                    try:
-                        self._play_weapon_action_sound(weapon, "boltforward")
-                    except Exception:
-                        pass
-
-        if current_mag and not combat_reload and not weapon.get("infinite_ammo"):
-
-            save_data.get("hands", {}).get("items", []).append(current_mag)
-
-        if not weapon.get("infinite_ammo"):
-            weapon["loaded"]= new_mag
-
-            if is_gun_empty and new_mag.get("rounds", [])and not is_pump_reload:
-                weapon["chambered"]= new_mag["rounds"].pop(0)
-
-            if new_mag in save_data.get("hands", {}).get("items", []):
-                save_data["hands"]["items"].remove(new_mag)
-        else:
-
-            if is_gun_empty and not is_pump_reload:
-                caliber_list = weapon.get("caliber", [])or["Unknown"]
-                caliber = caliber_list[0]
-                weapon["chambered"]= {"name":f"{caliber} | Infinite", "caliber":caliber, "variant":"infinite"}
-
-        try:
-            if is_pump_reload:
-                self._play_weapon_action_sound(weapon, "pumpback")
-                self._play_weapon_action_sound(weapon, "pumpforward")
-        except Exception:
-            pass
-
-        mag_rounds = len(new_mag.get('rounds', []))
-        chambered_info = " +1 in chamber"if is_gun_empty else ""
-        return f"Reloaded with magazine({mag_rounds}{chambered_info} rounds)"
-
     def _categorize_40mm_round(self, round_info):
 
         try:
@@ -19011,8 +18824,28 @@ class App:
 
                 time.sleep(random.uniform(0.5, 1.0))
 
+            rt_mag_type = str(weapon.get("magazinetype", "")or "").lower()
+            rt_platform_raw = weapon.get("platform", "")or ""
+            if isinstance(rt_platform_raw, (list, tuple)):
+                rt_platform_raw = rt_platform_raw[0]if rt_platform_raw else ""
+            rt_platform = str(rt_platform_raw).lower()
+            rt_action_raw = weapon.get("action", "")or ""
+            if isinstance(rt_action_raw, (list, tuple)):
+                rt_action_raw = rt_action_raw[0]if rt_action_raw else ""
+            rt_action = str(rt_action_raw).lower()
+            is_pump_reload_local =("pump"in rt_platform or rt_action =="pump"or "pump"in rt_mag_type)
+
             if is_gun_empty:
-                if not weapon.get("bolt_catch"):
+                if is_pump_reload_local:
+                    try:
+                        self._play_weapon_action_sound(weapon, "pumpback", block = True)
+                    except Exception:
+                        pass
+                    try:
+                        self._play_weapon_action_sound(weapon, "pumpforward")
+                    except Exception:
+                        pass
+                elif not weapon.get("bolt_catch"):
                     try:
                         self._play_weapon_action_sound(weapon, "boltback", block = True)
                     except Exception:
@@ -19037,17 +18870,6 @@ class App:
                 weapon["chambered"]= None
             else:
                 weapon["chambered"]= None
-
-            rt_mag_type = str(weapon.get("magazinetype", "")or "").lower()
-            rt_platform_raw = weapon.get("platform", "")or ""
-            if isinstance(rt_platform_raw, (list, tuple)):
-                rt_platform_raw = rt_platform_raw[0]if rt_platform_raw else ""
-            rt_platform = str(rt_platform_raw).lower()
-            rt_action_raw = weapon.get("action", "")or ""
-            if isinstance(rt_action_raw, (list, tuple)):
-                rt_action_raw = rt_action_raw[0]if rt_action_raw else ""
-            rt_action = str(rt_action_raw).lower()
-            is_pump_reload_local =("pump"in rt_platform or rt_action =="pump"or "pump"in rt_mag_type)
 
             if not weapon.get("infinite_ammo")and is_gun_empty and mag_item.get("rounds", [])and not is_pump_reload_local:
                 weapon["chambered"]= mag_item["rounds"].pop(0)
@@ -19078,12 +18900,6 @@ class App:
             popup.destroy()
             mag_name = mag_item.get("name", "magazine")
             rounds = len(mag_item.get("rounds", []))
-
-            try:
-                if is_pump_reload_local:
-                    self._play_weapon_action_sound(weapon, "pumpforward")
-            except Exception:
-                pass
 
             chambered_info = " +1 in chamber"if is_gun_empty and weapon.get("chambered")else ""
             self._popup_show_info("Magazine", f"Loaded {mag_name}({rounds}{chambered_info} rounds)!")
