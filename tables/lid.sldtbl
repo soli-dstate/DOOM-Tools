@@ -5025,8 +5025,7 @@
                 "caliber": ["7.62x51mm NATO"],
                 "capacity": 20,
                 "magazinesystem": "FAL",
-                "can_stack": false,
-                "in_armory": true
+                "can_stack": false
             },
             {
                 "name": "FN Herstal 20-Round 7.62x51mm NATO FAL magazine",
@@ -5335,6 +5334,17 @@
                 "random_quantity": false,
                 "weight": 1.0,
                 "id": 328,
+                "melee": true,
+                "type": "two handed"
+            },
+            {
+                "name": "Tire iron",
+                "value": 70,
+                "description": "A heavy-duty tire iron. Can be used for changing tires or as a makeshift melee weapon.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 1.3,
+                "id": 329,
                 "melee": true,
                 "type": "two handed"
             }
@@ -7043,6 +7053,29 @@
                     {"type": "table", "table": "attachments", "rarity": "Uncommon"},
                     {"type": "table", "table": "consumables", "rarity": "Common"},
                     {"type": "table", "table": "throwables", "rarity": "Legendary"},
+                    {"type": "table", "table": "equipment", "rarity": "Common"},
+                    {"type": "table", "table": "ammunition", "rarity": "Common"},
+                    {"type": "table", "table": "magazines", "rarity": "Common"}
+                ]
+            },
+            {
+                "name": "Ammo crate",
+                "description": "I need more boolets",
+                "rarity": "Common",
+                "locked": false,
+                "pulls": 3,
+                "loot_table": [
+                    {"type": "table", "table": "ammunition", "rarity": "Common"},
+                    {"type": "table", "table": "magazines", "rarity": "Common"}
+                ]
+            },
+            {
+                "name": "Equipment crate",
+                "description": "I need a medic bag",
+                "rarity": "Uncommon",
+                "locked": false,
+                "pulls": 2,
+                "loot_table": [
                     {"type": "table", "table": "equipment", "rarity": "Common"}
                 ]
             }

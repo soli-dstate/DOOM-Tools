@@ -4494,7 +4494,7 @@ class App:
                             debug_info.append(f" ★ SPECIAL ITEM TRIGGERED! Selected: {selected_item.get('name', 'Unknown')}")
                             item_copy["_debug_info"]= "\n".join(debug_info)
                         items.append(item_copy)
-                        return items
+                        return self._apply_random_quantity(items, table_data)
 
                 weighted_pool =[]
                 rarity_counts = {}
@@ -4691,7 +4691,7 @@ class App:
                                     items.extend(spawned_mags)
                             break
 
-                return items
+                return self._apply_random_quantity(items, table_data)
 
             elif entry.get("type")=="id":
 
@@ -4842,7 +4842,7 @@ class App:
                                 if spawn_magazine and item_copy.get("firearm"):
                                     spawned_mags = spawn_magazines_for_item(item_copy, table_data, debug_info)
                                     items.extend(spawned_mags)
-                    return items
+                    return self._apply_random_quantity(items, table_data)
                 else:
 
                     for table_name, table_items in table_data.get("tables", {}).items():
@@ -4858,10 +4858,135 @@ class App:
                                 if spawn_magazine and item_copy.get("firearm"):
                                     spawned_mags = spawn_magazines_for_item(item_copy, table_data, debug_info)
                                     items.extend(spawned_mags)
-                                return items
+                                return self._apply_random_quantity(items, table_data)
         except Exception as e:
             logging.error(f"Failed to resolve loot entry {entry}: {e}")
 
+        return self._apply_random_quantity(items, table_data)
+
+    def _apply_random_quantity(self, items, table_data=None):
+        """Process random_quantity fields, load magazines with random ammo, and give firearms a chance to have loaded magazines."""
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            
+            # Process random_quantity
+            rq = item.get("random_quantity")
+            if rq and isinstance(rq, dict):
+                min_qty = rq.get("min", 1)
+                max_qty = rq.get("max", 1)
+                try:
+                    actual_qty = random.randint(int(min_qty), int(max_qty))
+                except (ValueError, TypeError):
+                    actual_qty = 1
+                item["quantity"] = actual_qty
+                del item["random_quantity"]
+                logging.debug(f"Applied random_quantity to {item.get('name', 'Unknown')}: {actual_qty} (range {min_qty}-{max_qty})")
+            
+            # Load magazines with random ammo
+            if table_data and item.get("capacity") and item.get("magazinesystem") and not item.get("firearm"):
+                # This is a magazine - load it with random ammo
+                if not item.get("rounds"):
+                    item["rounds"] = []
+                if len(item.get("rounds", [])) == 0:  # Only load if empty
+                    caliber = item.get("caliber")
+                    if isinstance(caliber, str):
+                        caliber = [caliber]
+                    
+                    capacity = item.get("capacity", 30)
+                    # Random amount: 25% to 100% of capacity
+                    rounds_to_load = random.randint(max(1, capacity // 4), capacity)
+                    
+                    # Find compatible ammo
+                    ammo_table = table_data.get("tables", {}).get("ammunition", [])
+                    ammo_def = None
+                    first_variant = None
+                    for ammo in ammo_table:
+                        ammo_caliber = ammo.get("caliber")
+                        if isinstance(ammo_caliber, str):
+                            ammo_caliber = [ammo_caliber]
+                        if caliber and ammo_caliber and any(c in ammo_caliber for c in caliber):
+                            ammo_def = ammo
+                            variants = ammo.get("variants", [])
+                            if variants:
+                                first_variant = variants[0]
+                            break
+                    
+                    if ammo_def and first_variant:
+                        for _ in range(rounds_to_load):
+                            round_data = {
+                                "name": ammo_def.get("name"),
+                                "caliber": caliber[0] if caliber else ammo_def.get("caliber"),
+                                "variant": first_variant.get("name"),
+                                "type": first_variant.get("type"),
+                                "pen": first_variant.get("pen"),
+                                "modifiers": first_variant.get("modifiers"),
+                                "tip": first_variant.get("tip")
+                            }
+                            item["rounds"].append(round_data)
+                        logging.debug(f"Loaded magazine {item.get('name', 'Unknown')} with {rounds_to_load}/{capacity} rounds")
+            
+            # Give firearms a random chance to have a loaded magazine
+            if table_data and item.get("firearm") and item.get("magazinesystem") and not item.get("loaded"):
+                # 40% chance to have a loaded magazine
+                if random.random() < 0.4:
+                    mag_system = item.get("magazinesystem")
+                    caliber = item.get("caliber")
+                    if isinstance(caliber, str):
+                        caliber = [caliber]
+                    
+                    # Find compatible magazine
+                    magazines_table = table_data.get("tables", {}).get("magazines", [])
+                    compatible_mags = []
+                    for mag in magazines_table:
+                        if mag.get("magazinesystem") == mag_system:
+                            mag_caliber = mag.get("caliber")
+                            if isinstance(mag_caliber, str):
+                                mag_caliber = [mag_caliber]
+                            if caliber and mag_caliber and any(c in mag_caliber for c in caliber):
+                                compatible_mags.append(mag)
+                    
+                    if compatible_mags:
+                        mag_template = random.choice(compatible_mags)
+                        mag_copy = json.loads(json.dumps(mag_template))
+                        mag_copy["table_category"] = "magazines"
+                        mag_copy["rounds"] = []
+                        
+                        capacity = mag_copy.get("capacity", 30)
+                        # Random amount: 25% to 100% of capacity
+                        rounds_to_load = random.randint(max(1, capacity // 4), capacity)
+                        
+                        # Find compatible ammo
+                        ammo_table = table_data.get("tables", {}).get("ammunition", [])
+                        ammo_def = None
+                        first_variant = None
+                        for ammo in ammo_table:
+                            ammo_caliber = ammo.get("caliber")
+                            if isinstance(ammo_caliber, str):
+                                ammo_caliber = [ammo_caliber]
+                            if caliber and ammo_caliber and any(c in ammo_caliber for c in caliber):
+                                ammo_def = ammo
+                                variants = ammo.get("variants", [])
+                                if variants:
+                                    first_variant = variants[0]
+                                break
+                        
+                        if ammo_def and first_variant:
+                            for _ in range(rounds_to_load):
+                                round_data = {
+                                    "name": ammo_def.get("name"),
+                                    "caliber": caliber[0] if caliber else ammo_def.get("caliber"),
+                                    "variant": first_variant.get("name"),
+                                    "type": first_variant.get("type"),
+                                    "pen": first_variant.get("pen"),
+                                    "modifiers": first_variant.get("modifiers"),
+                                    "tip": first_variant.get("tip")
+                                }
+                                mag_copy["rounds"].append(round_data)
+                        
+                        item["loaded"] = mag_copy
+                        logging.debug(f"Loaded firearm {item.get('name', 'Unknown')} with {mag_copy.get('name')} ({rounds_to_load}/{capacity} rounds)")
+        
         return items
 
     def _get_loot_crate_contents_preview(self, crate, table_data):
