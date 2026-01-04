@@ -1,7 +1,7 @@
 {
     "prettyname": "Light in Darkness",
     "filename": "lid.sldtbl",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "additional_settings": {
         "bonus_clamp": 5,
         "stat_clamp": 4,
@@ -48,7 +48,8 @@
                     {"name": "Bayonet Lug", "slot": "bayonet_mount_ar15", "current": null, "conflicts_with": ["muzzle_556"]},    
                     {"name": "Muzzle Device", "slot": "muzzle_556", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Remington M24 Sniper Weapon System",
@@ -73,7 +74,8 @@
                     {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Remington M40 Sniper Weapon System",
@@ -99,7 +101,8 @@
                     {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Colt M8 Carbine",
@@ -132,7 +135,8 @@
                     {"name": "CSAD Gun Link mount", "slot": "csad_link", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_65", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Colt M17 Rifle",
@@ -165,7 +169,8 @@
                     {"name": "CSAD Gun Link mount", "slot": "csad_link", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_65", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "US FRL439 Repeating Rifle",
@@ -364,7 +369,8 @@
                     {"name": "Bayonet Lug", "slot": "bayonet_mount_ar15", "current": null, "conflicts_with": ["muzzle_556"]},                    
                     {"name": "Muzzle Device", "slot": "muzzle_556", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "M4 SOPMOD II",
@@ -395,7 +401,8 @@
                     {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_556", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "M1 Carbine",
@@ -449,7 +456,8 @@
                     {"name": "MLOK Mounts (Handguard Bottom)", "slot": "mlok_bottom", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_556", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Robinson Armament XCR-H",
@@ -479,7 +487,8 @@
                     {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Heckler & Koch G36C",
@@ -506,7 +515,8 @@
                     {"name": "Picatinny Rail (Handguard Top)", "slot": "picatinny_rifle", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_556", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Izhmash AKM",
@@ -614,7 +624,8 @@
                     {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "FAF-439TS Marksman Rifle",
@@ -696,7 +707,8 @@
                     {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "FN Herstal Mk. 17 MOD 0",
@@ -726,7 +738,8 @@
                     {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "FN Herstal Mk. 20 SSR",
@@ -756,7 +769,8 @@
                     {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Daniel Defense Mk. 18 MOD 1",
@@ -786,7 +800,8 @@
                     {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_556", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Llew-Ellis L8 repeating rifle",
@@ -894,7 +909,8 @@
                     {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom_nounderbarrel", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_45", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Colt M9H PDW",
@@ -927,7 +943,8 @@
                     {"name": "CSAD Gun Link mount", "slot": "csad_link", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_65", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Colt M9L PDW",
@@ -959,7 +976,8 @@
                     {"name": "MLOK Mounts (Handguard Bottom)", "slot": "mlok_bottom", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_22", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "US CCPA Submachine Gun",
@@ -1013,7 +1031,8 @@
                     {"name": "MLOK Mounts (Handguard Bottom)", "slot": "mlok_bottom", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_556", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Heckler & Koch UMP-9",
@@ -1044,7 +1063,8 @@
                     {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom_nounderbarrel", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_9mm", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Military Armament Corporation MAC-11",
@@ -1096,7 +1116,8 @@
                     {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_9mm", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Heckler & Koch MP5A5",
@@ -1127,7 +1148,8 @@
                     {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom_nounderbarrel", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_9mm", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Heckler & Koch MP5SD6",
@@ -1158,7 +1180,8 @@
                     {"name": "Picatinny Rail (Handguard Right)", "slot": "picatinny_rifle", "current": null},
                     {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom_nounderbarrel", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Heckler & Koch MP5SD",
@@ -1209,7 +1232,8 @@
                     {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_9mm", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "KRISS Vector .40 S&W",
@@ -1240,7 +1264,8 @@
                     {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom_nounderbarrel", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_40sw", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "KRISS Vector .45 ACP",
@@ -1271,7 +1296,8 @@
                     {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom_nounderbarrel", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_45", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "KRISS Vector 9x19mm Parabellum",
@@ -1302,7 +1328,8 @@
                     {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom_nounderbarrel", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_9mm", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "KRISS Vector 10mm Auto",
@@ -1333,7 +1360,8 @@
                     {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom_nounderbarrel", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_10mm", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Izhmash PP-19 Bizon",
@@ -1466,7 +1494,8 @@
                     {"name": "Picatinny Rail Optic", "slot": "picatinny_optic", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_12g", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Mossberg M590A1",
@@ -1493,7 +1522,8 @@
                     {"name": "Picatinny Rail Optic", "slot": "picatinny_optic", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_12g", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Franchi SPAS-12",
@@ -1520,7 +1550,8 @@
                     {"name": "Picatinny Rail Optic", "slot": "picatinny_optic", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_12g", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Mossberg M980M 18.5\"",
@@ -1550,7 +1581,8 @@
                     {"name": "MLOK Mounts (Handguard Bottom)", "slot": "mlok_bottom", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_12g", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Mossberg M980M 14.375\"",
@@ -1580,7 +1612,8 @@
                     {"name": "MLOK Mounts (Handguard Bottom)", "slot": "mlok_bottom", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_12g", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Benelli M2 Super 90",
@@ -1607,7 +1640,8 @@
                     {"name": "Picatinny Rail Optic", "slot": "picatinny_optic", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_12g", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Mossberg M590M",
@@ -1633,7 +1667,8 @@
                     {"name": "Picatinny Rail Optic", "slot": "picatinny_optic", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_12g", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Kalashnikov Concern Saiga-12",
@@ -1686,7 +1721,8 @@
                     {"name": "Picatinny Rail Optic", "slot": "picatinny_optic", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_12g", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             }
         ],
         "machine_guns": [
@@ -1718,7 +1754,8 @@
                     {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_556", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Colt M17-MG",
@@ -1749,7 +1786,8 @@
                     {"name": "CSAD Gun Link mount", "slot": "csad_link", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_65", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Colt M231 Firing Port Weapon",
@@ -1800,7 +1838,8 @@
                 "accessories": [
                     {"name": "Muzzle Device", "slot": "muzzle_556", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "US FIRA439 Light Machine Gun",
@@ -1880,7 +1919,8 @@
                     {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             }
         ],
         "pistols": [
@@ -1909,7 +1949,8 @@
                     {"name": "Pistol Picatinny Rail", "slot": "pistol_picatinny", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_9mm", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Steyr TMP",
@@ -1936,7 +1977,8 @@
                     {"name": "Picatinny Rail (top)", "slot": "picatinny_optic", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_9mm", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Glock 17 Gen 5 MOS",
@@ -1964,7 +2006,8 @@
                     {"name": "Muzzle Device", "slot": "muzzle_9mm", "current": null},
                     {"name": "Auto Sear", "slot": "glock_auto_sear", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Glock 19X",
@@ -1992,7 +2035,8 @@
                     {"name": "Muzzle Device", "slot": "muzzle_9mm", "current": null},
                     {"name": "Auto Sear", "slot": "glock_auto_sear", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Glock 20 Gen 5 MOS",
@@ -2020,7 +2064,8 @@
                     {"name": "Muzzle Device", "slot": "muzzle_10mm", "current": null},
                     {"name": "Auto Sear", "slot": "glock_auto_sear", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Glock 21 Gen 5 MOS",
@@ -2048,7 +2093,8 @@
                     {"name": "Muzzle Device", "slot": "muzzle_45", "current": null},
                     {"name": "Auto Sear", "slot": "glock_auto_sear", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Glock 18C",
@@ -2075,7 +2121,8 @@
                     {"name": "Glock Iron Sight Mount", "slot": "glock_iron_sight", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_9mm", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Colt M19",
@@ -2103,7 +2150,8 @@
                     {"name": "Muzzle Device", "slot": "muzzle_22", "current": null},
                     {"name": "Auto Sear", "slot": "m19_auto_sear", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Colt M19C",
@@ -2131,7 +2179,8 @@
                     {"name": "Muzzle Device", "slot": "muzzle_22", "current": null},
                     {"name": "Auto Sear", "slot": "m19_auto_sear", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Colt M19SC",
@@ -2159,7 +2208,8 @@
                     {"name": "Muzzle Device", "slot": "muzzle_22", "current": null},
                     {"name": "Auto Sear", "slot": "m19_auto_sear", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "US PAPCA439 Handgun",
@@ -2207,7 +2257,8 @@
                     {"name": "Pistol Picatinny Rail", "slot": "pistol_picatinny", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_9mm", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "SIG Sauer 1911-X Stainless",
@@ -2287,7 +2338,8 @@
                     {"name": "Pistol Picatinny Rail", "slot": "pistol_picatinny", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_9mm", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Heckler & Koch USP-40",
@@ -2314,7 +2366,8 @@
                     {"name": "Pistol Picatinny Rail", "slot": "pistol_picatinny", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_40sw", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Heckler & Koch USP-45",
@@ -2341,7 +2394,8 @@
                     {"name": "Pistol Picatinny Rail", "slot": "pistol_picatinny", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_45", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Heckler & Koch USSOCOM MK23 Mod 0",
@@ -2368,7 +2422,8 @@
                     {"name": "Pistol Picatinny Rail", "slot": "pistol_picatinny", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_45", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "FN Herstal Five-seveN",
@@ -2395,7 +2450,8 @@
                     {"name": "Pistol Picatinny Rail", "slot": "pistol_picatinny", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_22", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "IMI Desert Eagle Mark XIX",
@@ -2422,7 +2478,8 @@
                     {"name": "Pistol Picatinny Rail", "slot": "pistol_picatinny", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_50", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Baines F439 Pistol",
@@ -2487,7 +2544,8 @@
                 "magnified": true,
                 "variable": false,
                 "night_vision_compatible": false,
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Elcan SpecterDR LPVO",
@@ -2504,7 +2562,8 @@
                     {"name": "4x", "type": "magnification", "usage": null, "modifiers": {"stats": {"aim": 2}, "night_vision_compatible": false}},
                     {"mode_method": "slider"}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Knight's Armament QDSS-NT4 Suppressor",
@@ -2518,7 +2577,8 @@
                 "slot": "muzzle_556",
                 "suppressor": true,
                 "modifiers": {"stats": {"stealth": 2}},
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Insight/L3Harris AN/PEQ-16 LAM",
@@ -2542,7 +2602,8 @@
                     {"name": "Light IR", "type": "ir_illuminator", "usage": 3, "modifiers": {"stats": {"perception": 1}, "night_vision_compatible": true, "wavelength": "infrared"}, "position": 45},
                     {"name": "Light Laser", "type": "flashlight_visible_laser", "usage": 3, "modifiers": {"stats": {"aim": 1, "perception": 1, "stealth": -1}, "night_vision_compatible": false, "wavelength": "visible"}, "position": 90},
                     {"mode_method": "dial"}
-                ]
+                ],
+                "in_armory": true
             },
             {
                 "name": "Knight's Armament VFG Vertical Foregrip",
@@ -2555,7 +2616,8 @@
                 "attachment": true,
                 "slot": ["picatinny_bottom", "picatinny_bottom_nounderbarrel"],
                 "modifiers": {"stats": {"aim": 1}},
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "AAI M203A3 Underbarrel Grenade Launcher",
@@ -2574,7 +2636,8 @@
                 "caliber": "40x46mm",
                 "capacity": 1,
                 "can_chamber_extra": false,
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Glock Auto Sear",
@@ -2590,7 +2653,8 @@
                     "action": ["Auto"],
                     "cyclic": 1200
                 },
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Mossberg M980M Super Shorty Underbarrel Shotgun",
@@ -2619,7 +2683,8 @@
                 "accessories": [
                     {"name": "Muzzle Device", "slot": "muzzle_12g", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "M19 Auto Sear",
@@ -2636,7 +2701,8 @@
                     "burst_count": 3,
                     "cyclic": 1200
                 },
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "CSAD Gun Link",
@@ -2652,7 +2718,8 @@
                 "electronic": true,
                 "battery_type": "Rechargeable",
                 "battery_life": 8,
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "AR-15 Auto Sear",
@@ -2667,7 +2734,8 @@
                 "overrides": {
                     "action": ["Semi", "Auto"]
                 },
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Leopuld VX-6HD GEN 2 3-18x50mm Scope",
@@ -2687,7 +2755,9 @@
                     {"name": "15x", "type": "magnification", "usage": null, "modifiers": {"stats": {"aim": 5}, "night_vision_compatible": false}, "position": 180},
                     {"name": "18x", "type": "magnification", "usage": null, "modifiers": {"stats": {"aim": 6}, "night_vision_compatible": false}, "position": 225},
                     {"mode_method": "dial"}
-                ]
+                ],
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Magpul AFG-2 Angled Foregrip",
@@ -2700,7 +2770,8 @@
                 "attachment": true,
                 "slot": ["picatinny_bottom", "picatinny_bottom_nounderbarrel"],
                 "modifiers": {"stats": {"aim": 1}},
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Magpul M-LOK AFG Angled Foregrip",
@@ -2713,7 +2784,8 @@
                 "attachment": true,
                 "slot": ["mlok_bottom", "mlok_bottom_nounderbarrel"],
                 "modifiers": {"stats": {"aim": 1}},
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Magpul RVG Vertical Foregrip",
@@ -2726,7 +2798,8 @@
                 "attachment": true,
                 "slot": ["picatinny_bottom", "picatinny_bottom_nounderbarrel"],
                 "modifiers": {"stats": {"aim": 1}},
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Magpul M-LOK MVG Vertical Foregrip",
@@ -2739,7 +2812,8 @@
                 "attachment": true,
                 "slot": ["mlok_bottom", "mlok_bottom_nounderbarrel"],
                 "modifiers": {"stats": {"aim": 1}},
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Spike's Tactical ST6Ti 5.56mm Suppressor",
@@ -2753,7 +2827,8 @@
                 "slot": "muzzle_556",
                 "suppressor": true,
                 "modifiers": {"stats": {"stealth": 1}},
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "EOTech SU-231/PEQ Holographic Sight",
@@ -2772,7 +2847,8 @@
                 "subslots": [
                     {"name": "Magnifier", "slot": "magnifier", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Insight AN/PEQ-2 IR laser",
@@ -2789,7 +2865,8 @@
                 "electronic": true,
                 "battery_type": "CR123A",
                 "battery_life": 5,
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "SIG NG556-QD Suppressor",
@@ -2803,7 +2880,8 @@
                 "slot": "muzzle_556",
                 "suppressor": true,
                 "modifiers": {"stats": {"stealth": 2}},
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "EOTech G33 Magnifier",
@@ -2820,7 +2898,8 @@
                     {"name": "3x", "type": "magnification", "usage": null, "modifiers": {"stats": {"aim": 1}, "night_vision_compatible": false}},
                     {"mode_method": "slider"}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "EOTech SU-231A/PEQ Holographic Sight",
@@ -2839,7 +2918,8 @@
                 "subslots": [
                     {"name": "Magnifier", "slot": "magnifier", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "L3Harris AN/PEQ-15 LAM",
@@ -2861,7 +2941,8 @@
                     {"name": "Laser", "type": "visible_laser", "usage": 2, "modifiers": {"stats": {"aim": 1, "stealth": -1}, "night_vision_compatible": true, "wavelength": "visible"}, "position": 135},
                     {"name": "Light IR", "type": "ir_illuminator", "usage": 3, "modifiers": {"stats": {"perception": 1}, "night_vision_compatible": true, "wavelength": "infrared"}, "position": 180},
                     {"mode_method": "dial"}
-                ]
+                ],
+                "in_armory": true
             },
             {
                 "name": "Rugged Suppressors Obsidian45 Suppressor",
@@ -2875,7 +2956,8 @@
                 "slot": ["muzzle_10mm", "muzzle_45", "muzzle_40sw"],
                 "suppressor": true,
                 "modifiers": {"stats": {"stealth": 1}},
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Rugged Suppressors Obsidian9 Suppressor",
@@ -2889,7 +2971,8 @@
                 "slot": "muzzle_9mm",
                 "suppressor": true,
                 "modifiers":{"stats":{"stealth":1}},
-                "can_stack":false
+                "can_stack":false,
+                "in_armory": true
             },
             {
                 "name": "Dueck Defense Glock RMR adapter",
@@ -2904,7 +2987,8 @@
                 "subslots": [
                     {"name": "RMR", "slot": "pistol_optic_mount", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Brownells Colt 4x carry handle mount scope",
@@ -2920,7 +3004,8 @@
                 "magnified": true,
                 "variable": false,
                 "night_vision_compatible": false,
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "IMI AR-15 carry handle picatinny adapter",
@@ -2935,7 +3020,8 @@
                 "subslots": [
                     {"name": "Picatinny Rail", "slot": "picatinny_optic", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "EGW RMR mount for Beretta 92FS iron sight mount",
@@ -2950,7 +3036,8 @@
                 "subslots": [
                     {"name": "RMR", "slot": "pistol_optic_mount", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "SureFire Scout MLOK mount",
@@ -2965,7 +3052,8 @@
                 "subslots": [
                     {"name": "Scout light", "slot": "scout", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "SureFire Scout picatinny mount",
@@ -2980,7 +3068,8 @@
                 "subslots": [
                     {"name": "Scout light", "slot": "scout", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "SureFire Scout Light Pro",
@@ -2997,7 +3086,8 @@
                 "electronic": true,
                 "battery_type": "CR123A",
                 "battery_life": 6,
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "SureFire Scout Light Pro IR",
@@ -3014,7 +3104,8 @@
                 "electronic": true,
                 "battery_type": "CR123A",
                 "battery_life": 6,
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Magpul 7-slot M-LOK picatinny adapter",
@@ -3029,7 +3120,8 @@
                 "subslots": [
                     {"name": "Picatinny Rail", "slot": "picatinny_rifle", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "L3Harris NGAL Laser Aiming Module",
@@ -3050,7 +3142,8 @@
                     {"name": "Light IR", "type": "ir_illuminator", "usage": 3, "modifiers": {"stats": {"perception": 1}, "night_vision_compatible": true, "wavelength": "infrared"}, "position": 180},
                     {"mode_method": "dial"}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "EOTech OGL Laser Aiming Module",
@@ -3071,7 +3164,8 @@
                     {"name": "Light IR", "type": "ir_illuminator", "usage": 3, "modifiers": {"stats": {"perception": 1}, "night_vision_compatible": true, "wavelength": "infrared"}, "position": 180},
                     {"mode_method": "dial"}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Wilcox Raid XE Laser Aiming Module",
@@ -3092,7 +3186,8 @@
                     {"name": "Light IR", "type": "ir_illuminator", "usage": 3, "modifiers": {"stats": {"perception": 1}, "night_vision_compatible": true, "wavelength": "infrared"}, "position": 180},
                     {"mode_method": "dial"}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Griffin Bushwhacker 46 Suppressor",
@@ -3106,7 +3201,8 @@
                 "slot": ["muzzle_10mm", "muzzle_45", "muzzle_762", "muzzle_40sw", "muzzle_65"],
                 "suppressor": true,
                 "modifiers": {"stats": {"stealth": 2}},
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "YHM Sidewinder M2 .45 suppressor",
@@ -3120,7 +3216,8 @@
                 "slot": ["muzzle_10mm", "muzzle_45", "muzzle_40sw"],
                 "suppressor": true,
                 "modifiers": {"stats": {"stealth": 2}},
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "SilencerCo Osprey 45 Suppressor",
@@ -3134,7 +3231,8 @@
                 "slot": ["muzzle_10mm", "muzzle_45", "muzzle_40sw"],
                 "suppressor": true,
                 "modifiers": {"stats": {"stealth": 2}},
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "SilencerCo Osprey 9 Suppressor",
@@ -3148,7 +3246,8 @@
                 "slot": ["muzzle_9mm"],
                 "suppressor": true,
                 "modifiers": {"stats": {"stealth": 2}},
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Sig Sauer MODX-45 Suppressor",
@@ -3162,7 +3261,8 @@
                 "slot": ["muzzle_10mm", "muzzle_45", "muzzle_40sw"],
                 "suppressor": true,
                 "modifiers": {"stats": {"stealth": 1}},
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "ANECHOIC AnechoX 45L Suppressor",
@@ -3176,7 +3276,8 @@
                 "slot": ["muzzle_10mm", "muzzle_45", "muzzle_40sw"],
                 "suppressor": true,
                 "modifiers": {"stats": {"stealth": 2}},
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "YHM Victra-12 Shotgun Suppressor",
@@ -3190,7 +3291,8 @@
                 "slot": "muzzle_12g",
                 "suppressor": true,
                 "modifiers": {"stats": {"stealth": 2}},
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "SilencerCo Salvo-12 Shotgun Suppressor",
@@ -3204,7 +3306,8 @@
                 "slot": "muzzle_12g",
                 "suppressor": true,
                 "modifiers": {"stats": {"stealth": 2}},
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Bowers Vers 50 Suppressor",
@@ -3218,7 +3321,8 @@
                 "slot": "muzzle_50",
                 "suppressor": true,
                 "modifiers": {"stats": {"stealth": 2}},
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Dead Air Wolverine 5.45mm Suppressor",
@@ -3232,7 +3336,8 @@
                 "slot": "muzzle_545",
                 "suppressor": true,
                 "modifiers": {"stats": {"stealth": 2}},
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "TSNIITochMash PBS-1 7.62mm Suppressor",
@@ -3246,7 +3351,8 @@
                 "slot": "muzzle_762",
                 "suppressor": true,
                 "modifiers": {"stats": {"stealth": 2}},
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "TSNIITochMash PBS-4 5.45mm Suppressor",
@@ -3260,7 +3366,8 @@
                 "slot": "muzzle_545",
                 "suppressor": true,
                 "modifiers": {"stats": {"stealth": 2}},
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Dead Air Mask22 Suppressor",
@@ -3274,7 +3381,8 @@
                 "slot": "muzzle_22",
                 "suppressor": true,
                 "modifiers": {"stats": {"stealth": 1}},
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Rugged Suppressors Oculus22 Suppressor",
@@ -3288,7 +3396,8 @@
                 "slot": "muzzle_22",
                 "suppressor": true,
                 "modifiers": {"stats": {"stealth": 1}},
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Dead Air RXD22Ti Suppressor",
@@ -3302,7 +3411,8 @@
                 "slot": "muzzle_22",
                 "suppressor": true,
                 "modifiers": {"stats": {"stealth": 1}},
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Omega 300DT 7.62mm Suppressor",
@@ -3316,7 +3426,8 @@
                 "slot": ["muzzle_762", "muzzle_65"],
                 "suppressor": true,
                 "modifiers": {"stats": {"stealth": 2}},
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "SureFire SOCOM 65-RC2 Suppressor",
@@ -3330,7 +3441,8 @@
                 "slot": "muzzle_65",
                 "suppressor": true,
                 "modifiers": {"stats": {"stealth": 2}},
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "LVGFPLD 8x fixed magnification PAMS scope",
@@ -3362,7 +3474,8 @@
                 "magnified": false,
                 "variable": false,
                 "night_vision_compatible": true,
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "HOLOSUN 509 red dot sight",
@@ -3378,7 +3491,8 @@
                 "magnified": false,
                 "variable": false,
                 "night_vision_compatible": true,
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Trijicon RMR red dot sight",
@@ -3394,7 +3508,8 @@
                 "magnified": false,
                 "variable": false,
                 "night_vision_compatible": true,
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "PAMS Picatinny adapter",
@@ -3409,7 +3524,8 @@
                 "subslots": [
                     {"name": "Picatinny Rail", "slot": "picatinny_optic", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "SureFire X400T-A Weaponlight",
@@ -3430,7 +3546,8 @@
                     {"name": "Light", "type": "flashlight", "usage": 3, "modifiers": {"stats": {"perception": 1, "stealth": -1}, "night_vision_compatible": true, "wavelength": "visible"}, "position": 45},
                     {"mode_method": "dial"}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "SureFire XC3 Weaponlight",
@@ -3446,7 +3563,8 @@
                 "electronic": true,
                 "battery_type": "CR123A",
                 "battery_life": 4,
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Streamlight TLR-6 Weaponlight",
@@ -3467,7 +3585,8 @@
                     {"name": "Light", "type": "flashlight", "usage": 3, "modifiers": {"stats": {"perception": 1, "stealth": -1}, "night_vision_compatible": true, "wavelength": "visible"}, "position": 45},
                     {"mode_method": "dial"}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "PSO-1 Scope",
@@ -3530,7 +3649,8 @@
                 "subslots": [
                     {"name": "Picatinny Rail", "slot": "picatinny_optic", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "MSVN night vision scope",
@@ -3561,7 +3681,8 @@
                 "subslots": [
                     {"name": "Picatinny Rail", "slot": "picatinny_optic", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Vortex AN/PSQ-157 LPVO",
@@ -3587,7 +3708,8 @@
                     {"name": "8x", "type": "high_power", "usage": null, "modifiers": {"stats": {"aim": 3}, "night_vision_compatible": false}, "position": 315},
                     {"mode_method": "dial"}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "VLR fixed magnification 4x scope",
@@ -3681,7 +3803,8 @@
                         "rarity": "Mythic",
                         "tip": "#754338"
                     }
-                ]
+                ],
+                "in_armory": true
             },
             {
                 "name": "12 Gauge NATO",
@@ -3734,7 +3857,8 @@
                         "rarity": "Mythic",
                         "tip": null
                     }
-                ]
+                ],
+                "in_armory": true
             },
             {
                 "name": ".45 ACP",
@@ -3771,7 +3895,8 @@
                         "rarity": "Rare",
                         "tip": "#ff4500"
                     }
-                ]
+                ],
+                "in_armory": true
             },
             {
                 "name": "9x19mm Parabellum",
@@ -3808,7 +3933,8 @@
                         "rarity": "Rare",
                         "tip": "#ff4500"
                     }
-                ]
+                ],
+                "in_armory": true
             },
             {
                 "name": "7.62x51mm NATO",
@@ -3869,7 +3995,8 @@
                         "rarity": "Mythic",
                         "tip": "#ffd700"
                     }
-                ]
+                ],
+                "in_armory": true
             },
             {
                 "name": "10mm Auto",
@@ -3906,7 +4033,8 @@
                         "rarity": "Rare",
                         "tip": "#ff4500"
                     }
-                ]
+                ],
+                "in_armory": true
             },
             {
                 "name": "40x46mm",
@@ -3999,7 +4127,8 @@
                         "rarity": "Mythic",
                         "tip": "#ff0000"
                     }
-                ]
+                ],
+                "in_armory": true
             },
             {
                 "name": "6.5x45mm Colt",
@@ -4052,7 +4181,8 @@
                         "rarity": "Mythic",
                         "tip": null
                     }
-                ]
+                ],
+                "in_armory": true
             },
             {
                 "name": "5.7x28mm NATO",
@@ -4089,7 +4219,8 @@
                         "rarity": "Rare",
                         "tip": null
                     }
-                ]
+                ],
+                "in_armory": true
             },
             {
                 "name": ".30 Carbine",
@@ -4126,7 +4257,8 @@
                         "rarity": "Rare",
                         "tip": null
                     }
-                ]
+                ],
+                "in_armory": true
             },
             {
                 "name": ".40 S&W",
@@ -4163,7 +4295,8 @@
                         "rarity": "Rare",
                         "tip": "#ff4500"
                     }
-                ]
+                ],
+                "in_armory": true
             },
             {
                 "name": "7.62x39mm Soviet",
@@ -4200,7 +4333,8 @@
                         "rarity": "Rare",
                         "tip": null
                     }
-                ]
+                ],
+                "in_armory": true
             },
             {
                 "name": "5.45x39mm Soviet",
@@ -4245,7 +4379,8 @@
                         "rarity": "Rare",
                         "tip": null
                     }
-                ]
+                ],
+                "in_armory": true
             }
         ],
         "magazines": [
@@ -4260,7 +4395,8 @@
                 "caliber": ["5.56x45mm NATO"],
                 "capacity": 30,
                 "magazinesystem": "STANAG 4179",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "H&K UMP-45 ACP 25-Round polymer magazine",
@@ -4273,7 +4409,8 @@
                 "caliber": [".45 ACP"],
                 "capacity": 25,
                 "magazinesystem": "UMP-45",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Beretta USGI 15-Round steel M9 magazine",
@@ -4286,7 +4423,8 @@
                 "caliber": ["9x19mm Parabellum"],
                 "capacity": 15,
                 "magazinesystem": "Beretta 92",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Magpul PMAG 10-Round 7.62x51mm NATO AICS magazine",
@@ -4299,7 +4437,8 @@
                 "caliber": ["7.62x51mm NATO"],
                 "capacity": 10,
                 "magazinesystem": "AICS",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Steyr TMP 15-Round 9x19mm Parabellum magazine",
@@ -4312,7 +4451,8 @@
                 "caliber": ["9x19mm Parabellum"],
                 "capacity": 15,
                 "magazinesystem": "TMP",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Steyr TMP 30-Round 9x19mm Parabellum magazine",
@@ -4325,7 +4465,8 @@
                 "caliber": ["9x19mm Parabellum"],
                 "capacity": 30,
                 "magazinesystem": "TMP",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Glock 17 17-Round 9x19mm Parabellum magazine",
@@ -4338,7 +4479,8 @@
                 "caliber": ["9x19mm Parabellum"],
                 "capacity": 17,
                 "magazinesystem": "Glock 9x19mm Parabellum",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Glock 33-Round 9x19mm Parabellum magazine",
@@ -4351,7 +4493,8 @@
                 "caliber": ["9x19mm Parabellum"],
                 "capacity": 33,
                 "magazinesystem": "Glock 9x19mm Parabellum",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Glock 21 13-Round .45 ACP magazine",
@@ -4364,7 +4507,8 @@
                 "caliber": [".45 ACP"],
                 "capacity": 13,
                 "magazinesystem": "Glock .45 ACP",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Glock 21 30-Round .45 ACP magazine",
@@ -4377,7 +4521,8 @@
                 "caliber": [".45 ACP"],
                 "capacity": 30,
                 "magazinesystem": "Glock .45 ACP",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Glock 20 15-Round 10mm Auto magazine",
@@ -4390,7 +4535,8 @@
                 "caliber": ["10mm Auto"],
                 "capacity": 15,
                 "magazinesystem": "Glock 10mm Auto",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Glock 20 30-Round 10mm Auto magazine",
@@ -4403,7 +4549,8 @@
                 "caliber": ["10mm Auto"],
                 "capacity": 30,
                 "magazinesystem": "Glock 10mm Auto",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Colt USGI 30-Round polymer 6.5x45mm Colt STANAG magazine",
@@ -4416,7 +4563,8 @@
                 "caliber": ["6.5x45mm Colt"],
                 "capacity": 30,
                 "magazinesystem": "STANAG 8556",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Colt USGI 40-Round polymer 6.5x45mm Colt STANAG magazine",
@@ -4429,7 +4577,8 @@
                 "caliber": ["6.5x45mm Colt"],
                 "capacity": 40,
                 "magazinesystem": "STANAG 8556",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Colt USGI 50-Round polymer 5.7x28mm NATO STANAG magazine",
@@ -4442,7 +4591,8 @@
                 "caliber": ["5.7x28mm NATO"],
                 "capacity": 50,
                 "magazinesystem": "M9L",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Colt USGI 90-Round polymer 5.7x28mm NATO STANAG drum",
@@ -4455,7 +4605,8 @@
                 "caliber": ["5.7x28mm NATO"],
                 "capacity": 90,
                 "magazinesystem": "M9L",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Colt USGI 20-Round polymer 5.7x28mm NATO M19 magazine",
@@ -4468,7 +4619,8 @@
                 "caliber": ["5.7x28mm NATO"],
                 "capacity": 20,
                 "magazinesystem": "M19",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Colt USGI 30-Round polymer 5.7x28mm NATO M19 magazine",
@@ -4481,7 +4633,8 @@
                 "caliber": ["5.7x28mm NATO"],
                 "capacity": 30,
                 "magazinesystem": "M19",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Beta C-Mag 100-Round 5.56x45mm NATO STANAG drum magazine",
@@ -4494,7 +4647,8 @@
                 "caliber": ["5.56x45mm NATO"],
                 "capacity": 100,
                 "magazinesystem": "STANAG 4179",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Beta C-Mag 100-Round 6.5x45mm Colt STANAG drum magazine",
@@ -4507,7 +4661,8 @@
                 "caliber": ["6.5x45mm Colt"],
                 "capacity": 100,
                 "magazinesystem": "STANAG 8556",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "SIG Sauer MCX-Spear 20 Round Multi-Caliber Magazine",
@@ -4520,7 +4675,8 @@
                 "caliber": ["6.5x45mm Colt", "7.62x51mm NATO"],
                 "capacity": 20,
                 "magazinesystem": "MCX-Spear",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Armalite USGI 10-Round 7.62x51mm NATO AR-10 magazine",
@@ -4533,7 +4689,8 @@
                 "caliber": ["7.62x51mm NATO"],
                 "capacity": 10,
                 "magazinesystem": "AR-10",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Armalite USGI 20-Round 7.62x51mm NATO AR-10 magazine",
@@ -4546,7 +4703,8 @@
                 "caliber": ["7.62x51mm NATO"],
                 "capacity": 20,
                 "magazinesystem": "AR-10",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Armalite USGI 30-Round 7.62x51mm NATO AR-10 magazine",
@@ -4559,7 +4717,8 @@
                 "caliber": ["7.62x51mm NATO"],
                 "capacity": 30,
                 "magazinesystem": "AR-10",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "H&K UMP-9 30-Round polymer magazine",
@@ -4572,7 +4731,8 @@
                 "caliber": ["9x19mm Parabellum"],
                 "capacity": 30,
                 "magazinesystem": "UMP-9",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Military Armaments Corporation 16-Round 9x19mm Parabellum MAC-11 magazine",
@@ -4585,7 +4745,8 @@
                 "caliber": ["9x19mm Parabellum"],
                 "capacity": 16,
                 "magazinesystem": "MAC-11",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Military Armaments Corporation 32-Round 9x19mm Parabellum MAC-11 magazine",
@@ -4598,7 +4759,8 @@
                 "caliber": ["9x19mm Parabellum"],
                 "capacity": 32,
                 "magazinesystem": "MAC-11",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "USGI 15-Round stamped steel .30 Carbine magazine",
@@ -4611,7 +4773,8 @@
                 "caliber": [".30 Carbine"],
                 "capacity": 15,
                 "magazinesystem": "M1 Carbine",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "USGI 30-Round stamped steel .30 Carbine magazine",
@@ -4624,7 +4787,8 @@
                 "caliber": [".30 Carbine"],
                 "capacity": 30,
                 "magazinesystem": "M1 Carbine",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "H&K MP5 30-Round 9x19mm Parabellum stamped steel magazine",
@@ -4637,7 +4801,8 @@
                 "caliber": ["9x19mm Parabellum"],
                 "capacity": 30,
                 "magazinesystem": "MP5",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Glock 22 15-Round .40 S&W magazine",
@@ -4650,7 +4815,8 @@
                 "caliber": [".40 S&W"],
                 "capacity": 15,
                 "magazinesystem": "Glock .40 S&W",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Glock 22 22-Round .40 S&W magazine",
@@ -4663,7 +4829,8 @@
                 "caliber": [".40 S&W"],
                 "capacity": 22,
                 "magazinesystem": "Glock .40 S&W",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Izhmash PP-19 Bizon 53-Round 9x19mm Parabellum helical magazine",
@@ -4676,7 +4843,8 @@
                 "caliber": ["9x19mm Parabellum"],
                 "capacity": 53,
                 "magazinesystem": "Bizon",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Kalashnikov Concern PP-19-01 Vityaz 30-Round 9x19mm Parabellum magazine",
@@ -4689,7 +4857,8 @@
                 "caliber": ["9x19mm Parabellum"],
                 "capacity": 30,
                 "magazinesystem": "Vityaz",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Izhmash 30-Round 7.62x39mm Soviet stamped steel AK-47 magazine",
@@ -4702,7 +4871,8 @@
                 "caliber": ["7.62x39mm Soviet"],
                 "capacity": 30,
                 "magazinesystem": "AK-47",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "SIG Sauer 15-Round 9x19mm Parabellum P226 steel magazine",
@@ -4715,7 +4885,8 @@
                 "caliber": ["9x19mm Parabellum"],
                 "capacity": 15,
                 "magazinesystem": "SIG P226",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "SIG Sauer 7-Round .45 ACP 1911 steel magazine",
@@ -4728,7 +4899,8 @@
                 "caliber": [".45 ACP"],
                 "capacity": 7,
                 "magazinesystem": "1911 .45 ACP",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Taran Tactical Innovations 20-Round .45 ACP 2011 steel magazine",
@@ -4741,7 +4913,8 @@
                 "caliber": [".45 ACP"],
                 "capacity": 20,
                 "magazinesystem": "2011 .45 ACP",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Heckler & Koch 15-Round 9x19mm Parabellum USP hybrid magazine",
@@ -4754,7 +4927,8 @@
                 "caliber": ["9x19mm Parabellum"],
                 "capacity": 15,
                 "magazinesystem": "USP 9x19mm Parabellum",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Heckler & Koch 13-Round .40 S&W USP hybrid magazine",
@@ -4767,7 +4941,8 @@
                 "caliber": [".40 S&W"],
                 "capacity": 13,
                 "magazinesystem": "USP .40 S&W",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Heckler & Koch 12-Round .45 ACP USP hybrid magazine",
@@ -4780,7 +4955,8 @@
                 "caliber": [".45 ACP"],
                 "capacity": 12,
                 "magazinesystem": "USP .45 ACP",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "FN Herstal 20-Round 5.7x28mm NATO Five-seveN magazine",
@@ -4793,7 +4969,8 @@
                 "caliber": ["5.7x28mm NATO"],
                 "capacity": 20,
                 "magazinesystem": "Five-seveN",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "FN Herstal 30-Round 5.7x28mm NATO Five-seveN magazine",
@@ -4806,7 +4983,8 @@
                 "caliber": ["5.7x28mm NATO"],
                 "capacity": 30,
                 "magazinesystem": "Five-seveN",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "IMI 7-Round .50 AE Desert Eagle magazine",
@@ -4819,7 +4997,8 @@
                 "caliber": [".50 AE"],
                 "capacity": 7,
                 "magazinesystem": "Desert Eagle .50 AE",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Izmash 30-Round 5.45x39mm Soviet bakelite AK-74 magazine",
@@ -4832,7 +5011,8 @@
                 "caliber": ["5.45x39mm Soviet"],
                 "capacity": 30,
                 "magazinesystem": "AK-74",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Legionaire 20-Round 7.62x51mm NATO FAF-439 magazine",
@@ -4845,7 +5025,8 @@
                 "caliber": ["7.62x51mm NATO"],
                 "capacity": 20,
                 "magazinesystem": "FAL",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "FN Herstal 20-Round 7.62x51mm NATO FAL magazine",
@@ -4858,7 +5039,8 @@
                 "caliber": ["7.62x51mm NATO"],
                 "capacity": 20,
                 "magazinesystem": "FAL",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "FN Herstal 30-Round 7.62x51mm NATO FAL magazine",
@@ -4871,7 +5053,8 @@
                 "caliber": ["7.62x51mm NATO"],
                 "capacity": 30,
                 "magazinesystem": "FAL",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Legionaire 10-Round 9x19mm Parabellum CACPPF-439 magazine",
@@ -4884,7 +5067,8 @@
                 "caliber": ["9x19mm Parabellum"],
                 "capacity": 10,
                 "magazinesystem": "CACPPF-439",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Legionaire 20-Round 9x19mm Parabellum CACPPF-439 magazine",
@@ -4897,7 +5081,8 @@
                 "caliber": ["9x19mm Parabellum"],
                 "capacity": 20,
                 "magazinesystem": "CACPPF-439",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Legionaire 30-Round 9x19mm Parabellum CACPPF-439 magazine",
@@ -4910,7 +5095,8 @@
                 "caliber": ["9x19mm Parabellum"],
                 "capacity": 30,
                 "magazinesystem": "CACPPF-439",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Legionaire 40-Round 9x19mm Parabellum CACPPF-439 magazine",
@@ -4923,7 +5109,8 @@
                 "caliber": ["9x19mm Parabellum"],
                 "capacity": 40,
                 "magazinesystem": "CACPPF-439",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Legionaire 47-Round 7.62x51mm NATO MPF-439 pan magazine",
@@ -4936,7 +5123,8 @@
                 "caliber": ["7.62x51mm NATO"],
                 "capacity": 47,
                 "magazinesystem": "MPF-439",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Legionaire 97-Round 7.62x51mm NATO MPF-439 drum magazine",
@@ -4949,7 +5137,8 @@
                 "caliber": ["7.62x51mm NATO"],
                 "capacity": 97,
                 "magazinesystem": "MPF-439",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "FN Herstal 10-Round 7.62x51mm NATO SCAR-H magazine",
@@ -4962,10 +5151,11 @@
                 "caliber": ["7.62x51mm NATO"],
                 "capacity": 10,
                 "magazinesystem": "SCAR-H",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
-                "name": "FN Herstal 10-Round 7.62x51mm NATO SCAR-H magazine",
+                "name": "FN Herstal 20-Round 7.62x51mm NATO SCAR-H magazine",
                 "value": 20,
                 "description": "Normal-capacity battle rifle magazine for the Mk. 17 Mod 0.",
                 "rarity": "Rare",
@@ -4973,9 +5163,10 @@
                 "weight": 0.246,
                 "id": 294,
                 "caliber": ["7.62x51mm NATO"],
-                "capacity": 10,
+                "capacity": 20,
                 "magazinesystem": "SCAR-H",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Baines F439 7-Round .45 ACP M1911 magazine",
@@ -4988,7 +5179,8 @@
                 "caliber": [".45 ACP"],
                 "capacity": 7,
                 "magazinesystem": "1911 .45 ACP",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Mossberg M590M 10-Round 12 Gauge magazine",
@@ -5001,7 +5193,8 @@
                 "caliber": ["12 Gauge"],
                 "capacity": 10,
                 "magazinesystem": "M590M",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Mossberg M590M 15-Round 12 Gauge magazine",
@@ -5014,7 +5207,8 @@
                 "caliber": ["12 Gauge"],
                 "capacity": 15,
                 "magazinesystem": "M590M",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Izhmash 8-Round 12 Gauge Saiga-12 magazine",
@@ -5027,7 +5221,8 @@
                 "caliber": ["12 Gauge"],
                 "capacity": 8,
                 "magazinesystem": "Saiga-12",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "ProMag Saiga-12 20-Round 12 Gauge drum magazine",
@@ -5040,7 +5235,8 @@
                 "caliber": ["12 Gauge"],
                 "capacity": 20,
                 "magazinesystem": "Saiga-12",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Atchisson AA-12 8-Round 12 Gauge magazine",
@@ -5053,7 +5249,8 @@
                 "caliber": ["12 Gauge"],
                 "capacity": 8,
                 "magazinesystem": "AA-12",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Atchisson AA-12 20-Round 12 Gauge drum magazine",
@@ -5066,7 +5263,8 @@
                 "caliber": ["12 Gauge"],
                 "capacity": 20,
                 "magazinesystem": "AA-12",
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             }
         ],
         "melee": [
@@ -5079,7 +5277,8 @@
                 "weight": 0.35,
                 "id": 16,
                 "melee": true,
-                "type": "single handed"
+                "type": "single handed",
+                "in_armory": true
             },
             {
                 "name": "M9 Bayonet",
@@ -5092,7 +5291,8 @@
                 "melee": true,
                 "type": "single handed",
                 "attachment": true,
-                "slot": "bayonet_mount_ar15"
+                "slot": "bayonet_mount_ar15",
+                "in_armory": true
             },
             {
                 "name": "Longsword",
@@ -5150,7 +5350,8 @@
                 "id": 18,
                 "throwable": true,
                 "type": "fragmentation",
-                "fuse_time": 4
+                "fuse_time": 4,
+                "in_armory": true
             },
             {
                 "name": "M18 Smoke Grenade",
@@ -5162,7 +5363,8 @@
                 "id": 19,
                 "throwable": true,
                 "type": "smoke",
-                "fuse_time": 1.5
+                "fuse_time": 1.5,
+                "in_armory": true
             },
             {
                 "name": "M84 Stun Grenade",
@@ -5174,7 +5376,8 @@
                 "id": 20,
                 "throwable": true,
                 "type": "stun",
-                "fuse_time": 1.5
+                "fuse_time": 1.5,
+                "in_armory": true
             },
             {
                 "name": "CTS 7290-9 9-Bang",
@@ -5186,7 +5389,8 @@
                 "id": 21,
                 "throwable": true,
                 "type": "9-bang",
-                "fuse_time": 1.5
+                "fuse_time": 1.5,
+                "in_armory": true
             }
         ],
         "consumables": [
@@ -5206,7 +5410,8 @@
                 "used_up": true,
                 "uses_left": 3,
                 "equippable": true,
-                "slot": ["left leg", "right leg", "molle_back", "molle_front", "molle_side"]
+                "slot": ["left leg", "right leg", "molle_back", "molle_front", "molle_side"],
+                "in_armory": true
             },
             {
                 "name": "CAT 7 Tourniquet",
@@ -5223,7 +5428,8 @@
                 "used_up": false,
                 "disinfectant_required": true,
                 "equippable": true,
-                "slot": ["left leg", "right leg", "molle_back", "molle_front", "molle_side"]
+                "slot": ["left leg", "right leg", "molle_back", "molle_front", "molle_side"],
+                "in_armory": true
             },
             {
                 "name": "Pack of cigarettes",
@@ -5241,7 +5447,8 @@
                 ],
                 "used_up": true,
                 "uses_left": 20,
-                "lighting_device_required": true
+                "lighting_device_required": true,
+                "in_armory": true
             },
             {
                 "name": "Cigarette",
@@ -5257,7 +5464,8 @@
                     "cigaretteuse.ogg"
                 ],
                 "used_up": true,
-                "lighting_device_required": true
+                "lighting_device_required": true,
+                "in_armory": true
             },
             {
                 "name": "Lighter",
@@ -5273,7 +5481,8 @@
                 ],
                 "used_up": false,
                 "lighting_device": true,
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Matchbook",
@@ -5290,7 +5499,8 @@
                 "used_up": true,
                 "uses_left": 20,
                 "lighting_device": true,
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Bottle of isopropyl alcohol",
@@ -5306,7 +5516,8 @@
                 ],
                 "used_up": true,
                 "uses_left": 5,
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Bandage roll",
@@ -5322,7 +5533,8 @@
                 ],
                 "used_up": true,
                 "uses_left": 5,
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Gauze roll",
@@ -5338,7 +5550,8 @@
                 ],
                 "used_up": true,
                 "uses_left": 5,
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Hemostatic dressing",
@@ -5354,7 +5567,8 @@
                 ],
                 "used_up": true,
                 "uses_left": 3,
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Antidote",
@@ -5742,7 +5956,8 @@
                     "riotcuff.ogg"
                 ],
                 "used_up": true,
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Handcuffs",
@@ -5757,7 +5972,8 @@
                     "handcuff.ogg"
                 ],
                 "used_up": false,
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             }
         ],
         "special_items": [
@@ -6113,7 +6329,8 @@
                     {"name": "Dovetail NVG Mount", "slot": "nvg_mount", "current": null},
                     {"name": "NVG battery pack", "slot": "nvg_battery", "current": null},
                     {"name": "Ear protection", "slot": "ear_protection", "current": null}
-                ]
+                ],
+                "in_armory": true
             },
             {
                 "name": "IOTV Plate Carrier",
@@ -6135,7 +6352,8 @@
                     {"name": "MOLLE Webbing back", "slot": "molle_back", "current": null, "conflicts_with": {"type": "main", "slot": "back"}},
                     {"name": "MOLLE Webbing left side", "slot": "molle_side", "current": null},
                     {"name": "MOLLE Webbing right side", "slot": "molle_side", "current": null}
-                ]
+                ],
+                "in_armory": true
             },
             {
                 "name": "Mechanix Original Tactical Gloves",
@@ -6148,7 +6366,8 @@
                 "equippable": true,
                 "encumbrance_reduction": 3.0,
                 "slot": ["left hand", "right hand"],
-                "set_bonus": {"stats": {"aim": 1}, "requires": [{"slot": "left hand", "id": 27}, {"slot": "right hand", "id": 27}]}
+                "set_bonus": {"stats": {"aim": 1}, "requires": [{"slot": "left hand", "id": 27}, {"slot": "right hand", "id": 27}]},
+                "in_armory": true
             },
             {
                 "name": "ESAPI Level IV Ceramic Plate",
@@ -6163,7 +6382,8 @@
                 "slot": ["front_armor", "back_armor"],
                 "protection": "IV",
                 "material": "ceramic",
-                "hits_left": 10
+                "hits_left": 10,
+                "in_armory": true
             },
             {
                 "name": "FSAPI Level IV Female Ceramic Plate",
@@ -6179,7 +6399,8 @@
                 "female_fit": true,
                 "protection": "IV",
                 "material": "ceramic",
-                "hits_left": 10
+                "hits_left": 10,
+                "in_armory": true
             },
             {
                 "name": "ESBI Level IV 6x6 Ceramic Side Plate",
@@ -6194,7 +6415,8 @@
                 "slot": ["6x6_armor"],
                 "protection": "IV",
                 "material": "ceramic",
-                "hits_left": 10
+                "hits_left": 10,
+                "in_armory": true
             },
             {
                 "name": "MOLLE Magazine Pouch",
@@ -6226,7 +6448,8 @@
                 "container": true,
                 "capacity": 5,
                 "items": [],
-                "slot": ["molle_front", "molle_side", "molle_back", "molle_front_belt", "molle_side_belt", "molle_back_belt"]
+                "slot": ["molle_front", "molle_side", "molle_back", "molle_front_belt", "molle_side_belt", "molle_back_belt"],
+                "in_armory": true
             },
             {
                 "name": "MOLLE Rucksack Large",
@@ -6241,7 +6464,8 @@
                 "container": true,
                 "capacity": 30,
                 "items": [],
-                "slot": ["molle_back"]
+                "slot": ["molle_back"],
+                "in_armory": true
             },
             {
                 "name": "Magpul MS1 Sling",
@@ -6258,7 +6482,8 @@
                 "weapon_types": ["rifle", "smg", "shotgun", "mg"],
                 "subslots": [
                     {"name": "Weapon", "slot": "weapon_slot", "current": null}
-                ]
+                ],
+                "in_armory": true
             },
             {
                 "name": "Safariland 6304RDS ALS Holster",
@@ -6275,7 +6500,8 @@
                 "weapon_types": ["pistol"],
                 "subslots": [
                     {"name": "Weapon", "slot": "weapon_slot", "current": null}
-                ]
+                ],
+                "in_armory": true
             },
             {
                 "name": "Lanyard",
@@ -6309,7 +6535,8 @@
                 "hud": true,
                 "electronic": true,
                 "battery_type": "Rechargeable",
-                "battery_life": 8
+                "battery_life": 8,
+                "in_armory": true
             },
             {
                 "name": "Reloader",
@@ -6319,7 +6546,8 @@
                 "random_quantity": false,
                 "weight": 3,
                 "id": 43,
-                "reloader": true
+                "reloader": true,
+                "in_armory": true
             },
             {
                 "name": "Crye Precision CPC",
@@ -6341,7 +6569,8 @@
                     {"name": "MOLLE Webbing back", "slot": "molle_back", "current": null, "conflicts_with": {"type": "main", "slot": "back"}},
                     {"name": "MOLLE Webbing left side", "slot": "molle_side", "current": null},
                     {"name": "MOLLE Webbing right side", "slot": "molle_side", "current": null}
-                ]
+                ],
+                "in_armory": true
             },
             {
                 "name": "Gentex OPS-CORE FAST SF Railink helmet",
@@ -6359,7 +6588,8 @@
                     {"name": "NVG battery pack", "slot": "nvg_battery", "current": null},
                     {"name": "Ear protection", "slot": "ear_protection", "current": null},
                     {"name": "CSAD Mount", "slot": "CSAD", "current": null}
-                ]
+                ],
+                "in_armory": true
             },
             {
                 "name": "L3Harris AN/PVS-31A Binocular NVG",
@@ -6375,7 +6605,8 @@
                 "night_vision": true,
                 "electronic": true,
                 "battery_type": "AA",
-                "battery_life": 10
+                "battery_life": 10,
+                "in_armory": true
             },
             {
                 "name": "3M Peltor ComTac VI Headset",
@@ -6388,7 +6619,8 @@
                 "equippable": true,
                 "encumbrance_reduction": 0.5,
                 "slot": ["ear_protection", "head"],
-                "ear_protection": true
+                "ear_protection": true,
+                "in_armory": true
             },
             {
                 "name": "Wilcox Aeronox Battery Pack",
@@ -6403,7 +6635,8 @@
                 "slot": "nvg_battery",
                 "battery_pack": true,
                 "battery_type": "Rechargeable",
-                "battery_life": 6
+                "battery_life": 6,
+                "in_armory": true
             },
             {
                 "name": "AB Night Vision Low Profile Battery Pack",
@@ -6418,7 +6651,8 @@
                 "slot": "nvg_battery",
                 "battery_pack": true,
                 "battery_type": "AA",
-                "battery_life": 4
+                "battery_life": 4,
+                "in_armory": true
             },
             {
                 "name": "MOLLE Rucksack Medium",
@@ -6433,7 +6667,8 @@
                 "container": true,
                 "capacity": 20,
                 "items": [],
-                "slot": ["molle_back"]
+                "slot": ["molle_back"],
+                "in_armory": true
             },
             {
                 "name": "Messenger bag",
@@ -6448,7 +6683,8 @@
                 "container": true,
                 "capacity": 15,
                 "items": [],
-                "slot": ["left shoulder", "right shoulder", "back"]
+                "slot": ["left shoulder", "right shoulder", "back"],
+                "in_armory": true
             },
             {
                 "name": "Ferro Concepts Bora Belt",
@@ -6466,7 +6702,8 @@
                     {"name": "MOLLE Webbing right side", "slot": "molle_side_belt", "current": null},
                     {"name": "MOLLE Webbing front", "slot": "molle_front_belt", "current": null},
                     {"name": "MOLLE Webbing back", "slot": "molle_back_belt", "current": null}
-                ]
+                ],
+                "in_armory": true
             },
             {
                 "name": "Legionaire shoulder armor",
@@ -6511,7 +6748,8 @@
                 "weapon_types": ["rifle", "smg", "shotgun", "mg"],
                 "subslots": [
                     {"name": "Weapon", "slot": "weapon_slot", "current": null}
-                ]
+                ],
+                "in_armory": true
             },
             {
                 "name": "Moxarian steel armor plate",
@@ -6640,7 +6878,8 @@
                     {"name": "MOLLE Webbing back", "slot": "molle_back", "current": null, "conflicts_with": {"type": "main", "slot": "back"}},
                     {"name": "MOLLE Webbing left side", "slot": "molle_side", "current": null},
                     {"name": "MOLLE Webbing right side", "slot": "molle_side", "current": null}
-                ]
+                ],
+                "in_armory": true
             },
             {
                 "name": "Ferro Concepts The Slickster",
@@ -6656,7 +6895,8 @@
                 "subslots": [
                     {"name": "Front Armor Slot", "slot": "front_armor", "current": null},
                     {"name": "Back Armor Slot", "slot": "back_armor", "current": null}
-                ]
+                ],
+                "in_armory": true
             }
         ],
         "enemy_drops": [

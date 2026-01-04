@@ -5896,6 +5896,14 @@ class App:
         if appearance_settings["units"]=="imperial":
             weight_lb = weight_kg *2.20462
             return f"{weight_lb:.2f} lb"
+        elif appearance_settings["units"]=="cheese":
+            cheese_wheels = weight_kg / 40.0
+            if cheese_wheels == 1.0:
+                return "1 cheese wheel"
+            elif cheese_wheels == int(cheese_wheels):
+                return f"{int(cheese_wheels)} cheese wheels"
+            else:
+                return f"{cheese_wheels:.2f} cheese wheels"
         else:
             return f"{weight_kg:.2f} kg"
 
@@ -19851,7 +19859,7 @@ class App:
         customtkinter.CTkLabel(appearance_frame, text = "Units:").grid(row = 6, column = 0, sticky = "w", padx = 10, pady = 4)
         units_box = customtkinter.CTkOptionMenu(
         appearance_frame,
-        values =["imperial", "metric"],
+        values =["imperial", "metric", "cheese"],
         command = lambda v:(appearance_settings.__setitem__("units", v), settings_modified.__setitem__(0, True))
         )
         units_box.set(appearance_settings.get("units", "imperial"))
