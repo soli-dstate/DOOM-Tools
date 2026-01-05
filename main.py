@@ -1047,7 +1047,7 @@ def suggest_magazine_for_weapon_static(weapon):
         mag_item = {'id':next_id, 'name':f"Synthetic Mag({cap0})", 'capacity':int(cap0), 'magazinetype':weapon.get('magazinetype')or 'detachable box', 'magazinesystem':weapon.get('magazinesystem')or weapon.get('magazinetype')or '', 'rounds':[]}
         round_name =(calib or 'Unknown')+' | FMJ'
         for i in range(int(cap0)):
-            mag_item['rounds'].append({'name':round_name, 'caliber':calib or None, 'variant':'fmj'})
+            mag_item['rounds'].append({'name':round_name, 'caliber':calib or None, 'variant':'FMJ'})
         results['suggested_mag_item']= mag_item
     except Exception:
         results['notes'].append('Failed to build mag item')
@@ -2210,6 +2210,49 @@ class App:
         try:
             if not path.endswith(global_variables.get("save_extension", ".sldsv")):
                 path +=global_variables.get("save_extension", ".sldsv")
+
+            filename = os.path.basename(path)
+            excluded_from_backup = {"persistent_data.sldsv", "settings.sldsv", "appearance_settings.sldsv", "dm_settings.sldsv"}
+            if filename not in excluded_from_backup and isinstance(data, dict):
+                try:
+                    char_name = data.get("charactername", "Unknown")
+                    safe_char_name = "".join(c if c.isalnum() or c in " _-" else "_" for c in char_name).strip()
+                    if not safe_char_name:
+                        safe_char_name = "Unknown"
+
+                    backup_folder = os.path.join(saves_folder or "saves", "backups", safe_char_name)
+                    archive_folder = os.path.join(backup_folder, "archive")
+                    os.makedirs(backup_folder, exist_ok = True)
+                    os.makedirs(archive_folder, exist_ok = True)
+
+                    backup_files = sorted(glob.glob(os.path.join(backup_folder, "*.sldsv")))
+                    if len(backup_files) >= 50:
+                        archive_name = os.path.join(archive_folder, f"backups_archive_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip")
+                        with zipfile.ZipFile(archive_name, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                            for backup_file in backup_files:
+                                zipf.write(backup_file, os.path.basename(backup_file))
+                                os.remove(backup_file)
+                        logging.info(f"Archived {len(backup_files)} backups to {archive_name}")
+
+                    backup_filename = f"backup_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}.sldsv"
+                    backup_path = os.path.join(backup_folder, backup_filename)
+
+                    if os.path.exists(path):
+                        try:
+                            import shutil
+                            shutil.copy2(path, backup_path)
+                            logging.info(f"Created backup at {backup_path}")
+                        except Exception as backup_err:
+                            logging.warning(f"Failed to create backup copy: {backup_err}")
+                    else:
+                        pickled_backup = pickle.dumps(data)
+                        encoded_backup = base64.b85encode(pickled_backup).decode('utf-8')
+                        with open(backup_path, 'w', encoding = 'utf-8') as bf:
+                            bf.write(encoded_backup)
+                        logging.info(f"Created backup at {backup_path}")
+                except Exception as backup_err:
+                    logging.warning(f"Failed to create backup: {backup_err}")
+
             pickled = pickle.dumps(data)
             encoded = base64.b85encode(pickled).decode('utf-8')
             with open(path, 'w', encoding = 'utf-8')as f:
@@ -2423,18 +2466,82 @@ class App:
         except Exception as e:
             logging.error(f"Failed to load data from '{save_path}': {e}")
             return None
+
+    def _get_ammo_table_data(self):
+        try:
+            table_files = glob.glob(os.path.join("tables", "*.sldtbl"))
+            if table_files:
+                with open(table_files[0], 'r') as f:
+                    table_data = json.load(f)
+                return table_data.get("tables", {}).get("ammunition", [])
+        except Exception:
+            pass
+        return []
+
+    def _ensure_round_variant(self, round_data, ammo_table=None):
+        if not isinstance(round_data, dict):
+            return round_data
+
+        if round_data.get("variant") and round_data.get("variant") not in ["Unknown", "unknown", None, ""]:
+            return round_data
+
+        if ammo_table is None:
+            ammo_table = self._get_ammo_table_data()
+
+        caliber = round_data.get("caliber")
+        if not caliber:
+            name = round_data.get("name", "")
+            if " | " in name:
+                parts = name.split(" | ", 1)
+                caliber = parts[0]
+                round_data["caliber"] = caliber
+
+        if caliber:
+            for ammo in ammo_table:
+                ammo_cal = ammo.get("caliber")
+                cal_match = False
+                if isinstance(ammo_cal, list):
+                    cal_match = caliber in ammo_cal
+                else:
+                    cal_match = ammo_cal == caliber
+
+                if cal_match:
+                    variants = ammo.get("variants", [])
+                    if variants:
+                        first_variant = variants[0]
+                        round_data["variant"] = first_variant.get("name", "FMJ")
+                        if first_variant.get("type"):
+                            round_data["type"] = first_variant.get("type")
+                        if first_variant.get("pen"):
+                            round_data["pen"] = first_variant.get("pen")
+                        if first_variant.get("tip"):
+                            round_data["tip"] = first_variant.get("tip")
+                        if first_variant.get("modifiers"):
+                            round_data["modifiers"] = first_variant.get("modifiers")
+                        return round_data
+                    break
+
+        if not round_data.get("variant"):
+            round_data["variant"] = "FMJ"
+
+        return round_data
+
     def _normalize_save_data(self, data):
+
+        ammo_table = self._get_ammo_table_data()
 
         def normalize_round(r):
             if isinstance(r, dict):
-                return r
+                return self._ensure_round_variant(r, ammo_table)
             if isinstance(r, str):
                 parts = r.split(" | ", 1)
                 if len(parts)==2:
                     caliber, variant = parts
                     return {"name":r, "caliber":caliber, "variant":variant}
-                return {"name":r}
-            return {"name":str(r)}
+                round_data = {"name":r}
+                return self._ensure_round_variant(round_data, ammo_table)
+            round_data = {"name":str(r)}
+            return self._ensure_round_variant(round_data, ammo_table)
 
         def normalize_mag(mag):
             if not isinstance(mag, dict):
@@ -5459,7 +5566,7 @@ class App:
         height = 50,
         font = customtkinter.CTkFont(size = 16),
         state = "disabled"if not os.listdir(saves_folder)or all(
-        f in["persistent_data.sldsv", "settings.sldsv"]or f.endswith(".sldsv.sldsv")
+        f in["persistent_data.sldsv", "settings.sldsv", "appearance_settings.sldsv", "dm_settings.sldsv"]or f.endswith(".sldsv.sldsv")or f =="backups"
         for f in os.listdir(saves_folder)
         )else "normal"
         )
@@ -5861,7 +5968,7 @@ class App:
             for filename in os.listdir(saves_folder):
                 if filename.endswith(".sldsv.sldsv"):
                     continue
-                if filename.endswith(".sldsv")and filename not in["persistent_data.sldsv", "settings.sldsv"]:
+                if filename.endswith(".sldsv")and filename not in["persistent_data.sldsv", "settings.sldsv", "appearance_settings.sldsv", "dm_settings.sldsv"]:
                     save_path = os.path.join(saves_folder or "saves", filename)
                     try:
                         save_data = self._read_save_from_path(save_path)
@@ -7417,28 +7524,49 @@ class App:
         refresh_enc_info()
 
         view_tab = tabview.tab("View Inventory")
-        view_tab.grid_rowconfigure(1, weight = 1)
+        view_tab.grid_rowconfigure(2, weight = 1)
         view_tab.grid_columnconfigure(0, weight = 1)
 
         view_frame = customtkinter.CTkFrame(view_tab)
-        view_frame.grid(row = 1, column = 0, sticky = "nsew", padx = 10, pady = 10)
-        view_frame.grid_rowconfigure(1, weight = 1)
+        view_frame.grid(row = 0, column = 0, rowspan = 3, sticky = "nsew", padx = 10, pady = 10)
+        view_frame.grid_rowconfigure(2, weight = 1)
         view_frame.grid_columnconfigure(0, weight = 1)
 
+        top_view_frame = customtkinter.CTkFrame(view_frame, fg_color = "transparent")
+        top_view_frame.grid(row = 0, column = 0, sticky = "ew", pady = (0, 10))
+        top_view_frame.grid_columnconfigure(2, weight = 1)
+
         container_selector = customtkinter.CTkOptionMenu(
-        view_frame,
+        top_view_frame,
         values = labels,
         width = 300,
         font = customtkinter.CTkFont(size = 14)
         )
-        container_selector.grid(row = 0, column = 0, pady = 10)
+        container_selector.grid(row = 0, column = 0, padx = (0, 20))
         container_selector.set(labels[0]if labels else "")
 
-        view_scroll = customtkinter.CTkScrollableFrame(view_frame, width = 900, height = 450)
-        view_scroll.grid(row = 1, column = 0, sticky = "nsew", padx = 10, pady = 10)
+        view_search_label = customtkinter.CTkLabel(top_view_frame, text = "Search:", font = customtkinter.CTkFont(size = 12))
+        view_search_label.grid(row = 0, column = 1, padx = (0, 5))
+
+        view_search_entry = customtkinter.CTkEntry(top_view_frame, placeholder_text = "Filter items...", width = 200)
+        view_search_entry.grid(row = 0, column = 2, sticky = "w")
+
+        view_info_label = customtkinter.CTkLabel(top_view_frame, text = "", font = customtkinter.CTkFont(size = 11), text_color = "gray")
+        view_info_label.grid(row = 0, column = 3, padx = 10)
+
+        view_scroll = customtkinter.CTkScrollableFrame(view_frame, width = 900, height = 380)
+        view_scroll.grid(row = 2, column = 0, sticky = "nsew", padx = 10, pady = 10)
+
+        view_pagination_frame = customtkinter.CTkFrame(view_frame, fg_color = "transparent")
+        view_pagination_frame.grid(row = 3, column = 0, pady = 5)
+
+        ITEMS_PER_PAGE_VIEW = 20
+        view_current_page = [0]
+        view_current_filtered = [[]]
+        view_search_timer = [None]
+        view_all_items = [[]]
 
         def refresh_view():
-
             current_label = container_selector.get()
             new_labels = rebuild_container_labels()
             container_selector.configure(values = new_labels)
@@ -7447,143 +7575,231 @@ class App:
             elif new_labels:
                 container_selector.set(new_labels[0])
             refresh_enc_info()
-            for widget in view_scroll.winfo_children():
-                widget.destroy()
 
             selected_label = container_selector.get()
             selected_container = next((c for c in containers if c.get("label")==selected_label), None)
 
             if not selected_container:
+                view_all_items[0] = []
+                view_current_filtered[0] = []
+                view_current_page[0] = 0
+                display_view_page(0)
                 return
 
             location = selected_container["location"]
             items = get_container_items(location)
+            view_all_items[0] = items if items else []
+            view_search_entry.delete(0, "end")
+            view_current_filtered[0] = view_all_items[0]
+            view_current_page[0] = 0
+            display_view_page(0)
 
-            if not items:
-                empty_label = customtkinter.CTkLabel(view_scroll, text = "Container is empty", font = customtkinter.CTkFont(size = 14), text_color = "gray")
-                empty_label.pack(pady = 30)
-                return
+        def show_item_details(item_data):
+            detail_window = customtkinter.CTkToplevel(self.root)
+            detail_window.title("Item Details")
+            detail_window.transient(self.root)
+            self._center_popup_on_window(detail_window, 500, 600)
 
-            def show_item_details(item_data):
-                detail_window = customtkinter.CTkToplevel(self.root)
-                detail_window.title("Item Details")
-                detail_window.transient(self.root)
-                self._center_popup_on_window(detail_window, 500, 600)
+            scroll = customtkinter.CTkScrollableFrame(detail_window, width = 450, height = 550)
+            scroll.pack(pady = 10, padx = 10, fill = "both", expand = True)
 
-                scroll = customtkinter.CTkScrollableFrame(detail_window, width = 450, height = 550)
-                scroll.pack(pady = 10, padx = 10, fill = "both", expand = True)
+            title = customtkinter.CTkLabel(scroll, text = item_data.get("name", "Unknown"), font = customtkinter.CTkFont(size = 18, weight = "bold"))
+            title.pack(pady =(10, 20))
 
-                title = customtkinter.CTkLabel(scroll, text = item_data.get("name", "Unknown"), font = customtkinter.CTkFont(size = 18, weight = "bold"))
-                title.pack(pady =(10, 20))
+            for key, value in item_data.items():
+                if key =="name":
+                    continue
 
-                for key, value in item_data.items():
-                    if key =="name":
-                        continue
+                prop_frame = customtkinter.CTkFrame(scroll, fg_color = "transparent")
+                prop_frame.pack(fill = "x", pady = 2, padx = 10)
 
-                    prop_frame = customtkinter.CTkFrame(scroll, fg_color = "transparent")
-                    prop_frame.pack(fill = "x", pady = 2, padx = 10)
-
-                    key_label = customtkinter.CTkLabel(
-                    prop_frame,
-                    text = f"{key.replace('_', ' ').title()}:",
-                    font = customtkinter.CTkFont(size = 12, weight = "bold"),
-                    anchor = "w",
-                    width = 150
-                    )
-                    key_label.pack(side = "left", padx = 5)
-
-                    if isinstance(value, (list, dict)):
-                        value_text = json.dumps(value, indent = 2)
-                    else:
-                        value_text = str(value)
-
-                    value_label = customtkinter.CTkLabel(
-                    prop_frame,
-                    text = value_text,
-                    font = customtkinter.CTkFont(size = 11),
-                    anchor = "w",
-                    wraplength = 250
-                    )
-                    value_label.pack(side = "left", padx = 5, fill = "x", expand = True)
-
-                close_button = self._create_sound_button(scroll, "Close", detail_window.destroy, width = 120, height = 35)
-                close_button.pack(pady = 20)
-
-                detail_window.update_idletasks()
-                detail_window.deiconify()
-                detail_window.grab_set()
-
-            for item in items:
-                item_frame = customtkinter.CTkFrame(view_scroll)
-                item_frame.pack(fill = "x", pady = 5, padx = 10)
-                item_frame.grid_columnconfigure(0, weight = 1)
-
-                item_name = item.get("name", "Unknown")
-                item_qty = item.get("quantity", 1)
-                item_weight = item.get("weight", 0)*item_qty
-                item_value = item.get("value", 0)
-
-                display_text = f"{item_name} x{item_qty}"
-                if item.get("consumable"):
-                    if item.get("uses_left"):
-                        display_text +=f"({item.get('uses_left')} uses left)"
-                    elif item.get("used_up"):
-                        display_text +="(1 use left)"
-                    else:
-                        display_text +="(∞ uses)"
-
-                name_label = customtkinter.CTkLabel(
-                item_frame,
-                text = display_text,
-                font = customtkinter.CTkFont(size = 14, weight = "bold"),
-                anchor = "w"
+                key_label = customtkinter.CTkLabel(
+                prop_frame,
+                text = f"{key.replace('_', ' ').title()}:",
+                font = customtkinter.CTkFont(size = 12, weight = "bold"),
+                anchor = "w",
+                width = 150
                 )
-                name_label.grid(row = 0, column = 0, sticky = "w", padx = 15, pady =(10, 2))
+                key_label.pack(side = "left", padx = 5)
 
-                info_label = customtkinter.CTkLabel(
-                item_frame,
-                text = f"Weight: {self._format_weight(item_weight)} | Value: ${item_value}",
+                if isinstance(value, (list, dict)):
+                    value_text = json.dumps(value, indent = 2)
+                else:
+                    value_text = str(value)
+
+                value_label = customtkinter.CTkLabel(
+                prop_frame,
+                text = value_text,
                 font = customtkinter.CTkFont(size = 11),
-                text_color = "gray",
-                anchor = "w"
+                anchor = "w",
+                wraplength = 250
                 )
-                info_label.grid(row = 1, column = 0, sticky = "w", padx = 15, pady =(0, 10))
+                value_label.pack(side = "left", padx = 5, fill = "x", expand = True)
 
-                button_col = 1
-                details_button = self._create_sound_button(
+            close_button = self._create_sound_button(scroll, "Close", detail_window.destroy, width = 120, height = 35)
+            close_button.pack(pady = 20)
+
+            detail_window.update_idletasks()
+            detail_window.deiconify()
+            detail_window.grab_set()
+
+        def create_item_view_widget(item):
+            selected_label = container_selector.get()
+            selected_container = next((c for c in containers if c.get("label")==selected_label), None)
+            location = selected_container["location"] if selected_container else ""
+
+            item_frame = customtkinter.CTkFrame(view_scroll)
+            item_frame.pack(fill = "x", pady = 5, padx = 10)
+            item_frame.grid_columnconfigure(0, weight = 1)
+
+            item_name = item.get("name", "Unknown")
+            item_qty = item.get("quantity", 1)
+            item_weight = item.get("weight", 0)*item_qty
+            item_value = item.get("value", 0)
+
+            display_text = f"{item_name} x{item_qty}"
+            if item.get("consumable"):
+                if item.get("uses_left"):
+                    display_text +=f" ({item.get('uses_left')} uses left)"
+                elif item.get("used_up"):
+                    display_text +=" (1 use left)"
+                else:
+                    display_text +=" (∞ uses)"
+
+            name_label = customtkinter.CTkLabel(
+            item_frame,
+            text = display_text,
+            font = customtkinter.CTkFont(size = 14, weight = "bold"),
+            anchor = "w"
+            )
+            name_label.grid(row = 0, column = 0, sticky = "w", padx = 15, pady =(10, 2))
+
+            item_info_label = customtkinter.CTkLabel(
+            item_frame,
+            text = f"Weight: {self._format_weight(item_weight)} | Value: ${item_value}",
+            font = customtkinter.CTkFont(size = 11),
+            text_color = "gray",
+            anchor = "w"
+            )
+            item_info_label.grid(row = 1, column = 0, sticky = "w", padx = 15, pady =(0, 10))
+
+            button_col = 1
+            details_button = self._create_sound_button(
+            item_frame,
+            "View Details",
+            lambda it = item:show_item_details(it),
+            width = 120,
+            height = 35,
+            font = customtkinter.CTkFont(size = 12)
+            )
+            details_button.grid(row = 0, column = button_col, rowspan = 2, padx = 15, pady = 10)
+
+            if item.get("consumable"):
+                button_col +=1
+                consume_button = self._create_sound_button(
                 item_frame,
-                "View Details",
-                lambda it = item:show_item_details(it),
+                "Consume",
+                lambda it = item, loc = location:self._consume_item(it, loc, save_data, on_complete = refresh_view),
+                width = 100,
+                height = 35,
+                font = customtkinter.CTkFont(size = 12)
+                )
+                consume_button.grid(row = 0, column = button_col, rowspan = 2, padx =(0, 15), pady = 10)
+
+            if item.get("stratagem"):
+                button_col +=1
+                stratagem_button = self._create_sound_button(
+                item_frame,
+                "Use Stratagem",
+                lambda it = item, loc = location:self._use_stratagem(it, loc, save_data, on_complete = refresh_view),
                 width = 120,
                 height = 35,
                 font = customtkinter.CTkFont(size = 12)
                 )
-                details_button.grid(row = 0, column = button_col, rowspan = 2, padx = 15, pady = 10)
+                stratagem_button.grid(row = 0, column = button_col, rowspan = 2, padx =(0, 15), pady = 10)
 
-                if item.get("consumable"):
-                    button_col +=1
-                    consume_button = self._create_sound_button(
-                    item_frame,
-                    "Consume",
-                    lambda it = item, loc = location:self._consume_item(it, loc, save_data, on_complete = refresh_view),
-                    width = 100,
-                    height = 35,
-                    font = customtkinter.CTkFont(size = 12)
-                    )
-                    consume_button.grid(row = 0, column = button_col, rowspan = 2, padx =(0, 15), pady = 10)
+        def display_view_page(page_num):
+            items = view_current_filtered[0]
+            total_pages = max(1, (len(items) + ITEMS_PER_PAGE_VIEW - 1) // ITEMS_PER_PAGE_VIEW)
+            page_num = max(0, min(page_num, total_pages - 1))
+            view_current_page[0] = page_num
 
-                if item.get("stratagem"):
-                    button_col +=1
-                    stratagem_button = self._create_sound_button(
-                    item_frame,
-                    "Use Stratagem",
-                    lambda it = item, loc = location:self._use_stratagem(it, loc, save_data, on_complete = refresh_view),
-                    width = 120,
-                    height = 35,
-                    font = customtkinter.CTkFont(size = 12)
-                    )
-                    stratagem_button.grid(row = 0, column = button_col, rowspan = 2, padx =(0, 15), pady = 10)
+            for widget in view_scroll.winfo_children():
+                widget.destroy()
 
+            if not items:
+                empty_label = customtkinter.CTkLabel(view_scroll, text = "Container is empty", font = customtkinter.CTkFont(size = 14), text_color = "gray")
+                empty_label.pack(pady = 30)
+                view_info_label.configure(text = "No items")
+                update_view_pagination(0, 0)
+                return
+
+            start_idx = page_num * ITEMS_PER_PAGE_VIEW
+            end_idx = min(start_idx + ITEMS_PER_PAGE_VIEW, len(items))
+
+            for i in range(start_idx, end_idx):
+                create_item_view_widget(items[i])
+
+            view_info_label.configure(text = f"Page {page_num + 1}/{total_pages} | {len(items)} items")
+            update_view_pagination(page_num, total_pages)
+
+            try:
+                view_scroll._parent_canvas.yview_moveto(0)
+            except Exception:
+                pass
+
+        def update_view_pagination(current, total):
+            for widget in view_pagination_frame.winfo_children():
+                widget.destroy()
+
+            if total <= 1:
+                return
+
+            first_btn = customtkinter.CTkButton(view_pagination_frame, text = "<<", width = 40, height = 30, command = lambda: display_view_page(0), state = "normal" if current > 0 else "disabled")
+            first_btn.pack(side = "left", padx = 2)
+
+            prev_btn = customtkinter.CTkButton(view_pagination_frame, text = "<", width = 40, height = 30, command = lambda: display_view_page(current - 1), state = "normal" if current > 0 else "disabled")
+            prev_btn.pack(side = "left", padx = 2)
+
+            start_page = max(0, current - 3)
+            end_page = min(total, start_page + 7)
+            if end_page - start_page < 7:
+                start_page = max(0, end_page - 7)
+
+            for p in range(start_page, end_page):
+                btn = customtkinter.CTkButton(view_pagination_frame, text = str(p + 1), width = 35, height = 30, fg_color = ("gray75", "gray25") if p == current else None, command = lambda page = p: display_view_page(page))
+                btn.pack(side = "left", padx = 1)
+
+            next_btn = customtkinter.CTkButton(view_pagination_frame, text = ">", width = 40, height = 30, command = lambda: display_view_page(current + 1), state = "normal" if current < total - 1 else "disabled")
+            next_btn.pack(side = "left", padx = 2)
+
+            last_btn = customtkinter.CTkButton(view_pagination_frame, text = ">>", width = 40, height = 30, command = lambda: display_view_page(total - 1), state = "normal" if current < total - 1 else "disabled")
+            last_btn.pack(side = "left", padx = 2)
+
+        def filter_view_items(search_term):
+            search_lower = search_term.lower().strip()
+
+            if search_lower:
+                filtered = [
+                item for item in view_all_items[0]
+                if search_lower in item.get("name", "").lower()
+                ]
+            else:
+                filtered = view_all_items[0]
+
+            view_current_filtered[0] = filtered
+            view_current_page[0] = 0
+            display_view_page(0)
+
+        def on_view_search_change(*args):
+            if view_search_timer[0] is not None:
+                try:
+                    self.root.after_cancel(view_search_timer[0])
+                except Exception:
+                    pass
+            view_search_timer[0] = self.root.after(200, lambda: filter_view_items(view_search_entry.get())) # type: ignore
+
+        view_search_entry.bind("<KeyRelease>", on_view_search_change)
         container_selector.configure(command = lambda _:refresh_view())
         refresh_view()
 
@@ -7601,7 +7817,7 @@ class App:
 
         source_frame = customtkinter.CTkFrame(container_frame)
         source_frame.grid(row = 0, column = 0, sticky = "nsew", padx =(0, 10))
-        source_frame.grid_rowconfigure(2, weight = 1)
+        source_frame.grid_rowconfigure(3, weight = 1)
         source_frame.grid_columnconfigure(0, weight = 1)
 
         source_label = customtkinter.CTkLabel(source_frame, text = "Source Container", font = customtkinter.CTkFont(size = 16, weight = "bold"))
@@ -7611,12 +7827,25 @@ class App:
         source_selector.grid(row = 1, column = 0, pady = 5)
         source_selector.set(containers[1]["name"]if len(containers)>1 else containers[0]["name"])
 
-        source_scroll = customtkinter.CTkScrollableFrame(source_frame, width = 350, height = 400)
-        source_scroll.grid(row = 2, column = 0, sticky = "nsew", padx = 10, pady = 10)
+        source_search_frame = customtkinter.CTkFrame(source_frame, fg_color = "transparent")
+        source_search_frame.grid(row = 2, column = 0, sticky = "ew", padx = 10, pady = 5)
+        source_search_frame.grid_columnconfigure(1, weight = 1)
+
+        customtkinter.CTkLabel(source_search_frame, text = "Search:", font = customtkinter.CTkFont(size = 11)).grid(row = 0, column = 0, padx = (0, 5))
+        source_search_entry = customtkinter.CTkEntry(source_search_frame, placeholder_text = "Filter...", width = 150)
+        source_search_entry.grid(row = 0, column = 1, sticky = "w")
+        source_info_label = customtkinter.CTkLabel(source_search_frame, text = "", font = customtkinter.CTkFont(size = 10), text_color = "gray")
+        source_info_label.grid(row = 0, column = 2, padx = 10)
+
+        source_scroll = customtkinter.CTkScrollableFrame(source_frame, width = 350, height = 320)
+        source_scroll.grid(row = 3, column = 0, sticky = "nsew", padx = 10, pady = (5, 5))
+
+        source_pagination_frame = customtkinter.CTkFrame(source_frame, fg_color = "transparent")
+        source_pagination_frame.grid(row = 4, column = 0, pady = 5)
 
         dest_frame = customtkinter.CTkFrame(container_frame)
         dest_frame.grid(row = 0, column = 1, sticky = "nsew", padx =(10, 0))
-        dest_frame.grid_rowconfigure(2, weight = 1)
+        dest_frame.grid_rowconfigure(3, weight = 1)
         dest_frame.grid_columnconfigure(0, weight = 1)
 
         dest_label = customtkinter.CTkLabel(dest_frame, text = "Destination Container", font = customtkinter.CTkFont(size = 16, weight = "bold"))
@@ -7626,56 +7855,93 @@ class App:
         dest_selector.grid(row = 1, column = 0, pady = 5)
         dest_selector.set(containers[0]["name"])
 
-        dest_scroll = customtkinter.CTkScrollableFrame(dest_frame, width = 350, height = 400)
-        dest_scroll.grid(row = 2, column = 0, sticky = "nsew", padx = 10, pady = 10)
+        dest_search_frame = customtkinter.CTkFrame(dest_frame, fg_color = "transparent")
+        dest_search_frame.grid(row = 2, column = 0, sticky = "ew", padx = 10, pady = 5)
+        dest_search_frame.grid_columnconfigure(1, weight = 1)
 
-        def refresh_containers():
+        customtkinter.CTkLabel(dest_search_frame, text = "Search:", font = customtkinter.CTkFont(size = 11)).grid(row = 0, column = 0, padx = (0, 5))
+        dest_search_entry = customtkinter.CTkEntry(dest_search_frame, placeholder_text = "Filter...", width = 150)
+        dest_search_entry.grid(row = 0, column = 1, sticky = "w")
+        dest_info_label = customtkinter.CTkLabel(dest_search_frame, text = "", font = customtkinter.CTkFont(size = 10), text_color = "gray")
+        dest_info_label.grid(row = 0, column = 2, padx = 10)
+
+        dest_scroll = customtkinter.CTkScrollableFrame(dest_frame, width = 350, height = 320)
+        dest_scroll.grid(row = 3, column = 0, sticky = "nsew", padx = 10, pady = (5, 5))
+
+        dest_pagination_frame = customtkinter.CTkFrame(dest_frame, fg_color = "transparent")
+        dest_pagination_frame.grid(row = 4, column = 0, pady = 5)
+
+        TRANSFER_ITEMS_PER_PAGE = 15
+        source_page = [0]
+        source_all_items = [[]]
+        source_filtered = [[]]
+        source_search_timer = [None]
+        dest_page = [0]
+        dest_all_items = [[]]
+        dest_filtered = [[]]
+        dest_search_timer = [None]
+        source_location_ref = [""]
+        dest_location_ref = [""]
+
+        def update_source_pagination(current, total):
+            for widget in source_pagination_frame.winfo_children():
+                widget.destroy()
+            if total <= 1:
+                return
+            prev_btn = customtkinter.CTkButton(source_pagination_frame, text = "<", width = 30, height = 25, command = lambda: display_source_page(current - 1), state = "normal" if current > 0 else "disabled")
+            prev_btn.pack(side = "left", padx = 2)
+            for p in range(max(0, current - 2), min(total, current + 3)):
+                btn = customtkinter.CTkButton(source_pagination_frame, text = str(p + 1), width = 28, height = 25, fg_color = ("gray75", "gray25") if p == current else None, command = lambda page = p: display_source_page(page))
+                btn.pack(side = "left", padx = 1)
+            next_btn = customtkinter.CTkButton(source_pagination_frame, text = ">", width = 30, height = 25, command = lambda: display_source_page(current + 1), state = "normal" if current < total - 1 else "disabled")
+            next_btn.pack(side = "left", padx = 2)
+
+        def update_dest_pagination(current, total):
+            for widget in dest_pagination_frame.winfo_children():
+                widget.destroy()
+            if total <= 1:
+                return
+            prev_btn = customtkinter.CTkButton(dest_pagination_frame, text = "<", width = 30, height = 25, command = lambda: display_dest_page(current - 1), state = "normal" if current > 0 else "disabled")
+            prev_btn.pack(side = "left", padx = 2)
+            for p in range(max(0, current - 2), min(total, current + 3)):
+                btn = customtkinter.CTkButton(dest_pagination_frame, text = str(p + 1), width = 28, height = 25, fg_color = ("gray75", "gray25") if p == current else None, command = lambda page = p: display_dest_page(page))
+                btn.pack(side = "left", padx = 1)
+            next_btn = customtkinter.CTkButton(dest_pagination_frame, text = ">", width = 30, height = 25, command = lambda: display_dest_page(current + 1), state = "normal" if current < total - 1 else "disabled")
+            next_btn.pack(side = "left", padx = 2)
+
+        def display_source_page(page_num):
+            items = source_filtered[0]
+            total_pages = max(1, (len(items) + TRANSFER_ITEMS_PER_PAGE - 1) // TRANSFER_ITEMS_PER_PAGE)
+            page_num = max(0, min(page_num, total_pages - 1))
+            source_page[0] = page_num
 
             for widget in source_scroll.winfo_children():
                 widget.destroy()
-            for widget in dest_scroll.winfo_children():
-                widget.destroy()
 
-            source_name = source_selector.get()
-            dest_name = dest_selector.get()
-
-            if source_name ==dest_name:
-                source_selector.set(dest_name)
-                dest_selector.set(source_name)
-                source_name = source_selector.get()
-                dest_name = dest_selector.get()
-                if source_name ==dest_name:
-
-                    for c in containers:
-                        if c["name"]!=source_name:
-                            dest_selector.set(c["name"])
-                            dest_name = c["name"]
-                            break
-
-            source_container = next((c for c in containers if c["name"]==source_name), None)
-            dest_container = next((c for c in containers if c["name"]==dest_name), None)
-
-            if not source_container or not dest_container:
+            if not items:
+                empty_label = customtkinter.CTkLabel(source_scroll, text = "Container is empty", text_color = "gray")
+                empty_label.pack(pady = 20)
+                source_info_label.configure(text = "0 items")
+                update_source_pagination(0, 0)
                 return
 
-            source_location = source_container["location"]
-            dest_location = dest_container["location"]
-            source_items = get_container_items(source_location)
-            dest_items = get_container_items(dest_location)
+            start_idx = page_num * TRANSFER_ITEMS_PER_PAGE
+            end_idx = min(start_idx + TRANSFER_ITEMS_PER_PAGE, len(items))
 
-            for i, item in enumerate(source_items):
-                if not isinstance(item, dict):
-                    continue
+            for i in range(start_idx, end_idx):
+                item_data = items[i]
+                original_idx = item_data["_original_idx"]
+                item = item_data["item"]
 
                 item_frame = customtkinter.CTkFrame(source_scroll)
                 item_frame.pack(fill = "x", pady = 2)
 
                 item_name = item.get("name", "Unknown")
-                item_weight = item.get("weight", 0)*item.get("quantity", 1)
+                item_weight = item.get("weight", 0) * item.get("quantity", 1)
 
                 item_label = customtkinter.CTkLabel(
                 item_frame,
-                text = f"{item_name} x{item.get('quantity', 1)}({self._format_weight(item_weight)})",
+                text = f"{item_name} x{item.get('quantity', 1)} ({self._format_weight(item_weight)})",
                 anchor = "w"
                 )
                 item_label.pack(side = "left", padx = 10, pady = 5)
@@ -7683,41 +7949,131 @@ class App:
                 move_button = self._create_sound_button(
                 item_frame,
                 "Move →",
-                lambda idx = i, src_loc = source_location, dst_loc = dest_location:move_item(idx, src_loc, dst_loc),
+                lambda idx = original_idx: move_item(idx, source_location_ref[0], dest_location_ref[0]),
                 width = 80,
                 height = 30
                 )
                 move_button.pack(side = "right", padx = 10, pady = 5)
 
-            if not source_items:
-                empty_label = customtkinter.CTkLabel(source_scroll, text = "Container is empty", text_color = "gray")
-                empty_label.pack(pady = 20)
+            source_info_label.configure(text = f"Pg {page_num + 1}/{total_pages} ({len(items)})")
+            update_source_pagination(page_num, total_pages)
 
-            for item in dest_items:
-                if not isinstance(item, dict):
-                    continue
+        def display_dest_page(page_num):
+            items = dest_filtered[0]
+            total_pages = max(1, (len(items) + TRANSFER_ITEMS_PER_PAGE - 1) // TRANSFER_ITEMS_PER_PAGE)
+            page_num = max(0, min(page_num, total_pages - 1))
+            dest_page[0] = page_num
+
+            for widget in dest_scroll.winfo_children():
+                widget.destroy()
+
+            if not items:
+                empty_label = customtkinter.CTkLabel(dest_scroll, text = "Container is empty", text_color = "gray")
+                empty_label.pack(pady = 20)
+                dest_info_label.configure(text = "0 items")
+                update_dest_pagination(0, 0)
+                return
+
+            start_idx = page_num * TRANSFER_ITEMS_PER_PAGE
+            end_idx = min(start_idx + TRANSFER_ITEMS_PER_PAGE, len(items))
+
+            for i in range(start_idx, end_idx):
+                item_data = items[i]
+                item = item_data["item"]
 
                 item_frame = customtkinter.CTkFrame(dest_scroll)
                 item_frame.pack(fill = "x", pady = 2)
 
-                if not isinstance(item, dict):
-                    item_obj = {"name":str(item), "weight":0, "quantity":1}
-                else:
-                    item_obj = item
-
-                item_name = item_obj.get("name", "Unknown")
-                item_weight = item_obj.get("weight", 0)*item_obj.get("quantity", 1)
+                item_name = item.get("name", "Unknown")
+                item_weight = item.get("weight", 0) * item.get("quantity", 1)
 
                 item_label = customtkinter.CTkLabel(
                 item_frame,
-                text = f"{item_name} x{item_obj.get('quantity', 1)}({self._format_weight(item_weight)})",
+                text = f"{item_name} x{item.get('quantity', 1)} ({self._format_weight(item_weight)})",
                 anchor = "w"
                 )
                 item_label.pack(side = "left", padx = 10, pady = 5)
 
-            if not dest_items:
-                empty_label = customtkinter.CTkLabel(dest_scroll, text = "Container is empty", text_color = "gray")
-                empty_label.pack(pady = 20)
+            dest_info_label.configure(text = f"Pg {page_num + 1}/{total_pages} ({len(items)})")
+            update_dest_pagination(page_num, total_pages)
+
+        def filter_source_items(search_term):
+            search_lower = search_term.lower().strip()
+            if search_lower:
+                filtered = [item for item in source_all_items[0] if search_lower in item["item"].get("name", "").lower()]
+            else:
+                filtered = source_all_items[0]
+            source_filtered[0] = filtered
+            source_page[0] = 0
+            display_source_page(0)
+
+        def filter_dest_items(search_term):
+            search_lower = search_term.lower().strip()
+            if search_lower:
+                filtered = [item for item in dest_all_items[0] if search_lower in item["item"].get("name", "").lower()]
+            else:
+                filtered = dest_all_items[0]
+            dest_filtered[0] = filtered
+            dest_page[0] = 0
+            display_dest_page(0)
+
+        def on_source_search_change(*args):
+            if source_search_timer[0] is not None:
+                try:
+                    self.root.after_cancel(source_search_timer[0])
+                except Exception:
+                    pass
+            source_search_timer[0] = self.root.after(200, lambda: filter_source_items(source_search_entry.get())) # type: ignore
+
+        def on_dest_search_change(*args):
+            if dest_search_timer[0] is not None:
+                try:
+                    self.root.after_cancel(dest_search_timer[0])
+                except Exception:
+                    pass
+            dest_search_timer[0] = self.root.after(200, lambda: filter_dest_items(dest_search_entry.get())) # type: ignore
+
+        source_search_entry.bind("<KeyRelease>", on_source_search_change)
+        dest_search_entry.bind("<KeyRelease>", on_dest_search_change)
+
+        def refresh_containers():
+            source_name = source_selector.get()
+            dest_name = dest_selector.get()
+
+            if source_name == dest_name:
+                source_selector.set(dest_name)
+                dest_selector.set(source_name)
+                source_name = source_selector.get()
+                dest_name = dest_selector.get()
+                if source_name == dest_name:
+                    for c in containers:
+                        if c["name"] != source_name:
+                            dest_selector.set(c["name"])
+                            dest_name = c["name"]
+                            break
+
+            source_container = next((c for c in containers if c["name"] == source_name), None)
+            dest_container = next((c for c in containers if c["name"] == dest_name), None)
+
+            if not source_container or not dest_container:
+                return
+
+            source_location_ref[0] = source_container["location"]
+            dest_location_ref[0] = dest_container["location"]
+            source_items = get_container_items(source_location_ref[0])
+            dest_items = get_container_items(dest_location_ref[0])
+
+            source_all_items[0] = [{"item": item, "_original_idx": i} for i, item in enumerate(source_items) if isinstance(item, dict)]
+            dest_all_items[0] = [{"item": item, "_original_idx": i} for i, item in enumerate(dest_items) if isinstance(item, dict)]
+
+            source_search_entry.delete(0, "end")
+            dest_search_entry.delete(0, "end")
+            source_filtered[0] = source_all_items[0]
+            dest_filtered[0] = dest_all_items[0]
+            source_page[0] = 0
+            dest_page[0] = 0
+            display_source_page(0)
+            display_dest_page(0)
 
         def move_item(item_idx, source_location, dest_location):
             try:
@@ -11948,13 +12304,36 @@ class App:
             if not loaded_mag:
                 ammo_label_ref = current_weapon_state.get("ammo_label_ref")
                 if ammo_label_ref:
-                    ammo_label_ref.configure(text = "Ammo: No magazine loaded")
+                    ammo_label_ref.configure(text = "Ammo: No magazine loaded", text_color = ("gray10", "gray90"))
                     self.root.update()
                 return
 
             rounds = loaded_mag.get("rounds", [])
             round_count = len(rounds)
             capacity = loaded_mag.get("capacity", "Unknown")
+
+            tip_color = None
+            if rounds:
+                first_round = rounds[0]
+                if isinstance(first_round, dict):
+                    tip_color = first_round.get("tip")
+                elif isinstance(first_round, str) and "|" in first_round:
+                    variant_name = first_round.split("|")[-1].strip()
+                    caliber_part = first_round.split("|")[0].strip()
+                    try:
+                        table_files = glob.glob(os.path.join("tables", "*.sldtbl"))
+                        if table_files:
+                            with open(table_files[0], 'r') as f:
+                                table_data = json.load(f)
+                            for ammo in table_data.get("tables", {}).get("ammunition", []):
+                                if ammo.get("caliber") == caliber_part or ammo.get("name") == caliber_part:
+                                    for var in ammo.get("variants", []):
+                                        if var.get("name") == variant_name:
+                                            tip_color = var.get("tip")
+                                            break
+                                    break
+                    except Exception:
+                        pass
 
             is_belt =("belt"in(wpn.get("magazinetype", "")or ""))or("belt"in(wpn.get("platform", "")or ""))or("m249"in(wpn.get("platform", "")or ""))
             try:
@@ -11973,7 +12352,7 @@ class App:
             ammo_label_ref = current_weapon_state.get("ammo_label_ref")
 
             if ammo_label_ref:
-                ammo_label_ref.configure(text = "Checking magazine...")
+                ammo_label_ref.configure(text = "Checking magazine...", text_color = ("gray10", "gray90"))
                 self.root.update()
 
             time.sleep(2.5)
@@ -11996,7 +12375,10 @@ class App:
             self._play_weapon_action_sound(wpn, "magin")
 
             if ammo_label_ref:
-                ammo_label_ref.configure(text = estimation)
+                if tip_color and round_count > 0:
+                    ammo_label_ref.configure(text = estimation, text_color = tip_color)
+                else:
+                    ammo_label_ref.configure(text = estimation, text_color = ("gray10", "gray90"))
                 self.root.update()
 
         def reload_magazine():
@@ -14475,6 +14857,14 @@ class App:
                         return
 
                     variant_name = variant_var.get()
+                    variant_info = None
+                    for var in ammo_def.get("variants", []):
+                        if var.get("name") == variant_name:
+                            variant_info = var
+                            break
+                    if not variant_info and ammo_def.get("variants"):
+                        variant_info = ammo_def["variants"][0]
+
                     single_round = {
                     "name":f"{caliber} | {variant_name}",
                     "caliber":caliber,
@@ -14484,6 +14874,15 @@ class App:
                     "sounds":ammo_def.get("sounds", ""),
                     "description":f"{caliber} - {variant_name}"
                     }
+                    if variant_info:
+                        if variant_info.get("type"):
+                            single_round["type"] = variant_info.get("type")
+                        if variant_info.get("pen"):
+                            single_round["pen"] = variant_info.get("pen")
+                        if variant_info.get("tip"):
+                            single_round["tip"] = variant_info.get("tip")
+                        if variant_info.get("modifiers"):
+                            single_round["modifiers"] = variant_info.get("modifiers")
 
                     hands = save_data.get("hands", {})
                     if "items"not in hands or not isinstance(hands.get("items"), list):
@@ -14574,7 +14973,34 @@ class App:
                     variant_name = variant_var.get()
                     round_format = f"{caliber} | {variant_name}"
 
-                    round_obj = {"name":round_format, "caliber":caliber, "variant":variant_name}
+                    ammo_tables = table_data.get("tables", {}).get("ammunition", []) if table_data else []
+                    variant_info = None
+                    for ammo in ammo_tables:
+                        ammo_cal = ammo.get("caliber")
+                        cal_match = False
+                        if isinstance(ammo_cal, (list, tuple)):
+                            cal_match = caliber in ammo_cal
+                        elif isinstance(ammo_cal, str):
+                            cal_match = ammo_cal == caliber
+                        if cal_match:
+                            for var in ammo.get("variants", []):
+                                if var.get("name") == variant_name:
+                                    variant_info = var
+                                    break
+                            if not variant_info and ammo.get("variants"):
+                                variant_info = ammo["variants"][0]
+                            break
+
+                    round_obj = {"name": round_format, "caliber": caliber, "variant": variant_name}
+                    if variant_info:
+                        if variant_info.get("type"):
+                            round_obj["type"] = variant_info.get("type")
+                        if variant_info.get("pen"):
+                            round_obj["pen"] = variant_info.get("pen")
+                        if variant_info.get("tip"):
+                            round_obj["tip"] = variant_info.get("tip")
+                        if variant_info.get("modifiers"):
+                            round_obj["modifiers"] = variant_info.get("modifiers")
 
                     new_mag = {
                     "name":mag_template.get("name"),
@@ -14627,7 +15053,35 @@ class App:
                     caliber_list = current_weapon.get("caliber", [])or[]
                     caliber = caliber_list[0]if caliber_list else mag_template.get("caliber", ["Unknown"])[0]
                     variant_name = variant_var.get()
-                    round_obj = {"name":f"{caliber} | {variant_name}", "caliber":caliber, "variant":variant_name}
+
+                    ammo_tables = table_data.get("tables", {}).get("ammunition", []) if table_data else []
+                    variant_info = None
+                    for ammo in ammo_tables:
+                        ammo_cal = ammo.get("caliber")
+                        cal_match = False
+                        if isinstance(ammo_cal, (list, tuple)):
+                            cal_match = caliber in ammo_cal
+                        elif isinstance(ammo_cal, str):
+                            cal_match = ammo_cal == caliber
+                        if cal_match:
+                            for var in ammo.get("variants", []):
+                                if var.get("name") == variant_name:
+                                    variant_info = var
+                                    break
+                            if not variant_info and ammo.get("variants"):
+                                variant_info = ammo["variants"][0]
+                            break
+
+                    round_obj = {"name": f"{caliber} | {variant_name}", "caliber": caliber, "variant": variant_name}
+                    if variant_info:
+                        if variant_info.get("type"):
+                            round_obj["type"] = variant_info.get("type")
+                        if variant_info.get("pen"):
+                            round_obj["pen"] = variant_info.get("pen")
+                        if variant_info.get("tip"):
+                            round_obj["tip"] = variant_info.get("tip")
+                        if variant_info.get("modifiers"):
+                            round_obj["modifiers"] = variant_info.get("modifiers")
 
                     new_belt = {
                     "name":mag_template.get("name", "Belt"),
@@ -17098,10 +17552,19 @@ class App:
             caliber = caliber_list[0]
 
             variant = "Unknown"
-            if chambered and " | "in str(chambered):
-                variant = str(chambered).split(" | ")[1]
-            elif loaded_mag and loaded_mag.get("rounds")and " | "in str(loaded_mag["rounds"][0]):
-                variant = str(loaded_mag["rounds"][0]).split(" | ")[1]
+            # Check if chambered is a dict with variant key (new format)
+            if chambered and isinstance(chambered, dict):
+                variant = chambered.get("variant", "Unknown")
+            # Check if loaded_mag rounds are dicts (new format)
+            elif loaded_mag and loaded_mag.get("rounds"):
+                first_round = loaded_mag["rounds"][0]
+                if isinstance(first_round, dict):
+                    variant = first_round.get("variant", "Unknown")
+                elif isinstance(first_round, str) and " | " in first_round:
+                    variant = first_round.split(" | ")[1]
+            # Fallback to old string format for chambered
+            elif chambered and isinstance(chambered, str) and " | " in chambered:
+                variant = chambered.split(" | ")[1]
 
             effective_aim = 0
             try:
@@ -17127,6 +17590,21 @@ class App:
                     wstats = weapon.get("stats", {})or {}
                     if isinstance(wstats, dict):
                         effective_aim +=float(wstats.get("aim", 0)or 0)
+            except Exception:
+                pass
+
+            # Apply aim bonus from round modifiers (e.g., tracer rounds)
+            try:
+                fired_round_for_bonus = chambered
+                if not fired_round_for_bonus and loaded_mag and loaded_mag.get("rounds"):
+                    fired_round_for_bonus = loaded_mag["rounds"][0] if loaded_mag["rounds"] else None
+                
+                if fired_round_for_bonus and isinstance(fired_round_for_bonus, dict):
+                    round_mods = fired_round_for_bonus.get("modifiers", {}) or {}
+                    if isinstance(round_mods, dict):
+                        round_stats = round_mods.get("stats", {}) or {}
+                        if isinstance(round_stats, dict):
+                            effective_aim += float(round_stats.get("aim", 0) or 0)
             except Exception:
                 pass
 
@@ -21224,15 +21702,6 @@ class App:
         logging.info("Create Loot Crate from Scratch called")
         self._clear_window()
 
-        self.root.grid_rowconfigure(0, weight = 1)
-        self.root.grid_columnconfigure(0, weight = 1)
-
-        main_frame = customtkinter.CTkScrollableFrame(self.root)
-        main_frame.grid(row = 0, column = 0, sticky = "nsew")
-
-        title_label = customtkinter.CTkLabel(main_frame, text = "Create Lootcrate from Scratch", font = customtkinter.CTkFont(size = 24, weight = "bold"))
-        title_label.pack(pady = 20)
-
         try:
             table_files = glob.glob(os.path.join("tables", "*.sldtbl"))
             if not table_files:
@@ -21245,213 +21714,600 @@ class App:
             self._popup_show_info("Error", f"Failed to load tables: {e}", sound = "error")
             return
 
-        def save_preset_to_folder(crate):
+        excluded_tables = {"lootcrates", "special_items", "enemy_drops"}
+        all_items =[]
+        for table_name, items in table_data.get("tables", {}).items():
+            if table_name in excluded_tables:
+                continue
+            for item in items:
+                if item.get("id")is None:
+                    continue
+                item_copy = item.copy()
+                item_copy["table_category"]= table_name
+                all_items.append(item_copy)
 
-            try:
-                crate_copy = json.loads(json.dumps(crate))
-                crate_copy.pop("_source_file", None)
-                crate_copy.pop("_file_path", None)
-                crate_copy["created_at"]= datetime.now().isoformat()
-                os.makedirs(os.path.join("lootcrates", "presets"), exist_ok = True)
-                filename = os.path.join(
-                "lootcrates", "presets",
-                f"preset_{datetime.now().strftime('%Y%m%d_%H%M%S')}{global_variables['lootcrate_extension']}"
-                )
-                pickled_data = pickle.dumps(crate_copy)
-                encoded_data = base64.b85encode(pickled_data).decode('utf-8')
-                with open(filename, 'w')as f:
-                    f.write(encoded_data)
-                self._popup_show_info("Success", f"Saved preset '{crate.get('name', 'Loot Crate')}' to presets folder.", sound = "success")
-                logging.info(f"Saved preset loot crate to {filename}")
-            except Exception as e:
-                logging.error(f"Failed to save preset loot crate: {e}")
-                self._popup_show_info("Error", f"Failed to save preset loot crate: {e}", sound = "error")
+        all_items.sort(key = lambda x:x.get("id", 999999))
+
+        self.root.grid_rowconfigure(0, weight = 1)
+        self.root.grid_columnconfigure(0, weight = 1)
+
+        main_frame = customtkinter.CTkFrame(self.root)
+        main_frame.grid(row = 0, column = 0, sticky = "nsew", padx = 10, pady = 10)
+        main_frame.grid_rowconfigure(2, weight = 1)
+        main_frame.grid_columnconfigure(0, weight = 1)
+        main_frame.grid_columnconfigure(1, weight = 0)
+
+        title_label = customtkinter.CTkLabel(main_frame, text = "Create Lootcrate from Scratch", font = customtkinter.CTkFont(size = 24, weight = "bold"))
+        title_label.grid(row = 0, column = 0, columnspan = 2, pady =(0, 10))
 
         meta_frame = customtkinter.CTkFrame(main_frame)
-        meta_frame.pack(fill = "x", padx = 20, pady = 10)
+        meta_frame.grid(row = 1, column = 0, columnspan = 2, sticky = "ew", padx = 10, pady = 10)
         meta_frame.grid_columnconfigure(1, weight = 1)
+        meta_frame.grid_columnconfigure(3, weight = 1)
 
-        name_label = customtkinter.CTkLabel(meta_frame, text = "Lootcrate Name:")
+        name_label = customtkinter.CTkLabel(meta_frame, text = "Name:")
         name_label.grid(row = 0, column = 0, padx = 5, pady = 5, sticky = "w")
-        name_entry = customtkinter.CTkEntry(meta_frame, placeholder_text = "")
-        name_entry.grid(row = 0, column = 1, padx = 5, pady = 5, sticky = "ew")
+        name_entry = customtkinter.CTkEntry(meta_frame, placeholder_text = "Loot Crate Name", width = 200)
+        name_entry.grid(row = 0, column = 1, padx = 5, pady = 5, sticky = "w")
 
         desc_label = customtkinter.CTkLabel(meta_frame, text = "Description:")
-        desc_label.grid(row = 1, column = 0, padx = 5, pady = 5, sticky = "nw")
-        desc_text = customtkinter.CTkEntry(meta_frame, placeholder_text = "")
-        desc_text.grid(row = 1, column = 1, padx = 5, pady = 5, sticky = "ew")
+        desc_label.grid(row = 0, column = 2, padx =(20, 5), pady = 5, sticky = "w")
+        desc_entry = customtkinter.CTkEntry(meta_frame, placeholder_text = "Optional description", width = 300)
+        desc_entry.grid(row = 0, column = 3, padx = 5, pady = 5, sticky = "ew")
 
         locked_var = customtkinter.BooleanVar(value = False)
-        locked_check = customtkinter.CTkCheckBox(meta_frame, text = "This lootcrate requires lockpicking", variable = locked_var)
-        locked_check.grid(row = 2, column = 0, columnspan = 2, padx = 5, pady = 10, sticky = "w")
+        locked_check = customtkinter.CTkCheckBox(meta_frame, text = "Locked (requires lockpicking)", variable = locked_var)
+        locked_check.grid(row = 1, column = 0, columnspan = 2, padx = 5, pady = 5, sticky = "w")
 
-        pulls_frame = customtkinter.CTkFrame(meta_frame)
-        pulls_frame.grid(row = 3, column = 0, columnspan = 2, padx = 5, pady = 10, sticky = "ew")
+        pulls_label = customtkinter.CTkLabel(meta_frame, text = "Pulls:")
+        pulls_label.grid(row = 1, column = 2, padx =(20, 5), pady = 5, sticky = "w")
 
-        pulls_label = customtkinter.CTkLabel(pulls_frame, text = "Number of Pulls:")
-        pulls_label.pack(side = "left", padx = 5)
+        pulls_frame = customtkinter.CTkFrame(meta_frame, fg_color = "transparent")
+        pulls_frame.grid(row = 1, column = 3, padx = 5, pady = 5, sticky = "w")
 
-        pulls_type_var = customtkinter.StringVar(value = "Fixed")
-        fixed_radio = customtkinter.CTkRadioButton(pulls_frame, text = "Fixed", variable = pulls_type_var, value = "Fixed")
-        fixed_radio.pack(side = "left", padx = 10)
-        range_radio = customtkinter.CTkRadioButton(pulls_frame, text = "Range", variable = pulls_type_var, value = "Range")
-        range_radio.pack(side = "left", padx = 10)
+        pulls_min_entry = customtkinter.CTkEntry(pulls_frame, placeholder_text = "Min", width = 60)
+        pulls_min_entry.pack(side = "left", padx = 2)
+        pulls_min_entry.insert(0, "3")
 
-        pulls_entry_label = customtkinter.CTkLabel(pulls_frame, text = "Pulls:")
-        pulls_entry_label.pack(side = "left", padx = 5)
-        pulls_entry = customtkinter.CTkEntry(pulls_frame, placeholder_text = "3", width = 60)
-        pulls_entry.pack(side = "left", padx = 5)
+        pulls_dash = customtkinter.CTkLabel(pulls_frame, text = "-")
+        pulls_dash.pack(side = "left", padx = 2)
 
-        guaranteed_label = customtkinter.CTkLabel(meta_frame, text = "Guaranteed Items(IDs):")
-        guaranteed_label.grid(row = 4, column = 0, padx = 5, pady = 5, sticky = "w")
-        guaranteed_entry = customtkinter.CTkEntry(meta_frame, placeholder_text = "e.g., 1, 2, 3")
-        guaranteed_entry.grid(row = 4, column = 1, padx = 5, pady = 5, sticky = "ew")
+        pulls_max_entry = customtkinter.CTkEntry(pulls_frame, placeholder_text = "Max", width = 60)
+        pulls_max_entry.pack(side = "left", padx = 2)
+        pulls_max_entry.insert(0, "3")
 
-        id_pool_label = customtkinter.CTkLabel(meta_frame, text = "ID Pool(Random Items):")
-        id_pool_label.grid(row = 5, column = 0, padx = 5, pady = 5, sticky = "w")
-        id_pool_entry = customtkinter.CTkEntry(meta_frame, placeholder_text = "e.g., 10, 11, 12")
-        id_pool_entry.grid(row = 5, column = 1, padx = 5, pady = 5, sticky = "ew")
+        pulls_hint = customtkinter.CTkLabel(pulls_frame, text = "(same for fixed)", font = customtkinter.CTkFont(size = 10), text_color = "gray")
+        pulls_hint.pack(side = "left", padx = 5)
 
-        table_pool_label = customtkinter.CTkLabel(meta_frame, text = "Table Pool:")
-        table_pool_label.grid(row = 6, column = 0, padx = 5, pady = 5, sticky = "nw")
+        content_frame = customtkinter.CTkFrame(main_frame, fg_color = "transparent")
+        content_frame.grid(row = 2, column = 0, columnspan = 2, sticky = "nsew", pady = 10)
+        content_frame.grid_rowconfigure(0, weight = 1)
+        content_frame.grid_columnconfigure(0, weight = 1)
+        content_frame.grid_columnconfigure(1, weight = 0)
 
-        table_pool_frame = customtkinter.CTkScrollableFrame(meta_frame, height = 150)
-        table_pool_frame.grid(row = 6, column = 1, padx = 5, pady = 5, sticky = "ew")
+        left_frame = customtkinter.CTkFrame(content_frame)
+        left_frame.grid(row = 0, column = 0, sticky = "nsew", padx =(0, 5))
+        left_frame.grid_rowconfigure(2, weight = 1)
+        left_frame.grid_columnconfigure(0, weight = 1)
 
-        table_selections = {}
-        for table_name in table_data.get("tables", {}).keys():
-            if table_name !="lootcrates":
-                row_frame = customtkinter.CTkFrame(table_pool_frame)
-                row_frame.pack(fill = "x", padx = 5, pady = 2)
+        search_frame = customtkinter.CTkFrame(left_frame, fg_color = "transparent")
+        search_frame.grid(row = 0, column = 0, sticky = "ew", padx = 10, pady = 5)
+        search_frame.grid_columnconfigure(1, weight = 1)
 
-                var = customtkinter.BooleanVar(value = False)
-                check = customtkinter.CTkCheckBox(row_frame, text = table_name, variable = var)
-                check.pack(side = "left", padx = 5)
+        search_label = customtkinter.CTkLabel(search_frame, text = "Search (ID or Name):", font = customtkinter.CTkFont(size = 12))
+        search_label.grid(row = 0, column = 0, padx =(0, 10), sticky = "w")
 
-                chance_label = customtkinter.CTkLabel(row_frame, text = "Chance %:")
-                chance_label.pack(side = "left", padx = 5)
-                chance_entry = customtkinter.CTkEntry(row_frame, placeholder_text = "50", width = 60)
-                chance_entry.pack(side = "left", padx = 5)
+        search_entry = customtkinter.CTkEntry(search_frame, placeholder_text = "Enter item ID or name...", width = 250)
+        search_entry.grid(row = 0, column = 1, sticky = "ew", padx =(0, 10))
 
-                table_selections[table_name]= {"var":var, "chance":chance_entry}
+        ITEMS_PER_PAGE = 20
+        current_page =[0]
+        current_filtered =[all_items]
+        search_timer =[None]
 
-        def save_custom_crate():
+        info_label = customtkinter.CTkLabel(search_frame, text = f"Page 1 | {len(all_items)} items", font = customtkinter.CTkFont(size = 10), text_color = "gray")
+        info_label.grid(row = 0, column = 2, padx = 5)
 
+        table_filter_frame = customtkinter.CTkFrame(left_frame, fg_color = "transparent")
+        table_filter_frame.grid(row = 1, column = 0, sticky = "ew", padx = 10, pady = 5)
+
+        table_filter_label = customtkinter.CTkLabel(table_filter_frame, text = "Filter by table:", font = customtkinter.CTkFont(size = 11))
+        table_filter_label.pack(side = "left", padx =(0, 5))
+
+        table_names =["All"]+[t for t in table_data.get("tables", {}).keys()if t not in excluded_tables]
+        table_filter_var = customtkinter.StringVar(value = "All")
+        table_filter_menu = customtkinter.CTkOptionMenu(table_filter_frame, variable = table_filter_var, values = table_names, width = 150)
+        table_filter_menu.pack(side = "left", padx = 5)
+
+        scroll_frame = customtkinter.CTkScrollableFrame(left_frame, width = 550, height = 300)
+        scroll_frame.grid(row = 2, column = 0, sticky = "nsew", padx = 5, pady = 5)
+        scroll_frame.grid_columnconfigure(0, weight = 1)
+
+        pagination_frame = customtkinter.CTkFrame(left_frame, fg_color = "transparent")
+        pagination_frame.grid(row = 3, column = 0, pady = 5)
+
+        right_frame = customtkinter.CTkFrame(content_frame)
+        right_frame.grid(row = 0, column = 1, sticky = "nsew", padx =(5, 0))
+        right_frame.grid_rowconfigure(1, weight = 1)
+
+        loot_label = customtkinter.CTkLabel(right_frame, text = "Loot Table Entries", font = customtkinter.CTkFont(size = 14, weight = "bold"))
+        loot_label.pack(pady = 10)
+
+        loot_count_label = customtkinter.CTkLabel(right_frame, text = "0 entries", font = customtkinter.CTkFont(size = 11), text_color = "gray")
+        loot_count_label.pack(pady = 2)
+
+        loot_scroll = customtkinter.CTkScrollableFrame(right_frame, width = 320, height = 280)
+        loot_scroll.pack(fill = "both", expand = True, padx = 5, pady = 5)
+
+        loot_entries =[]
+
+        def update_loot_display():
+            for widget in loot_scroll.winfo_children():
+                widget.destroy()
+
+            loot_count_label.configure(text = f"{len(loot_entries)} entries")
+
+            for idx, entry in enumerate(loot_entries):
+                entry_frame = customtkinter.CTkFrame(loot_scroll)
+                entry_frame.pack(fill = "x", pady = 2, padx = 2)
+
+                entry_type = entry.get("type")
+                if entry_type =="id":
+                    item_id = entry.get("id")
+                    item_name = entry.get("_display_name", f"ID: {item_id}")
+                    rarity = entry.get("rarity", "")
+                    rarity_text = f" ({rarity})" if rarity else ""
+                    text = f"📦 {item_name}{rarity_text}"
+                elif entry_type =="table":
+                    table_name = entry.get("table", "Unknown")
+                    rarity = entry.get("rarity", "Any")
+                    text = f"🎲 Random from '{table_name}' ({rarity})"
+                else:
+                    text = f"? Unknown entry type"
+
+                entry_label = customtkinter.CTkLabel(
+                entry_frame,
+                text = text,
+                font = customtkinter.CTkFont(size = 11),
+                anchor = "w",
+                wraplength = 250
+                )
+                entry_label.pack(side = "left", fill = "x", expand = True, padx = 5, pady = 4)
+
+                remove_btn = customtkinter.CTkButton(
+                entry_frame,
+                text = "X",
+                width = 25,
+                height = 25,
+                font = customtkinter.CTkFont(size = 10),
+                fg_color = "darkred",
+                hover_color = "red",
+                command = lambda i = idx:remove_entry(i)
+                )
+                remove_btn.pack(side = "right", padx = 2, pady = 2)
+
+        def remove_entry(index):
+            if 0 <=index <len(loot_entries):
+                loot_entries.pop(index)
+                update_loot_display()
+
+        def show_add_item_popup(item):
+            self._play_ui_sound("popup")
+            popup = customtkinter.CTkToplevel(self.root)
+            popup.title("Add Item to Loot Table")
+            popup.transient(self.root)
+            popup.grab_set()
+
+            item_name = item.get("name", "Unknown")
+            item_rarity = item.get("rarity", "Common")
+
+            title_label = customtkinter.CTkLabel(popup, text = f"Add: {item_name}", font = customtkinter.CTkFont(size = 14, weight = "bold"))
+            title_label.pack(pady =(15, 5))
+
+            info_label = customtkinter.CTkLabel(popup, text = f"Item's inherent rarity: {item_rarity}", font = customtkinter.CTkFont(size = 11), text_color = "gray")
+            info_label.pack(pady =(0, 10))
+
+            rarity_weights = table_data.get("rarity_weights", {})
+            non_rarity_keys = {"Luck Effect", "Special Chance"}
+            rarity_options = [k for k in rarity_weights.keys() if k not in non_rarity_keys]
+
+            total_weight = sum(rarity_weights.get(r, 1) for r in rarity_options)
+
+            rarity_frame = customtkinter.CTkFrame(popup)
+            rarity_frame.pack(fill = "x", padx = 20, pady = 10)
+
+            rarity_label = customtkinter.CTkLabel(rarity_frame, text = "Select pull rarity (affects drop chance):", font = customtkinter.CTkFont(size = 12))
+            rarity_label.pack(anchor = "w", padx = 10, pady = 5)
+
+            selected_rarity = customtkinter.StringVar(value = item_rarity)
+
+            for rarity in rarity_options:
+                weight = rarity_weights.get(rarity, 1)
+                percentage = (weight / total_weight * 100) if total_weight > 0 else 0
+
+                radio_frame = customtkinter.CTkFrame(rarity_frame, fg_color = "transparent")
+                radio_frame.pack(fill = "x", padx = 10, pady = 2)
+
+                radio = customtkinter.CTkRadioButton(
+                radio_frame,
+                text = f"{rarity}",
+                variable = selected_rarity,
+                value = rarity,
+                font = customtkinter.CTkFont(size = 12)
+                )
+                radio.pack(side = "left")
+
+                pct_label = customtkinter.CTkLabel(
+                radio_frame,
+                text = f"({percentage:.1f}% chance)",
+                font = customtkinter.CTkFont(size = 10),
+                text_color = "orange" if rarity == item_rarity else "gray"
+                )
+                pct_label.pack(side = "left", padx = 10)
+
+                if rarity == item_rarity:
+                    default_label = customtkinter.CTkLabel(
+                    radio_frame,
+                    text = "← default",
+                    font = customtkinter.CTkFont(size = 10),
+                    text_color = "green"
+                    )
+                    default_label.pack(side = "left")
+
+            hint_label = customtkinter.CTkLabel(popup, text = "Higher rarity = lower weight = rarer drop", font = customtkinter.CTkFont(size = 10), text_color = "gray")
+            hint_label.pack(pady = 5)
+
+            button_frame = customtkinter.CTkFrame(popup, fg_color = "transparent")
+            button_frame.pack(pady = 15)
+
+            def confirm_add():
+                self._play_ui_sound("click")
+                entry = {
+                "type":"id",
+                "id":item.get("id"),
+                "rarity":selected_rarity.get(),
+                "_display_name":item.get("name", "Unknown")
+                }
+                loot_entries.append(entry)
+                update_loot_display()
+                popup.destroy()
+
+            def cancel_add():
+                self._play_ui_sound("click")
+                popup.destroy()
+
+            add_btn = customtkinter.CTkButton(button_frame, text = "Add Item", command = confirm_add, width = 120, height = 35)
+            add_btn.pack(side = "left", padx = 10)
+
+            cancel_btn = customtkinter.CTkButton(button_frame, text = "Cancel", command = cancel_add, width = 120, height = 35)
+            cancel_btn.pack(side = "left", padx = 10)
+
+            popup.update_idletasks()
+            width = max(420, popup.winfo_reqwidth() + 40)
+            height = popup.winfo_reqheight() + 20
+            self._center_popup_on_window(popup, width, height)
+            popup.deiconify()
+            popup.lift()
+
+        def add_item_entry(item):
+            show_add_item_popup(item)
+
+        def add_table_entry(table_name, rarity = "Common"):
+            entry = {
+            "type":"table",
+            "table":table_name,
+            "rarity":rarity
+            }
+            loot_entries.append(entry)
+            update_loot_display()
+
+        table_entry_frame = customtkinter.CTkFrame(right_frame)
+        table_entry_frame.pack(fill = "x", padx = 5, pady = 5)
+
+        table_entry_label = customtkinter.CTkLabel(table_entry_frame, text = "Add random table entry:", font = customtkinter.CTkFont(size = 11))
+        table_entry_label.pack(anchor = "w", padx = 5, pady = 2)
+
+        table_select_frame = customtkinter.CTkFrame(table_entry_frame, fg_color = "transparent")
+        table_select_frame.pack(fill = "x", padx = 5, pady = 2)
+
+        avail_tables =[t for t in table_data.get("tables", {}).keys()if t not in excluded_tables]
+        table_select_var = customtkinter.StringVar(value = avail_tables[0]if avail_tables else "")
+        table_select_menu = customtkinter.CTkOptionMenu(table_select_frame, variable = table_select_var, values = avail_tables, width = 140)
+        table_select_menu.pack(side = "left", padx = 2)
+
+        rarity_weights = table_data.get("rarity_weights", {})
+        non_rarity_keys = {"Luck Effect", "Special Chance"}
+        rarity_options = [k for k in rarity_weights.keys() if k not in non_rarity_keys]
+        rarity_select_var = customtkinter.StringVar(value = rarity_options[0] if rarity_options else "Common")
+        rarity_select_menu = customtkinter.CTkOptionMenu(table_select_frame, variable = rarity_select_var, values = rarity_options if rarity_options else ["Common"], width = 100)
+        rarity_select_menu.pack(side = "left", padx = 2)
+
+        add_table_btn = customtkinter.CTkButton(
+        table_select_frame,
+        text = "+",
+        width = 30,
+        height = 28,
+        command = lambda:add_table_entry(table_select_var.get(), rarity_select_var.get())
+        )
+        add_table_btn.pack(side = "left", padx = 2)
+
+        clear_btn = customtkinter.CTkButton(
+        right_frame,
+        text = "Clear All Entries",
+        width = 150,
+        height = 30,
+        fg_color = "darkred",
+        hover_color = "red",
+        command = lambda:[loot_entries.clear(), update_loot_display()]
+        )
+        clear_btn.pack(pady = 5)
+
+        def create_item_widget(item):
+            item_frame = customtkinter.CTkFrame(scroll_frame)
+            item_frame.pack(fill = "x", pady = 2, padx = 3)
+            item_frame.grid_columnconfigure(1, weight = 1)
+
+            id_label = customtkinter.CTkLabel(
+            item_frame,
+            text = f"ID: {item.get('id', 'N/A')}",
+            font = customtkinter.CTkFont(size = 11, weight = "bold"),
+            width = 70,
+            fg_color =("gray75", "gray25"),
+            corner_radius = 4
+            )
+            id_label.grid(row = 0, column = 0, padx = 5, pady = 5, sticky = "w")
+
+            details_frame = customtkinter.CTkFrame(item_frame, fg_color = "transparent")
+            details_frame.grid(row = 0, column = 1, sticky = "ew", padx = 5, pady = 5)
+
+            name_label = customtkinter.CTkLabel(
+            details_frame,
+            text = item.get("name", "Unknown"),
+            font = customtkinter.CTkFont(size = 12, weight = "bold"),
+            anchor = "w"
+            )
+            name_label.pack(anchor = "w")
+
+            category_label = customtkinter.CTkLabel(
+            details_frame,
+            text = f"{item.get('table_category', 'N/A')} | {item.get('rarity', 'N/A')} | ${item.get('value', 0)}",
+            font = customtkinter.CTkFont(size = 9),
+            text_color = "gray",
+            anchor = "w"
+            )
+            category_label.pack(anchor = "w")
+
+            add_button = self._create_sound_button(
+            item_frame,
+            "Add",
+            lambda it = item:add_item_entry(it),
+            width = 60,
+            height = 28,
+            font = customtkinter.CTkFont(size = 10)
+            )
+            add_button.grid(row = 0, column = 2, padx = 5, pady = 5)
+
+        def display_page(page_num):
+            items = current_filtered[0]
+            total_pages = max(1, (len(items)+ITEMS_PER_PAGE -1)//ITEMS_PER_PAGE)
+
+            page_num = max(0, min(page_num, total_pages -1))
+            current_page[0]= page_num
+
+            for widget in scroll_frame.winfo_children():
+                widget.destroy()
+
+            if not items:
+                no_results = customtkinter.CTkLabel(scroll_frame, text = "No items found.", font = customtkinter.CTkFont(size = 12), text_color = "gray")
+                no_results.pack(pady = 20)
+                info_label.configure(text = "No items found")
+                update_pagination_controls(0, 0)
+                return
+
+            start_idx = page_num *ITEMS_PER_PAGE
+            end_idx = min(start_idx +ITEMS_PER_PAGE, len(items))
+
+            for i in range(start_idx, end_idx):
+                create_item_widget(items[i])
+
+            info_label.configure(text = f"Page {page_num +1}/{total_pages} | {len(items)} items")
+            update_pagination_controls(page_num, total_pages)
+
+            try:
+                scroll_frame._parent_canvas.yview_moveto(0)
+            except Exception:
+                pass
+
+        def update_pagination_controls(current, total):
+            for widget in pagination_frame.winfo_children():
+                widget.destroy()
+
+            if total <=1:
+                return
+
+            first_btn = customtkinter.CTkButton(
+            pagination_frame, text = "<<", width = 35, height = 28,
+            command = lambda:display_page(0),
+            state = "normal"if current >0 else "disabled"
+            )
+            first_btn.pack(side = "left", padx = 1)
+
+            prev_btn = customtkinter.CTkButton(
+            pagination_frame, text = "<", width = 35, height = 28,
+            command = lambda:display_page(current -1),
+            state = "normal"if current >0 else "disabled"
+            )
+            prev_btn.pack(side = "left", padx = 1)
+
+            start_page = max(0, current -2)
+            end_page = min(total, start_page +5)
+            if end_page -start_page <5:
+                start_page = max(0, end_page -5)
+
+            for p in range(start_page, end_page):
+                btn = customtkinter.CTkButton(
+                pagination_frame,
+                text = str(p +1),
+                width = 30,
+                height = 28,
+                fg_color =("gray75", "gray25")if p ==current else None,
+                command = lambda page = p:display_page(page)
+                )
+                btn.pack(side = "left", padx = 1)
+
+            next_btn = customtkinter.CTkButton(
+            pagination_frame, text = ">", width = 35, height = 28,
+            command = lambda:display_page(current +1),
+            state = "normal"if current <total -1 else "disabled"
+            )
+            next_btn.pack(side = "left", padx = 1)
+
+            last_btn = customtkinter.CTkButton(
+            pagination_frame, text = ">>", width = 35, height = 28,
+            command = lambda:display_page(total -1),
+            state = "normal"if current <total -1 else "disabled"
+            )
+            last_btn.pack(side = "left", padx = 1)
+
+        def filter_items(*args):
+            search_term = search_entry.get().lower().strip()
+            table_filter = table_filter_var.get()
+
+            filtered = all_items
+
+            if table_filter !="All":
+                filtered =[item for item in filtered if item.get("table_category")==table_filter]
+
+            if search_term:
+                filtered =[
+                item for item in filtered
+                if search_term in str(item.get("id", ""))or search_term in item.get("name", "").lower()
+                ]
+
+            current_filtered[0]= filtered
+            current_page[0]= 0
+            display_page(0)
+
+        def on_search_change(*args):
+            if search_timer[0]is not None:
+                try:
+                    self.root.after_cancel(search_timer[0])
+                except Exception:
+                    pass
+            search_timer[0]= self.root.after(200, filter_items) # type: ignore
+
+        search_entry.bind("<KeyRelease>", on_search_change)
+        table_filter_var.trace_add("write", lambda *a:filter_items())
+
+        display_page(0)
+
+        def save_lootcrate(as_preset = False):
             try:
                 crate_name = name_entry.get().strip()
                 if not crate_name:
                     self._popup_show_info("Error", "Please enter a crate name.", sound = "error")
                     return
 
-                crate_desc = desc_text.get().strip()
+                if not loot_entries:
+                    self._popup_show_info("Error", "Please add at least one loot entry.", sound = "error")
+                    return
+
+                crate_desc = desc_entry.get().strip()
                 locked = locked_var.get()
-                pulls_type = pulls_type_var.get()
-                pulls_value = pulls_entry.get().strip()
 
-                pulls = None
-                if pulls_type =="Fixed":
-                    try:
-                        pulls = int(pulls_value)if pulls_value else 3
-                    except ValueError:
-                        self._popup_show_info("Error", "Pulls must be a number.", sound = "error")
-                        return
+                try:
+                    pulls_min = int(pulls_min_entry.get()or 3)
+                    pulls_max = int(pulls_max_entry.get()or 3)
+                except ValueError:
+                    self._popup_show_info("Error", "Pulls must be numbers.", sound = "error")
+                    return
+
+                if pulls_min ==pulls_max:
+                    pulls = pulls_min
                 else:
-                    if "-"in pulls_value or ", "in pulls_value:
-                        parts = pulls_value.replace("-", ", ").split(", ")
-                        try:
-                            pulls = {"min":int(parts[0]), "max":int(parts[1])}
-                        except(ValueError, IndexError):
-                            self._popup_show_info("Error", "Range must be in format: min, max or min-max", sound = "error")
-                            return
-                    else:
-                        self._popup_show_info("Error", "Range must be in format: min, max or min-max", sound = "error")
-                        return
+                    pulls = {"min":min(pulls_min, pulls_max), "max":max(pulls_min, pulls_max)}
 
-                guaranteed_items =[]
-                guaranteed_text = guaranteed_entry.get().strip()
-                if guaranteed_text:
-                    try:
-                        guaranteed_items =[int(x.strip())for x in guaranteed_text.split(", ")if x.strip()]
-                    except ValueError:
-                        self._popup_show_info("Error", "Guaranteed items must be comma-separated IDs.", sound = "error")
-                        return
-
-                id_pool =[]
-                id_pool_text = id_pool_entry.get().strip()
-                if id_pool_text:
-                    try:
-                        id_pool =[int(x.strip())for x in id_pool_text.split(", ")if x.strip()]
-                    except ValueError:
-                        self._popup_show_info("Error", "ID pool must be comma-separated IDs.", sound = "error")
-                        return
-
-                table_pool =[]
-                for table_name, selection in table_selections.items():
-                    if selection["var"].get():
-                        chance_text = selection["chance"].get().strip()
-                        try:
-                            chance = int(chance_text)if chance_text else 50
-                            table_pool.append({"table":table_name, "chance":chance})
-                        except ValueError:
-                            self._popup_show_info("Error", f"Chance for {table_name} must be a number.", sound = "error")
-                            return
-
-                loot_entries =[]
-                for item_id in guaranteed_items:
-                    loot_entries.append({"type":"item", "id":item_id})
+                clean_loot_entries =[]
+                for entry in loot_entries:
+                    clean_entry = {k:v for k, v in entry.items()if not k.startswith("_")}
+                    clean_loot_entries.append(clean_entry)
 
                 crate_data = {
                 "name":crate_name,
                 "description":crate_desc,
                 "locked":locked,
                 "pulls":pulls,
-                "loot_table":loot_entries,
-                "id_pool":id_pool if id_pool else None,
-                "table_pool":table_pool if table_pool else None,
+                "loot_table":clean_loot_entries,
                 "created_at":datetime.now().isoformat(),
                 "dm_created":True
                 }
 
-                os.makedirs("lootcrates", exist_ok = True)
-                filename = os.path.join("lootcrates", f"lootcrate_{datetime.now().strftime('%Y%m%d_%H%M%S')}{global_variables['lootcrate_extension']}")
+                if as_preset:
+                    os.makedirs(os.path.join("lootcrates", "presets"), exist_ok = True)
+                    safe_name = "".join(c if c.isalnum()or c in " _-"else "_"for c in crate_name).strip()
+                    filename = os.path.join(
+                    "lootcrates", "presets",
+                    f"{safe_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}{global_variables['lootcrate_extension']}"
+                    )
+                else:
+                    os.makedirs("lootcrates", exist_ok = True)
+                    filename = os.path.join(
+                    "lootcrates",
+                    f"lootcrate_{datetime.now().strftime('%Y%m%d_%H%M%S')}{global_variables['lootcrate_extension']}"
+                    )
+
                 pickled_data = pickle.dumps(crate_data)
                 encoded_data = base64.b85encode(pickled_data).decode('utf-8')
                 with open(filename, 'w')as f:
                     f.write(encoded_data)
-                self._popup_show_info("Success", f"Generated loot crate '{crate_name}'.", sound = "success")
-                logging.info(f"Generated loot crate file: {filename}")
+
+                if as_preset:
+                    self._popup_show_info("Success", f"Saved preset '{crate_name}' to presets folder.\nIt will now appear in 'Create from Preset'.", sound = "success")
+                    logging.info(f"Saved preset loot crate to {filename}")
+                else:
+                    self._popup_show_info("Success", f"Generated loot crate '{crate_name}'.", sound = "success")
+                    logging.info(f"Generated loot crate file: {filename}")
+
             except Exception as e:
-                logging.error(f"Failed to generate crate: {e}")
-                self._popup_show_info("Error", f"Failed to generate crate: {e}", sound = "error")
+                logging.error(f"Failed to save loot crate: {e}")
+                self._popup_show_info("Error", f"Failed to save loot crate: {e}", sound = "error")
 
-        action_frame = customtkinter.CTkFrame(main_frame)
-        action_frame.pack(fill = "x", padx = 20, pady = 20)
+        button_frame = customtkinter.CTkFrame(main_frame, fg_color = "transparent")
+        button_frame.grid(row = 3, column = 0, columnspan = 2, pady = 10)
 
-        save_btn = self._create_sound_button(action_frame, "Save Lootcrate", save_custom_crate, width = 200, height = 50, font = customtkinter.CTkFont(size = 14))
-        save_btn.pack(side = "left", padx = 5)
+        save_crate_btn = self._create_sound_button(
+        button_frame,
+        "Save Lootcrate",
+        lambda:save_lootcrate(as_preset = False),
+        width = 180,
+        height = 40,
+        font = customtkinter.CTkFont(size = 14)
+        )
+        save_crate_btn.pack(side = "left", padx = 10)
 
-        cancel_btn = self._create_sound_button(action_frame, "Cancel", self._open_create_lootcrate_tool, width = 200, height = 50, font = customtkinter.CTkFont(size = 14))
-        cancel_btn.pack(side = "left", padx = 5)
+        save_preset_btn = self._create_sound_button(
+        button_frame,
+        "Save as Preset",
+        lambda:save_lootcrate(as_preset = True),
+        width = 180,
+        height = 40,
+        font = customtkinter.CTkFont(size = 14)
+        )
+        save_preset_btn.pack(side = "left", padx = 10)
+
+        back_btn = self._create_sound_button(
+        button_frame,
+        "Back",
+        self._open_create_lootcrate_tool,
+        width = 120,
+        height = 40,
+        font = customtkinter.CTkFont(size = 14)
+        )
+        back_btn.pack(side = "left", padx = 10)
 
     def _open_create_item_transfer_tool(self):
         logging.info("Create Item Transfer tool called")
         self._clear_window()
-
-        self.root.grid_rowconfigure(0, weight = 1)
-        self.root.grid_columnconfigure(0, weight = 1)
-
-        main_frame = customtkinter.CTkFrame(self.root)
-        main_frame.grid(row = 0, column = 0, sticky = "nsew")
-
-        title_label = customtkinter.CTkLabel(main_frame, text = "Create Item Transfer", font = customtkinter.CTkFont(size = 24, weight = "bold"))
-        title_label.pack(pady = 20)
-
-        money_frame = customtkinter.CTkFrame(main_frame)
-        money_frame.pack(fill = "x", padx = 20, pady = 10)
-        money_label = customtkinter.CTkLabel(money_frame, text = "Money Amount:")
-        money_label.pack(side = "left", padx = 5, pady = 5)
-        money_entry = customtkinter.CTkEntry(money_frame, placeholder_text = "0", width = 160)
-        money_entry.pack(side = "left", padx = 5, pady = 5)
 
         try:
             table_files = glob.glob(os.path.join("tables", "*.sldtbl"))
@@ -21468,36 +22324,286 @@ class App:
         all_items =[]
         for table_name, items in table_data.get("tables", {}).items():
             for item in items:
+                if item.get("id")is None:
+                    continue
                 item_copy = item.copy()
                 item_copy["table_category"]= table_name
                 all_items.append(item_copy)
 
-        items_frame = customtkinter.CTkFrame(main_frame)
-        items_frame.pack(fill = "both", expand = True, padx = 20, pady = 10)
-        items_label = customtkinter.CTkLabel(items_frame, text = "Select items to include in the transfer:", font = customtkinter.CTkFont(size = 14, weight = "bold"))
-        items_label.pack(pady = 5)
-        items_scroll = customtkinter.CTkScrollableFrame(items_frame, width = 700, height = 300)
-        items_scroll.pack(fill = "both", expand = True, padx = 5, pady = 5)
+        all_items.sort(key = lambda x:x.get("id", 999999))
 
-        selected_indices =[]
-        for idx, item in enumerate(all_items):
-            row = customtkinter.CTkFrame(items_scroll)
-            row.pack(fill = "x", padx = 5, pady = 2)
-            var = customtkinter.BooleanVar(value = False)
-            def on_toggle(i = idx, v = var):
-                if v.get():
-                    if i not in selected_indices:
-                        selected_indices.append(i)
-                else:
-                    if i in selected_indices:
-                        selected_indices.remove(i)
-            checkbox = customtkinter.CTkCheckBox(
-            row,
-            text = f"ID {item.get('id', '?')}: {item.get('name', 'Unknown')}(Table: {item.get('table_category', 'N/A')}, Rarity: {item.get('rarity', 'N/A')})",
-            variable = var,
-            command = on_toggle
+        if not all_items:
+            self._popup_show_info("Error", "No items found in table.", sound = "error")
+            return
+
+        self.root.grid_rowconfigure(0, weight = 1)
+        self.root.grid_columnconfigure(0, weight = 1)
+
+        main_frame = customtkinter.CTkFrame(self.root)
+        main_frame.grid(row = 0, column = 0, sticky = "nsew", padx = 20, pady = 20)
+        main_frame.grid_rowconfigure(3, weight = 1)
+        main_frame.grid_columnconfigure(0, weight = 1)
+        main_frame.grid_columnconfigure(1, weight = 0)
+
+        title_label = customtkinter.CTkLabel(main_frame, text = "Create Item Transfer", font = customtkinter.CTkFont(size = 24, weight = "bold"))
+        title_label.grid(row = 0, column = 0, columnspan = 2, pady =(0, 10))
+
+        top_frame = customtkinter.CTkFrame(main_frame, fg_color = "transparent")
+        top_frame.grid(row = 1, column = 0, columnspan = 2, sticky = "ew", pady = 10)
+        top_frame.grid_columnconfigure(1, weight = 1)
+
+        money_label = customtkinter.CTkLabel(top_frame, text = "Money Amount:")
+        money_label.grid(row = 0, column = 0, padx =(0, 10), sticky = "w")
+        money_entry = customtkinter.CTkEntry(top_frame, placeholder_text = "0", width = 120)
+        money_entry.grid(row = 0, column = 1, sticky = "w", padx =(0, 30))
+
+        search_label = customtkinter.CTkLabel(top_frame, text = "Search (ID or Name):", font = customtkinter.CTkFont(size = 13))
+        search_label.grid(row = 0, column = 2, padx =(0, 10), sticky = "w")
+
+        search_entry = customtkinter.CTkEntry(top_frame, placeholder_text = "Enter item ID or name...", width = 250)
+        search_entry.grid(row = 0, column = 3, sticky = "ew", padx =(0, 10))
+
+        ITEMS_PER_PAGE = 25
+        current_page =[0]
+        current_filtered =[all_items]
+        search_timer =[None]
+        selected_items =[]
+
+        info_label = customtkinter.CTkLabel(top_frame, text = f"Page 1 | {len(all_items)} items total", font = customtkinter.CTkFont(size = 11), text_color = "gray")
+        info_label.grid(row = 0, column = 4, padx = 10)
+
+        content_frame = customtkinter.CTkFrame(main_frame, fg_color = "transparent")
+        content_frame.grid(row = 3, column = 0, columnspan = 2, sticky = "nsew", pady = 10)
+        content_frame.grid_rowconfigure(0, weight = 1)
+        content_frame.grid_columnconfigure(0, weight = 1)
+        content_frame.grid_columnconfigure(1, weight = 0)
+
+        scroll_frame = customtkinter.CTkScrollableFrame(content_frame, width = 600, height = 350)
+        scroll_frame.grid(row = 0, column = 0, sticky = "nsew", padx =(0, 10))
+        scroll_frame.grid_columnconfigure(0, weight = 1)
+
+        selected_frame = customtkinter.CTkFrame(content_frame)
+        selected_frame.grid(row = 0, column = 1, sticky = "nsew")
+
+        selected_label = customtkinter.CTkLabel(selected_frame, text = "Selected Items", font = customtkinter.CTkFont(size = 14, weight = "bold"))
+        selected_label.pack(pady = 10)
+
+        selected_count_label = customtkinter.CTkLabel(selected_frame, text = "0 items selected", font = customtkinter.CTkFont(size = 11), text_color = "gray")
+        selected_count_label.pack(pady = 5)
+
+        selected_scroll = customtkinter.CTkScrollableFrame(selected_frame, width = 280, height = 300)
+        selected_scroll.pack(fill = "both", expand = True, padx = 5, pady = 5)
+
+        def update_selected_display():
+            for widget in selected_scroll.winfo_children():
+                widget.destroy()
+
+            selected_count_label.configure(text = f"{len(selected_items)} item(s) selected")
+
+            for idx, item in enumerate(selected_items):
+                item_row = customtkinter.CTkFrame(selected_scroll)
+                item_row.pack(fill = "x", pady = 2, padx = 2)
+
+                item_label = customtkinter.CTkLabel(
+                item_row,
+                text = f"ID {item.get('id', '?')}: {item.get('name', 'Unknown')[:25]}",
+                font = customtkinter.CTkFont(size = 11),
+                anchor = "w"
+                )
+                item_label.pack(side = "left", fill = "x", expand = True, padx = 5)
+
+                remove_btn = customtkinter.CTkButton(
+                item_row,
+                text = "X",
+                width = 25,
+                height = 25,
+                font = customtkinter.CTkFont(size = 10),
+                fg_color = "darkred",
+                hover_color = "red",
+                command = lambda i = idx:remove_item(i)
+                )
+                remove_btn.pack(side = "right", padx = 2)
+
+        def remove_item(index):
+            if 0 <=index <len(selected_items):
+                selected_items.pop(index)
+                update_selected_display()
+                display_page(current_page[0])
+
+        def add_item_to_transfer(item):
+            item_copy = item.copy()
+            selected_items.append(item_copy)
+            update_selected_display()
+            display_page(current_page[0])
+
+        def is_item_selected(item):
+            item_id = item.get("id")
+            for sel in selected_items:
+                if sel.get("id")==item_id:
+                    return True
+            return False
+
+        pagination_frame = customtkinter.CTkFrame(main_frame, fg_color = "transparent")
+        pagination_frame.grid(row = 4, column = 0, columnspan = 2, pady = 5)
+
+        def create_item_widget(item):
+            item_frame = customtkinter.CTkFrame(scroll_frame)
+            item_frame.pack(fill = "x", pady = 3, padx = 5)
+            item_frame.grid_columnconfigure(1, weight = 1)
+
+            id_label = customtkinter.CTkLabel(
+            item_frame,
+            text = f"ID: {item.get('id', 'N/A')}",
+            font = customtkinter.CTkFont(size = 12, weight = "bold"),
+            width = 80,
+            fg_color =("gray75", "gray25"),
+            corner_radius = 6
             )
-            checkbox.pack(side = "left", padx = 5, pady = 4)
+            id_label.grid(row = 0, column = 0, padx = 8, pady = 8, sticky = "w")
+
+            details_frame = customtkinter.CTkFrame(item_frame, fg_color = "transparent")
+            details_frame.grid(row = 0, column = 1, sticky = "ew", padx = 8, pady = 8)
+
+            name_label = customtkinter.CTkLabel(
+            details_frame,
+            text = item.get("name", "Unknown"),
+            font = customtkinter.CTkFont(size = 13, weight = "bold"),
+            anchor = "w"
+            )
+            name_label.pack(anchor = "w")
+
+            category_label = customtkinter.CTkLabel(
+            details_frame,
+            text = f"{item.get('table_category', 'N/A')} | {item.get('rarity', 'N/A')} | ${item.get('value', 0)}",
+            font = customtkinter.CTkFont(size = 10),
+            text_color = "gray",
+            anchor = "w"
+            )
+            category_label.pack(anchor = "w")
+
+            already_selected = is_item_selected(item)
+            add_button = self._create_sound_button(
+            item_frame,
+            "Added" if already_selected else "Add",
+            lambda it = item:add_item_to_transfer(it),
+            width = 80,
+            height = 30,
+            font = customtkinter.CTkFont(size = 11)
+            )
+            if already_selected:
+                add_button.configure(state = "disabled", fg_color = "gray")
+            add_button.grid(row = 0, column = 2, padx = 8, pady = 8)
+
+        def display_page(page_num):
+            items = current_filtered[0]
+            total_pages = max(1, (len(items)+ITEMS_PER_PAGE -1)//ITEMS_PER_PAGE)
+
+            page_num = max(0, min(page_num, total_pages -1))
+            current_page[0]= page_num
+
+            for widget in scroll_frame.winfo_children():
+                widget.destroy()
+
+            if not items:
+                no_results = customtkinter.CTkLabel(scroll_frame, text = "No items found.", font = customtkinter.CTkFont(size = 14), text_color = "gray")
+                no_results.pack(pady = 20)
+                info_label.configure(text = "No items found")
+                update_pagination_controls(0, 0)
+                return
+
+            start_idx = page_num *ITEMS_PER_PAGE
+            end_idx = min(start_idx +ITEMS_PER_PAGE, len(items))
+
+            for i in range(start_idx, end_idx):
+                create_item_widget(items[i])
+
+            info_label.configure(text = f"Page {page_num +1} of {total_pages} | {len(items)} items total")
+
+            update_pagination_controls(page_num, total_pages)
+
+            try:
+                scroll_frame._parent_canvas.yview_moveto(0)
+            except Exception:
+                pass
+
+        def update_pagination_controls(current, total):
+            for widget in pagination_frame.winfo_children():
+                widget.destroy()
+
+            if total <=1:
+                return
+
+            first_btn = customtkinter.CTkButton(
+            pagination_frame, text = "<<", width = 40, height = 30,
+            command = lambda:display_page(0),
+            state = "normal"if current >0 else "disabled"
+            )
+            first_btn.pack(side = "left", padx = 2)
+
+            prev_btn = customtkinter.CTkButton(
+            pagination_frame, text = "<", width = 40, height = 30,
+            command = lambda:display_page(current -1),
+            state = "normal"if current >0 else "disabled"
+            )
+            prev_btn.pack(side = "left", padx = 2)
+
+            start_page = max(0, current -3)
+            end_page = min(total, start_page +7)
+            if end_page -start_page <7:
+                start_page = max(0, end_page -7)
+
+            for p in range(start_page, end_page):
+                btn = customtkinter.CTkButton(
+                pagination_frame,
+                text = str(p +1),
+                width = 35,
+                height = 30,
+                fg_color =("gray75", "gray25")if p ==current else None,
+                command = lambda page = p:display_page(page)
+                )
+                btn.pack(side = "left", padx = 1)
+
+            next_btn = customtkinter.CTkButton(
+            pagination_frame, text = ">", width = 40, height = 30,
+            command = lambda:display_page(current +1),
+            state = "normal"if current <total -1 else "disabled"
+            )
+            next_btn.pack(side = "left", padx = 2)
+
+            last_btn = customtkinter.CTkButton(
+            pagination_frame, text = ">>", width = 40, height = 30,
+            command = lambda:display_page(total -1),
+            state = "normal"if current <total -1 else "disabled"
+            )
+            last_btn.pack(side = "left", padx = 2)
+
+        def filter_items(search_term):
+            search_lower = search_term.lower().strip()
+
+            if search_lower:
+                filtered =[
+                item for item in all_items
+                if search_lower in str(item.get("id", ""))or search_lower in item.get("name", "").lower()
+                ]
+            else:
+                filtered = all_items
+
+            current_filtered[0]= filtered
+            current_page[0]= 0
+            display_page(0)
+
+        def on_search_change(*args):
+            if search_timer[0]is not None:
+                try:
+                    self.root.after_cancel(search_timer[0])
+                except Exception:
+                    pass
+
+            search_timer[0]= self.root.after(200, lambda:filter_items(search_entry.get()))# type: ignore
+
+        search_entry.bind("<KeyRelease>", on_search_change)
+
+        display_page(0)
 
         def save_transfer():
             try:
@@ -21506,15 +22612,14 @@ class App:
                 self._popup_show_info("Error", "Money amount must be a number.", sound = "error")
                 return
             try:
-                if not selected_indices and transfer_money ==0:
+                if not selected_items and transfer_money ==0:
                     self._popup_show_info("Error", "Add money or select at least one item.", sound = "error")
                     return
                 items_to_send =[]
-                for idx in selected_indices:
-                    if 0 <=idx <len(all_items):
-                        itm = {k:v for k, v in all_items[idx].items()if k !="table_category"}
-                        itm = add_subslots_to_item(itm)
-                        items_to_send.append(itm)
+                for item in selected_items:
+                    itm = {k:v for k, v in item.items()if k !="table_category"}
+                    itm = add_subslots_to_item(itm)
+                    items_to_send.append(itm)
                 transfer_data = {
                 "money":transfer_money,
                 "items":items_to_send,
@@ -21534,11 +22639,22 @@ class App:
                 logging.error(f"Failed to save item transfer: {e}")
                 self._popup_show_info("Error", f"Failed to save item transfer: {e}", sound = "error")
 
-        save_button = self._create_sound_button(main_frame, "Save Transfer", save_transfer, width = 500, height = 50, font = customtkinter.CTkFont(size = 16))
-        save_button.pack(pady = 10)
+        def clear_selected():
+            selected_items.clear()
+            update_selected_display()
+            display_page(current_page[0])
 
-        back_button = self._create_sound_button(main_frame, "Back to DM Tools", lambda:[self._clear_window(), self._open_dm_tools()], width = 500, height = 50, font = customtkinter.CTkFont(size = 16))
-        back_button.pack(pady = 10)
+        button_frame = customtkinter.CTkFrame(main_frame, fg_color = "transparent")
+        button_frame.grid(row = 5, column = 0, columnspan = 2, pady = 10)
+
+        clear_button = self._create_sound_button(button_frame, "Clear Selection", clear_selected, width = 150, height = 40, font = customtkinter.CTkFont(size = 14))
+        clear_button.pack(side = "left", padx = 10)
+
+        save_button = self._create_sound_button(button_frame, "Save Transfer", save_transfer, width = 200, height = 40, font = customtkinter.CTkFont(size = 14))
+        save_button.pack(side = "left", padx = 10)
+
+        back_button = self._create_sound_button(button_frame, "Back to DM Tools", lambda:[self._clear_window(), self._open_dm_tools()], width = 200, height = 40, font = customtkinter.CTkFont(size = 14))
+        back_button.pack(side = "left", padx = 10)
 
     def _open_create_magazine_transfer_tool(self):
 
@@ -21562,52 +22678,176 @@ class App:
             self._popup_show_info("Error", "No magazines found in table.", sound = "error")
             return
 
+        all_magazines = sorted(magazines, key = lambda x: x.get("name", "").lower())
+
         self._clear_window()
         self._play_ui_sound("whoosh1")
 
-        main_frame = customtkinter.CTkScrollableFrame(self.root, fg_color = "transparent")
-        main_frame.pack(fill = "both", expand = True, padx = 20, pady = 20)
+        self.root.grid_rowconfigure(0, weight = 1)
+        self.root.grid_columnconfigure(0, weight = 1)
+
+        main_frame = customtkinter.CTkFrame(self.root)
+        main_frame.grid(row = 0, column = 0, sticky = "nsew", padx = 20, pady = 20)
+        main_frame.grid_rowconfigure(2, weight = 1)
+        main_frame.grid_columnconfigure(0, weight = 1)
 
         title_label = customtkinter.CTkLabel(
         main_frame,
         text = "Create Loaded Magazine Transfer",
         font = customtkinter.CTkFont(size = 24, weight = "bold")
         )
-        title_label.pack(pady = 20)
+        title_label.grid(row = 0, column = 0, pady = (0, 10))
 
-        customtkinter.CTkLabel(
-        main_frame,
-        text = "Select a magazine type to create:",
-        font = customtkinter.CTkFont(size = 14)
-        ).pack(pady = 10)
+        top_frame = customtkinter.CTkFrame(main_frame, fg_color = "transparent")
+        top_frame.grid(row = 1, column = 0, sticky = "ew", pady = 10)
+        top_frame.grid_columnconfigure(1, weight = 1)
 
-        for mag in magazines:
-            mag_frame = customtkinter.CTkFrame(main_frame)
-            mag_frame.pack(fill = "x", pady = 5, padx = 20)
+        search_label = customtkinter.CTkLabel(top_frame, text = "Search (Name or Caliber):", font = customtkinter.CTkFont(size = 13))
+        search_label.grid(row = 0, column = 0, padx = (0, 10), sticky = "w")
 
-            mag_info = f"{mag.get('name', 'Unknown')}\n"
-            mag_info +=f"Caliber: {', '.join(mag.get('caliber', ['Unknown']))}\n"
-            mag_info +=f"Capacity: {mag.get('capacity', 0)}"
+        search_entry = customtkinter.CTkEntry(top_frame, placeholder_text = "Enter magazine name or caliber...", width = 300)
+        search_entry.grid(row = 0, column = 1, sticky = "w", padx = (0, 20))
 
+        ITEMS_PER_PAGE = 20
+        current_page = [0]
+        current_filtered = [all_magazines]
+        search_timer = [None]
+
+        info_label = customtkinter.CTkLabel(top_frame, text = f"Page 1 | {len(all_magazines)} magazines total", font = customtkinter.CTkFont(size = 11), text_color = "gray")
+        info_label.grid(row = 0, column = 2, padx = 10)
+
+        scroll_frame = customtkinter.CTkScrollableFrame(main_frame, height = 400)
+        scroll_frame.grid(row = 2, column = 0, sticky = "nsew", pady = 10)
+        scroll_frame.grid_columnconfigure(0, weight = 1)
+
+        pagination_frame = customtkinter.CTkFrame(main_frame, fg_color = "transparent")
+        pagination_frame.grid(row = 3, column = 0, pady = 5)
+
+        def create_mag_widget(mag):
+            mag_frame = customtkinter.CTkFrame(scroll_frame)
+            mag_frame.pack(fill = "x", pady = 3, padx = 5)
+            mag_frame.grid_columnconfigure(1, weight = 1)
+
+            mag_info = f"{mag.get('name', 'Unknown')}"
+            mag_details = f"Caliber: {', '.join(mag.get('caliber', ['Unknown']))} | Capacity: {mag.get('capacity', 0)}"
             if mag.get("magazinesystem"):
-                mag_info +=f" | System: {mag.get('magazinesystem')}"
+                mag_details += f" | System: {mag.get('magazinesystem')}"
 
-            customtkinter.CTkLabel(
+            name_label = customtkinter.CTkLabel(
             mag_frame,
             text = mag_info,
-            font = customtkinter.CTkFont(size = 12),
-            justify = "left"
-            ).pack(side = "left", padx = 10, pady = 10)
+            font = customtkinter.CTkFont(size = 13, weight = "bold"),
+            anchor = "w"
+            )
+            name_label.grid(row = 0, column = 0, padx = 10, pady = (8, 2), sticky = "w")
+
+            details_label = customtkinter.CTkLabel(
+            mag_frame,
+            text = mag_details,
+            font = customtkinter.CTkFont(size = 11),
+            text_color = "gray",
+            anchor = "w"
+            )
+            details_label.grid(row = 1, column = 0, padx = 10, pady = (0, 8), sticky = "w")
 
             def create_mag_transfer(m = mag):
                 self._create_loaded_magazine_dialog(m, table_data)
 
-            self._create_sound_button(
+            create_btn = self._create_sound_button(
             mag_frame,
             text = "Create Transfer",
             command = create_mag_transfer,
-            width = 150
-            ).pack(side = "right", padx = 10, pady = 5)
+            width = 140,
+            height = 32
+            )
+            create_btn.grid(row = 0, column = 1, rowspan = 2, padx = 10, pady = 8, sticky = "e")
+
+        def display_page(page_num):
+            items = current_filtered[0]
+            total_pages = max(1, (len(items) + ITEMS_PER_PAGE - 1) // ITEMS_PER_PAGE)
+            page_num = max(0, min(page_num, total_pages - 1))
+            current_page[0] = page_num
+
+            for widget in scroll_frame.winfo_children():
+                widget.destroy()
+
+            if not items:
+                no_results = customtkinter.CTkLabel(scroll_frame, text = "No magazines found.", font = customtkinter.CTkFont(size = 14), text_color = "gray")
+                no_results.pack(pady = 20)
+                info_label.configure(text = "No magazines found")
+                update_pagination_controls(0, 0)
+                return
+
+            start_idx = page_num * ITEMS_PER_PAGE
+            end_idx = min(start_idx + ITEMS_PER_PAGE, len(items))
+
+            for i in range(start_idx, end_idx):
+                create_mag_widget(items[i])
+
+            info_label.configure(text = f"Page {page_num + 1} of {total_pages} | {len(items)} magazines total")
+            update_pagination_controls(page_num, total_pages)
+
+            try:
+                scroll_frame._parent_canvas.yview_moveto(0)
+            except Exception:
+                pass
+
+        def update_pagination_controls(current, total):
+            for widget in pagination_frame.winfo_children():
+                widget.destroy()
+
+            if total <= 1:
+                return
+
+            first_btn = customtkinter.CTkButton(pagination_frame, text = "<<", width = 40, height = 30, command = lambda: display_page(0), state = "normal" if current > 0 else "disabled")
+            first_btn.pack(side = "left", padx = 2)
+
+            prev_btn = customtkinter.CTkButton(pagination_frame, text = "<", width = 40, height = 30, command = lambda: display_page(current - 1), state = "normal" if current > 0 else "disabled")
+            prev_btn.pack(side = "left", padx = 2)
+
+            start_page = max(0, current - 3)
+            end_page = min(total, start_page + 7)
+            if end_page - start_page < 7:
+                start_page = max(0, end_page - 7)
+
+            for p in range(start_page, end_page):
+                btn = customtkinter.CTkButton(pagination_frame, text = str(p + 1), width = 35, height = 30, fg_color = ("gray75", "gray25") if p == current else None, command = lambda page = p: display_page(page))
+                btn.pack(side = "left", padx = 1)
+
+            next_btn = customtkinter.CTkButton(pagination_frame, text = ">", width = 40, height = 30, command = lambda: display_page(current + 1), state = "normal" if current < total - 1 else "disabled")
+            next_btn.pack(side = "left", padx = 2)
+
+            last_btn = customtkinter.CTkButton(pagination_frame, text = ">>", width = 40, height = 30, command = lambda: display_page(total - 1), state = "normal" if current < total - 1 else "disabled")
+            last_btn.pack(side = "left", padx = 2)
+
+        def filter_magazines(search_term):
+            search_lower = search_term.lower().strip()
+
+            if search_lower:
+                filtered = [
+                mag for mag in all_magazines
+                if search_lower in mag.get("name", "").lower()
+                or any(search_lower in cal.lower() for cal in mag.get("caliber", []))
+                or search_lower in mag.get("magazinesystem", "").lower()
+                ]
+            else:
+                filtered = all_magazines
+
+            current_filtered[0] = filtered
+            current_page[0] = 0
+            display_page(0)
+
+        def on_search_change(*args):
+            if search_timer[0] is not None:
+                try:
+                    self.root.after_cancel(search_timer[0])
+                except Exception:
+                    pass
+            search_timer[0] = self.root.after(200, lambda: filter_magazines(search_entry.get())) # type: ignore
+
+        search_entry.bind("<KeyRelease>", on_search_change)
+
+        display_page(0)
 
         back_button = self._create_sound_button(
         main_frame,
@@ -21617,7 +22857,7 @@ class App:
         height = 50,
         font = customtkinter.CTkFont(size = 16)
         )
-        back_button.pack(pady = 20)
+        back_button.grid(row = 4, column = 0, pady = 20)
 
     def _create_loaded_magazine_dialog(self, magazine, table_data):
 
@@ -21743,6 +22983,20 @@ class App:
                 if not ammo_obj:
                     raise ValueError("No ammunition selected")
 
+                variant_info = None
+                if selected_variant.get():
+                    variant_parts = selected_variant.get().split("|")
+                    if len(variant_parts)==2:
+                        for var in ammo_obj.get("variants", []):
+                            if var.get("name")==variant_parts[1]:
+                                variant_info = var
+                                break
+
+                if not variant_info:
+                    variants = ammo_obj.get("variants", [])
+                    if variants:
+                        variant_info = variants[0]
+
                 magazines =[]
                 capacity = magazine.get("capacity", 30)
                 rounds_to_load = int(capacity *(fill_percent /100.0))
@@ -21755,14 +23009,27 @@ class App:
                         mag_copy["magazinesystem"]= magazine.get("magazinesystem", "Unknown")
 
                     for j in range(rounds_to_load):
-                        round_str = ammo_obj.get("caliber", "Unknown")
+                        caliber = ammo_obj.get("caliber", "Unknown")
+                        if isinstance(caliber, list):
+                            caliber = caliber[0] if caliber else "Unknown"
 
-                        if selected_variant.get():
-                            variant_parts = selected_variant.get().split("|")
-                            if len(variant_parts)==2:
-                                round_str = f"{round_str} | {variant_parts[1]}"
+                        round_data = {
+                        "caliber": caliber,
+                        "name": f"{caliber} | {variant_info.get('name', 'FMJ') if variant_info else 'FMJ'}",
+                        "variant": variant_info.get("name", "FMJ") if variant_info else "FMJ"
+                        }
 
-                        mag_copy["rounds"].append(round_str)
+                        if variant_info:
+                            if variant_info.get("type"):
+                                round_data["type"] = variant_info.get("type")
+                            if variant_info.get("pen"):
+                                round_data["pen"] = variant_info.get("pen")
+                            if variant_info.get("tip"):
+                                round_data["tip"] = variant_info.get("tip")
+                            if variant_info.get("modifiers"):
+                                round_data["modifiers"] = variant_info.get("modifiers")
+
+                        mag_copy["rounds"].append(round_data)
 
                     magazines.append(mag_copy)
 
@@ -22001,21 +23268,40 @@ class App:
                 belt_copy = json.loads(json.dumps(belt_link))
                 belt_copy["rounds"]=[]
 
+                variant_info = None
+                if selected_variant.get():
+                    variant_parts = selected_variant.get().split("|")
+                    if len(variant_parts)==2:
+                        for var in ammo_obj.get("variants", []):
+                            if var.get("name")==variant_parts[1]:
+                                variant_info = var
+                                break
+
+                if not variant_info:
+                    variants = ammo_obj.get("variants", [])
+                    if variants:
+                        variant_info = variants[0]
+
                 for i in range(round_count):
+                    caliber = ammo_obj.get("caliber")
+                    if isinstance(caliber, list):
+                        caliber = caliber[0] if caliber else "Unknown"
+
                     round_data = {
-                    "caliber":ammo_obj.get("caliber"),
-                    "name":ammo_obj.get("name")
+                    "caliber":caliber,
+                    "name":f"{caliber} | {variant_info.get('name', 'FMJ') if variant_info else 'FMJ'}",
+                    "variant":variant_info.get("name", "FMJ") if variant_info else "FMJ"
                     }
 
-                    if selected_variant.get():
-                        variant_parts = selected_variant.get().split("|")
-                        if len(variant_parts)==2:
-
-                            for var in ammo_obj.get("variants", []):
-                                if var.get("name")==variant_parts[1]:
-                                    round_data["variant"]= var.get("name")
-                                    round_data["variant_data"]= var
-                                    break
+                    if variant_info:
+                        if variant_info.get("type"):
+                            round_data["type"] = variant_info.get("type")
+                        if variant_info.get("pen"):
+                            round_data["pen"] = variant_info.get("pen")
+                        if variant_info.get("tip"):
+                            round_data["tip"] = variant_info.get("tip")
+                        if variant_info.get("modifiers"):
+                            round_data["modifiers"] = variant_info.get("modifiers")
 
                     belt_copy["rounds"].append(round_data)
 

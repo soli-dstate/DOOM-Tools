@@ -6321,6 +6321,43 @@
                     {"name": "Muzzle Device", "slot": "muzzle_9mm", "current": null}
                 ],
                 "can_stack": false
+            },
+            {
+                "name": "Mountain Dew Code Red",
+                "value": 3,
+                "description": "A bottle of Mountain Dew Code Red. Drinking it restores a small amount of health and gives a temporary boost to energy.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.5,
+                "id": 332,
+                "consumable": true,
+                "consumable_sounds": [
+                    "drinkbottleopen.ogg",
+                    "drink.ogg",
+                    "masterchief.ogg"
+                ],
+                "used_up": true,
+                "can_stack": false
+            },
+            {
+                "name": "Flex Seal Guy's hat",
+                "value": 50,
+                "description": "Hi, Phil Swift here with flex tape- ah wait, wrong flex seal guy.",
+                "rarity": "Mythic",
+                "random_quantity": false,
+                "weight": 0.5,
+                "id": 333,
+                "equippable": true,
+                "encumbrance_reduction": 0.5,
+                "slot": "head",
+                "curse_of_binding": true,
+                "protection": "IV",
+                "material": "Flex Seal",
+                "subslots": [
+                    {"name": "Dovetail NVG Mount", "slot": "nvg_mount", "current": null},
+                    {"name": "NVG battery pack", "slot": "nvg_battery", "current": null},
+                    {"name": "Ear protection", "slot": "ear_protection", "current": null}
+                ]
             }
         ],
         "equipment": [
@@ -6907,6 +6944,35 @@
                     {"name": "Back Armor Slot", "slot": "back_armor", "current": null}
                 ],
                 "in_armory": true
+            },
+            {
+                "name": "Legion combat helmet",
+                "value": 400,
+                "description": "A combat helmet used by Legion soldiers. Provides ballistic protection for the head and face.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 1.2,
+                "id": 330,
+                "equippable": true,
+                "encumbrance_reduction": 1.5,
+                "slot": "head",
+                "protection": "IIIa",
+                "material": "steel"
+            },
+            {
+                "name": "Spartan Armor Systems AR550 Level III Steel Plate",
+                "value": 400,
+                "description": "AR550 Level III steel plate providing robust ballistic protection. Suitable for use in various plate carriers and tactical vests.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 3.5,
+                "id": 331,
+                "equippable": true,
+                "encumbrance_reduction": 0.0,
+                "slot": ["front_armor", "back_armor"],
+                "protection": "III",
+                "material": "steel",
+                "in_armory": true
             }
         ],
         "enemy_drops": [
@@ -6918,7 +6984,8 @@
                     {"type": "id", "id": [250,250,251], "guaranteed": true, "multi_type": "and"},
                     {"type": ["table", "id"], "table": "pistols", "id": 322, "rarity": "Mythic", "multi_type": "and", "magazines_to_spawn": {"min": 0, "max": 2}, "loading": "random"},
                     {"type": "id", "id": 320, "guaranteed": true},
-                    {"type": "id", "id": 321, "guaranteed": true}
+                    {"type": "id", "id": 321, "guaranteed": true},
+                    {"type": "id", "id": 330, "guaranteed": true}
                 ]
             },
             {
@@ -6929,7 +6996,8 @@
                     {"type": "id", "id": [250,250,251], "guaranteed": true, "multi_type": "and"},
                     {"type": ["table", "id"], "table": "pistols", "id": 322, "rarity": "Mythic", "multi_type": "and", "magazines_to_spawn": {"min": 0, "max": 2}, "loading": "random"},
                     {"type": "id", "id": 320, "guaranteed": true},
-                    {"type": "id", "id": 321, "guaranteed": true}
+                    {"type": "id", "id": 321, "guaranteed": true},
+                    {"type": "id", "id": 330, "guaranteed": true}
                 ]
             },
             {
@@ -6940,7 +7008,8 @@
                     {"type": "id", "id": [250,250,251], "guaranteed": true, "multi_type": "and"},
                     {"type": ["table", "id"], "table": "pistols", "id": 322, "rarity": "Mythic", "multi_type": "and", "magazines_to_spawn": {"min": 0, "max": 2}, "loading": "random"},
                     {"type": "id", "id": 320, "guaranteed": true},
-                    {"type": "id", "id": 321, "guaranteed": true}
+                    {"type": "id", "id": 321, "guaranteed": true},
+                    {"type": "id", "id": 330, "guaranteed": true}
                 ]
             },
             {
@@ -6951,7 +7020,8 @@
                     {"type": "id", "id": [250,250,251], "guaranteed": true, "multi_type": "and"},
                     {"type": ["table", "id"], "table": "pistols", "id": 322, "rarity": "Mythic", "multi_type": "and", "magazines_to_spawn": {"min": 0, "max": 2}, "loading": "random"},
                     {"type": "id", "id": 320, "guaranteed": true},
-                    {"type": "id", "id": 321, "guaranteed": true}
+                    {"type": "id", "id": 321, "guaranteed": true},
+                    {"type": "id", "id": 330, "guaranteed": true}
                 ]
             },
             {
@@ -6962,7 +7032,8 @@
                     {"type": "id", "id": [250,250,251], "guaranteed": true, "multi_type": "and"},
                     {"type": ["table", "id"], "table": "pistols", "id": 322, "rarity": "Mythic", "multi_type": "and", "magazines_to_spawn": {"min": 0, "max": 2}, "loading": "random"},
                     {"type": "id", "id": 320, "guaranteed": true},
-                    {"type": "id", "id": 321, "guaranteed": true}
+                    {"type": "id", "id": 321, "guaranteed": true},
+                    {"type": "id", "id": 330, "guaranteed": true}
                 ]
             },
             {
@@ -6973,7 +7044,8 @@
                     {"type": "id", "id": [250,250,251], "guaranteed": true, "multi_type": "and"},
                     {"type": ["table", "id"], "table": "pistols", "id": 322, "rarity": "Mythic", "multi_type": "and", "magazines_to_spawn": {"min": 0, "max": 2}, "loading": "random"},
                     {"type": "id", "id": 320, "guaranteed": true},
-                    {"type": "id", "id": 321, "guaranteed": true}
+                    {"type": "id", "id": 321, "guaranteed": true},
+                    {"type": "id", "id": 330, "guaranteed": true}
                 ]
             },
             {
@@ -7042,7 +7114,7 @@
                 "description": "A standard crate, has the entire pool of items.",
                 "rarity": "Common",
                 "locked": false,
-                "pulls": 3,
+                "pulls": {"min": 3, "max": 6},
                 "loot_table": [
                     {"type": "table", "table": "rifles", "rarity": "Rare"},
                     {"type": "table", "table": "submachine_guns", "rarity": "Rare"},
@@ -7074,7 +7146,7 @@
                 "description": "I need a medic bag",
                 "rarity": "Uncommon",
                 "locked": false,
-                "pulls": 2,
+                "pulls": 3,
                 "loot_table": [
                     {"type": "table", "table": "equipment", "rarity": "Common"}
                 ]
