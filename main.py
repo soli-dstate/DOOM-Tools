@@ -6069,15 +6069,274 @@ class App:
             )
             load_button.grid(row = 0, column = 1, rowspan = 3, padx = 15, pady = 10)
 
+        button_frame = customtkinter.CTkFrame(main_frame, fg_color = "transparent")
+        button_frame.grid(row = 2, column = 0, pady = (10, 0))
+
+        load_backup_button = self._create_sound_button(
+        button_frame,
+        "Load from Backup",
+        lambda: self._open_load_from_backup(),
+        width = 200,
+        height = 50,
+        font = customtkinter.CTkFont(size = 14),
+        fg_color = "#4a5568"
+        )
+        load_backup_button.pack(side = "left", padx = 10)
+
         back_button = self._create_sound_button(
-        main_frame,
+        button_frame,
         "Back to Character Management",
         lambda:[self._clear_window(), self._open_character_management()],
         width = 300,
         height = 50,
         font = customtkinter.CTkFont(size = 14)
         )
-        back_button.grid(row = 2, column = 0, pady =(10, 0))
+        back_button.pack(side = "left", padx = 10)
+
+    def _open_load_from_backup(self):
+        """Open backup browser to load character saves from backups."""
+        logging.info("Load from Backup definition called")
+
+        self._clear_window()
+        self._play_ui_sound("whoosh1")
+
+        backup_base = os.path.join(saves_folder or "saves", "backups")
+
+        character_folders = []
+        if os.path.exists(backup_base):
+            for folder_name in os.listdir(backup_base):
+                folder_path = os.path.join(backup_base, folder_name)
+                if os.path.isdir(folder_path) and folder_name != "archive":
+                    backup_files = glob.glob(os.path.join(folder_path, "*.sldsv"))
+                    if backup_files:
+                        character_folders.append({
+                            "name": folder_name,
+                            "path": folder_path,
+                            "backup_count": len(backup_files)
+                        })
+
+        self.root.grid_rowconfigure(0, weight = 1)
+        self.root.grid_columnconfigure(0, weight = 1)
+
+        main_frame = customtkinter.CTkFrame(self.root)
+        main_frame.grid(row = 0, column = 0, sticky = "nsew", padx = 20, pady = 20)
+        main_frame.grid_rowconfigure(1, weight = 1)
+        main_frame.grid_columnconfigure(0, weight = 1)
+
+        title = customtkinter.CTkLabel(main_frame, text = "Load from Backup", font = customtkinter.CTkFont(size = 24, weight = "bold"))
+        title.grid(row = 0, column = 0, pady = (0, 20))
+
+        if not character_folders:
+            no_backups = customtkinter.CTkLabel(
+                main_frame,
+                text = "No backups found.\nBackups are created automatically when saving characters.",
+                font = customtkinter.CTkFont(size = 14),
+                text_color = "gray"
+            )
+            no_backups.grid(row = 1, column = 0, pady = 20)
+        else:
+            scroll_frame = customtkinter.CTkScrollableFrame(main_frame, width = 700, height = 400)
+            scroll_frame.grid(row = 1, column = 0, sticky = "nsew", pady = (0, 20))
+            scroll_frame.grid_columnconfigure(0, weight = 1)
+
+            for i, char_folder in enumerate(character_folders):
+                folder_frame = customtkinter.CTkFrame(scroll_frame)
+                folder_frame.grid(row = i, column = 0, sticky = "ew", pady = 5, padx = 10)
+                folder_frame.grid_columnconfigure(0, weight = 1)
+
+                name_label = customtkinter.CTkLabel(
+                    folder_frame,
+                    text = char_folder["name"],
+                    font = customtkinter.CTkFont(size = 18, weight = "bold"),
+                    anchor = "w"
+                )
+                name_label.grid(row = 0, column = 0, sticky = "w", padx = 15, pady = (10, 5))
+
+                count_label = customtkinter.CTkLabel(
+                    folder_frame,
+                    text = f"{char_folder['backup_count']} backup(s) available",
+                    font = customtkinter.CTkFont(size = 11),
+                    text_color = "gray",
+                    anchor = "w"
+                )
+                count_label.grid(row = 1, column = 0, sticky = "w", padx = 15, pady = (0, 10))
+
+                browse_button = self._create_sound_button(
+                    folder_frame,
+                    "Browse Backups",
+                    lambda cf = char_folder: self._browse_character_backups(cf),
+                    width = 150,
+                    height = 35,
+                    font = customtkinter.CTkFont(size = 13)
+                )
+                browse_button.grid(row = 0, column = 1, rowspan = 2, padx = 15, pady = 10)
+
+        back_button = self._create_sound_button(
+            main_frame,
+            "Back to Load Character",
+            lambda: [self._clear_window(), self._load_existing_character()],
+            width = 300,
+            height = 50,
+            font = customtkinter.CTkFont(size = 14)
+        )
+        back_button.grid(row = 2, column = 0, pady = (10, 0))
+
+    def _browse_character_backups(self, char_folder):
+        """Browse and load specific backups for a character."""
+        logging.info(f"Browsing backups for: {char_folder['name']}")
+
+        self._clear_window()
+        self._play_ui_sound("whoosh1")
+
+        backup_files = []
+        for backup_path in glob.glob(os.path.join(char_folder["path"], "*.sldsv")):
+            try:
+                filename = os.path.basename(backup_path)
+                mtime = os.path.getmtime(backup_path)
+                mtime_str = datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M:%S")
+
+                timestamp_part = filename.replace("backup_", "").replace(".sldsv", "")
+                try:
+                    if "_" in timestamp_part:
+                        parts = timestamp_part.split("_")
+                        if len(parts) >= 2:
+                            date_str = f"{parts[0][:4]}-{parts[0][4:6]}-{parts[0][6:8]}"
+                            time_str = f"{parts[1][:2]}:{parts[1][2:4]}:{parts[1][4:6]}"
+                            display_time = f"{date_str} {time_str}"
+                        else:
+                            display_time = mtime_str
+                    else:
+                        display_time = mtime_str
+                except Exception:
+                    display_time = mtime_str
+
+                backup_files.append({
+                    "path": backup_path,
+                    "filename": filename,
+                    "mtime": mtime,
+                    "display_time": display_time
+                })
+            except Exception as e:
+                logging.warning(f"Failed to read backup file info: {e}")
+
+        backup_files.sort(key = lambda x: x["mtime"], reverse = True)
+
+        self.root.grid_rowconfigure(0, weight = 1)
+        self.root.grid_columnconfigure(0, weight = 1)
+
+        main_frame = customtkinter.CTkFrame(self.root)
+        main_frame.grid(row = 0, column = 0, sticky = "nsew", padx = 20, pady = 20)
+        main_frame.grid_rowconfigure(1, weight = 1)
+        main_frame.grid_columnconfigure(0, weight = 1)
+
+        title = customtkinter.CTkLabel(
+            main_frame,
+            text = f"Backups: {char_folder['name']}",
+            font = customtkinter.CTkFont(size = 24, weight = "bold")
+        )
+        title.grid(row = 0, column = 0, pady = (0, 20))
+
+        scroll_frame = customtkinter.CTkScrollableFrame(main_frame, width = 700, height = 400)
+        scroll_frame.grid(row = 1, column = 0, sticky = "nsew", pady = (0, 20))
+        scroll_frame.grid_columnconfigure(0, weight = 1)
+
+        def load_backup(backup_info):
+            try:
+                backup_data = self._read_save_from_path(backup_info["path"])
+                if backup_data is None:
+                    self._popup_show_info("Error", "Failed to read backup file.", sound = "error")
+                    return
+
+                def confirm_load():
+                    global currentsave
+                    try:
+                        char_name = backup_data.get("charactername", "Unknown")
+                        uuid_val = backup_data.get("uuid")
+                        if not uuid_val:
+                            import uuid
+                            uuid_val = str(uuid.uuid4())
+                            backup_data["uuid"] = uuid_val
+
+                        save_filename = f"{char_name}_{uuid_val}"
+                        save_path = os.path.join(saves_folder or "saves", f"{save_filename}.sldsv")
+
+                        self._write_save_to_path(save_path, backup_data)
+
+                        currentsave = save_filename
+                        persistentdata["save_uuids"].setdefault(uuid_val, char_name)
+                        persistentdata["last_loaded_save"] = uuid_val
+                        self._save_persistent_data()
+
+                        logging.info(f"Restored backup for '{char_name}' from {backup_info['filename']}")
+                        self._popup_show_info("Success", f"Backup restored for '{char_name}'!\nBackup time: {backup_info['display_time']}", sound = "success")
+                        self._clear_window()
+                        self._build_main_menu()
+                    except Exception as e:
+                        logging.error(f"Failed to restore backup: {e}")
+                        self._popup_show_info("Error", f"Failed to restore backup: {e}", sound = "error")
+
+                self._popup_confirm(
+                    "Restore Backup",
+                    f"This will restore the backup from:\n{backup_info['display_time']}\n\nThis will overwrite the current save for this character.\nContinue?",
+                    confirm_load
+                )
+            except Exception as e:
+                logging.error(f"Failed to load backup: {e}")
+                self._popup_show_info("Error", f"Failed to load backup: {e}", sound = "error")
+
+        for i, backup_info in enumerate(backup_files):
+            is_latest = (i == 0)
+            backup_frame = customtkinter.CTkFrame(
+                scroll_frame,
+                fg_color = ("#2d5a2d", "#1a3d1a") if is_latest else None,
+                border_width = 2 if is_latest else 0,
+                border_color = "#4ade80" if is_latest else None
+            )
+            backup_frame.grid(row = i, column = 0, sticky = "ew", pady = 3, padx = 10)
+            backup_frame.grid_columnconfigure(0, weight = 1)
+
+            time_text = backup_info["display_time"]
+            if is_latest:
+                time_text = f"☆ {time_text} (Latest)"
+
+            time_label = customtkinter.CTkLabel(
+                backup_frame,
+                text = time_text,
+                font = customtkinter.CTkFont(size = 14, weight = "bold"),
+                text_color = "#4ade80" if is_latest else None,
+                anchor = "w"
+            )
+            time_label.grid(row = 0, column = 0, sticky = "w", padx = 15, pady = (8, 2))
+
+            file_label = customtkinter.CTkLabel(
+                backup_frame,
+                text = backup_info["filename"],
+                font = customtkinter.CTkFont(size = 10),
+                text_color = "#86efac" if is_latest else "gray",
+                anchor = "w"
+            )
+            file_label.grid(row = 1, column = 0, sticky = "w", padx = 15, pady = (0, 8))
+
+            load_btn = self._create_sound_button(
+                backup_frame,
+                "Restore",
+                lambda bi = backup_info: load_backup(bi),
+                width = 100,
+                height = 30,
+                font = customtkinter.CTkFont(size = 12)
+            )
+            load_btn.grid(row = 0, column = 1, rowspan = 2, padx = 15, pady = 5)
+
+        back_button = self._create_sound_button(
+            main_frame,
+            "Back to Backup List",
+            lambda: self._open_load_from_backup(),
+            width = 300,
+            height = 50,
+            font = customtkinter.CTkFont(size = 14)
+        )
+        back_button.grid(row = 2, column = 0, pady = (10, 0))
+
     def _open_inventory_management(self):
         logging.info("Inventory Management definition called")
 
@@ -9070,6 +9329,15 @@ class App:
                 if not item:
                     return
 
+                if isinstance(item, dict) and item.get("curse_of_binding"):
+                    self._popup_show_info("Curse of Binding", f"{item.get('name', 'This item')} is bound and cannot be unequipped.", sound="error")
+                    return
+                if isinstance(item, list):
+                    last_item = item[-1] if item else None
+                    if isinstance(last_item, dict) and last_item.get("curse_of_binding"):
+                        self._popup_show_info("Curse of Binding", f"{last_item.get('name', 'This item')} is bound and cannot be unequipped.", sound="error")
+                        return
+
                 played = False
                 try:
                     if slot =="waistband":
@@ -9120,6 +9388,10 @@ class App:
             try:
                 current_item = subslot_data.get("current")
                 if not current_item:
+                    return
+
+                if isinstance(current_item, dict) and current_item.get("curse_of_binding"):
+                    self._popup_show_info("Curse of Binding", f"{current_item.get('name', 'This item')} is bound and cannot be unequipped.", sound="error")
                     return
 
                 played = False
@@ -11350,7 +11622,6 @@ class App:
 
                 if current_mag and not("belt"in mag_type_current):
 
-                    import random as rand_module
                     try:
                         self._play_weapon_action_sound(wpn, "magout")
                     except Exception:
@@ -11359,7 +11630,7 @@ class App:
                     time.sleep(random.uniform(0.5, 1.0))
 
                     try:
-                        magdrop_sound = f"magdrop{rand_module.randint(0, 1)}"
+                        magdrop_sound = f"magdrop{random.randint(0, 1)}"
                         self._safe_sound_play("", f"sounds/firearms/universal/{magdrop_sound}.ogg")
                     except Exception:
                         pass
@@ -15286,6 +15557,8 @@ class App:
                                             temp_gain = float(wpn.get("temp_gain_per_shot", wpn.get("temp_gain", 7)))
                                         except Exception:
                                             temp_gain = 7.0
+                                        if self._check_weapon_suppressed(wpn):
+                                            temp_gain *= 1.5
                                         new_temp = new_temp +(temp_gain *0.5)
                                         combat_state["barrel_temperatures"][weapon_id]= new_temp
                                         combat_state.setdefault("weapon_last_used", {})[weapon_id]= now_ts
@@ -16172,13 +16445,13 @@ class App:
         }
 
         caliber_map.update({
-        "6.5x45mm":"308",
-        "6.5x45mm Colt":"308",
-        "6.5x45 Colt":"308",
-        "6.5x45":"308",
-        "5.7x28mm":"223",
-        "5.7x28mm NATO":"223",
-        "5.7x28":"223",
+        "6.5x45mm":"277baker",
+        "6.5x45mm Colt":"277baker",
+        "6.5x45 Colt":"277baker",
+        "6.5x45":"277baker",
+        "5.7x28mm":"224baker",
+        "5.7x28mm NATO":"224baker",
+        "5.7x28":"224baker",
         })
 
         extra_map = {
@@ -16193,6 +16466,26 @@ class App:
 
         if not caliber or not isinstance(caliber, str):
             return None
+
+        try:
+            td = globals().get('table_data') or {}
+            ammo_tables = td.get('tables', {}).get('ammunition', []) if isinstance(td, dict) else []
+            if isinstance(ammo_tables, list):
+                cal_lower = caliber.strip().lower()
+                for ammo_entry in ammo_tables:
+                    if not isinstance(ammo_entry, dict):
+                        continue
+                    a_cal = ammo_entry.get('caliber')
+                    if not a_cal:
+                        continue
+                    if isinstance(a_cal, (list, tuple)):
+                        match = any(str(x).strip().lower() == cal_lower for x in a_cal)
+                    else:
+                        match = str(a_cal).strip().lower() == cal_lower
+                    if match and ammo_entry.get('sounds'):
+                        return str(ammo_entry.get('sounds'))
+        except Exception:
+            pass
 
         caliber_map = {
         "5.56x45mm NATO":"556",
@@ -17069,6 +17362,8 @@ class App:
                 temp_gain = float(weapon.get("temp_gain_per_shot", weapon.get("temp_gain", 20)or 20))
             except Exception:
                 temp_gain = random.uniform(15, 25)
+            if self._check_weapon_suppressed(weapon):
+                temp_gain *= 1.5
 
             for i in range(nshots):
 
@@ -17459,6 +17754,8 @@ class App:
             if temp_gain is None:
 
                 temp_gain = random.uniform(5.0, 10.0)
+            if self._check_weapon_suppressed(weapon):
+                temp_gain *= 1.5
             temperature +=temp_gain
 
             try:
@@ -17785,7 +18082,9 @@ class App:
             except Exception:
                 pass
 
-            clipboard_text = f"Roll: {final_total} | Weapon: {weapon_name} | Round: {round_display} | {rounds_fired} rounds fired"
+            is_suppressed = self._check_weapon_suppressed(weapon)
+            suppressed_tag = " | Suppressed" if is_suppressed else ""
+            clipboard_text = f"Roll: {final_total} | Weapon: {weapon_name} | Round: {round_display} | {rounds_fired} rounds fired{suppressed_tag}"
             self._copy_to_clipboard(clipboard_text)
             logging.info(f"D20 rolls: {rolls}, Rounded avg: {median}")
 
@@ -17975,6 +18274,173 @@ class App:
             logging.exception("Unhandled exception in _fire_weapon for %s", weapon.get('name')if isinstance(weapon, dict)else str(weapon))
             return "Firing failed due to an internal error"
 
+    def _reload_infinite_ammo_weapon(self, weapon, save_data):
+        """Handle reload for weapons with infinite_ammo - simulates a fast reload."""
+        logging.info("_reload_infinite_ammo_weapon: %s", weapon.get("name", "Unknown"))
+
+        try:
+            # Get caliber for round creation
+            caliber_list = weapon.get("caliber", []) or ["Unknown"]
+            caliber = caliber_list[0] if isinstance(caliber_list, list) else caliber_list
+
+            # Get magazine info from mag_to_load key
+            mag_to_load = weapon.get("mag_to_load")
+            has_magazine_in_pool = weapon.get("has_magazine_in_pool", True)
+
+            # Load table data to look up magazine by ID if needed
+            table_data = None
+            try:
+                table_files = glob.glob(os.path.join("tables", "*.sldtbl"))
+                if table_files:
+                    with open(table_files[0], 'r', encoding='utf-8') as f:
+                        table_data = json.load(f)
+            except Exception:
+                logging.exception("Failed to load table data for infinite ammo reload")
+
+            # Determine the magazine to load
+            new_mag = None
+
+            if has_magazine_in_pool is False:
+                # Use capacity from mag_to_load dict directly
+                if isinstance(mag_to_load, dict):
+                    capacity = mag_to_load.get("capacity", 30)
+                    if isinstance(capacity, list):
+                        capacity = capacity[0] if capacity else 30
+                    new_mag = {
+                        "name": f"Infinite {caliber} Magazine",
+                        "caliber": [caliber] if not isinstance(caliber, list) else caliber,
+                        "capacity": capacity,
+                        "magazinesystem": weapon.get("magazinesystem"),
+                        "magazinetype": weapon.get("magazinetype", "Detachable box"),
+                        "rounds": [],
+                        "infinite": True
+                    }
+                    # Fill with infinite rounds
+                    for _ in range(capacity):
+                        new_mag["rounds"].append({
+                            "name": f"{caliber} | Infinite",
+                            "caliber": caliber,
+                            "variant": "Infinite"
+                        })
+            elif mag_to_load is not None and table_data:
+                # Look up magazine by ID from table
+                mag_id = mag_to_load if isinstance(mag_to_load, int) else None
+                if mag_id is not None:
+                    magazines = table_data.get("tables", {}).get("magazines", [])
+                    for mag in magazines:
+                        if mag.get("id") == mag_id:
+                            # Found the magazine template - create a copy
+                            new_mag = json.loads(json.dumps(mag))
+                            capacity = new_mag.get("capacity", 30)
+                            new_mag["rounds"] = []
+                            new_mag["infinite"] = True
+                            # Fill with infinite rounds
+                            for _ in range(capacity):
+                                new_mag["rounds"].append({
+                                    "name": f"{caliber} | Infinite",
+                                    "caliber": caliber,
+                                    "variant": "Infinite"
+                                })
+                            break
+
+            # Fallback: create a generic magazine if nothing found
+            if new_mag is None:
+                capacity = 30
+                loaded = weapon.get("loaded")
+                if loaded and isinstance(loaded, dict):
+                    capacity = loaded.get("capacity", 30)
+                new_mag = {
+                    "name": f"Infinite {caliber} Magazine",
+                    "caliber": [caliber] if not isinstance(caliber, list) else caliber,
+                    "capacity": capacity,
+                    "magazinesystem": weapon.get("magazinesystem"),
+                    "magazinetype": weapon.get("magazinetype", "Detachable box"),
+                    "rounds": [],
+                    "infinite": True
+                }
+                for _ in range(capacity):
+                    new_mag["rounds"].append({
+                        "name": f"{caliber} | Infinite",
+                        "caliber": caliber,
+                        "variant": "Infinite"
+                    })
+
+            # Play reload sounds
+            current_mag = weapon.get("loaded")
+            is_gun_empty = not weapon.get("chambered") and (not current_mag or not current_mag.get("rounds", []))
+
+            if current_mag:
+                try:
+                    self._play_weapon_action_sound(weapon, "magout", block=True)
+                    time.sleep(random.uniform(0.5, 1.0))
+                    magdrop_sound = f"magdrop{random.randint(0, 1)}"
+                    self._safe_sound_play("", f"sounds/firearms/universal/{magdrop_sound}.ogg")
+                except Exception:
+                    pass
+
+            time.sleep(random.uniform(0.25,0.5))
+
+            try:
+                self._safe_sound_play("", "sounds/firearms/universal/pouchout.ogg")
+            except Exception:
+                pass
+            time.sleep(random.uniform(0.5, 0.75))
+            try:
+                self._play_weapon_action_sound(weapon, "magin", block=True)
+            except Exception:
+                pass
+
+            time.sleep(random.uniform(0.25,0.5))
+
+            # Determine if pump action for cycling
+            rt_platform = str(weapon.get("platform", "") or "").lower()
+            rt_mag_type = str(weapon.get("magazinetype", "") or "").lower()
+            rt_action_raw = weapon.get("action", "") or ""
+            if isinstance(rt_action_raw, (list, tuple)):
+                rt_action_raw = rt_action_raw[0] if rt_action_raw else ""
+            rt_action = str(rt_action_raw).lower()
+            is_pump = ("pump" in rt_platform or rt_action == "pump" or "pump" in rt_mag_type)
+
+            if is_gun_empty:
+                if is_pump:
+                    try:
+                        self._play_weapon_action_sound(weapon, "pumpback", block=True)
+                        self._play_weapon_action_sound(weapon, "pumpforward")
+                    except Exception:
+                        pass
+                elif not weapon.get("bolt_catch"):
+                    try:
+                        self._play_weapon_action_sound(weapon, "boltback", block=True)
+                        self._play_weapon_action_sound(weapon, "boltforward")
+                    except Exception:
+                        pass
+                else:
+                    try:
+                        self._play_weapon_action_sound(weapon, "boltforward")
+                    except Exception:
+                        pass
+
+            # Set the new magazine
+            weapon["loaded"] = new_mag
+
+            # Chamber a round if gun was empty
+            if is_gun_empty and new_mag.get("rounds") and not is_pump:
+                weapon["chambered"] = new_mag["rounds"].pop(0)
+            elif is_gun_empty:
+                weapon["chambered"] = {
+                    "name": f"{caliber} | Infinite",
+                    "caliber": caliber,
+                    "variant": "Infinite"
+                }
+
+            rounds_loaded = len(new_mag.get("rounds", []))
+            capacity = new_mag.get("capacity", "?")
+            return f"Reloaded with infinite ammo ({rounds_loaded}/{capacity})"
+
+        except Exception as e:
+            logging.exception("Failed to reload infinite ammo weapon")
+            return f"Reload failed: {e}"
+
     def _reload_weapon(self, weapon, save_data, combat_reload = False):
 
         logging.info(
@@ -17992,6 +18458,10 @@ class App:
                 return self._reload_underbarrel(weapon, save_data, combat_reload)
         except Exception:
             logging.exception("Underbarrel reload handler check failed")
+
+        # Handle infinite_ammo weapons - simulate a fast reload
+        if weapon.get("infinite_ammo"):
+            return self._reload_infinite_ammo_weapon(weapon, save_data)
 
         magazine_type = weapon.get("magazinetype", "")or ""
         magazine_type = magazine_type.lower()if isinstance(magazine_type, str)else str(magazine_type).lower()
@@ -19406,7 +19876,7 @@ class App:
 
         if weapon.get("has_magazine_in_pool")is not False:
             for item in save_data.get("hands", {}).get("items", []):
-                if mag_is_compatible(item):
+                if mag_is_compatible(item) and len(item.get("rounds", []))>0:
                     compatible_mags.append(("hands", item))
 
         for slot_name, item in save_data.get("equipment", {}).items():
@@ -19414,7 +19884,7 @@ class App:
 
                     if "items"in item and isinstance(item["items"], list):
                         for mag in item["items"]:
-                            if mag_is_compatible(mag):
+                            if mag_is_compatible(mag) and len(mag.get("rounds", []))>0:
                                 compatible_mags.append(("equipment", mag))
 
                     if "subslots"in item:
@@ -19423,7 +19893,7 @@ class App:
                                 curr = subslot["current"]
                                 if "items"in curr and isinstance(curr["items"], list):
                                     for mag in curr["items"]:
-                                        if mag_is_compatible(mag):
+                                        if mag_is_compatible(mag) and len(mag.get("rounds", []))>0:
                                             compatible_mags.append(("equipment", mag))
 
         if not compatible_mags:
@@ -19455,11 +19925,45 @@ class App:
             mag_name = mag_item.get("name", "Unknown Magazine")
             capacity = mag_item.get("capacity", "?")
             rounds = len(mag_item.get("rounds", []))
+            # Determine magazine caliber display: show calibers actually LOADED in the mag (from rounds)
+            mag_cal_display = None
+            try:
+                mag_cals = []
+                rds = mag_item.get('rounds') if isinstance(mag_item, dict) else []
+                if isinstance(rds, list) and rds:
+                    # collect unique calibers from rounds
+                    seen = []
+                    for first in rds:
+                        try:
+                            if isinstance(first, dict):
+                                fc = first.get('caliber')
+                                if isinstance(fc, (list, tuple)):
+                                    for x in fc:
+                                        if x and str(x) not in seen:
+                                            seen.append(str(x))
+                                elif isinstance(fc, str) and fc and str(fc) not in seen:
+                                    seen.append(str(fc))
+                            elif isinstance(first, str) and first:
+                                calpart = first.split('|', 1)[0].strip()
+                                if calpart and calpart not in seen:
+                                    seen.append(calpart)
+                        except Exception:
+                            continue
+                    if seen:
+                        mag_cals = seen
+                # fallback: if no loaded rounds, don't display accepted calibers here
+                if mag_cals:
+                    mag_cal_display = ", ".join(mag_cals)
+            except Exception:
+                mag_cal_display = None
 
             radio_frame = customtkinter.CTkFrame(scroll_frame, fg_color = "transparent")
             radio_frame.pack(fill = "x", pady = 5, padx = 5)
 
-            radio_text = f"{mag_name}({rounds}/{capacity}) - from {location}"
+            radio_text = f"{mag_name}({rounds}/{capacity})"
+            if mag_cal_display:
+                radio_text += f" - {mag_cal_display}"
+            radio_text += f" - from {location}"
             radio = customtkinter.CTkRadioButton(
             radio_frame,
             text = radio_text,
@@ -19476,6 +19980,47 @@ class App:
 
             idx = int(selected_mag.get())
             location, mag_item = compatible_mags[idx]
+
+            # Validate magazine rounds against weapon calibers BEFORE playing any sounds
+            try:
+                wpn_cal_raw = weapon.get('caliber') or []
+                wpn_calibers = set()
+                if isinstance(wpn_cal_raw, (list, tuple)):
+                    for c in wpn_cal_raw:
+                        if c:
+                            wpn_calibers.add(str(c).lower().strip())
+                elif isinstance(wpn_cal_raw, str) and wpn_cal_raw:
+                    wpn_calibers.add(wpn_cal_raw.lower().strip())
+
+                mag_rounds = mag_item.get('rounds', []) if isinstance(mag_item, dict) else []
+                if wpn_calibers and mag_rounds:
+                    for rd in mag_rounds:
+                        try:
+                            rd_cals = set()
+                            if isinstance(rd, dict):
+                                rcal = rd.get('caliber')
+                                if isinstance(rcal, (list, tuple)):
+                                    for rc in rcal:
+                                        if rc:
+                                            rd_cals.add(str(rc).lower().strip())
+                                elif isinstance(rcal, str) and rcal:
+                                    rd_cals.add(rcal.lower().strip())
+                            elif isinstance(rd, str) and rd:
+                                if '|' in rd:
+                                    rd_cal_part = rd.split('|', 1)[0].strip()
+                                else:
+                                    rd_cal_part = rd.strip()
+                                if rd_cal_part:
+                                    rd_cals.add(rd_cal_part.lower().strip())
+
+                            if rd_cals and not (rd_cals & wpn_calibers):
+                                self._popup_show_info("Magazine Incompatible", f"Cannot insert magazine: it contains rounds of an incompatible caliber ({next(iter(rd_cals))}).", sound = "error")
+                                return
+                        except Exception:
+                            self._popup_show_info("Magazine Incompatible", "Cannot insert magazine: failed to validate contained rounds.", sound = "error")
+                            return
+            except Exception:
+                pass
 
             import time
 
@@ -19553,6 +20098,8 @@ class App:
             if current_mag and not weapon.get("infinite_ammo"):
 
                 save_data.get("hands", {}).get("items", []).append(current_mag)
+
+            
 
             if not weapon.get("infinite_ammo"):
                 weapon["loaded"]= mag_item

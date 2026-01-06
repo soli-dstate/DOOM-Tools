@@ -52,59 +52,6 @@
                 "in_armory": true
             },
             {
-                "name": "Remington M24 Sniper Weapon System",
-                "value": 1500,
-                "description": "Bolt-action precision rifle based off of the Remington 700, used by the LEDF and Kyntarian resistance.",
-                "rarity": "Legendary",
-                "random_quantity": false,
-                "weight": 5.4,
-                "id": 40,
-                "firearm": true,
-                "type": "conventional",
-                "subtype": "rifle",
-                "platform": "R700",
-                "caliber": ["7.62x51mm NATO"],
-                "action": ["Bolt"],
-                "bolt": "closed",
-                "cyclic": 40,
-                "magazinetype": "Detachable box",
-                "magazinesystem": "AICS",
-                "jamrate": 0.005,
-                "accessories": [
-                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": null},
-                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
-                ],
-                "can_stack": false,
-                "in_armory": true
-            },
-            {
-                "name": "Remington M40 Sniper Weapon System",
-                "value": 1150,
-                "description": "Bolt-action precision rifle based off of the Remington 700, this variant of the M24 has an internal box fed magazine rather than a detachable AICS magazine. Used by the LEDF and Kyntarian resistance.",
-                "rarity": "Rare",
-                "random_quantity": false,
-                "weight": 7.5,
-                "id": 44,
-                "firearm": true,
-                "type": "conventional",
-                "subtype": "rifle",
-                "platform": "R700",
-                "caliber": ["7.62x51mm NATO"],
-                "action": ["Bolt"],
-                "bolt": "closed",
-                "bolt_catch": true,
-                "cyclic": 40,
-                "magazinetype": "Internal Box",
-                "capacity": 5,
-                "jamrate": 0.005,
-                "accessories": [
-                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": null},
-                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
-                ],
-                "can_stack": false,
-                "in_armory": true
-            },
-            {
                 "name": "Colt M8 Carbine",
                 "value": 1250,
                 "description": "Replacement for the standard issue M4A1 carbine. Fires 6.5x45mm Colt with an 11.5 inch barrel. Used by the LEDF.",
@@ -628,32 +575,6 @@
                 "in_armory": true
             },
             {
-                "name": "FAF-439TS Marksman Rifle",
-                "value": 1500,
-                "description": "Standard issue Legionaire marksman rifle, chambered in 7.62x51mm NATO. Known for its reliability and stopping power.",
-                "rarity": "Rare",
-                "random_quantity": false,
-                "weight": 4,
-                "id": 238,
-                "firearm": true,
-                "type": "conventional",
-                "subtype": "rifle",
-                "platform": "FAL",
-                "caliber": ["7.62x51mm NATO"],
-                "action": ["Semi"],
-                "bolt": "closed",
-                "bolt_catch": false,
-                "cyclic": 600,
-                "magazinetype": "Detachable box",
-                "magazinesystem": "FAL",
-                "jamrate": 0.01,
-                "accessories": [
-                    {"name": "SSA Accessory Mount", "slot": "ssa_mount", "current": {"name":"VLR fixed magnification 4x scope","value":900,"description":"4x fixed magnification scope for mid-range engagements. Mounts to a Legion SSA accessory rail.","rarity":"Common","random_quantity":false,"weight":0.5,"id":239,"attachment":true,"slot":"ssa_mount","modifiers":{"stats":{"aim":2}},"magnified":true,"variable":false,"night_vision_compatible":false,"can_stack":false}},
-                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
-                ],
-                "can_stack": false
-            },
-            {
                 "name": "FAF-439VN Battle Rifle",
                 "value": 1500,
                 "description": "Standard issue Legionaire battle rifle, chambered in 7.62x51mm NATO. Known for its reliability and stopping power. This one is used by the Night Battalion.",
@@ -675,7 +596,7 @@
                 "jamrate": 0.01,
                 "accessories": [
                     {"name": "SSA Accessory Mount", "slot": "ssa_mount", "current": {"name":"MSVN night vision scope","value":2000,"description":"Experimental early night vision sight designed for the Legion SSA accessory rail.","rarity":"Rare","random_quantity":false,"weight":2.26,"id":232,"attachment":true,"slot":"ssa_mount","modifiers":{"stats":{"aim":2},"night_vision_compatible":true},"magnified":true,"variable":false,"night_vision_compatible":true,"can_stack":false}},
-                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
+                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": {"name":"Legion 7.62mm suppressor","value":2000,"description":"7.62mm suppressor designed for use with Legion firearms, effectively reducing muzzle flash and sound signature.","rarity":"Mythic","random_quantity":false,"weight":0.5,"id":334,"attachment":true,"slot":"muzzle_762","suppressor":true,"modifiers":{"stats":{"stealth":1}},"can_stack":false}}
                 ],
                 "can_stack": false
             },
@@ -724,37 +645,6 @@
                 "platform": "SCAR",
                 "caliber": ["7.62x51mm NATO"],
                 "action": ["Semi", "Auto"],
-                "bolt": "closed",
-                "bolt_catch": true,
-                "cyclic": 550,
-                "magazinetype": "Detachable box",
-                "magazinesystem": "SCAR-H",
-                "jamrate": 0.001,
-                "accessories": [
-                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": null},
-                    {"name": "Picatinny Rail (Handguard Top)", "slot": "picatinny_rifle", "current": null},
-                    {"name": "Picatinny Rail (Handguard Left)", "slot": "picatinny_rifle", "current": null},
-                    {"name": "Picatinny Rail (Handguard Right)", "slot": "picatinny_rifle", "current": null},
-                    {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom", "current": null},
-                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
-                ],
-                "can_stack": false,
-                "in_armory": true
-            },
-            {
-                "name": "FN Herstal Mk. 20 SSR",
-                "value": 3000,
-                "description": "Rifle developed for USSOCOM, used by the LEDF special forces... the key word is special. This is the designated marksman variant, which is semi automatic. Lame.",
-                "rarity": "Legendary",
-                "random_quantity": false,
-                "weight": 3.29,
-                "id": 297,
-                "firearm": true,
-                "type": "conventional",
-                "subtype": "rifle",
-                "platform": "SCAR",
-                "caliber": ["7.62x51mm NATO"],
-                "action": ["Semi"],
                 "bolt": "closed",
                 "bolt_catch": true,
                 "cyclic": 550,
@@ -853,6 +743,118 @@
                     {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
                 ],
                 "can_stack": false
+            }
+        ],
+        "sniper_rifles": [
+            {
+                "name": "Remington M24 Sniper Weapon System",
+                "value": 1500,
+                "description": "Bolt-action precision rifle based off of the Remington 700, used by the LEDF and Kyntarian resistance.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 5.4,
+                "id": 40,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "R700",
+                "caliber": ["7.62x51mm NATO"],
+                "action": ["Bolt"],
+                "bolt": "closed",
+                "cyclic": 40,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "AICS",
+                "jamrate": 0.005,
+                "accessories": [
+                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
+                ],
+                "can_stack": false,
+                "in_armory": true
+            },
+            {
+                "name": "Remington M40 Sniper Weapon System",
+                "value": 1150,
+                "description": "Bolt-action precision rifle based off of the Remington 700, this variant of the M24 has an internal box fed magazine rather than a detachable AICS magazine. Used by the LEDF and Kyntarian resistance.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 7.5,
+                "id": 44,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "R700",
+                "caliber": ["7.62x51mm NATO"],
+                "action": ["Bolt"],
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 40,
+                "magazinetype": "Internal Box",
+                "capacity": 5,
+                "jamrate": 0.005,
+                "accessories": [
+                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
+                ],
+                "can_stack": false,
+                "in_armory": true
+            },
+            {
+                "name": "FN Herstal Mk. 20 SSR",
+                "value": 3000,
+                "description": "Rifle developed for USSOCOM, used by the LEDF special forces... the key word is special. This is the designated marksman variant, which is semi automatic. Lame.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 3.29,
+                "id": 297,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "SCAR",
+                "caliber": ["7.62x51mm NATO"],
+                "action": ["Semi"],
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 550,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "SCAR-H",
+                "jamrate": 0.001,
+                "accessories": [
+                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": null},
+                    {"name": "Picatinny Rail (Handguard Top)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Left)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Right)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
+                ],
+                "can_stack": false,
+                "in_armory": true
+            },
+            {
+                "name": "FAF-439TS Marksman Rifle",
+                "value": 1500,
+                "description": "Standard issue Legionaire marksman rifle, chambered in 7.62x51mm NATO. Known for its reliability and stopping power.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 4,
+                "id": 238,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "FAL",
+                "caliber": ["7.62x51mm NATO"],
+                "action": ["Semi"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 600,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "FAL",
+                "jamrate": 0.01,
+                "accessories": [
+                    {"name": "SSA Accessory Mount", "slot": "ssa_mount", "current": {"name":"VLR fixed magnification 4x scope","value":900,"description":"4x fixed magnification scope for mid-range engagements. Mounts to a Legion SSA accessory rail.","rarity":"Common","random_quantity":false,"weight":0.5,"id":239,"attachment":true,"slot":"ssa_mount","modifiers":{"stats":{"aim":2}},"magnified":true,"variable":false,"night_vision_compatible":false,"can_stack":false}},
+                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
+                ],
+                "can_stack": false
             },
             {
                 "name": "US FRL439LP Repeating Rifle",
@@ -877,6 +879,89 @@
                     {"name": "Plateforme d'accessoires de la Manufacture d'armes de Solle", "slot": "pams_mount", "current": {"name":"LVGFPLD 8x fixed magnification PAMS scope","value":800,"description":"8x fixed magnification precision scope for long-range engagements. Mounts to a Moxarian PAMS accessory rail.","rarity":"Uncommon","random_quantity":false,"weight":0.6,"id":220,"attachment":true,"slot":"pams_mount","modifiers":{"stats":{"aim":3}},"magnified":true,"variable":false,"night_vision_compatible":false,"can_stack":false}}
                 ],
                 "can_stack": false
+            },
+            {
+                "name": "Knight's Armament M110A1 CSASS",
+                "value": 3200,
+                "description": "Semi-automatic sniper system based off of the Knight's Armament SR-25, used by the LEDF and Kyntarian resistance.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 4.1,
+                "id": 336,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "SR-25",
+                "caliber": ["7.62x51mm NATO"],
+                "action": ["Semi"],
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 500,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "AR-10",
+                "jamrate": 0.001,
+                "accessories": [
+                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": null},
+                    {"name": "Picatinny Rail (Handguard Top)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Left)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Right)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
+                ],
+                "can_stack": false,
+                "in_armory": true
+            },
+            {
+                "name": "Accuracy International Arctic Warfare Magnum",
+                "value": 5000,
+                "description": "A bolt-action sniper rifle chambered in .338 Lapua Magnum. Known for its extreme accuracy and long-range capabilities.",
+                "rarity": "Mythic",
+                "random_quantity": false,
+                "weight": 6.5,
+                "id": 337,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "AW",
+                "caliber": [".338 Lapua Magnum"],
+                "action": ["Bolt"],
+                "bolt": "closed",
+                "cyclic": 30,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "AW",
+                "jamrate": 0.0005,
+                "accessories": [
+                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_338", "current": null}
+                ],
+                "can_stack": false,
+                "in_armory": true
+            },
+            {
+                "name": "Accuracy International Arctic Warfare Police",
+                "value": 4000,
+                "description": "A bolt-action sniper rifle chambered in 7.62x51mm NATO. Known for its extreme accuracy and long-range capabilities.",
+                "rarity": "Legendary",
+                "random_quantity": false,
+                "weight": 6,
+                "id": 339,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "AW",
+                "caliber": ["7.62x51mm NATO"],
+                "action": ["Bolt"],
+                "bolt": "closed",
+                "cyclic": 40,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "AW",
+                "jamrate": 0.001,
+                "accessories": [
+                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
+                ],
+                "can_stack": false,
+                "in_armory": true
             }
         ],
         "submachine_guns": [
@@ -1463,7 +1548,7 @@
                 "jamrate": 0.02,
                 "accessories": [
                     {"name": "SSA Accessory Mount", "slot": "ssa_mount", "current": {"name":"MSVN night vision scope","value":2000,"description":"Experimental early night vision sight designed for the Legion SSA accessory rail.","rarity":"Rare","random_quantity":false,"weight":2.26,"id":232,"attachment":true,"slot":"ssa_mount","modifiers":{"stats":{"aim":2},"night_vision_compatible":true},"magnified":true,"variable":false,"night_vision_compatible":true,"can_stack":false}},
-                    {"name": "Muzzle Device", "slot": "muzzle_9mm", "current": null}
+                    {"name": "Muzzle Device", "slot": "muzzle_9mm", "current": {"name":"Legion 9mm suppressor","value":1800,"description":"9mm suppressor designed for use with Legion firearms, effectively reducing muzzle flash and sound signature.","rarity":"Rare","random_quantity":false,"weight":0.4,"id":335,"attachment":true,"slot":"muzzle_9mm","suppressor":true,"modifiers":{"stats":{"stealth":1}},"can_stack":false}}
                 ],
                 "can_stack": false
             }
@@ -3741,6 +3826,79 @@
                     "action": ["Semi", "Auto"]
                 },
                 "can_stack": false
+            },
+            {
+                "name": "Legion 7.62mm suppressor",
+                "value": 2000,
+                "description": "7.62mm suppressor designed for use with Legion firearms, effectively reducing muzzle flash and sound signature.",
+                "rarity": "Mythic",
+                "random_quantity": false,
+                "weight": 0.5,
+                "id": 334,
+                "attachment": true,
+                "slot": "muzzle_762",
+                "suppressor": true,
+                "modifiers": {"stats": {"stealth": 1}},
+                "can_stack": false
+            },
+            {
+                "name": "Legion 9mm suppressor",
+                "value": 1800,
+                "description": "9mm suppressor designed for use with Legion firearms, effectively reducing muzzle flash and sound signature.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 0.4,
+                "id": 335,
+                "attachment": true,
+                "slot": "muzzle_9mm",
+                "suppressor": true,
+                "modifiers": {"stats": {"stealth": 1}},
+                "can_stack": false
+            },
+            {
+                "name": "Banish 338 suppressor",
+                "value": 2500,
+                "description": ".338 caliber suppressor that hides muzzle flash and dampens sound.",
+                "rarity": "Mythic",
+                "random_quantity": false,
+                "weight": 0.7,
+                "id": 341,
+                "attachment": true,
+                "slot": ["muzzle_338", "muzzle_86"],
+                "suppressor": true,
+                "modifiers": {"stats": {"stealth": 2}},
+                "can_stack": false,
+                "in_armory": true
+            },
+            {
+                "name": "Rugged Alaskan360Ti Suppressor",
+                "value": 2700,
+                "description": ".338 caliber suppressor that hides muzzle flash and dampens sound.",
+                "rarity": "Mythic",
+                "random_quantity": false,
+                "weight": 0.8,
+                "id": 342,
+                "attachment": true,
+                "slot": ["muzzle_338", "muzzle_86"],
+                "suppressor": true,
+                "modifiers": {"stats": {"stealth": 2}},
+                "can_stack": false,
+                "in_armory": true
+            },
+            {
+                "name": "Savage AC338 Suppressor",
+                "value": 2600,
+                "description": ".338 caliber suppressor that hides muzzle flash and dampens sound.",
+                "rarity": "Mythic",
+                "random_quantity": false,
+                "weight": 0.75,
+                "id": 343,
+                "attachment": true,
+                "slot": ["muzzle_338", "muzzle_86"],
+                "suppressor": true,
+                "modifiers": {"stats": {"stealth": 2}},
+                "can_stack": false,
+                "in_armory": true
             }
         ],
         "ammunition": [
@@ -4376,6 +4534,44 @@
                         "type": "Tracer",
                         "pen": "II",
                         "modifiers": {"stats": {"aim": 1, "stealth": -1}},
+                        "rarity": "Rare",
+                        "tip": null
+                    }
+                ],
+                "in_armory": true
+            },
+            {
+                "name": ".338 Lapua Magnum",
+                "value": 2,
+                "description": "High-powered sniper round known for its long-range accuracy and stopping power.",
+                "rarity": "Rare",
+                "random_quantity": {"min": 5, "max": 50},
+                "weight": 0.03,
+                "id": 340,
+                "caliber": [".338 Lapua Magnum"],
+                "sounds": "12_7_99",
+                "variants": [
+                    {
+                        "name": "A-MAX",
+                        "type": "Match",
+                        "pen": "IV",
+                        "modifiers": null,
+                        "rarity": "Common",
+                        "tip": null
+                    },
+                    {
+                        "name": "AP",
+                        "type": "AP",
+                        "pen": "IV",
+                        "modifiers": null,
+                        "rarity": "Uncommon",
+                        "tip": null
+                    },
+                    {
+                        "name": "ELD-M",
+                        "type": "Match",
+                        "pen": "IV",
+                        "modifiers": {"stats": {"aim": 1}},
                         "rarity": "Rare",
                         "tip": null
                     }
@@ -5262,6 +5458,20 @@
                 "caliber": ["12 Gauge"],
                 "capacity": 20,
                 "magazinesystem": "AA-12",
+                "can_stack": false,
+                "in_armory": true
+            },
+            {
+                "name": "Accuracy International Arctic Warfare 10-Round magazine",
+                "value": 50,
+                "description": "10-round standard magazine for Arctic Warfare rifles. Accepts multiple calibers.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 0.5,
+                "id": 338,
+                "caliber": ["7.62x51mm NATO", ".338 Lapua Magnum"],
+                "capacity": 10,
+                "magazinesystem": "AW",
                 "can_stack": false,
                 "in_armory": true
             }
@@ -7102,10 +7312,6 @@
                     {"type": "id", "id": [303,304], "guaranteed": true, "multi_type": "or"},
                     {"type": "id", "id": 321, "guaranteed": true}
                 ]
-            },
-            {
-                "name": "Megumin",
-                "difficulty": "Friendly"
             }
         ],
         "lootcrates": [
