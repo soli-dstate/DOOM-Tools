@@ -2176,6 +2176,46 @@ for user in dm_users:
         except Exception:
             logging.exception('Failed to start console command thread')
 
+def send_windows_notification(title: str, message: str):
+    """Send a Windows toast notification with sound."""
+    if os.name != 'nt':
+        return
+    try:
+        from winotify import Notification, audio
+        global version
+        toast = Notification(
+            app_id=f"DOOM Tools {version}",
+            title=title,
+            msg=message,
+            duration="short"
+        )
+        toast.set_audio(audio.Default, loop=False)
+        toast.show()
+    except ImportError:
+        try:
+            ps_script = f'''
+            [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null
+            [Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime] | Out-Null
+            $template = @"
+            <toast>
+                <visual>
+                    <binding template="ToastText02">
+                        <text id="1">{title}</text>
+                        <text id="2">{message}</text>
+                    </binding>
+                </visual>
+                <audio src="ms-winsoundevent:Notification.Default"/>
+            </toast>
+"@
+            $xml = New-Object Windows.Data.Xml.Dom.XmlDocument
+            $xml.LoadXml($template)
+            $toast = [Windows.UI.Notifications.ToastNotification]::new($xml)
+            [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier("DOOM-Tools").Show($toast)
+            '''
+            subprocess.run(['powershell', '-Command', ps_script], capture_output=True)
+        except Exception:
+            pass
+
 class App:
 
     PLATFORM_DEFAULTS = {
@@ -5349,8 +5389,8 @@ class App:
 
             new_encumbrance = current_encumbrance["encumbrance"]+selected_weight
             new_total_weight = current_encumbrance["total_weight"]+selected_weight
-
-            threshold = save_data.get("encumbered_threshold", 50)
+            
+            threshold = current_encumbrance.get("threshold", save_data.get("encumbered_threshold", 50))
 
             weight_text = f"Selected Weight: {self._format_weight(selected_weight)}\n"
             weight_text +=f"New Total: {self._format_weight(new_total_weight)}\n"
@@ -6058,6 +6098,16 @@ class App:
             anchor = "w"
             )
             equipment_label.grid(row = 2, column = 0, sticky = "w", padx = 15, pady =(0, 10))
+
+            file_name = save_info["filename"]
+            file_name_label = customtkinter.CTkLabel(
+            char_frame,
+            text = f"Filename: {file_name}",
+            font = customtkinter.CTkFont(size = 11),
+            text_color = "gray",
+            anchor = "w"
+            )
+            file_name_label.grid(row = 3, column = 0, sticky = "w", padx = 15, pady =(0, 10))
 
             load_button = self._create_sound_button(
             char_frame,
@@ -6989,10 +7039,35 @@ class App:
 
         encumbrance = max(total_encumbrance, 0.0)
 
-        base_threshold = save_data.get("encumbered_threshold", 50)
         strength = save_data.get("stats", {}).get("Strength", 0)
 
-        threshold = base_threshold *(1 +strength *0.1)
+        stat_clamp = 4
+        try:
+            import glob, json, os
+            table_files = glob.glob(os.path.join("tables", "*.sldtbl"))
+            if table_files:
+                with open(table_files[0], 'r') as tf:
+                    td = json.load(tf)
+                    sc = td.get("additional_settings", {}).get("stat_clamp")
+                    if isinstance(sc, (int, float)):
+                        stat_clamp = int(sc)
+        except Exception:
+            pass
+
+        stat_min = -20
+        stat_max = stat_clamp
+
+        # Clamp the strength value to the configured stat range
+        m_clamped = max(stat_min, min(strength, stat_max))
+
+        span = float(stat_max - stat_min)
+        if span <= 0:
+            span = 24.0
+
+        threshold = 15.0 + 85.0 * (m_clamped - stat_min) / span
+
+        # Enforce absolute bounds
+        threshold = max(15.0, min(100.0, threshold))
 
         encumbrance_level = 0
         if encumbrance >threshold:
