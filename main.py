@@ -1481,6 +1481,7 @@ emptysave = {
 },
 "equipment":{
 "head":None,
+"face":None,
 "torso":None,
 "left wrist":None,
 "right wrist":None,
@@ -2176,26 +2177,26 @@ for user in dm_users:
         except Exception:
             logging.exception('Failed to start console command thread')
 
-def send_windows_notification(title: str, message: str):
-    """Send a Windows toast notification with sound."""
-    if os.name != 'nt':
+def send_windows_notification(title:str, message:str):
+
+    if os.name !='nt':
         return
     try:
         from winotify import Notification, audio
         global version
         toast = Notification(
-            app_id=f"DOOM Tools {version}",
-            title=title,
-            msg=message,
-            duration="short"
+        app_id = f"DOOM Tools {version}",
+        title = title,
+        msg = message,
+        duration = "short"
         )
-        toast.set_audio(audio.Default, loop=False)
+        toast.set_audio(audio.Default, loop = False)
         toast.show()
     except ImportError:
         try:
             ps_script = f'''
-            [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null
-            [Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime] | Out-Null
+            [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime]| Out-Null
+            [Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime]| Out-Null
             $template = @"
             <toast>
                 <visual>
@@ -2209,10 +2210,10 @@ def send_windows_notification(title: str, message: str):
 "@
             $xml = New-Object Windows.Data.Xml.Dom.XmlDocument
             $xml.LoadXml($template)
-            $toast = [Windows.UI.Notifications.ToastNotification]::new($xml)
+            $toast =[Windows.UI.Notifications.ToastNotification]::new($xml)
             [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier("DOOM-Tools").Show($toast)
             '''
-            subprocess.run(['powershell', '-Command', ps_script], capture_output=True)
+            subprocess.run(['powershell', '-Command', ps_script], capture_output = True)
         except Exception:
             pass
 
@@ -2256,7 +2257,7 @@ class App:
             if filename not in excluded_from_backup and isinstance(data, dict):
                 try:
                     char_name = data.get("charactername", "Unknown")
-                    safe_char_name = "".join(c if c.isalnum() or c in " _-" else "_" for c in char_name).strip()
+                    safe_char_name = "".join(c if c.isalnum()or c in " _-"else "_"for c in char_name).strip()
                     if not safe_char_name:
                         safe_char_name = "Unknown"
 
@@ -2266,9 +2267,9 @@ class App:
                     os.makedirs(archive_folder, exist_ok = True)
 
                     backup_files = sorted(glob.glob(os.path.join(backup_folder, "*.sldsv")))
-                    if len(backup_files) >= 50:
+                    if len(backup_files)>=50:
                         archive_name = os.path.join(archive_folder, f"backups_archive_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip")
-                        with zipfile.ZipFile(archive_name, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                        with zipfile.ZipFile(archive_name, 'w', zipfile.ZIP_DEFLATED)as zipf:
                             for backup_file in backup_files:
                                 zipf.write(backup_file, os.path.basename(backup_file))
                                 os.remove(backup_file)
@@ -2287,7 +2288,7 @@ class App:
                     else:
                         pickled_backup = pickle.dumps(data)
                         encoded_backup = base64.b85encode(pickled_backup).decode('utf-8')
-                        with open(backup_path, 'w', encoding = 'utf-8') as bf:
+                        with open(backup_path, 'w', encoding = 'utf-8')as bf:
                             bf.write(encoded_backup)
                         logging.info(f"Created backup at {backup_path}")
                 except Exception as backup_err:
@@ -2500,6 +2501,10 @@ class App:
 
             try:
                 data = self._normalize_save_data(data)
+                try:
+                    data = self._sync_equipment_slots(data)
+                except Exception:
+                    logging.exception("Failed to sync equipment slots after normalization")
             except Exception as e:
                 logging.warning(f"Failed to normalize save data: {e}")
             return data
@@ -2511,18 +2516,18 @@ class App:
         try:
             table_files = glob.glob(os.path.join("tables", "*.sldtbl"))
             if table_files:
-                with open(table_files[0], 'r') as f:
+                with open(table_files[0], 'r')as f:
                     table_data = json.load(f)
                 return table_data.get("tables", {}).get("ammunition", [])
         except Exception:
             pass
-        return []
+        return[]
 
-    def _ensure_round_variant(self, round_data, ammo_table=None):
+    def _ensure_round_variant(self, round_data, ammo_table = None):
         if not isinstance(round_data, dict):
             return round_data
 
-        if round_data.get("variant") and round_data.get("variant") not in ["Unknown", "unknown", None, ""]:
+        if round_data.get("variant")and round_data.get("variant")not in["Unknown", "unknown", None, ""]:
             return round_data
 
         if ammo_table is None:
@@ -2531,10 +2536,10 @@ class App:
         caliber = round_data.get("caliber")
         if not caliber:
             name = round_data.get("name", "")
-            if " | " in name:
+            if " | "in name:
                 parts = name.split(" | ", 1)
                 caliber = parts[0]
-                round_data["caliber"] = caliber
+                round_data["caliber"]= caliber
 
         if caliber:
             for ammo in ammo_table:
@@ -2543,26 +2548,26 @@ class App:
                 if isinstance(ammo_cal, list):
                     cal_match = caliber in ammo_cal
                 else:
-                    cal_match = ammo_cal == caliber
+                    cal_match = ammo_cal ==caliber
 
                 if cal_match:
                     variants = ammo.get("variants", [])
                     if variants:
                         first_variant = variants[0]
-                        round_data["variant"] = first_variant.get("name", "FMJ")
+                        round_data["variant"]= first_variant.get("name", "FMJ")
                         if first_variant.get("type"):
-                            round_data["type"] = first_variant.get("type")
+                            round_data["type"]= first_variant.get("type")
                         if first_variant.get("pen"):
-                            round_data["pen"] = first_variant.get("pen")
+                            round_data["pen"]= first_variant.get("pen")
                         if first_variant.get("tip"):
-                            round_data["tip"] = first_variant.get("tip")
+                            round_data["tip"]= first_variant.get("tip")
                         if first_variant.get("modifiers"):
-                            round_data["modifiers"] = first_variant.get("modifiers")
+                            round_data["modifiers"]= first_variant.get("modifiers")
                         return round_data
                     break
 
         if not round_data.get("variant"):
-            round_data["variant"] = "FMJ"
+            round_data["variant"]= "FMJ"
 
         return round_data
 
@@ -2673,6 +2678,50 @@ class App:
                     storage[k]= new_items
 
         return data
+    def _sync_equipment_slots(self, data):
+
+        try:
+            if not isinstance(data, dict):
+                return data
+
+            equip = data.setdefault('equipment', {}) or {}
+            empty_equip = emptysave.get('equipment', {}) if isinstance(emptysave, dict) else {}
+
+            hands = data.setdefault('hands', {}) or {}
+            hands_items = hands.setdefault('items', []) if isinstance(hands, dict) else []
+
+            # Move any slots present in save but not in emptysave back to hands
+            extra_slots = [k for k in list(equip.keys()) if k not in empty_equip]
+            for slot in extra_slots:
+                val = equip.pop(slot, None)
+                if not val:
+                    continue
+                if isinstance(val, dict):
+                    hands_items.append(val)
+                elif isinstance(val, list):
+                    for it in val:
+                        if isinstance(it, dict):
+                            hands_items.append(it)
+                        else:
+                            hands_items.append({'name': str(it)})
+                else:
+                    hands_items.append({'name': str(val)})
+
+            # Ensure all slots from emptysave exist in the save (add missing as None)
+            for slot in empty_equip.keys():
+                if slot not in equip:
+                    equip[slot] = None
+
+            # Reorder equipment to match emptysave ordering
+            new_equip = {}
+            for slot in empty_equip.keys():
+                new_equip[slot] = equip.get(slot)
+            data['equipment'] = new_equip
+
+            return data
+        except Exception:
+            logging.exception('Error while syncing equipment slots')
+            return data
     def __init__(self):
         customtkinter.set_appearance_mode(appearance_settings["appearance_mode"])
 
@@ -5011,129 +5060,123 @@ class App:
 
         return self._apply_random_quantity(items, table_data)
 
-    def _apply_random_quantity(self, items, table_data=None):
-        """Process random_quantity fields, load magazines with random ammo, and give firearms a chance to have loaded magazines."""
+    def _apply_random_quantity(self, items, table_data = None):
+
         for item in items:
             if not isinstance(item, dict):
                 continue
-            
-            # Process random_quantity
+
             rq = item.get("random_quantity")
             if rq and isinstance(rq, dict):
                 min_qty = rq.get("min", 1)
                 max_qty = rq.get("max", 1)
                 try:
                     actual_qty = random.randint(int(min_qty), int(max_qty))
-                except (ValueError, TypeError):
+                except(ValueError, TypeError):
                     actual_qty = 1
-                item["quantity"] = actual_qty
+                item["quantity"]= actual_qty
                 del item["random_quantity"]
-                logging.debug(f"Applied random_quantity to {item.get('name', 'Unknown')}: {actual_qty} (range {min_qty}-{max_qty})")
-            
-            # Load magazines with random ammo
-            if table_data and item.get("capacity") and item.get("magazinesystem") and not item.get("firearm"):
-                # This is a magazine - load it with random ammo
+                logging.debug(f"Applied random_quantity to {item.get('name', 'Unknown')}: {actual_qty}(range {min_qty}-{max_qty})")
+
+            if table_data and item.get("capacity")and item.get("magazinesystem")and not item.get("firearm"):
+
                 if not item.get("rounds"):
-                    item["rounds"] = []
-                if len(item.get("rounds", [])) == 0:  # Only load if empty
+                    item["rounds"]=[]
+                if len(item.get("rounds", []))==0:
                     caliber = item.get("caliber")
                     if isinstance(caliber, str):
-                        caliber = [caliber]
-                    
+                        caliber =[caliber]
+
                     capacity = item.get("capacity", 30)
-                    # Random amount: 25% to 100% of capacity
-                    rounds_to_load = random.randint(max(1, capacity // 4), capacity)
-                    
-                    # Find compatible ammo
+
+                    rounds_to_load = random.randint(max(1, capacity //4), capacity)
+
                     ammo_table = table_data.get("tables", {}).get("ammunition", [])
                     ammo_def = None
                     first_variant = None
                     for ammo in ammo_table:
                         ammo_caliber = ammo.get("caliber")
                         if isinstance(ammo_caliber, str):
-                            ammo_caliber = [ammo_caliber]
+                            ammo_caliber =[ammo_caliber]
                         if caliber and ammo_caliber and any(c in ammo_caliber for c in caliber):
                             ammo_def = ammo
                             variants = ammo.get("variants", [])
                             if variants:
                                 first_variant = variants[0]
                             break
-                    
+
                     if ammo_def and first_variant:
                         for _ in range(rounds_to_load):
                             round_data = {
-                                "name": ammo_def.get("name"),
-                                "caliber": caliber[0] if caliber else ammo_def.get("caliber"),
-                                "variant": first_variant.get("name"),
-                                "type": first_variant.get("type"),
-                                "pen": first_variant.get("pen"),
-                                "modifiers": first_variant.get("modifiers"),
-                                "tip": first_variant.get("tip")
+                            "name":ammo_def.get("name"),
+                            "caliber":caliber[0]if caliber else ammo_def.get("caliber"),
+                            "variant":first_variant.get("name"),
+                            "type":first_variant.get("type"),
+                            "pen":first_variant.get("pen"),
+                            "modifiers":first_variant.get("modifiers"),
+                            "tip":first_variant.get("tip")
                             }
                             item["rounds"].append(round_data)
                         logging.debug(f"Loaded magazine {item.get('name', 'Unknown')} with {rounds_to_load}/{capacity} rounds")
-            
-            # Give firearms a random chance to have a loaded magazine
-            if table_data and item.get("firearm") and item.get("magazinesystem") and not item.get("loaded"):
-                # 40% chance to have a loaded magazine
-                if random.random() < 0.4:
+
+            if table_data and item.get("firearm")and item.get("magazinesystem")and not item.get("loaded"):
+
+                if random.random()<0.4:
                     mag_system = item.get("magazinesystem")
                     caliber = item.get("caliber")
                     if isinstance(caliber, str):
-                        caliber = [caliber]
-                    
-                    # Find compatible magazine
+                        caliber =[caliber]
+
                     magazines_table = table_data.get("tables", {}).get("magazines", [])
-                    compatible_mags = []
+                    compatible_mags =[]
                     for mag in magazines_table:
-                        if mag.get("magazinesystem") == mag_system:
+                        if mag.get("magazinesystem")==mag_system:
                             mag_caliber = mag.get("caliber")
                             if isinstance(mag_caliber, str):
-                                mag_caliber = [mag_caliber]
+                                mag_caliber =[mag_caliber]
                             if caliber and mag_caliber and any(c in mag_caliber for c in caliber):
                                 compatible_mags.append(mag)
-                    
+
                     if compatible_mags:
                         mag_template = random.choice(compatible_mags)
                         mag_copy = json.loads(json.dumps(mag_template))
-                        mag_copy["table_category"] = "magazines"
-                        mag_copy["rounds"] = []
-                        
+                        mag_copy["table_category"]= "magazines"
+                        mag_copy["rounds"]=[]
+
                         capacity = mag_copy.get("capacity", 30)
-                        # Random amount: 25% to 100% of capacity
-                        rounds_to_load = random.randint(max(1, capacity // 4), capacity)
-                        
-                        # Find compatible ammo
+
+                        rounds_to_load = random.randint(max(1, capacity //4), capacity)
+
                         ammo_table = table_data.get("tables", {}).get("ammunition", [])
                         ammo_def = None
                         first_variant = None
                         for ammo in ammo_table:
                             ammo_caliber = ammo.get("caliber")
                             if isinstance(ammo_caliber, str):
-                                ammo_caliber = [ammo_caliber]
+                                ammo_caliber =[ammo_caliber]
                             if caliber and ammo_caliber and any(c in ammo_caliber for c in caliber):
                                 ammo_def = ammo
                                 variants = ammo.get("variants", [])
                                 if variants:
                                     first_variant = variants[0]
                                 break
-                        
+
                         if ammo_def and first_variant:
                             for _ in range(rounds_to_load):
                                 round_data = {
-                                    "name": ammo_def.get("name"),
-                                    "caliber": caliber[0] if caliber else ammo_def.get("caliber"),
-                                    "variant": first_variant.get("name"),
-                                    "type": first_variant.get("type"),
-                                    "pen": first_variant.get("pen"),
-                                    "modifiers": first_variant.get("modifiers"),
-                                    "tip": first_variant.get("tip")
+                                "name":ammo_def.get("name"),
+                                "caliber":caliber[0]if caliber else ammo_def.get("caliber"),
+                                "variant":first_variant.get("name"),
+                                "type":first_variant.get("type"),
+                                "pen":first_variant.get("pen"),
+                                "modifiers":first_variant.get("modifiers"),
+                                "tip":first_variant.get("tip")
                                 }
                                 mag_copy["rounds"].append(round_data)
-                        
-                        item["loaded"] = mag_copy
-                        logging.debug(f"Loaded firearm {item.get('name', 'Unknown')} with {mag_copy.get('name')} ({rounds_to_load}/{capacity} rounds)")
-        
+
+                        item["loaded"]= mag_copy
+                        logging.debug(f"Loaded firearm {item.get('name', 'Unknown')} with {mag_copy.get('name')}({rounds_to_load}/{capacity} rounds)")
+
         return items
 
     def _get_loot_crate_contents_preview(self, crate, table_data):
@@ -5389,7 +5432,7 @@ class App:
 
             new_encumbrance = current_encumbrance["encumbrance"]+selected_weight
             new_total_weight = current_encumbrance["total_weight"]+selected_weight
-            
+
             threshold = current_encumbrance.get("threshold", save_data.get("encumbered_threshold", 50))
 
             weight_text = f"Selected Weight: {self._format_weight(selected_weight)}\n"
@@ -6120,12 +6163,12 @@ class App:
             load_button.grid(row = 0, column = 1, rowspan = 3, padx = 15, pady = 10)
 
         button_frame = customtkinter.CTkFrame(main_frame, fg_color = "transparent")
-        button_frame.grid(row = 2, column = 0, pady = (10, 0))
+        button_frame.grid(row = 2, column = 0, pady =(10, 0))
 
         load_backup_button = self._create_sound_button(
         button_frame,
         "Load from Backup",
-        lambda: self._open_load_from_backup(),
+        lambda:self._open_load_from_backup(),
         width = 200,
         height = 50,
         font = customtkinter.CTkFont(size = 14),
@@ -6144,7 +6187,7 @@ class App:
         back_button.pack(side = "left", padx = 10)
 
     def _open_load_from_backup(self):
-        """Open backup browser to load character saves from backups."""
+
         logging.info("Load from Backup definition called")
 
         self._clear_window()
@@ -6152,17 +6195,17 @@ class App:
 
         backup_base = os.path.join(saves_folder or "saves", "backups")
 
-        character_folders = []
+        character_folders =[]
         if os.path.exists(backup_base):
             for folder_name in os.listdir(backup_base):
                 folder_path = os.path.join(backup_base, folder_name)
-                if os.path.isdir(folder_path) and folder_name != "archive":
+                if os.path.isdir(folder_path)and folder_name !="archive":
                     backup_files = glob.glob(os.path.join(folder_path, "*.sldsv"))
                     if backup_files:
                         character_folders.append({
-                            "name": folder_name,
-                            "path": folder_path,
-                            "backup_count": len(backup_files)
+                        "name":folder_name,
+                        "path":folder_path,
+                        "backup_count":len(backup_files)
                         })
 
         self.root.grid_rowconfigure(0, weight = 1)
@@ -6174,19 +6217,19 @@ class App:
         main_frame.grid_columnconfigure(0, weight = 1)
 
         title = customtkinter.CTkLabel(main_frame, text = "Load from Backup", font = customtkinter.CTkFont(size = 24, weight = "bold"))
-        title.grid(row = 0, column = 0, pady = (0, 20))
+        title.grid(row = 0, column = 0, pady =(0, 20))
 
         if not character_folders:
             no_backups = customtkinter.CTkLabel(
-                main_frame,
-                text = "No backups found.\nBackups are created automatically when saving characters.",
-                font = customtkinter.CTkFont(size = 14),
-                text_color = "gray"
+            main_frame,
+            text = "No backups found.\nBackups are created automatically when saving characters.",
+            font = customtkinter.CTkFont(size = 14),
+            text_color = "gray"
             )
             no_backups.grid(row = 1, column = 0, pady = 20)
         else:
             scroll_frame = customtkinter.CTkScrollableFrame(main_frame, width = 700, height = 400)
-            scroll_frame.grid(row = 1, column = 0, sticky = "nsew", pady = (0, 20))
+            scroll_frame.grid(row = 1, column = 0, sticky = "nsew", pady =(0, 20))
             scroll_frame.grid_columnconfigure(0, weight = 1)
 
             for i, char_folder in enumerate(character_folders):
@@ -6195,50 +6238,50 @@ class App:
                 folder_frame.grid_columnconfigure(0, weight = 1)
 
                 name_label = customtkinter.CTkLabel(
-                    folder_frame,
-                    text = char_folder["name"],
-                    font = customtkinter.CTkFont(size = 18, weight = "bold"),
-                    anchor = "w"
+                folder_frame,
+                text = char_folder["name"],
+                font = customtkinter.CTkFont(size = 18, weight = "bold"),
+                anchor = "w"
                 )
-                name_label.grid(row = 0, column = 0, sticky = "w", padx = 15, pady = (10, 5))
+                name_label.grid(row = 0, column = 0, sticky = "w", padx = 15, pady =(10, 5))
 
                 count_label = customtkinter.CTkLabel(
-                    folder_frame,
-                    text = f"{char_folder['backup_count']} backup(s) available",
-                    font = customtkinter.CTkFont(size = 11),
-                    text_color = "gray",
-                    anchor = "w"
+                folder_frame,
+                text = f"{char_folder['backup_count']} backup(s) available",
+                font = customtkinter.CTkFont(size = 11),
+                text_color = "gray",
+                anchor = "w"
                 )
-                count_label.grid(row = 1, column = 0, sticky = "w", padx = 15, pady = (0, 10))
+                count_label.grid(row = 1, column = 0, sticky = "w", padx = 15, pady =(0, 10))
 
                 browse_button = self._create_sound_button(
-                    folder_frame,
-                    "Browse Backups",
-                    lambda cf = char_folder: self._browse_character_backups(cf),
-                    width = 150,
-                    height = 35,
-                    font = customtkinter.CTkFont(size = 13)
+                folder_frame,
+                "Browse Backups",
+                lambda cf = char_folder:self._browse_character_backups(cf),
+                width = 150,
+                height = 35,
+                font = customtkinter.CTkFont(size = 13)
                 )
                 browse_button.grid(row = 0, column = 1, rowspan = 2, padx = 15, pady = 10)
 
         back_button = self._create_sound_button(
-            main_frame,
-            "Back to Load Character",
-            lambda: [self._clear_window(), self._load_existing_character()],
-            width = 300,
-            height = 50,
-            font = customtkinter.CTkFont(size = 14)
+        main_frame,
+        "Back to Load Character",
+        lambda:[self._clear_window(), self._load_existing_character()],
+        width = 300,
+        height = 50,
+        font = customtkinter.CTkFont(size = 14)
         )
-        back_button.grid(row = 2, column = 0, pady = (10, 0))
+        back_button.grid(row = 2, column = 0, pady =(10, 0))
 
     def _browse_character_backups(self, char_folder):
-        """Browse and load specific backups for a character."""
+
         logging.info(f"Browsing backups for: {char_folder['name']}")
 
         self._clear_window()
         self._play_ui_sound("whoosh1")
 
-        backup_files = []
+        backup_files =[]
         for backup_path in glob.glob(os.path.join(char_folder["path"], "*.sldsv")):
             try:
                 filename = os.path.basename(backup_path)
@@ -6247,9 +6290,9 @@ class App:
 
                 timestamp_part = filename.replace("backup_", "").replace(".sldsv", "")
                 try:
-                    if "_" in timestamp_part:
+                    if "_"in timestamp_part:
                         parts = timestamp_part.split("_")
-                        if len(parts) >= 2:
+                        if len(parts)>=2:
                             date_str = f"{parts[0][:4]}-{parts[0][4:6]}-{parts[0][6:8]}"
                             time_str = f"{parts[1][:2]}:{parts[1][2:4]}:{parts[1][4:6]}"
                             display_time = f"{date_str} {time_str}"
@@ -6261,15 +6304,15 @@ class App:
                     display_time = mtime_str
 
                 backup_files.append({
-                    "path": backup_path,
-                    "filename": filename,
-                    "mtime": mtime,
-                    "display_time": display_time
+                "path":backup_path,
+                "filename":filename,
+                "mtime":mtime,
+                "display_time":display_time
                 })
             except Exception as e:
                 logging.warning(f"Failed to read backup file info: {e}")
 
-        backup_files.sort(key = lambda x: x["mtime"], reverse = True)
+        backup_files.sort(key = lambda x:x["mtime"], reverse = True)
 
         self.root.grid_rowconfigure(0, weight = 1)
         self.root.grid_columnconfigure(0, weight = 1)
@@ -6280,14 +6323,14 @@ class App:
         main_frame.grid_columnconfigure(0, weight = 1)
 
         title = customtkinter.CTkLabel(
-            main_frame,
-            text = f"Backups: {char_folder['name']}",
-            font = customtkinter.CTkFont(size = 24, weight = "bold")
+        main_frame,
+        text = f"Backups: {char_folder['name']}",
+        font = customtkinter.CTkFont(size = 24, weight = "bold")
         )
-        title.grid(row = 0, column = 0, pady = (0, 20))
+        title.grid(row = 0, column = 0, pady =(0, 20))
 
         scroll_frame = customtkinter.CTkScrollableFrame(main_frame, width = 700, height = 400)
-        scroll_frame.grid(row = 1, column = 0, sticky = "nsew", pady = (0, 20))
+        scroll_frame.grid(row = 1, column = 0, sticky = "nsew", pady =(0, 20))
         scroll_frame.grid_columnconfigure(0, weight = 1)
 
         def load_backup(backup_info):
@@ -6305,7 +6348,7 @@ class App:
                         if not uuid_val:
                             import uuid
                             uuid_val = str(uuid.uuid4())
-                            backup_data["uuid"] = uuid_val
+                            backup_data["uuid"]= uuid_val
 
                         save_filename = f"{char_name}_{uuid_val}"
                         save_path = os.path.join(saves_folder or "saves", f"{save_filename}.sldsv")
@@ -6314,7 +6357,7 @@ class App:
 
                         currentsave = save_filename
                         persistentdata["save_uuids"].setdefault(uuid_val, char_name)
-                        persistentdata["last_loaded_save"] = uuid_val
+                        persistentdata["last_loaded_save"]= uuid_val
                         self._save_persistent_data()
 
                         logging.info(f"Restored backup for '{char_name}' from {backup_info['filename']}")
@@ -6326,66 +6369,66 @@ class App:
                         self._popup_show_info("Error", f"Failed to restore backup: {e}", sound = "error")
 
                 self._popup_confirm(
-                    "Restore Backup",
-                    f"This will restore the backup from:\n{backup_info['display_time']}\n\nThis will overwrite the current save for this character.\nContinue?",
-                    confirm_load
+                "Restore Backup",
+                f"This will restore the backup from:\n{backup_info['display_time']}\n\nThis will overwrite the current save for this character.\nContinue?",
+                confirm_load
                 )
             except Exception as e:
                 logging.error(f"Failed to load backup: {e}")
                 self._popup_show_info("Error", f"Failed to load backup: {e}", sound = "error")
 
         for i, backup_info in enumerate(backup_files):
-            is_latest = (i == 0)
+            is_latest =(i ==0)
             backup_frame = customtkinter.CTkFrame(
-                scroll_frame,
-                fg_color = ("#2d5a2d", "#1a3d1a") if is_latest else None,
-                border_width = 2 if is_latest else 0,
-                border_color = "#4ade80" if is_latest else None
+            scroll_frame,
+            fg_color =("#2d5a2d", "#1a3d1a")if is_latest else None,
+            border_width = 2 if is_latest else 0,
+            border_color = "#4ade80"if is_latest else None
             )
             backup_frame.grid(row = i, column = 0, sticky = "ew", pady = 3, padx = 10)
             backup_frame.grid_columnconfigure(0, weight = 1)
 
             time_text = backup_info["display_time"]
             if is_latest:
-                time_text = f"☆ {time_text} (Latest)"
+                time_text = f"☆ {time_text}(Latest)"
 
             time_label = customtkinter.CTkLabel(
-                backup_frame,
-                text = time_text,
-                font = customtkinter.CTkFont(size = 14, weight = "bold"),
-                text_color = "#4ade80" if is_latest else None,
-                anchor = "w"
+            backup_frame,
+            text = time_text,
+            font = customtkinter.CTkFont(size = 14, weight = "bold"),
+            text_color = "#4ade80"if is_latest else None,
+            anchor = "w"
             )
-            time_label.grid(row = 0, column = 0, sticky = "w", padx = 15, pady = (8, 2))
+            time_label.grid(row = 0, column = 0, sticky = "w", padx = 15, pady =(8, 2))
 
             file_label = customtkinter.CTkLabel(
-                backup_frame,
-                text = backup_info["filename"],
-                font = customtkinter.CTkFont(size = 10),
-                text_color = "#86efac" if is_latest else "gray",
-                anchor = "w"
+            backup_frame,
+            text = backup_info["filename"],
+            font = customtkinter.CTkFont(size = 10),
+            text_color = "#86efac"if is_latest else "gray",
+            anchor = "w"
             )
-            file_label.grid(row = 1, column = 0, sticky = "w", padx = 15, pady = (0, 8))
+            file_label.grid(row = 1, column = 0, sticky = "w", padx = 15, pady =(0, 8))
 
             load_btn = self._create_sound_button(
-                backup_frame,
-                "Restore",
-                lambda bi = backup_info: load_backup(bi),
-                width = 100,
-                height = 30,
-                font = customtkinter.CTkFont(size = 12)
+            backup_frame,
+            "Restore",
+            lambda bi = backup_info:load_backup(bi),
+            width = 100,
+            height = 30,
+            font = customtkinter.CTkFont(size = 12)
             )
             load_btn.grid(row = 0, column = 1, rowspan = 2, padx = 15, pady = 5)
 
         back_button = self._create_sound_button(
-            main_frame,
-            "Back to Backup List",
-            lambda: self._open_load_from_backup(),
-            width = 300,
-            height = 50,
-            font = customtkinter.CTkFont(size = 14)
+        main_frame,
+        "Back to Backup List",
+        lambda:self._open_load_from_backup(),
+        width = 300,
+        height = 50,
+        font = customtkinter.CTkFont(size = 14)
         )
-        back_button.grid(row = 2, column = 0, pady = (10, 0))
+        back_button.grid(row = 2, column = 0, pady =(10, 0))
 
     def _open_inventory_management(self):
         logging.info("Inventory Management definition called")
@@ -6438,10 +6481,10 @@ class App:
             weight_lb = weight_kg *2.20462
             return f"{weight_lb:.2f} lb"
         elif appearance_settings["units"]=="cheese":
-            cheese_wheels = weight_kg / 40.0
-            if cheese_wheels == 1.0:
+            cheese_wheels = weight_kg /40.0
+            if cheese_wheels ==1.0:
                 return "1 cheese wheel"
-            elif cheese_wheels == int(cheese_wheels):
+            elif cheese_wheels ==int(cheese_wheels):
                 return f"{int(cheese_wheels)} cheese wheels"
             else:
                 return f"{cheese_wheels:.2f} cheese wheels"
@@ -7046,7 +7089,7 @@ class App:
             import glob, json, os
             table_files = glob.glob(os.path.join("tables", "*.sldtbl"))
             if table_files:
-                with open(table_files[0], 'r') as tf:
+                with open(table_files[0], 'r')as tf:
                     td = json.load(tf)
                     sc = td.get("additional_settings", {}).get("stat_clamp")
                     if isinstance(sc, (int, float)):
@@ -7057,16 +7100,14 @@ class App:
         stat_min = -20
         stat_max = stat_clamp
 
-        # Clamp the strength value to the configured stat range
         m_clamped = max(stat_min, min(strength, stat_max))
 
-        span = float(stat_max - stat_min)
-        if span <= 0:
+        span = float(stat_max -stat_min)
+        if span <=0:
             span = 24.0
 
-        threshold = 15.0 + 85.0 * (m_clamped - stat_min) / span
+        threshold = 15.0 +85.0 *(m_clamped -stat_min)/span
 
-        # Enforce absolute bounds
         threshold = max(15.0, min(100.0, threshold))
 
         encumbrance_level = 0
@@ -7867,7 +7908,7 @@ class App:
         view_frame.grid_columnconfigure(0, weight = 1)
 
         top_view_frame = customtkinter.CTkFrame(view_frame, fg_color = "transparent")
-        top_view_frame.grid(row = 0, column = 0, sticky = "ew", pady = (0, 10))
+        top_view_frame.grid(row = 0, column = 0, sticky = "ew", pady =(0, 10))
         top_view_frame.grid_columnconfigure(2, weight = 1)
 
         container_selector = customtkinter.CTkOptionMenu(
@@ -7876,11 +7917,11 @@ class App:
         width = 300,
         font = customtkinter.CTkFont(size = 14)
         )
-        container_selector.grid(row = 0, column = 0, padx = (0, 20))
+        container_selector.grid(row = 0, column = 0, padx =(0, 20))
         container_selector.set(labels[0]if labels else "")
 
         view_search_label = customtkinter.CTkLabel(top_view_frame, text = "Search:", font = customtkinter.CTkFont(size = 12))
-        view_search_label.grid(row = 0, column = 1, padx = (0, 5))
+        view_search_label.grid(row = 0, column = 1, padx =(0, 5))
 
         view_search_entry = customtkinter.CTkEntry(top_view_frame, placeholder_text = "Filter items...", width = 200)
         view_search_entry.grid(row = 0, column = 2, sticky = "w")
@@ -7895,10 +7936,10 @@ class App:
         view_pagination_frame.grid(row = 3, column = 0, pady = 5)
 
         ITEMS_PER_PAGE_VIEW = 20
-        view_current_page = [0]
-        view_current_filtered = [[]]
-        view_search_timer = [None]
-        view_all_items = [[]]
+        view_current_page =[0]
+        view_current_filtered =[[]]
+        view_search_timer =[None]
+        view_all_items =[[]]
 
         def refresh_view():
             current_label = container_selector.get()
@@ -7914,18 +7955,18 @@ class App:
             selected_container = next((c for c in containers if c.get("label")==selected_label), None)
 
             if not selected_container:
-                view_all_items[0] = []
-                view_current_filtered[0] = []
-                view_current_page[0] = 0
+                view_all_items[0]=[]
+                view_current_filtered[0]=[]
+                view_current_page[0]= 0
                 display_view_page(0)
                 return
 
             location = selected_container["location"]
             items = get_container_items(location)
-            view_all_items[0] = items if items else []
+            view_all_items[0]= items if items else[]
             view_search_entry.delete(0, "end")
-            view_current_filtered[0] = view_all_items[0]
-            view_current_page[0] = 0
+            view_current_filtered[0]= view_all_items[0]
+            view_current_page[0]= 0
             display_view_page(0)
 
         def show_item_details(item_data):
@@ -7980,7 +8021,7 @@ class App:
         def create_item_view_widget(item):
             selected_label = container_selector.get()
             selected_container = next((c for c in containers if c.get("label")==selected_label), None)
-            location = selected_container["location"] if selected_container else ""
+            location = selected_container["location"]if selected_container else ""
 
             item_frame = customtkinter.CTkFrame(view_scroll)
             item_frame.pack(fill = "x", pady = 5, padx = 10)
@@ -7994,11 +8035,11 @@ class App:
             display_text = f"{item_name} x{item_qty}"
             if item.get("consumable"):
                 if item.get("uses_left"):
-                    display_text +=f" ({item.get('uses_left')} uses left)"
+                    display_text +=f"({item.get('uses_left')} uses left)"
                 elif item.get("used_up"):
-                    display_text +=" (1 use left)"
+                    display_text +="(1 use left)"
                 else:
-                    display_text +=" (∞ uses)"
+                    display_text +="(∞ uses)"
 
             name_label = customtkinter.CTkLabel(
             item_frame,
@@ -8054,9 +8095,9 @@ class App:
 
         def display_view_page(page_num):
             items = view_current_filtered[0]
-            total_pages = max(1, (len(items) + ITEMS_PER_PAGE_VIEW - 1) // ITEMS_PER_PAGE_VIEW)
-            page_num = max(0, min(page_num, total_pages - 1))
-            view_current_page[0] = page_num
+            total_pages = max(1, (len(items)+ITEMS_PER_PAGE_VIEW -1)//ITEMS_PER_PAGE_VIEW)
+            page_num = max(0, min(page_num, total_pages -1))
+            view_current_page[0]= page_num
 
             for widget in view_scroll.winfo_children():
                 widget.destroy()
@@ -8068,13 +8109,13 @@ class App:
                 update_view_pagination(0, 0)
                 return
 
-            start_idx = page_num * ITEMS_PER_PAGE_VIEW
-            end_idx = min(start_idx + ITEMS_PER_PAGE_VIEW, len(items))
+            start_idx = page_num *ITEMS_PER_PAGE_VIEW
+            end_idx = min(start_idx +ITEMS_PER_PAGE_VIEW, len(items))
 
             for i in range(start_idx, end_idx):
                 create_item_view_widget(items[i])
 
-            view_info_label.configure(text = f"Page {page_num + 1}/{total_pages} | {len(items)} items")
+            view_info_label.configure(text = f"Page {page_num +1}/{total_pages} | {len(items)} items")
             update_view_pagination(page_num, total_pages)
 
             try:
@@ -8086,52 +8127,52 @@ class App:
             for widget in view_pagination_frame.winfo_children():
                 widget.destroy()
 
-            if total <= 1:
+            if total <=1:
                 return
 
-            first_btn = customtkinter.CTkButton(view_pagination_frame, text = "<<", width = 40, height = 30, command = lambda: display_view_page(0), state = "normal" if current > 0 else "disabled")
+            first_btn = customtkinter.CTkButton(view_pagination_frame, text = "<<", width = 40, height = 30, command = lambda:display_view_page(0), state = "normal"if current >0 else "disabled")
             first_btn.pack(side = "left", padx = 2)
 
-            prev_btn = customtkinter.CTkButton(view_pagination_frame, text = "<", width = 40, height = 30, command = lambda: display_view_page(current - 1), state = "normal" if current > 0 else "disabled")
+            prev_btn = customtkinter.CTkButton(view_pagination_frame, text = "<", width = 40, height = 30, command = lambda:display_view_page(current -1), state = "normal"if current >0 else "disabled")
             prev_btn.pack(side = "left", padx = 2)
 
-            start_page = max(0, current - 3)
-            end_page = min(total, start_page + 7)
-            if end_page - start_page < 7:
-                start_page = max(0, end_page - 7)
+            start_page = max(0, current -3)
+            end_page = min(total, start_page +7)
+            if end_page -start_page <7:
+                start_page = max(0, end_page -7)
 
             for p in range(start_page, end_page):
-                btn = customtkinter.CTkButton(view_pagination_frame, text = str(p + 1), width = 35, height = 30, fg_color = ("gray75", "gray25") if p == current else None, command = lambda page = p: display_view_page(page))
+                btn = customtkinter.CTkButton(view_pagination_frame, text = str(p +1), width = 35, height = 30, fg_color =("gray75", "gray25")if p ==current else None, command = lambda page = p:display_view_page(page))
                 btn.pack(side = "left", padx = 1)
 
-            next_btn = customtkinter.CTkButton(view_pagination_frame, text = ">", width = 40, height = 30, command = lambda: display_view_page(current + 1), state = "normal" if current < total - 1 else "disabled")
+            next_btn = customtkinter.CTkButton(view_pagination_frame, text = ">", width = 40, height = 30, command = lambda:display_view_page(current +1), state = "normal"if current <total -1 else "disabled")
             next_btn.pack(side = "left", padx = 2)
 
-            last_btn = customtkinter.CTkButton(view_pagination_frame, text = ">>", width = 40, height = 30, command = lambda: display_view_page(total - 1), state = "normal" if current < total - 1 else "disabled")
+            last_btn = customtkinter.CTkButton(view_pagination_frame, text = ">>", width = 40, height = 30, command = lambda:display_view_page(total -1), state = "normal"if current <total -1 else "disabled")
             last_btn.pack(side = "left", padx = 2)
 
         def filter_view_items(search_term):
             search_lower = search_term.lower().strip()
 
             if search_lower:
-                filtered = [
+                filtered =[
                 item for item in view_all_items[0]
                 if search_lower in item.get("name", "").lower()
                 ]
             else:
                 filtered = view_all_items[0]
 
-            view_current_filtered[0] = filtered
-            view_current_page[0] = 0
+            view_current_filtered[0]= filtered
+            view_current_page[0]= 0
             display_view_page(0)
 
         def on_view_search_change(*args):
-            if view_search_timer[0] is not None:
+            if view_search_timer[0]is not None:
                 try:
                     self.root.after_cancel(view_search_timer[0])
                 except Exception:
                     pass
-            view_search_timer[0] = self.root.after(200, lambda: filter_view_items(view_search_entry.get())) # type: ignore
+            view_search_timer[0]= self.root.after(200, lambda:filter_view_items(view_search_entry.get()))# type: ignore
 
         view_search_entry.bind("<KeyRelease>", on_view_search_change)
         container_selector.configure(command = lambda _:refresh_view())
@@ -8165,14 +8206,14 @@ class App:
         source_search_frame.grid(row = 2, column = 0, sticky = "ew", padx = 10, pady = 5)
         source_search_frame.grid_columnconfigure(1, weight = 1)
 
-        customtkinter.CTkLabel(source_search_frame, text = "Search:", font = customtkinter.CTkFont(size = 11)).grid(row = 0, column = 0, padx = (0, 5))
+        customtkinter.CTkLabel(source_search_frame, text = "Search:", font = customtkinter.CTkFont(size = 11)).grid(row = 0, column = 0, padx =(0, 5))
         source_search_entry = customtkinter.CTkEntry(source_search_frame, placeholder_text = "Filter...", width = 150)
         source_search_entry.grid(row = 0, column = 1, sticky = "w")
         source_info_label = customtkinter.CTkLabel(source_search_frame, text = "", font = customtkinter.CTkFont(size = 10), text_color = "gray")
         source_info_label.grid(row = 0, column = 2, padx = 10)
 
         source_scroll = customtkinter.CTkScrollableFrame(source_frame, width = 350, height = 320)
-        source_scroll.grid(row = 3, column = 0, sticky = "nsew", padx = 10, pady = (5, 5))
+        source_scroll.grid(row = 3, column = 0, sticky = "nsew", padx = 10, pady =(5, 5))
 
         source_pagination_frame = customtkinter.CTkFrame(source_frame, fg_color = "transparent")
         source_pagination_frame.grid(row = 4, column = 0, pady = 5)
@@ -8193,61 +8234,61 @@ class App:
         dest_search_frame.grid(row = 2, column = 0, sticky = "ew", padx = 10, pady = 5)
         dest_search_frame.grid_columnconfigure(1, weight = 1)
 
-        customtkinter.CTkLabel(dest_search_frame, text = "Search:", font = customtkinter.CTkFont(size = 11)).grid(row = 0, column = 0, padx = (0, 5))
+        customtkinter.CTkLabel(dest_search_frame, text = "Search:", font = customtkinter.CTkFont(size = 11)).grid(row = 0, column = 0, padx =(0, 5))
         dest_search_entry = customtkinter.CTkEntry(dest_search_frame, placeholder_text = "Filter...", width = 150)
         dest_search_entry.grid(row = 0, column = 1, sticky = "w")
         dest_info_label = customtkinter.CTkLabel(dest_search_frame, text = "", font = customtkinter.CTkFont(size = 10), text_color = "gray")
         dest_info_label.grid(row = 0, column = 2, padx = 10)
 
         dest_scroll = customtkinter.CTkScrollableFrame(dest_frame, width = 350, height = 320)
-        dest_scroll.grid(row = 3, column = 0, sticky = "nsew", padx = 10, pady = (5, 5))
+        dest_scroll.grid(row = 3, column = 0, sticky = "nsew", padx = 10, pady =(5, 5))
 
         dest_pagination_frame = customtkinter.CTkFrame(dest_frame, fg_color = "transparent")
         dest_pagination_frame.grid(row = 4, column = 0, pady = 5)
 
         TRANSFER_ITEMS_PER_PAGE = 15
-        source_page = [0]
-        source_all_items = [[]]
-        source_filtered = [[]]
-        source_search_timer = [None]
-        dest_page = [0]
-        dest_all_items = [[]]
-        dest_filtered = [[]]
-        dest_search_timer = [None]
-        source_location_ref = [""]
-        dest_location_ref = [""]
+        source_page =[0]
+        source_all_items =[[]]
+        source_filtered =[[]]
+        source_search_timer =[None]
+        dest_page =[0]
+        dest_all_items =[[]]
+        dest_filtered =[[]]
+        dest_search_timer =[None]
+        source_location_ref =[""]
+        dest_location_ref =[""]
 
         def update_source_pagination(current, total):
             for widget in source_pagination_frame.winfo_children():
                 widget.destroy()
-            if total <= 1:
+            if total <=1:
                 return
-            prev_btn = customtkinter.CTkButton(source_pagination_frame, text = "<", width = 30, height = 25, command = lambda: display_source_page(current - 1), state = "normal" if current > 0 else "disabled")
+            prev_btn = customtkinter.CTkButton(source_pagination_frame, text = "<", width = 30, height = 25, command = lambda:display_source_page(current -1), state = "normal"if current >0 else "disabled")
             prev_btn.pack(side = "left", padx = 2)
-            for p in range(max(0, current - 2), min(total, current + 3)):
-                btn = customtkinter.CTkButton(source_pagination_frame, text = str(p + 1), width = 28, height = 25, fg_color = ("gray75", "gray25") if p == current else None, command = lambda page = p: display_source_page(page))
+            for p in range(max(0, current -2), min(total, current +3)):
+                btn = customtkinter.CTkButton(source_pagination_frame, text = str(p +1), width = 28, height = 25, fg_color =("gray75", "gray25")if p ==current else None, command = lambda page = p:display_source_page(page))
                 btn.pack(side = "left", padx = 1)
-            next_btn = customtkinter.CTkButton(source_pagination_frame, text = ">", width = 30, height = 25, command = lambda: display_source_page(current + 1), state = "normal" if current < total - 1 else "disabled")
+            next_btn = customtkinter.CTkButton(source_pagination_frame, text = ">", width = 30, height = 25, command = lambda:display_source_page(current +1), state = "normal"if current <total -1 else "disabled")
             next_btn.pack(side = "left", padx = 2)
 
         def update_dest_pagination(current, total):
             for widget in dest_pagination_frame.winfo_children():
                 widget.destroy()
-            if total <= 1:
+            if total <=1:
                 return
-            prev_btn = customtkinter.CTkButton(dest_pagination_frame, text = "<", width = 30, height = 25, command = lambda: display_dest_page(current - 1), state = "normal" if current > 0 else "disabled")
+            prev_btn = customtkinter.CTkButton(dest_pagination_frame, text = "<", width = 30, height = 25, command = lambda:display_dest_page(current -1), state = "normal"if current >0 else "disabled")
             prev_btn.pack(side = "left", padx = 2)
-            for p in range(max(0, current - 2), min(total, current + 3)):
-                btn = customtkinter.CTkButton(dest_pagination_frame, text = str(p + 1), width = 28, height = 25, fg_color = ("gray75", "gray25") if p == current else None, command = lambda page = p: display_dest_page(page))
+            for p in range(max(0, current -2), min(total, current +3)):
+                btn = customtkinter.CTkButton(dest_pagination_frame, text = str(p +1), width = 28, height = 25, fg_color =("gray75", "gray25")if p ==current else None, command = lambda page = p:display_dest_page(page))
                 btn.pack(side = "left", padx = 1)
-            next_btn = customtkinter.CTkButton(dest_pagination_frame, text = ">", width = 30, height = 25, command = lambda: display_dest_page(current + 1), state = "normal" if current < total - 1 else "disabled")
+            next_btn = customtkinter.CTkButton(dest_pagination_frame, text = ">", width = 30, height = 25, command = lambda:display_dest_page(current +1), state = "normal"if current <total -1 else "disabled")
             next_btn.pack(side = "left", padx = 2)
 
         def display_source_page(page_num):
             items = source_filtered[0]
-            total_pages = max(1, (len(items) + TRANSFER_ITEMS_PER_PAGE - 1) // TRANSFER_ITEMS_PER_PAGE)
-            page_num = max(0, min(page_num, total_pages - 1))
-            source_page[0] = page_num
+            total_pages = max(1, (len(items)+TRANSFER_ITEMS_PER_PAGE -1)//TRANSFER_ITEMS_PER_PAGE)
+            page_num = max(0, min(page_num, total_pages -1))
+            source_page[0]= page_num
 
             for widget in source_scroll.winfo_children():
                 widget.destroy()
@@ -8259,8 +8300,8 @@ class App:
                 update_source_pagination(0, 0)
                 return
 
-            start_idx = page_num * TRANSFER_ITEMS_PER_PAGE
-            end_idx = min(start_idx + TRANSFER_ITEMS_PER_PAGE, len(items))
+            start_idx = page_num *TRANSFER_ITEMS_PER_PAGE
+            end_idx = min(start_idx +TRANSFER_ITEMS_PER_PAGE, len(items))
 
             for i in range(start_idx, end_idx):
                 item_data = items[i]
@@ -8271,11 +8312,11 @@ class App:
                 item_frame.pack(fill = "x", pady = 2)
 
                 item_name = item.get("name", "Unknown")
-                item_weight = item.get("weight", 0) * item.get("quantity", 1)
+                item_weight = item.get("weight", 0)*item.get("quantity", 1)
 
                 item_label = customtkinter.CTkLabel(
                 item_frame,
-                text = f"{item_name} x{item.get('quantity', 1)} ({self._format_weight(item_weight)})",
+                text = f"{item_name} x{item.get('quantity', 1)}({self._format_weight(item_weight)})",
                 anchor = "w"
                 )
                 item_label.pack(side = "left", padx = 10, pady = 5)
@@ -8283,20 +8324,20 @@ class App:
                 move_button = self._create_sound_button(
                 item_frame,
                 "Move →",
-                lambda idx = original_idx: move_item(idx, source_location_ref[0], dest_location_ref[0]),
+                lambda idx = original_idx:move_item(idx, source_location_ref[0], dest_location_ref[0]),
                 width = 80,
                 height = 30
                 )
                 move_button.pack(side = "right", padx = 10, pady = 5)
 
-            source_info_label.configure(text = f"Pg {page_num + 1}/{total_pages} ({len(items)})")
+            source_info_label.configure(text = f"Pg {page_num +1}/{total_pages}({len(items)})")
             update_source_pagination(page_num, total_pages)
 
         def display_dest_page(page_num):
             items = dest_filtered[0]
-            total_pages = max(1, (len(items) + TRANSFER_ITEMS_PER_PAGE - 1) // TRANSFER_ITEMS_PER_PAGE)
-            page_num = max(0, min(page_num, total_pages - 1))
-            dest_page[0] = page_num
+            total_pages = max(1, (len(items)+TRANSFER_ITEMS_PER_PAGE -1)//TRANSFER_ITEMS_PER_PAGE)
+            page_num = max(0, min(page_num, total_pages -1))
+            dest_page[0]= page_num
 
             for widget in dest_scroll.winfo_children():
                 widget.destroy()
@@ -8308,8 +8349,8 @@ class App:
                 update_dest_pagination(0, 0)
                 return
 
-            start_idx = page_num * TRANSFER_ITEMS_PER_PAGE
-            end_idx = min(start_idx + TRANSFER_ITEMS_PER_PAGE, len(items))
+            start_idx = page_num *TRANSFER_ITEMS_PER_PAGE
+            end_idx = min(start_idx +TRANSFER_ITEMS_PER_PAGE, len(items))
 
             for i in range(start_idx, end_idx):
                 item_data = items[i]
@@ -8319,53 +8360,53 @@ class App:
                 item_frame.pack(fill = "x", pady = 2)
 
                 item_name = item.get("name", "Unknown")
-                item_weight = item.get("weight", 0) * item.get("quantity", 1)
+                item_weight = item.get("weight", 0)*item.get("quantity", 1)
 
                 item_label = customtkinter.CTkLabel(
                 item_frame,
-                text = f"{item_name} x{item.get('quantity', 1)} ({self._format_weight(item_weight)})",
+                text = f"{item_name} x{item.get('quantity', 1)}({self._format_weight(item_weight)})",
                 anchor = "w"
                 )
                 item_label.pack(side = "left", padx = 10, pady = 5)
 
-            dest_info_label.configure(text = f"Pg {page_num + 1}/{total_pages} ({len(items)})")
+            dest_info_label.configure(text = f"Pg {page_num +1}/{total_pages}({len(items)})")
             update_dest_pagination(page_num, total_pages)
 
         def filter_source_items(search_term):
             search_lower = search_term.lower().strip()
             if search_lower:
-                filtered = [item for item in source_all_items[0] if search_lower in item["item"].get("name", "").lower()]
+                filtered =[item for item in source_all_items[0]if search_lower in item["item"].get("name", "").lower()]
             else:
                 filtered = source_all_items[0]
-            source_filtered[0] = filtered
-            source_page[0] = 0
+            source_filtered[0]= filtered
+            source_page[0]= 0
             display_source_page(0)
 
         def filter_dest_items(search_term):
             search_lower = search_term.lower().strip()
             if search_lower:
-                filtered = [item for item in dest_all_items[0] if search_lower in item["item"].get("name", "").lower()]
+                filtered =[item for item in dest_all_items[0]if search_lower in item["item"].get("name", "").lower()]
             else:
                 filtered = dest_all_items[0]
-            dest_filtered[0] = filtered
-            dest_page[0] = 0
+            dest_filtered[0]= filtered
+            dest_page[0]= 0
             display_dest_page(0)
 
         def on_source_search_change(*args):
-            if source_search_timer[0] is not None:
+            if source_search_timer[0]is not None:
                 try:
                     self.root.after_cancel(source_search_timer[0])
                 except Exception:
                     pass
-            source_search_timer[0] = self.root.after(200, lambda: filter_source_items(source_search_entry.get())) # type: ignore
+            source_search_timer[0]= self.root.after(200, lambda:filter_source_items(source_search_entry.get()))# type: ignore
 
         def on_dest_search_change(*args):
-            if dest_search_timer[0] is not None:
+            if dest_search_timer[0]is not None:
                 try:
                     self.root.after_cancel(dest_search_timer[0])
                 except Exception:
                     pass
-            dest_search_timer[0] = self.root.after(200, lambda: filter_dest_items(dest_search_entry.get())) # type: ignore
+            dest_search_timer[0]= self.root.after(200, lambda:filter_dest_items(dest_search_entry.get()))# type: ignore
 
         source_search_entry.bind("<KeyRelease>", on_source_search_change)
         dest_search_entry.bind("<KeyRelease>", on_dest_search_change)
@@ -8374,38 +8415,38 @@ class App:
             source_name = source_selector.get()
             dest_name = dest_selector.get()
 
-            if source_name == dest_name:
+            if source_name ==dest_name:
                 source_selector.set(dest_name)
                 dest_selector.set(source_name)
                 source_name = source_selector.get()
                 dest_name = dest_selector.get()
-                if source_name == dest_name:
+                if source_name ==dest_name:
                     for c in containers:
-                        if c["name"] != source_name:
+                        if c["name"]!=source_name:
                             dest_selector.set(c["name"])
                             dest_name = c["name"]
                             break
 
-            source_container = next((c for c in containers if c["name"] == source_name), None)
-            dest_container = next((c for c in containers if c["name"] == dest_name), None)
+            source_container = next((c for c in containers if c["name"]==source_name), None)
+            dest_container = next((c for c in containers if c["name"]==dest_name), None)
 
             if not source_container or not dest_container:
                 return
 
-            source_location_ref[0] = source_container["location"]
-            dest_location_ref[0] = dest_container["location"]
+            source_location_ref[0]= source_container["location"]
+            dest_location_ref[0]= dest_container["location"]
             source_items = get_container_items(source_location_ref[0])
             dest_items = get_container_items(dest_location_ref[0])
 
-            source_all_items[0] = [{"item": item, "_original_idx": i} for i, item in enumerate(source_items) if isinstance(item, dict)]
-            dest_all_items[0] = [{"item": item, "_original_idx": i} for i, item in enumerate(dest_items) if isinstance(item, dict)]
+            source_all_items[0]=[{"item":item, "_original_idx":i}for i, item in enumerate(source_items)if isinstance(item, dict)]
+            dest_all_items[0]=[{"item":item, "_original_idx":i}for i, item in enumerate(dest_items)if isinstance(item, dict)]
 
             source_search_entry.delete(0, "end")
             dest_search_entry.delete(0, "end")
-            source_filtered[0] = source_all_items[0]
-            dest_filtered[0] = dest_all_items[0]
-            source_page[0] = 0
-            dest_page[0] = 0
+            source_filtered[0]= source_all_items[0]
+            dest_filtered[0]= dest_all_items[0]
+            source_page[0]= 0
+            dest_page[0]= 0
             display_source_page(0)
             display_dest_page(0)
 
@@ -9404,13 +9445,13 @@ class App:
                 if not item:
                     return
 
-                if isinstance(item, dict) and item.get("curse_of_binding"):
-                    self._popup_show_info("Curse of Binding", f"{item.get('name', 'This item')} is bound and cannot be unequipped.", sound="error")
+                if isinstance(item, dict)and item.get("curse_of_binding"):
+                    self._popup_show_info("Curse of Binding", f"{item.get('name', 'This item')} is bound and cannot be unequipped.", sound = "error")
                     return
                 if isinstance(item, list):
-                    last_item = item[-1] if item else None
-                    if isinstance(last_item, dict) and last_item.get("curse_of_binding"):
-                        self._popup_show_info("Curse of Binding", f"{last_item.get('name', 'This item')} is bound and cannot be unequipped.", sound="error")
+                    last_item = item[-1]if item else None
+                    if isinstance(last_item, dict)and last_item.get("curse_of_binding"):
+                        self._popup_show_info("Curse of Binding", f"{last_item.get('name', 'This item')} is bound and cannot be unequipped.", sound = "error")
                         return
 
                 played = False
@@ -9465,8 +9506,8 @@ class App:
                 if not current_item:
                     return
 
-                if isinstance(current_item, dict) and current_item.get("curse_of_binding"):
-                    self._popup_show_info("Curse of Binding", f"{current_item.get('name', 'This item')} is bound and cannot be unequipped.", sound="error")
+                if isinstance(current_item, dict)and current_item.get("curse_of_binding"):
+                    self._popup_show_info("Curse of Binding", f"{current_item.get('name', 'This item')} is bound and cannot be unequipped.", sound = "error")
                     return
 
                 played = False
@@ -12650,7 +12691,7 @@ class App:
             if not loaded_mag:
                 ammo_label_ref = current_weapon_state.get("ammo_label_ref")
                 if ammo_label_ref:
-                    ammo_label_ref.configure(text = "Ammo: No magazine loaded", text_color = ("gray10", "gray90"))
+                    ammo_label_ref.configure(text = "Ammo: No magazine loaded", text_color =("gray10", "gray90"))
                     self.root.update()
                 return
 
@@ -12663,18 +12704,18 @@ class App:
                 first_round = rounds[0]
                 if isinstance(first_round, dict):
                     tip_color = first_round.get("tip")
-                elif isinstance(first_round, str) and "|" in first_round:
+                elif isinstance(first_round, str)and "|"in first_round:
                     variant_name = first_round.split("|")[-1].strip()
                     caliber_part = first_round.split("|")[0].strip()
                     try:
                         table_files = glob.glob(os.path.join("tables", "*.sldtbl"))
                         if table_files:
-                            with open(table_files[0], 'r') as f:
+                            with open(table_files[0], 'r')as f:
                                 table_data = json.load(f)
                             for ammo in table_data.get("tables", {}).get("ammunition", []):
-                                if ammo.get("caliber") == caliber_part or ammo.get("name") == caliber_part:
+                                if ammo.get("caliber")==caliber_part or ammo.get("name")==caliber_part:
                                     for var in ammo.get("variants", []):
-                                        if var.get("name") == variant_name:
+                                        if var.get("name")==variant_name:
                                             tip_color = var.get("tip")
                                             break
                                     break
@@ -12698,7 +12739,7 @@ class App:
             ammo_label_ref = current_weapon_state.get("ammo_label_ref")
 
             if ammo_label_ref:
-                ammo_label_ref.configure(text = "Checking magazine...", text_color = ("gray10", "gray90"))
+                ammo_label_ref.configure(text = "Checking magazine...", text_color =("gray10", "gray90"))
                 self.root.update()
 
             time.sleep(2.5)
@@ -12721,10 +12762,10 @@ class App:
             self._play_weapon_action_sound(wpn, "magin")
 
             if ammo_label_ref:
-                if tip_color and round_count > 0:
+                if tip_color and round_count >0:
                     ammo_label_ref.configure(text = estimation, text_color = tip_color)
                 else:
-                    ammo_label_ref.configure(text = estimation, text_color = ("gray10", "gray90"))
+                    ammo_label_ref.configure(text = estimation, text_color =("gray10", "gray90"))
                 self.root.update()
 
         def reload_magazine():
@@ -15205,7 +15246,7 @@ class App:
                     variant_name = variant_var.get()
                     variant_info = None
                     for var in ammo_def.get("variants", []):
-                        if var.get("name") == variant_name:
+                        if var.get("name")==variant_name:
                             variant_info = var
                             break
                     if not variant_info and ammo_def.get("variants"):
@@ -15222,13 +15263,13 @@ class App:
                     }
                     if variant_info:
                         if variant_info.get("type"):
-                            single_round["type"] = variant_info.get("type")
+                            single_round["type"]= variant_info.get("type")
                         if variant_info.get("pen"):
-                            single_round["pen"] = variant_info.get("pen")
+                            single_round["pen"]= variant_info.get("pen")
                         if variant_info.get("tip"):
-                            single_round["tip"] = variant_info.get("tip")
+                            single_round["tip"]= variant_info.get("tip")
                         if variant_info.get("modifiers"):
-                            single_round["modifiers"] = variant_info.get("modifiers")
+                            single_round["modifiers"]= variant_info.get("modifiers")
 
                     hands = save_data.get("hands", {})
                     if "items"not in hands or not isinstance(hands.get("items"), list):
@@ -15319,7 +15360,7 @@ class App:
                     variant_name = variant_var.get()
                     round_format = f"{caliber} | {variant_name}"
 
-                    ammo_tables = table_data.get("tables", {}).get("ammunition", []) if table_data else []
+                    ammo_tables = table_data.get("tables", {}).get("ammunition", [])if table_data else[]
                     variant_info = None
                     for ammo in ammo_tables:
                         ammo_cal = ammo.get("caliber")
@@ -15327,26 +15368,26 @@ class App:
                         if isinstance(ammo_cal, (list, tuple)):
                             cal_match = caliber in ammo_cal
                         elif isinstance(ammo_cal, str):
-                            cal_match = ammo_cal == caliber
+                            cal_match = ammo_cal ==caliber
                         if cal_match:
                             for var in ammo.get("variants", []):
-                                if var.get("name") == variant_name:
+                                if var.get("name")==variant_name:
                                     variant_info = var
                                     break
                             if not variant_info and ammo.get("variants"):
                                 variant_info = ammo["variants"][0]
                             break
 
-                    round_obj = {"name": round_format, "caliber": caliber, "variant": variant_name}
+                    round_obj = {"name":round_format, "caliber":caliber, "variant":variant_name}
                     if variant_info:
                         if variant_info.get("type"):
-                            round_obj["type"] = variant_info.get("type")
+                            round_obj["type"]= variant_info.get("type")
                         if variant_info.get("pen"):
-                            round_obj["pen"] = variant_info.get("pen")
+                            round_obj["pen"]= variant_info.get("pen")
                         if variant_info.get("tip"):
-                            round_obj["tip"] = variant_info.get("tip")
+                            round_obj["tip"]= variant_info.get("tip")
                         if variant_info.get("modifiers"):
-                            round_obj["modifiers"] = variant_info.get("modifiers")
+                            round_obj["modifiers"]= variant_info.get("modifiers")
 
                     new_mag = {
                     "name":mag_template.get("name"),
@@ -15400,7 +15441,7 @@ class App:
                     caliber = caliber_list[0]if caliber_list else mag_template.get("caliber", ["Unknown"])[0]
                     variant_name = variant_var.get()
 
-                    ammo_tables = table_data.get("tables", {}).get("ammunition", []) if table_data else []
+                    ammo_tables = table_data.get("tables", {}).get("ammunition", [])if table_data else[]
                     variant_info = None
                     for ammo in ammo_tables:
                         ammo_cal = ammo.get("caliber")
@@ -15408,26 +15449,26 @@ class App:
                         if isinstance(ammo_cal, (list, tuple)):
                             cal_match = caliber in ammo_cal
                         elif isinstance(ammo_cal, str):
-                            cal_match = ammo_cal == caliber
+                            cal_match = ammo_cal ==caliber
                         if cal_match:
                             for var in ammo.get("variants", []):
-                                if var.get("name") == variant_name:
+                                if var.get("name")==variant_name:
                                     variant_info = var
                                     break
                             if not variant_info and ammo.get("variants"):
                                 variant_info = ammo["variants"][0]
                             break
 
-                    round_obj = {"name": f"{caliber} | {variant_name}", "caliber": caliber, "variant": variant_name}
+                    round_obj = {"name":f"{caliber} | {variant_name}", "caliber":caliber, "variant":variant_name}
                     if variant_info:
                         if variant_info.get("type"):
-                            round_obj["type"] = variant_info.get("type")
+                            round_obj["type"]= variant_info.get("type")
                         if variant_info.get("pen"):
-                            round_obj["pen"] = variant_info.get("pen")
+                            round_obj["pen"]= variant_info.get("pen")
                         if variant_info.get("tip"):
-                            round_obj["tip"] = variant_info.get("tip")
+                            round_obj["tip"]= variant_info.get("tip")
                         if variant_info.get("modifiers"):
-                            round_obj["modifiers"] = variant_info.get("modifiers")
+                            round_obj["modifiers"]= variant_info.get("modifiers")
 
                     new_belt = {
                     "name":mag_template.get("name", "Belt"),
@@ -15633,7 +15674,7 @@ class App:
                                         except Exception:
                                             temp_gain = 7.0
                                         if self._check_weapon_suppressed(wpn):
-                                            temp_gain *= 1.5
+                                            temp_gain *=1.5
                                         new_temp = new_temp +(temp_gain *0.5)
                                         combat_state["barrel_temperatures"][weapon_id]= new_temp
                                         combat_state.setdefault("weapon_last_used", {})[weapon_id]= now_ts
@@ -16543,8 +16584,8 @@ class App:
             return None
 
         try:
-            td = globals().get('table_data') or {}
-            ammo_tables = td.get('tables', {}).get('ammunition', []) if isinstance(td, dict) else []
+            td = globals().get('table_data')or {}
+            ammo_tables = td.get('tables', {}).get('ammunition', [])if isinstance(td, dict)else[]
             if isinstance(ammo_tables, list):
                 cal_lower = caliber.strip().lower()
                 for ammo_entry in ammo_tables:
@@ -16554,9 +16595,9 @@ class App:
                     if not a_cal:
                         continue
                     if isinstance(a_cal, (list, tuple)):
-                        match = any(str(x).strip().lower() == cal_lower for x in a_cal)
+                        match = any(str(x).strip().lower()==cal_lower for x in a_cal)
                     else:
-                        match = str(a_cal).strip().lower() == cal_lower
+                        match = str(a_cal).strip().lower()==cal_lower
                     if match and ammo_entry.get('sounds'):
                         return str(ammo_entry.get('sounds'))
         except Exception:
@@ -17438,7 +17479,7 @@ class App:
             except Exception:
                 temp_gain = random.uniform(15, 25)
             if self._check_weapon_suppressed(weapon):
-                temp_gain *= 1.5
+                temp_gain *=1.5
 
             for i in range(nshots):
 
@@ -17830,7 +17871,7 @@ class App:
 
                 temp_gain = random.uniform(5.0, 10.0)
             if self._check_weapon_suppressed(weapon):
-                temp_gain *= 1.5
+                temp_gain *=1.5
             temperature +=temp_gain
 
             try:
@@ -17910,10 +17951,28 @@ class App:
             except Exception:
                 cycle_result = None
 
-            if weapon.get("gas_melted", False):
-                self._cycle_bolt_sounds(weapon, single_forward = False, delay = 0.0)
-            else:
-                self._cycle_bolt_sounds(weapon, single_forward = False, delay = 0.12)
+            try:
+                if weapon.get("gas_melted", False):
+
+                    self._cycle_bolt_sounds(weapon, single_forward = False, delay = 0.0)
+                else:
+
+                    if weapon.get("chambered")is None:
+
+                        if bool(weapon.get("bolt_catch", False)):
+                            try:
+                                self._play_weapon_action_sound(weapon, "boltforward")
+                            except Exception:
+                                pass
+                    else:
+
+                        self._cycle_bolt_sounds(weapon, single_forward = False, delay = 0.12)
+            except Exception:
+                try:
+
+                    self._cycle_bolt_sounds(weapon, single_forward = False, delay = 0.12)
+                except Exception:
+                    pass
         else:
             cycle_result = None
 
@@ -17924,18 +17983,18 @@ class App:
             caliber = caliber_list[0]
 
             variant = "Unknown"
-            # Check if chambered is a dict with variant key (new format)
+
             if chambered and isinstance(chambered, dict):
                 variant = chambered.get("variant", "Unknown")
-            # Check if loaded_mag rounds are dicts (new format)
+
             elif loaded_mag and loaded_mag.get("rounds"):
                 first_round = loaded_mag["rounds"][0]
                 if isinstance(first_round, dict):
                     variant = first_round.get("variant", "Unknown")
-                elif isinstance(first_round, str) and " | " in first_round:
+                elif isinstance(first_round, str)and " | "in first_round:
                     variant = first_round.split(" | ")[1]
-            # Fallback to old string format for chambered
-            elif chambered and isinstance(chambered, str) and " | " in chambered:
+
+            elif chambered and isinstance(chambered, str)and " | "in chambered:
                 variant = chambered.split(" | ")[1]
 
             effective_aim = 0
@@ -17965,18 +18024,17 @@ class App:
             except Exception:
                 pass
 
-            # Apply aim bonus from round modifiers (e.g., tracer rounds)
             try:
                 fired_round_for_bonus = chambered
                 if not fired_round_for_bonus and loaded_mag and loaded_mag.get("rounds"):
-                    fired_round_for_bonus = loaded_mag["rounds"][0] if loaded_mag["rounds"] else None
-                
+                    fired_round_for_bonus = loaded_mag["rounds"][0]if loaded_mag["rounds"]else None
+
                 if fired_round_for_bonus and isinstance(fired_round_for_bonus, dict):
-                    round_mods = fired_round_for_bonus.get("modifiers", {}) or {}
+                    round_mods = fired_round_for_bonus.get("modifiers", {})or {}
                     if isinstance(round_mods, dict):
-                        round_stats = round_mods.get("stats", {}) or {}
+                        round_stats = round_mods.get("stats", {})or {}
                         if isinstance(round_stats, dict):
-                            effective_aim += float(round_stats.get("aim", 0) or 0)
+                            effective_aim +=float(round_stats.get("aim", 0)or 0)
             except Exception:
                 pass
 
@@ -18158,7 +18216,7 @@ class App:
                 pass
 
             is_suppressed = self._check_weapon_suppressed(weapon)
-            suppressed_tag = " | Suppressed" if is_suppressed else ""
+            suppressed_tag = " | Suppressed"if is_suppressed else ""
             clipboard_text = f"Roll: {final_total} | Weapon: {weapon_name} | Round: {round_display} | {rounds_fired} rounds fired{suppressed_tag}"
             self._copy_to_clipboard(clipboard_text)
             logging.info(f"D20 rolls: {rolls}, Rounded avg: {median}")
@@ -18350,110 +18408,105 @@ class App:
             return "Firing failed due to an internal error"
 
     def _reload_infinite_ammo_weapon(self, weapon, save_data):
-        """Handle reload for weapons with infinite_ammo - simulates a fast reload."""
+
         logging.info("_reload_infinite_ammo_weapon: %s", weapon.get("name", "Unknown"))
 
         try:
-            # Get caliber for round creation
-            caliber_list = weapon.get("caliber", []) or ["Unknown"]
-            caliber = caliber_list[0] if isinstance(caliber_list, list) else caliber_list
 
-            # Get magazine info from mag_to_load key
+            caliber_list = weapon.get("caliber", [])or["Unknown"]
+            caliber = caliber_list[0]if isinstance(caliber_list, list)else caliber_list
+
             mag_to_load = weapon.get("mag_to_load")
             has_magazine_in_pool = weapon.get("has_magazine_in_pool", True)
 
-            # Load table data to look up magazine by ID if needed
             table_data = None
             try:
                 table_files = glob.glob(os.path.join("tables", "*.sldtbl"))
                 if table_files:
-                    with open(table_files[0], 'r', encoding='utf-8') as f:
+                    with open(table_files[0], 'r', encoding = 'utf-8')as f:
                         table_data = json.load(f)
             except Exception:
                 logging.exception("Failed to load table data for infinite ammo reload")
 
-            # Determine the magazine to load
             new_mag = None
 
             if has_magazine_in_pool is False:
-                # Use capacity from mag_to_load dict directly
+
                 if isinstance(mag_to_load, dict):
                     capacity = mag_to_load.get("capacity", 30)
                     if isinstance(capacity, list):
-                        capacity = capacity[0] if capacity else 30
+                        capacity = capacity[0]if capacity else 30
                     new_mag = {
-                        "name": f"Infinite {caliber} Magazine",
-                        "caliber": [caliber] if not isinstance(caliber, list) else caliber,
-                        "capacity": capacity,
-                        "magazinesystem": weapon.get("magazinesystem"),
-                        "magazinetype": weapon.get("magazinetype", "Detachable box"),
-                        "rounds": [],
-                        "infinite": True
+                    "name":f"Infinite {caliber} Magazine",
+                    "caliber":[caliber]if not isinstance(caliber, list)else caliber,
+                    "capacity":capacity,
+                    "magazinesystem":weapon.get("magazinesystem"),
+                    "magazinetype":weapon.get("magazinetype", "Detachable box"),
+                    "rounds":[],
+                    "infinite":True
                     }
-                    # Fill with infinite rounds
+
                     for _ in range(capacity):
                         new_mag["rounds"].append({
-                            "name": f"{caliber} | Infinite",
-                            "caliber": caliber,
-                            "variant": "Infinite"
+                        "name":f"{caliber} | Infinite",
+                        "caliber":caliber,
+                        "variant":"Infinite"
                         })
             elif mag_to_load is not None and table_data:
-                # Look up magazine by ID from table
-                mag_id = mag_to_load if isinstance(mag_to_load, int) else None
+
+                mag_id = mag_to_load if isinstance(mag_to_load, int)else None
                 if mag_id is not None:
                     magazines = table_data.get("tables", {}).get("magazines", [])
                     for mag in magazines:
-                        if mag.get("id") == mag_id:
-                            # Found the magazine template - create a copy
+                        if mag.get("id")==mag_id:
+
                             new_mag = json.loads(json.dumps(mag))
                             capacity = new_mag.get("capacity", 30)
-                            new_mag["rounds"] = []
-                            new_mag["infinite"] = True
-                            # Fill with infinite rounds
+                            new_mag["rounds"]=[]
+                            new_mag["infinite"]= True
+
                             for _ in range(capacity):
                                 new_mag["rounds"].append({
-                                    "name": f"{caliber} | Infinite",
-                                    "caliber": caliber,
-                                    "variant": "Infinite"
+                                "name":f"{caliber} | Infinite",
+                                "caliber":caliber,
+                                "variant":"Infinite"
                                 })
                             break
 
-            # Fallback: create a generic magazine if nothing found
             if new_mag is None:
                 capacity = 30
                 loaded = weapon.get("loaded")
                 if loaded and isinstance(loaded, dict):
                     capacity = loaded.get("capacity", 30)
                 new_mag = {
-                    "name": f"Infinite {caliber} Magazine",
-                    "caliber": [caliber] if not isinstance(caliber, list) else caliber,
-                    "capacity": capacity,
-                    "magazinesystem": weapon.get("magazinesystem"),
-                    "magazinetype": weapon.get("magazinetype", "Detachable box"),
-                    "rounds": [],
-                    "infinite": True
+                "name":f"Infinite {caliber} Magazine",
+                "caliber":[caliber]if not isinstance(caliber, list)else caliber,
+                "capacity":capacity,
+                "magazinesystem":weapon.get("magazinesystem"),
+                "magazinetype":weapon.get("magazinetype", "Detachable box"),
+                "rounds":[],
+                "infinite":True
                 }
                 for _ in range(capacity):
                     new_mag["rounds"].append({
-                        "name": f"{caliber} | Infinite",
-                        "caliber": caliber,
-                        "variant": "Infinite"
+                    "name":f"{caliber} | Infinite",
+                    "caliber":caliber,
+                    "variant":"Infinite"
                     })
 
-            # Play reload sounds
             current_mag = weapon.get("loaded")
-            is_gun_empty = not weapon.get("chambered") and (not current_mag or not current_mag.get("rounds", []))
+            is_gun_empty = not weapon.get("chambered")and(not current_mag or not current_mag.get("rounds", []))
 
             if current_mag:
                 try:
-                    self._play_weapon_action_sound(weapon, "magout", block=True)
+                    self._play_weapon_action_sound(weapon, "magout", block = True)
                     time.sleep(random.uniform(0.5, 1.0))
                     magdrop_sound = f"magdrop{random.randint(0, 1)}"
                     self._safe_sound_play("", f"sounds/firearms/universal/{magdrop_sound}.ogg")
                 except Exception:
                     pass
 
-            time.sleep(random.uniform(0.25,0.5))
+            time.sleep(random.uniform(0.25, 0.5))
 
             try:
                 self._safe_sound_play("", "sounds/firearms/universal/pouchout.ogg")
@@ -18461,31 +18514,30 @@ class App:
                 pass
             time.sleep(random.uniform(0.5, 0.75))
             try:
-                self._play_weapon_action_sound(weapon, "magin", block=True)
+                self._play_weapon_action_sound(weapon, "magin", block = True)
             except Exception:
                 pass
 
-            time.sleep(random.uniform(0.25,0.5))
+            time.sleep(random.uniform(0.25, 0.5))
 
-            # Determine if pump action for cycling
-            rt_platform = str(weapon.get("platform", "") or "").lower()
-            rt_mag_type = str(weapon.get("magazinetype", "") or "").lower()
-            rt_action_raw = weapon.get("action", "") or ""
+            rt_platform = str(weapon.get("platform", "")or "").lower()
+            rt_mag_type = str(weapon.get("magazinetype", "")or "").lower()
+            rt_action_raw = weapon.get("action", "")or ""
             if isinstance(rt_action_raw, (list, tuple)):
-                rt_action_raw = rt_action_raw[0] if rt_action_raw else ""
+                rt_action_raw = rt_action_raw[0]if rt_action_raw else ""
             rt_action = str(rt_action_raw).lower()
-            is_pump = ("pump" in rt_platform or rt_action == "pump" or "pump" in rt_mag_type)
+            is_pump =("pump"in rt_platform or rt_action =="pump"or "pump"in rt_mag_type)
 
             if is_gun_empty:
                 if is_pump:
                     try:
-                        self._play_weapon_action_sound(weapon, "pumpback", block=True)
+                        self._play_weapon_action_sound(weapon, "pumpback", block = True)
                         self._play_weapon_action_sound(weapon, "pumpforward")
                     except Exception:
                         pass
                 elif not weapon.get("bolt_catch"):
                     try:
-                        self._play_weapon_action_sound(weapon, "boltback", block=True)
+                        self._play_weapon_action_sound(weapon, "boltback", block = True)
                         self._play_weapon_action_sound(weapon, "boltforward")
                     except Exception:
                         pass
@@ -18495,22 +18547,36 @@ class App:
                     except Exception:
                         pass
 
-            # Set the new magazine
-            weapon["loaded"] = new_mag
+            rt_mag_type = str(weapon.get("magazinetype", "")or "").lower()
+            # For internal/tube/cylinder magazine types, treat infinite ammo as rounds inside the weapon
+            if any(k in rt_mag_type for k in ("internal", "tube", "cylinder")):
+                cur_rounds = weapon.get("rounds", []) or []
+                # extend with infinite rounds from the generated mag
+                cur_rounds.extend(list(new_mag.get("rounds", [])))
+                weapon["rounds"] = cur_rounds
+                if is_gun_empty and weapon["rounds"] and not is_pump:
+                    weapon["chambered"] = weapon["rounds"].pop(0)
+                elif is_gun_empty:
+                    weapon["chambered"] = {
+                    "name":f"{caliber} | Infinite",
+                    "caliber":caliber,
+                    "variant":"Infinite"
+                    }
+            else:
+                weapon["loaded"]= new_mag
 
-            # Chamber a round if gun was empty
-            if is_gun_empty and new_mag.get("rounds") and not is_pump:
-                weapon["chambered"] = new_mag["rounds"].pop(0)
-            elif is_gun_empty:
-                weapon["chambered"] = {
-                    "name": f"{caliber} | Infinite",
-                    "caliber": caliber,
-                    "variant": "Infinite"
-                }
+                if is_gun_empty and new_mag.get("rounds")and not is_pump:
+                    weapon["chambered"]= new_mag["rounds"].pop(0)
+                elif is_gun_empty:
+                    weapon["chambered"]= {
+                    "name":f"{caliber} | Infinite",
+                    "caliber":caliber,
+                    "variant":"Infinite"
+                    }
 
             rounds_loaded = len(new_mag.get("rounds", []))
             capacity = new_mag.get("capacity", "?")
-            return f"Reloaded with infinite ammo ({rounds_loaded}/{capacity})"
+            return f"Reloaded with infinite ammo({rounds_loaded}/{capacity})"
 
         except Exception as e:
             logging.exception("Failed to reload infinite ammo weapon")
@@ -18534,7 +18600,6 @@ class App:
         except Exception:
             logging.exception("Underbarrel reload handler check failed")
 
-        # Handle infinite_ammo weapons - simulate a fast reload
         if weapon.get("infinite_ammo"):
             return self._reload_infinite_ammo_weapon(weapon, save_data)
 
@@ -19505,9 +19570,12 @@ class App:
             rt_action = str(rt_action_raw).lower()
             is_bolt_action =(rt_action =="bolt"or "bolt"in rt_action)
 
+            boltback_performed = False
+
             if is_bolt_action:
                 self._play_weapon_action_sound(weapon, "boltback", block = True)
                 time.sleep(0.2)
+                boltback_performed = True
 
             insert_index = 0
             while ammo_loaded <ammo_needed and compatible_ammo:
@@ -19554,15 +19622,15 @@ class App:
                 else:
 
                     if not weapon.get("bolt_catch"):
-                        self._play_weapon_action_sound(weapon, "boltback", block = True)
+
+                        if not boltback_performed:
+                            self._play_weapon_action_sound(weapon, "boltback", block = True)
 
                         if weapon.get("gas_melted", False):
-
                             if current_rounds:
                                 weapon["chambered"]= current_rounds.pop(0)
                             self._play_weapon_action_sound(weapon, "boltforward")
                         else:
-
                             if current_rounds:
                                 weapon["chambered"]= current_rounds.pop(0)
                             self._play_weapon_action_sound(weapon, "boltforward")
@@ -19951,7 +20019,7 @@ class App:
 
         if weapon.get("has_magazine_in_pool")is not False:
             for item in save_data.get("hands", {}).get("items", []):
-                if mag_is_compatible(item) and len(item.get("rounds", []))>0:
+                if mag_is_compatible(item)and len(item.get("rounds", []))>0:
                     compatible_mags.append(("hands", item))
 
         for slot_name, item in save_data.get("equipment", {}).items():
@@ -19959,7 +20027,7 @@ class App:
 
                     if "items"in item and isinstance(item["items"], list):
                         for mag in item["items"]:
-                            if mag_is_compatible(mag) and len(mag.get("rounds", []))>0:
+                            if mag_is_compatible(mag)and len(mag.get("rounds", []))>0:
                                 compatible_mags.append(("equipment", mag))
 
                     if "subslots"in item:
@@ -19968,7 +20036,7 @@ class App:
                                 curr = subslot["current"]
                                 if "items"in curr and isinstance(curr["items"], list):
                                     for mag in curr["items"]:
-                                        if mag_is_compatible(mag) and len(mag.get("rounds", []))>0:
+                                        if mag_is_compatible(mag)and len(mag.get("rounds", []))>0:
                                             compatible_mags.append(("equipment", mag))
 
         if not compatible_mags:
@@ -20000,25 +20068,25 @@ class App:
             mag_name = mag_item.get("name", "Unknown Magazine")
             capacity = mag_item.get("capacity", "?")
             rounds = len(mag_item.get("rounds", []))
-            # Determine magazine caliber display: show calibers actually LOADED in the mag (from rounds)
+
             mag_cal_display = None
             try:
-                mag_cals = []
-                rds = mag_item.get('rounds') if isinstance(mag_item, dict) else []
-                if isinstance(rds, list) and rds:
-                    # collect unique calibers from rounds
-                    seen = []
+                mag_cals =[]
+                rds = mag_item.get('rounds')if isinstance(mag_item, dict)else[]
+                if isinstance(rds, list)and rds:
+
+                    seen =[]
                     for first in rds:
                         try:
                             if isinstance(first, dict):
                                 fc = first.get('caliber')
                                 if isinstance(fc, (list, tuple)):
                                     for x in fc:
-                                        if x and str(x) not in seen:
+                                        if x and str(x)not in seen:
                                             seen.append(str(x))
-                                elif isinstance(fc, str) and fc and str(fc) not in seen:
+                                elif isinstance(fc, str)and fc and str(fc)not in seen:
                                     seen.append(str(fc))
-                            elif isinstance(first, str) and first:
+                            elif isinstance(first, str)and first:
                                 calpart = first.split('|', 1)[0].strip()
                                 if calpart and calpart not in seen:
                                     seen.append(calpart)
@@ -20026,7 +20094,7 @@ class App:
                             continue
                     if seen:
                         mag_cals = seen
-                # fallback: if no loaded rounds, don't display accepted calibers here
+
                 if mag_cals:
                     mag_cal_display = ", ".join(mag_cals)
             except Exception:
@@ -20037,8 +20105,8 @@ class App:
 
             radio_text = f"{mag_name}({rounds}/{capacity})"
             if mag_cal_display:
-                radio_text += f" - {mag_cal_display}"
-            radio_text += f" - from {location}"
+                radio_text +=f" - {mag_cal_display}"
+            radio_text +=f" - from {location}"
             radio = customtkinter.CTkRadioButton(
             radio_frame,
             text = radio_text,
@@ -20056,18 +20124,17 @@ class App:
             idx = int(selected_mag.get())
             location, mag_item = compatible_mags[idx]
 
-            # Validate magazine rounds against weapon calibers BEFORE playing any sounds
             try:
-                wpn_cal_raw = weapon.get('caliber') or []
+                wpn_cal_raw = weapon.get('caliber')or[]
                 wpn_calibers = set()
                 if isinstance(wpn_cal_raw, (list, tuple)):
                     for c in wpn_cal_raw:
                         if c:
                             wpn_calibers.add(str(c).lower().strip())
-                elif isinstance(wpn_cal_raw, str) and wpn_cal_raw:
+                elif isinstance(wpn_cal_raw, str)and wpn_cal_raw:
                     wpn_calibers.add(wpn_cal_raw.lower().strip())
 
-                mag_rounds = mag_item.get('rounds', []) if isinstance(mag_item, dict) else []
+                mag_rounds = mag_item.get('rounds', [])if isinstance(mag_item, dict)else[]
                 if wpn_calibers and mag_rounds:
                     for rd in mag_rounds:
                         try:
@@ -20078,18 +20145,18 @@ class App:
                                     for rc in rcal:
                                         if rc:
                                             rd_cals.add(str(rc).lower().strip())
-                                elif isinstance(rcal, str) and rcal:
+                                elif isinstance(rcal, str)and rcal:
                                     rd_cals.add(rcal.lower().strip())
-                            elif isinstance(rd, str) and rd:
-                                if '|' in rd:
+                            elif isinstance(rd, str)and rd:
+                                if '|'in rd:
                                     rd_cal_part = rd.split('|', 1)[0].strip()
                                 else:
                                     rd_cal_part = rd.strip()
                                 if rd_cal_part:
                                     rd_cals.add(rd_cal_part.lower().strip())
 
-                            if rd_cals and not (rd_cals & wpn_calibers):
-                                self._popup_show_info("Magazine Incompatible", f"Cannot insert magazine: it contains rounds of an incompatible caliber ({next(iter(rd_cals))}).", sound = "error")
+                            if rd_cals and not(rd_cals &wpn_calibers):
+                                self._popup_show_info("Magazine Incompatible", f"Cannot insert magazine: it contains rounds of an incompatible caliber({next(iter(rd_cals))}).", sound = "error")
                                 return
                         except Exception:
                             self._popup_show_info("Magazine Incompatible", "Cannot insert magazine: failed to validate contained rounds.", sound = "error")
@@ -20173,8 +20240,6 @@ class App:
             if current_mag and not weapon.get("infinite_ammo"):
 
                 save_data.get("hands", {}).get("items", []).append(current_mag)
-
-            
 
             if not weapon.get("infinite_ammo"):
                 weapon["loaded"]= mag_item
@@ -20542,9 +20607,27 @@ class App:
 
         initial_delay = 100
 
+        is_bolt_action_reload = False
+        try:
+            if weapon:
+                rt_action_raw = weapon.get("action", "")or ""
+                if isinstance(rt_action_raw, (list, tuple)):
+                    rt_action_raw = rt_action_raw[0]if rt_action_raw else ""
+                rt_action = str(rt_action_raw).lower()
+                is_bolt_action_reload =(rt_action =="bolt"or "bolt"in rt_action)
+        except Exception:
+            is_bolt_action_reload = False
+
         if is_loaded_in_weapon:
             magout_duration = play_magout_sound()
             initial_delay +=magout_duration
+
+        if weapon and is_bolt_action_reload and not is_internal_box:
+            try:
+                self._play_weapon_action_sound(weapon, "boltback", block = True)
+                time.sleep(0.12)
+            except Exception:
+                pass
 
         def play_boltback_for_internal(callback):
 
@@ -20744,6 +20827,15 @@ class App:
 
                 if is_loaded_in_weapon:
                     play_magin_sound()
+
+                    try:
+                        if weapon and is_bolt_action_reload:
+                            try:
+                                self._play_weapon_action_sound(weapon, "boltforward")
+                            except Exception:
+                                pass
+                    except Exception:
+                        pass
 
                 try:
                     popup.destroy()
@@ -22378,7 +22470,7 @@ class App:
         desc_entry.grid(row = 0, column = 3, padx = 5, pady = 5, sticky = "ew")
 
         locked_var = customtkinter.BooleanVar(value = False)
-        locked_check = customtkinter.CTkCheckBox(meta_frame, text = "Locked (requires lockpicking)", variable = locked_var)
+        locked_check = customtkinter.CTkCheckBox(meta_frame, text = "Locked(requires lockpicking)", variable = locked_var)
         locked_check.grid(row = 1, column = 0, columnspan = 2, padx = 5, pady = 5, sticky = "w")
 
         pulls_label = customtkinter.CTkLabel(meta_frame, text = "Pulls:")
@@ -22416,7 +22508,7 @@ class App:
         search_frame.grid(row = 0, column = 0, sticky = "ew", padx = 10, pady = 5)
         search_frame.grid_columnconfigure(1, weight = 1)
 
-        search_label = customtkinter.CTkLabel(search_frame, text = "Search (ID or Name):", font = customtkinter.CTkFont(size = 12))
+        search_label = customtkinter.CTkLabel(search_frame, text = "Search(ID or Name):", font = customtkinter.CTkFont(size = 12))
         search_label.grid(row = 0, column = 0, padx =(0, 10), sticky = "w")
 
         search_entry = customtkinter.CTkEntry(search_frame, placeholder_text = "Enter item ID or name...", width = 250)
@@ -22478,12 +22570,12 @@ class App:
                     item_id = entry.get("id")
                     item_name = entry.get("_display_name", f"ID: {item_id}")
                     rarity = entry.get("rarity", "")
-                    rarity_text = f" ({rarity})" if rarity else ""
+                    rarity_text = f"({rarity})"if rarity else ""
                     text = f"📦 {item_name}{rarity_text}"
                 elif entry_type =="table":
                     table_name = entry.get("table", "Unknown")
                     rarity = entry.get("rarity", "Any")
-                    text = f"🎲 Random from '{table_name}' ({rarity})"
+                    text = f"🎲 Random from '{table_name}'({rarity})"
                 else:
                     text = f"? Unknown entry type"
 
@@ -22531,21 +22623,21 @@ class App:
 
             rarity_weights = table_data.get("rarity_weights", {})
             non_rarity_keys = {"Luck Effect", "Special Chance"}
-            rarity_options = [k for k in rarity_weights.keys() if k not in non_rarity_keys]
+            rarity_options =[k for k in rarity_weights.keys()if k not in non_rarity_keys]
 
-            total_weight = sum(rarity_weights.get(r, 1) for r in rarity_options)
+            total_weight = sum(rarity_weights.get(r, 1)for r in rarity_options)
 
             rarity_frame = customtkinter.CTkFrame(popup)
             rarity_frame.pack(fill = "x", padx = 20, pady = 10)
 
-            rarity_label = customtkinter.CTkLabel(rarity_frame, text = "Select pull rarity (affects drop chance):", font = customtkinter.CTkFont(size = 12))
+            rarity_label = customtkinter.CTkLabel(rarity_frame, text = "Select pull rarity(affects drop chance):", font = customtkinter.CTkFont(size = 12))
             rarity_label.pack(anchor = "w", padx = 10, pady = 5)
 
             selected_rarity = customtkinter.StringVar(value = item_rarity)
 
             for rarity in rarity_options:
                 weight = rarity_weights.get(rarity, 1)
-                percentage = (weight / total_weight * 100) if total_weight > 0 else 0
+                percentage =(weight /total_weight *100)if total_weight >0 else 0
 
                 radio_frame = customtkinter.CTkFrame(rarity_frame, fg_color = "transparent")
                 radio_frame.pack(fill = "x", padx = 10, pady = 2)
@@ -22563,11 +22655,11 @@ class App:
                 radio_frame,
                 text = f"({percentage:.1f}% chance)",
                 font = customtkinter.CTkFont(size = 10),
-                text_color = "orange" if rarity == item_rarity else "gray"
+                text_color = "orange"if rarity ==item_rarity else "gray"
                 )
                 pct_label.pack(side = "left", padx = 10)
 
-                if rarity == item_rarity:
+                if rarity ==item_rarity:
                     default_label = customtkinter.CTkLabel(
                     radio_frame,
                     text = "← default",
@@ -22605,8 +22697,8 @@ class App:
             cancel_btn.pack(side = "left", padx = 10)
 
             popup.update_idletasks()
-            width = max(420, popup.winfo_reqwidth() + 40)
-            height = popup.winfo_reqheight() + 20
+            width = max(420, popup.winfo_reqwidth()+40)
+            height = popup.winfo_reqheight()+20
             self._center_popup_on_window(popup, width, height)
             popup.deiconify()
             popup.lift()
@@ -22639,9 +22731,9 @@ class App:
 
         rarity_weights = table_data.get("rarity_weights", {})
         non_rarity_keys = {"Luck Effect", "Special Chance"}
-        rarity_options = [k for k in rarity_weights.keys() if k not in non_rarity_keys]
-        rarity_select_var = customtkinter.StringVar(value = rarity_options[0] if rarity_options else "Common")
-        rarity_select_menu = customtkinter.CTkOptionMenu(table_select_frame, variable = rarity_select_var, values = rarity_options if rarity_options else ["Common"], width = 100)
+        rarity_options =[k for k in rarity_weights.keys()if k not in non_rarity_keys]
+        rarity_select_var = customtkinter.StringVar(value = rarity_options[0]if rarity_options else "Common")
+        rarity_select_menu = customtkinter.CTkOptionMenu(table_select_frame, variable = rarity_select_var, values = rarity_options if rarity_options else["Common"], width = 100)
         rarity_select_menu.pack(side = "left", padx = 2)
 
         add_table_btn = customtkinter.CTkButton(
@@ -22816,7 +22908,7 @@ class App:
                     self.root.after_cancel(search_timer[0])
                 except Exception:
                     pass
-            search_timer[0]= self.root.after(200, filter_items) # type: ignore
+            search_timer[0]= self.root.after(200, filter_items)# type: ignore
 
         search_entry.bind("<KeyRelease>", on_search_change)
         table_filter_var.trace_add("write", lambda *a:filter_items())
@@ -22979,7 +23071,7 @@ class App:
         money_entry = customtkinter.CTkEntry(top_frame, placeholder_text = "0", width = 120)
         money_entry.grid(row = 0, column = 1, sticky = "w", padx =(0, 30))
 
-        search_label = customtkinter.CTkLabel(top_frame, text = "Search (ID or Name):", font = customtkinter.CTkFont(size = 13))
+        search_label = customtkinter.CTkLabel(top_frame, text = "Search(ID or Name):", font = customtkinter.CTkFont(size = 13))
         search_label.grid(row = 0, column = 2, padx =(0, 10), sticky = "w")
 
         search_entry = customtkinter.CTkEntry(top_frame, placeholder_text = "Enter item ID or name...", width = 250)
@@ -23106,7 +23198,7 @@ class App:
             already_selected = is_item_selected(item)
             add_button = self._create_sound_button(
             item_frame,
-            "Added" if already_selected else "Add",
+            "Added"if already_selected else "Add",
             lambda it = item:add_item_to_transfer(it),
             width = 80,
             height = 30,
@@ -23300,7 +23392,7 @@ class App:
             self._popup_show_info("Error", "No magazines found in table.", sound = "error")
             return
 
-        all_magazines = sorted(magazines, key = lambda x: x.get("name", "").lower())
+        all_magazines = sorted(magazines, key = lambda x:x.get("name", "").lower())
 
         self._clear_window()
         self._play_ui_sound("whoosh1")
@@ -23318,22 +23410,22 @@ class App:
         text = "Create Loaded Magazine Transfer",
         font = customtkinter.CTkFont(size = 24, weight = "bold")
         )
-        title_label.grid(row = 0, column = 0, pady = (0, 10))
+        title_label.grid(row = 0, column = 0, pady =(0, 10))
 
         top_frame = customtkinter.CTkFrame(main_frame, fg_color = "transparent")
         top_frame.grid(row = 1, column = 0, sticky = "ew", pady = 10)
         top_frame.grid_columnconfigure(1, weight = 1)
 
-        search_label = customtkinter.CTkLabel(top_frame, text = "Search (Name or Caliber):", font = customtkinter.CTkFont(size = 13))
-        search_label.grid(row = 0, column = 0, padx = (0, 10), sticky = "w")
+        search_label = customtkinter.CTkLabel(top_frame, text = "Search(Name or Caliber):", font = customtkinter.CTkFont(size = 13))
+        search_label.grid(row = 0, column = 0, padx =(0, 10), sticky = "w")
 
         search_entry = customtkinter.CTkEntry(top_frame, placeholder_text = "Enter magazine name or caliber...", width = 300)
-        search_entry.grid(row = 0, column = 1, sticky = "w", padx = (0, 20))
+        search_entry.grid(row = 0, column = 1, sticky = "w", padx =(0, 20))
 
         ITEMS_PER_PAGE = 20
-        current_page = [0]
-        current_filtered = [all_magazines]
-        search_timer = [None]
+        current_page =[0]
+        current_filtered =[all_magazines]
+        search_timer =[None]
 
         info_label = customtkinter.CTkLabel(top_frame, text = f"Page 1 | {len(all_magazines)} magazines total", font = customtkinter.CTkFont(size = 11), text_color = "gray")
         info_label.grid(row = 0, column = 2, padx = 10)
@@ -23353,7 +23445,7 @@ class App:
             mag_info = f"{mag.get('name', 'Unknown')}"
             mag_details = f"Caliber: {', '.join(mag.get('caliber', ['Unknown']))} | Capacity: {mag.get('capacity', 0)}"
             if mag.get("magazinesystem"):
-                mag_details += f" | System: {mag.get('magazinesystem')}"
+                mag_details +=f" | System: {mag.get('magazinesystem')}"
 
             name_label = customtkinter.CTkLabel(
             mag_frame,
@@ -23361,7 +23453,7 @@ class App:
             font = customtkinter.CTkFont(size = 13, weight = "bold"),
             anchor = "w"
             )
-            name_label.grid(row = 0, column = 0, padx = 10, pady = (8, 2), sticky = "w")
+            name_label.grid(row = 0, column = 0, padx = 10, pady =(8, 2), sticky = "w")
 
             details_label = customtkinter.CTkLabel(
             mag_frame,
@@ -23370,7 +23462,7 @@ class App:
             text_color = "gray",
             anchor = "w"
             )
-            details_label.grid(row = 1, column = 0, padx = 10, pady = (0, 8), sticky = "w")
+            details_label.grid(row = 1, column = 0, padx = 10, pady =(0, 8), sticky = "w")
 
             def create_mag_transfer(m = mag):
                 self._create_loaded_magazine_dialog(m, table_data)
@@ -23386,9 +23478,9 @@ class App:
 
         def display_page(page_num):
             items = current_filtered[0]
-            total_pages = max(1, (len(items) + ITEMS_PER_PAGE - 1) // ITEMS_PER_PAGE)
-            page_num = max(0, min(page_num, total_pages - 1))
-            current_page[0] = page_num
+            total_pages = max(1, (len(items)+ITEMS_PER_PAGE -1)//ITEMS_PER_PAGE)
+            page_num = max(0, min(page_num, total_pages -1))
+            current_page[0]= page_num
 
             for widget in scroll_frame.winfo_children():
                 widget.destroy()
@@ -23400,13 +23492,13 @@ class App:
                 update_pagination_controls(0, 0)
                 return
 
-            start_idx = page_num * ITEMS_PER_PAGE
-            end_idx = min(start_idx + ITEMS_PER_PAGE, len(items))
+            start_idx = page_num *ITEMS_PER_PAGE
+            end_idx = min(start_idx +ITEMS_PER_PAGE, len(items))
 
             for i in range(start_idx, end_idx):
                 create_mag_widget(items[i])
 
-            info_label.configure(text = f"Page {page_num + 1} of {total_pages} | {len(items)} magazines total")
+            info_label.configure(text = f"Page {page_num +1} of {total_pages} | {len(items)} magazines total")
             update_pagination_controls(page_num, total_pages)
 
             try:
@@ -23418,54 +23510,54 @@ class App:
             for widget in pagination_frame.winfo_children():
                 widget.destroy()
 
-            if total <= 1:
+            if total <=1:
                 return
 
-            first_btn = customtkinter.CTkButton(pagination_frame, text = "<<", width = 40, height = 30, command = lambda: display_page(0), state = "normal" if current > 0 else "disabled")
+            first_btn = customtkinter.CTkButton(pagination_frame, text = "<<", width = 40, height = 30, command = lambda:display_page(0), state = "normal"if current >0 else "disabled")
             first_btn.pack(side = "left", padx = 2)
 
-            prev_btn = customtkinter.CTkButton(pagination_frame, text = "<", width = 40, height = 30, command = lambda: display_page(current - 1), state = "normal" if current > 0 else "disabled")
+            prev_btn = customtkinter.CTkButton(pagination_frame, text = "<", width = 40, height = 30, command = lambda:display_page(current -1), state = "normal"if current >0 else "disabled")
             prev_btn.pack(side = "left", padx = 2)
 
-            start_page = max(0, current - 3)
-            end_page = min(total, start_page + 7)
-            if end_page - start_page < 7:
-                start_page = max(0, end_page - 7)
+            start_page = max(0, current -3)
+            end_page = min(total, start_page +7)
+            if end_page -start_page <7:
+                start_page = max(0, end_page -7)
 
             for p in range(start_page, end_page):
-                btn = customtkinter.CTkButton(pagination_frame, text = str(p + 1), width = 35, height = 30, fg_color = ("gray75", "gray25") if p == current else None, command = lambda page = p: display_page(page))
+                btn = customtkinter.CTkButton(pagination_frame, text = str(p +1), width = 35, height = 30, fg_color =("gray75", "gray25")if p ==current else None, command = lambda page = p:display_page(page))
                 btn.pack(side = "left", padx = 1)
 
-            next_btn = customtkinter.CTkButton(pagination_frame, text = ">", width = 40, height = 30, command = lambda: display_page(current + 1), state = "normal" if current < total - 1 else "disabled")
+            next_btn = customtkinter.CTkButton(pagination_frame, text = ">", width = 40, height = 30, command = lambda:display_page(current +1), state = "normal"if current <total -1 else "disabled")
             next_btn.pack(side = "left", padx = 2)
 
-            last_btn = customtkinter.CTkButton(pagination_frame, text = ">>", width = 40, height = 30, command = lambda: display_page(total - 1), state = "normal" if current < total - 1 else "disabled")
+            last_btn = customtkinter.CTkButton(pagination_frame, text = ">>", width = 40, height = 30, command = lambda:display_page(total -1), state = "normal"if current <total -1 else "disabled")
             last_btn.pack(side = "left", padx = 2)
 
         def filter_magazines(search_term):
             search_lower = search_term.lower().strip()
 
             if search_lower:
-                filtered = [
+                filtered =[
                 mag for mag in all_magazines
                 if search_lower in mag.get("name", "").lower()
-                or any(search_lower in cal.lower() for cal in mag.get("caliber", []))
+                or any(search_lower in cal.lower()for cal in mag.get("caliber", []))
                 or search_lower in mag.get("magazinesystem", "").lower()
                 ]
             else:
                 filtered = all_magazines
 
-            current_filtered[0] = filtered
-            current_page[0] = 0
+            current_filtered[0]= filtered
+            current_page[0]= 0
             display_page(0)
 
         def on_search_change(*args):
-            if search_timer[0] is not None:
+            if search_timer[0]is not None:
                 try:
                     self.root.after_cancel(search_timer[0])
                 except Exception:
                     pass
-            search_timer[0] = self.root.after(200, lambda: filter_magazines(search_entry.get())) # type: ignore
+            search_timer[0]= self.root.after(200, lambda:filter_magazines(search_entry.get()))# type: ignore
 
         search_entry.bind("<KeyRelease>", on_search_change)
 
@@ -23633,23 +23725,23 @@ class App:
                     for j in range(rounds_to_load):
                         caliber = ammo_obj.get("caliber", "Unknown")
                         if isinstance(caliber, list):
-                            caliber = caliber[0] if caliber else "Unknown"
+                            caliber = caliber[0]if caliber else "Unknown"
 
                         round_data = {
-                        "caliber": caliber,
-                        "name": f"{caliber} | {variant_info.get('name', 'FMJ') if variant_info else 'FMJ'}",
-                        "variant": variant_info.get("name", "FMJ") if variant_info else "FMJ"
+                        "caliber":caliber,
+                        "name":f"{caliber} | {variant_info.get('name', 'FMJ')if variant_info else 'FMJ'}",
+                        "variant":variant_info.get("name", "FMJ")if variant_info else "FMJ"
                         }
 
                         if variant_info:
                             if variant_info.get("type"):
-                                round_data["type"] = variant_info.get("type")
+                                round_data["type"]= variant_info.get("type")
                             if variant_info.get("pen"):
-                                round_data["pen"] = variant_info.get("pen")
+                                round_data["pen"]= variant_info.get("pen")
                             if variant_info.get("tip"):
-                                round_data["tip"] = variant_info.get("tip")
+                                round_data["tip"]= variant_info.get("tip")
                             if variant_info.get("modifiers"):
-                                round_data["modifiers"] = variant_info.get("modifiers")
+                                round_data["modifiers"]= variant_info.get("modifiers")
 
                         mag_copy["rounds"].append(round_data)
 
@@ -23907,23 +23999,23 @@ class App:
                 for i in range(round_count):
                     caliber = ammo_obj.get("caliber")
                     if isinstance(caliber, list):
-                        caliber = caliber[0] if caliber else "Unknown"
+                        caliber = caliber[0]if caliber else "Unknown"
 
                     round_data = {
                     "caliber":caliber,
-                    "name":f"{caliber} | {variant_info.get('name', 'FMJ') if variant_info else 'FMJ'}",
-                    "variant":variant_info.get("name", "FMJ") if variant_info else "FMJ"
+                    "name":f"{caliber} | {variant_info.get('name', 'FMJ')if variant_info else 'FMJ'}",
+                    "variant":variant_info.get("name", "FMJ")if variant_info else "FMJ"
                     }
 
                     if variant_info:
                         if variant_info.get("type"):
-                            round_data["type"] = variant_info.get("type")
+                            round_data["type"]= variant_info.get("type")
                         if variant_info.get("pen"):
-                            round_data["pen"] = variant_info.get("pen")
+                            round_data["pen"]= variant_info.get("pen")
                         if variant_info.get("tip"):
-                            round_data["tip"] = variant_info.get("tip")
+                            round_data["tip"]= variant_info.get("tip")
                         if variant_info.get("modifiers"):
-                            round_data["modifiers"] = variant_info.get("modifiers")
+                            round_data["modifiers"]= variant_info.get("modifiers")
 
                     belt_copy["rounds"].append(round_data)
 

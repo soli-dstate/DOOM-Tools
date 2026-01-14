@@ -316,8 +316,7 @@
                     {"name": "Bayonet Lug", "slot": "bayonet_mount_ar15", "current": null, "conflicts_with": ["muzzle_556"]},                    
                     {"name": "Muzzle Device", "slot": "muzzle_556", "current": null}
                 ],
-                "can_stack": false,
-                "in_armory": true
+                "can_stack": false
             },
             {
                 "name": "M4 SOPMOD II",
@@ -403,8 +402,7 @@
                     {"name": "MLOK Mounts (Handguard Bottom)", "slot": "mlok_bottom", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_556", "current": null}
                 ],
-                "can_stack": false,
-                "in_armory": true
+                "can_stack": false
             },
             {
                 "name": "Robinson Armament XCR-H",
@@ -434,8 +432,7 @@
                     {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
                 ],
-                "can_stack": false,
-                "in_armory": true
+                "can_stack": false
             },
             {
                 "name": "Heckler & Koch G36C",
@@ -462,8 +459,7 @@
                     {"name": "Picatinny Rail (Handguard Top)", "slot": "picatinny_rifle", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_556", "current": null}
                 ],
-                "can_stack": false,
-                "in_armory": true
+                "can_stack": false
             },
             {
                 "name": "Izhmash AKM",
@@ -489,7 +485,8 @@
                     {"name": "Russian Sight Mount", "slot": "russian_mount", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "Izhmash AK-74M",
@@ -515,7 +512,8 @@
                     {"name": "Russian Sight Mount", "slot": "russian_mount", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_545", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "in_armory": true
             },
             {
                 "name": "FAF-439 Battle Rifle",
@@ -892,8 +890,7 @@
                     {"name": "Bayonet Lug", "slot": "bayonet_mount_ar15", "current": null, "conflicts_with": ["muzzle_556"]},    
                     {"name": "Muzzle Device", "slot": "muzzle_556", "current": null}
                 ],
-                "can_stack": false,
-                "in_armory": true
+                "can_stack": false
             },
             {
                 "name": "Colt M16A4",
@@ -1040,8 +1037,94 @@
                 "accessories": [
                     {"name": "Russian Sight Mount", "slot": "russian_mount", "current": null}
                 ],
+                "can_stack": false
+            },
+            {
+                "name": "Heckler & Koch HK417A2 13\" Carbine",
+                "value": 3500,
+                "description": "A compact battle rifle chambered in 7.62x51mm NATO, designed for close-quarters combat with the reliability of the HK417 platform.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 4.5,
+                "id": 393,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "HK417",
+                "caliber": ["7.62x51mm NATO"],
+                "action": ["Semi", "Auto"],
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 600,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "HK417",
+                "jamrate": 0.001,
+                "accessories": [
+                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": null},
+                    {"name": "Picatinny Rail (Handguard Top)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Left)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Right)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
+                ],
                 "can_stack": false,
                 "in_armory": true
+            },
+            {
+                "name": "Knight's Armament SR-16",
+                "value": 4000,
+                "description": "A modern assault rifle designed for special operations, featuring a modular design and high reliability.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 3.5,
+                "id": 403,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "AR-15",
+                "caliber": ["5.56x45mm NATO"],
+                "action": ["Semi", "Auto"],
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 850,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "STANAG 4179",
+                "jamrate": 0.001,
+                "accessories": [
+                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": null},
+                    {"name": "Picatinny Rail (Handguard Top)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "MLOK Mounts (Handguard Left)", "slot": "mlok_rifle", "current": null},
+                    {"name": "MLOK Mounts (Handguard Right)", "slot": "mlok_rifle", "current": null},
+                    {"name": "MLOK Mounts (Handguard Bottom)", "slot": "mlok_bottom", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_556", "current": null}
+                ],
+                "can_stack": false,
+                "in_armory": true
+            },
+            {
+                "name": "Howa Type 64",
+                "value": 1200,
+                "description": "A Japanese battle rifle chambered in 7.62x51mm NATO, known for its reliability and accuracy.",
+                "rarity": "Mythic",
+                "random_quantity": false,
+                "weight": 4.3,
+                "id": 404,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "Type 64",
+                "caliber": ["7.62x51mm NATO"],
+                "action": ["Semi", "Auto"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 500,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "Type 64",
+                "jamrate": 0.005,
+                "accessories": [
+                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
+                ],
+                "can_stack": false
             }
         ],
         "sniper_rifles": [
@@ -1180,7 +1263,7 @@
                 "can_stack": false
             },
             {
-                "name": "Knight's Armament M110A1 CSASS",
+                "name": "Knight's Armament M110 SASS",
                 "value": 3200,
                 "description": "Semi-automatic sniper system based off of the Knight's Armament SR-25, used by the LEDF and Kyntarian resistance.",
                 "rarity": "Rare",
@@ -1315,8 +1398,7 @@
                     {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_50bmg", "current": null}
                 ],
-                "can_stack": false,
-                "in_armory": true
+                "can_stack": false
             },
             {
                 "name": "Barrett M107A1",
@@ -1359,7 +1441,7 @@
                 "subtype": "rifle",
                 "platform": "AK-50",
                 "caliber": ["12.7x99mm NATO"],
-                "action": ["Bolt"],
+                "action": ["Semi"],
                 "bolt": "closed",
                 "cyclic": 15,
                 "magazinetype": "Detachable box",
@@ -1373,8 +1455,7 @@
                     {"name": "MLOK Mounts (Handguard Bottom)", "slot": "mlok_bottom", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_50bmg", "current": null}
                 ],
-                "can_stack": false,
-                "in_armory": true
+                "can_stack": false
             },
             {
                 "name": "Heckler & Koch G28",
@@ -1462,6 +1543,87 @@
                     {"name": "Picatinny Rail (Handguard Left)", "slot": "picatinny_rifle", "current": null},
                     {"name": "Picatinny Rail (Handguard Right)", "slot": "picatinny_rifle", "current": null},
                     {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_50bmg", "current": null}
+                ],
+                "can_stack": false,
+                "in_armory": true
+            },
+            {
+                "name": "Barrett M99",
+                "value": 5000,
+                "description": "A single-shot sniper rifle designed for extreme long-range precision, chambered in .50 BMG.",
+                "rarity": "Legendary",
+                "random_quantity": false,
+                "weight": 14,
+                "id": 392,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "M99",
+                "caliber": ["12.7x99mm NATO"],
+                "action": ["Bolt"],
+                "bolt": "closed",
+                "cyclic": 10,
+                "magazinetype": "Internal Box",
+                "capacity": 1,
+                "can_chamber_extra": false,
+                "jamrate": 0.001,
+                "accessories": [
+                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_50bmg", "current": null}
+                ],
+                "can_stack": false,
+                "in_armory": true
+            },
+            {
+                "name": "Serbu BFG-50",
+                "value": 4000,
+                "description": "A single-shot anti-materiel sniper rifle chambered in .50 BMG, designed for extreme long-range precision.",
+                "rarity": "Legendary",
+                "random_quantity": false,
+                "weight": 14,
+                "id": 399,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "BFG-50",
+                "caliber": ["12.7x99mm NATO"],
+                "action": ["Bolt"],
+                "bolt": "closed",
+                "cyclic": 10,
+                "magazinetype": "Internal Box",
+                "capacity": 1,
+                "can_chamber_extra": false,
+                "jamrate": 0.001,
+                "accessories": [
+                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_50bmg", "current": null}
+                ],
+                "can_stack": false,
+                "in_armory": true
+            },
+            {
+                "name": "Serbu BFG-50A",
+                "value": 8000,
+                "description": "Magazine-fed anti-materiel sniper rifle chambered in .50 BMG, designed for extreme long-range precision.",
+                "rarity": "Legendary",
+                "random_quantity": false,
+                "weight": 14,
+                "id": 400,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "BFG-50A",
+                "caliber": ["12.7x99mm NATO"],
+                "action": ["Semi"],
+                "bolt": "closed",
+                "cyclic": 10,
+                "magazinetype": "Detachable Box",
+                "magazinesystem": "M82",
+                "can_chamber_extra": false,
+                "jamrate": 0.001,
+                "accessories": [
+                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_50bmg", "current": null}
                 ],
                 "can_stack": false,
@@ -1563,6 +1725,7 @@
                     {"name": "MLOK Mounts (Handguard Left)", "slot": "mlok_rifle", "current": null},
                     {"name": "MLOK Mounts (Handguard Right)", "slot": "mlok_rifle", "current": null},
                     {"name": "MLOK Mounts (Handguard Bottom)", "slot": "mlok_bottom", "current": null},
+                    {"name": "CSAD Gun Link mount", "slot": "csad_link", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_22", "current": null}
                 ],
                 "can_stack": false,
@@ -2175,6 +2338,37 @@
                 ],
                 "can_stack": false,
                 "in_armory": true
+            },
+            {
+                "name": "Q Honey Badger",
+                "value": 2500,
+                "description": "Integrally suppressed personal defense weapon chambered in 300 AAC Blackout. Known for its compact design, low recoil, and versatility in close-quarters combat.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 3.0,
+                "id": 401,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "smg",
+                "platform": "AR-15",
+                "caliber": [".300 AAC Blackout"],
+                "action": ["Semi", "Auto"],
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 900,
+                "integrally_suppressed": true,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "STANAG 4179",
+                "jamrate": 0.015,
+                "accessories": [
+                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": null},
+                    {"name": "Picatinny Rail (Handguard Top)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "MLOK Mounts (Handguard Left)", "slot": "mlok_rifle", "current": null},
+                    {"name": "MLOK Mounts (Handguard Right)", "slot": "mlok_rifle", "current": null},
+                    {"name": "MLOK Mounts (Handguard Bottom)", "slot": "mlok_bottom_nounderbarrel", "current": null}
+                ],
+                "can_stack": false,
+                "in_armory": true
             }
         ],
         "shotguns": [
@@ -2288,6 +2482,7 @@
                     {"name": "MLOK Mounts (Handguard Left)", "slot": "mlok_rifle", "current": null},
                     {"name": "MLOK Mounts (Handguard Right)", "slot": "mlok_rifle", "current": null},
                     {"name": "MLOK Mounts (Handguard Bottom)", "slot": "mlok_bottom", "current": null},
+                    {"name": "CSAD Gun Link mount", "slot": "csad_link", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_12g", "current": null}
                 ],
                 "can_stack": false,
@@ -2319,6 +2514,7 @@
                     {"name": "MLOK Mounts (Handguard Left)", "slot": "mlok_rifle", "current": null},
                     {"name": "MLOK Mounts (Handguard Right)", "slot": "mlok_rifle", "current": null},
                     {"name": "MLOK Mounts (Handguard Bottom)", "slot": "mlok_bottom", "current": null},
+                    {"name": "CSAD Gun Link mount", "slot": "csad_link", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_12g", "current": null}
                 ],
                 "can_stack": false,
@@ -2884,6 +3080,7 @@
                     {"name": "Pistol Picatinny Rail", "slot": "pistol_picatinny", "current": null},
                     {"name": "MOS Mount", "slot": "pistol_optic_mount", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_22", "current": null},
+                    {"name": "CSAD Gun Link mount", "slot": "csad_link", "current": null},
                     {"name": "Auto Sear", "slot": "m19_auto_sear", "current": null}
                 ],
                 "can_stack": false,
@@ -2913,6 +3110,7 @@
                     {"name": "Pistol Picatinny Rail", "slot": "pistol_picatinny", "current": null},
                     {"name": "MOS Mount", "slot": "pistol_optic_mount", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_22", "current": null},
+                    {"name": "CSAD Gun Link mount", "slot": "csad_link", "current": null},
                     {"name": "Auto Sear", "slot": "m19_auto_sear", "current": null}
                 ],
                 "can_stack": false,
@@ -2942,6 +3140,7 @@
                     {"name": "Pistol Picatinny Rail", "slot": "pistol_picatinny", "current": null},
                     {"name": "MOS Mount", "slot": "pistol_optic_mount", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_22", "current": null},
+                    {"name": "CSAD Gun Link mount", "slot": "csad_link", "current": null},
                     {"name": "Auto Sear", "slot": "m19_auto_sear", "current": null}
                 ],
                 "can_stack": false,
@@ -3255,6 +3454,72 @@
                 "subtype": "pistol",
                 "platform": "Webley",
                 "caliber": [".45 ACP"],
+                "action": ["Double"],
+                "bolt": "closed",
+                "cyclic": 100,
+                "magazinetype": "Cylinder",
+                "capacity": 6,
+                "jamrate": 0.005,
+                "accessories": null,
+                "can_stack": false
+            },
+            {
+                "name": "Colt Python",
+                "value": 500,
+                "description": "A high-quality double-action revolver chambered in .357 Magnum, known for its accuracy and craftsmanship.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 1.3,
+                "id": 387,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "pistol",
+                "platform": "Python",
+                "caliber": [".357 Magnum"],
+                "action": ["Double"],
+                "bolt": "closed",
+                "cyclic": 100,
+                "magazinetype": "Cylinder",
+                "capacity": 6,
+                "jamrate": 0.005,
+                "accessories": null,
+                "can_stack": false
+            },
+            {
+                "name": "Colt Anaconda",
+                "value": 600,
+                "description": "A large-frame double-action revolver chambered in .44 Magnum, known for its power and accuracy.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 1.4,
+                "id": 388,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "pistol",
+                "platform": "Anaconda",
+                "caliber": [".44 Magnum"],
+                "action": ["Double"],
+                "bolt": "closed",
+                "cyclic": 100,
+                "magazinetype": "Cylinder",
+                "capacity": 6,
+                "jamrate": 0.005,
+                "accessories": null,
+                "can_stack": false
+            },
+            {
+                "name": "Smith & Wesson Model 29",
+                "value": 700,
+                "description": "A powerful double-action revolver chambered in .44 Magnum, made famous by the 'Dirty Harry' films.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 1.5,
+                "id": 389,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "pistol",
+                "platform": "Model 29",
+                "caliber": [".44 Magnum"],
                 "action": ["Double"],
                 "bolt": "closed",
                 "cyclic": 100,
@@ -4635,6 +4900,108 @@
                 ],
                 "can_stack": false,
                 "in_armory": true
+            },
+            {
+                "name": "Leopuld Mark 5HD 3-15x50mm scope",
+                "value": 2200,
+                "description": "High-quality variable power scope with excellent clarity and precision, suitable for long-range engagements.",
+                "rarity": "Legendary",
+                "random_quantity": false,
+                "weight": 1.1,
+                "id": 394,
+                "attachment": true,
+                "slot": "picatinny_optic",
+                "modifiers": null,
+                "modes": [
+                    {"name": "3x", "type": "magnification", "usage": null, "modifiers": {"stats": {"aim": 1}, "night_vision_compatible": false}, "position": 0},
+                    {"name": "6x", "type": "magnification", "usage": null, "modifiers": {"stats": {"aim": 2}, "night_vision_compatible": false}, "position": 45},
+                    {"name": "9x", "type": "magnification", "usage": null, "modifiers": {"stats": {"aim": 3}, "night_vision_compatible": false}, "position": 90},
+                    {"name": "12x", "type": "magnification", "usage": null, "modifiers": {"stats": {"aim": 4}, "night_vision_compatible": false}, "position": 135},
+                    {"name": "15x", "type": "magnification", "usage": null, "modifiers": {"stats": {"aim": 5}, "night_vision_compatible": false}, "position": 180},
+                    {"mode_method": "dial"}
+                ],
+                "can_stack": false,
+                "in_armory": true
+            },
+            {
+                "name": "Leopuld Mark 5HD 7-35x56mm scope",
+                "value": 3500,
+                "description": "High-quality variable power scope with excellent clarity and precision, suitable for extreme long-range engagements.",
+                "rarity": "Legendary",
+                "random_quantity": false,
+                "weight": 1.3,
+                "id": 395,
+                "attachment": true,
+                "slot": "picatinny_optic",
+                "modifiers": null,
+                "modes": [
+                    {"name": "7x", "type": "magnification", "usage": null, "modifiers": {"stats": {"aim": 1}, "night_vision_compatible": false}, "position": 0},
+                    {"name": "14x", "type": "magnification", "usage": null, "modifiers": {"stats": {"aim": 2}, "night_vision_compatible": false}, "position": 45},
+                    {"name": "21x", "type": "magnification", "usage": null, "modifiers": {"stats": {"aim": 3}, "night_vision_compatible": false}, "position": 90},
+                    {"name": "28x", "type": "magnification", "usage": null, "modifiers": {"stats": {"aim": 4}, "night_vision_compatible": false}, "position": 135},
+                    {"name": "35x", "type": "magnification", "usage": null, "modifiers": {"stats": {"aim": 5}, "night_vision_compatible": false}, "position": 180},
+                    {"mode_method": "dial"}
+                ],
+                "can_stack": false,
+                "in_armory": true
+            },
+            {
+                "name": "Aimpoint CompM4",
+                "value": 1200,
+                "description": "Red dot sight with excellent clarity and fast target acquisition, suitable for close to medium-range engagements.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 0.3,
+                "id": 396,
+                "attachment": true,
+                "slot": "picatinny_optic",
+                "modifiers": {"stats": {"aim": 1}},
+                "can_stack": false,
+                "subslots": [
+                    {"name": "Magnifier", "slot": "magnifier", "current": null}
+                ],
+                "in_armory": true
+            },
+            {
+                "name": "Vortex Optics Golden Eagle HD 15-60x52mm",
+                "value": 4000,
+                "description": "High-end variable power scope with exceptional clarity and precision, ideal for extreme long-range shooting.",
+                "rarity": "Legendary",
+                "random_quantity": false,
+                "weight": 1.5,
+                "id": 397,
+                "attachment": true,
+                "slot": "picatinny_optic",
+                "modifiers": null,
+                "modes": [
+                    {"name": "15x", "type": "magnification", "usage": null, "modifiers": {"stats": {"aim": 2}, "night_vision_compatible": false}, "position": 0},
+                    {"name": "30x", "type": "magnification", "usage": null, "modifiers": {"stats": {"aim": 3}, "night_vision_compatible": false}, "position": 45},
+                    {"name": "45x", "type": "magnification", "usage": null, "modifiers": {"stats": {"aim": 4}, "night_vision_compatible": false}, "position": 90},
+                    {"name": "60x", "type": "magnification", "usage": null, "modifiers": {"stats": {"aim": 5}, "night_vision_compatible": false}, "position": 135},
+                    {"mode_method": "dial"}
+                ],
+                "can_stack": false,
+                "in_armory": true
+            },
+            {
+                "name": "Vortex Optics AMG 1-10x24mm",
+                "value": 2500,
+                "description": "Variable power scope with a wide magnification range, suitable for both close and medium-range engagements.",
+                "rarity": "Mythic",
+                "random_quantity": false,
+                "weight": 1.0,
+                "id": 398,
+                "attachment": true,
+                "slot": "picatinny_optic",
+                "modifiers": null,
+                "modes": [
+                    {"name": "1x", "type": "magnification", "usage": null, "modifiers": {"stats": {"aim": 1}, "night_vision_compatible": false}, "position": 0},
+                    {"name": "5x", "type": "magnification", "usage": null, "modifiers": {"stats": {"aim": 3}, "night_vision_compatible": false}, "position": 45},
+                    {"name": "10x", "type": "magnification", "usage": null, "modifiers": {"stats": {"aim": 5}, "night_vision_compatible": false}, "position": 90},
+                    {"mode_method": "dial"}
+                ],
+                "can_stack": false,
+                "in_armory": true
             }
         ],
         "ammunition": [
@@ -5465,6 +5832,96 @@
                     }
                 ],
                 "in_armory": true
+            },
+            {
+                "name": ".357 Magnum",
+                "value": 0.5,
+                "description": "A powerful revolver cartridge known for its stopping power and versatility.",
+                "rarity": "Common",
+                "random_quantity": {"min": 5, "max": 20},
+                "weight": 0.02,
+                "id": 390,
+                "caliber": [".357 Magnum"],
+                "sounds": "357mag",
+                "variants": [
+                    {
+                        "name": "JHP",
+                        "type": "JHP",
+                        "pen": "II",
+                        "modifiers": null,
+                        "rarity": "Common",
+                        "tip": null
+                    },
+                    {
+                        "name": "FMJ",
+                        "type": "FMJ",
+                        "pen": "IIIa",
+                        "modifiers": null,
+                        "rarity": "Uncommon",
+                        "tip": null
+                    }
+                ],
+                "in_armory": true
+            },
+            {
+                "name": ".44 Magnum",
+                "value": 0.5,
+                "description": "A powerful revolver cartridge known for its stopping power and versatility.",
+                "rarity": "Common",
+                "random_quantity": {"min": 5, "max": 20},
+                "weight": 0.02,
+                "id": 391,
+                "caliber": [".44 Magnum"],
+                "sounds": "44mag",
+                "variants": [
+                    {
+                        "name": "JHP",
+                        "type": "JHP",
+                        "pen": "II",
+                        "modifiers": null,
+                        "rarity": "Common",
+                        "tip": null
+                    },
+                    {
+                        "name": "FMJ",
+                        "type": "FMJ",
+                        "pen": "IIIa",
+                        "modifiers": null,
+                        "rarity": "Uncommon",
+                        "tip": null
+                    }
+                ],
+                "in_armory": true
+            },
+            {
+                "name": ".300 AAC Blackout",
+                "value": 0.5,
+                "description": "A versatile rifle cartridge designed for the AR-15 platform, offering subsonic and supersonic performance.",
+                "rarity": "Common",
+                "random_quantity": {"min": 5, "max": 20},
+                "weight": 0.02,
+                "id": 402,
+                "caliber": [".300 AAC Blackout"],
+                "sounds": "223",
+                "variants": [
+                    {
+                        "name": "FMJ",
+                        "type": "FMJ",
+                        "pen": "IIIa",
+                        "modifiers": null,
+                        "rarity": "Uncommon",
+                        "tip": null
+                    },
+                    {
+                        "name": "AP",
+                        "type": "AP",
+                        "pen": "III",
+                        "modifiers": null,
+                        "rarity": "Rare",
+                        "tip": null
+                    }
+                ],
+                "in_armory": true
             }
         ],
         "magazines": [
@@ -5476,7 +5933,7 @@
                 "random_quantity": false,
                 "weight": 0.25,
                 "id": 13,
-                "caliber": ["5.56x45mm NATO"],
+                "caliber": ["5.56x45mm NATO", ".300 AAC Blackout"],
                 "capacity": 30,
                 "magazinesystem": "STANAG 4179",
                 "can_stack": false,
@@ -5728,7 +6185,7 @@
                 "random_quantity": false,
                 "weight": 1.2,
                 "id": 22,
-                "caliber": ["5.56x45mm NATO"],
+                "caliber": ["5.56x45mm NATO", ".300 AAC Blackout"],
                 "capacity": 100,
                 "magazinesystem": "STANAG 4179",
                 "can_stack": false,
@@ -6516,6 +6973,132 @@
                 "magazinesystem": "Intervention",
                 "can_stack": false,
                 "in_armory": true
+            },
+            {
+                "name": "Howa Type 64 20-Round 7.62x51mm NATO magazine",
+                "value": 50,
+                "description": "Standard 20-round magazine for 7.62x51mm NATO chambered Howa Type 64 rifles.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 0.45,
+                "id": 405,
+                "caliber": ["7.62x51mm NATO"],
+                "capacity": 20,
+                "magazinesystem": "Type 64",
+                "can_stack": false,
+                "in_armory": true
+            },
+            {
+                "name": "Colt USGI 20-Round stamped steel 5.56x45mm NATO STANAG magazine",
+                "value": 40,
+                "description": "Lower capacity 20-round magazine for STANAG rifles.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 0.45,
+                "id": 407,
+                "caliber": ["5.56x45mm NATO", ".300 AAC Blackout"],
+                "capacity": 20,
+                "magazinesystem": "STANAG 4179",
+                "can_stack": false,
+                "in_armory": true
+            },
+            {
+                "name": "Magpul PMAG 30 GEN M3 Window 30-Round polymer 5.56x45mm NATO STANAG magazine",
+                "value": 50,
+                "description": "Standard 30-round polymer magazine for 5.56x45mm NATO chambered STANAG rifles.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 0.4,
+                "id": 408,
+                "caliber": ["5.56x45mm NATO", ".300 AAC Blackout"],
+                "capacity": 30,
+                "magazinesystem": "STANAG 4179",
+                "can_stack": false,
+                "in_armory": true
+            },
+            {
+                "name": "Magpul PMAG 40 GEN M3 40-Round polymer 5.56x45mm NATO STANAG magazine",
+                "value": 60,
+                "description": "High-capacity 40-round polymer magazine for 5.56x45mm NATO chambered STANAG rifles.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 0.5,
+                "id": 409,
+                "caliber": ["5.56x45mm NATO", ".300 AAC Blackout"],
+                "capacity": 40,
+                "magazinesystem": "STANAG 4179",
+                "can_stack": false,
+                "in_armory": true
+            },
+            {
+                "name": "Magpul PMAG D-60 GEN M3 60-Round drum 5.56x45mm NATO STANAG magazine",
+                "value": 80,
+                "description": "High-capacity 60-round drum magazine for 5.56x45mm NATO chambered STANAG rifles.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 0.8,
+                "id": 410,
+                "caliber": ["5.56x45mm NATO", ".300 AAC Blackout"],
+                "capacity": 60,
+                "magazinesystem": "STANAG 4179",
+                "can_stack": false,
+                "in_armory": true
+            },
+            {
+                "name": "Lancer L5AWM GEN 2 30-Round polymer 5.56x45mm NATO STANAG magazine",
+                "value": 55,
+                "description": "Reliable 30-round polymer magazine for 5.56x45mm NATO chambered STANAG rifles.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 0.45,
+                "id": 411,
+                "caliber": ["5.56x45mm NATO", ".300 AAC Blackout"],
+                "capacity": 30,
+                "magazinesystem": "STANAG 4179",
+                "can_stack": false,
+                "in_armory": true
+            },
+            {
+                "name": "Daniel Defense DD32 32-Round polymer 5.56x45mm NATO STANAG magazine",
+                "value": 60,
+                "description": "Reliable 32-round polymer magazine for 5.56x45mm NATO chambered STANAG rifles.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 0.45,
+                "id": 412,
+                "caliber": ["5.56x45mm NATO", ".300 AAC Blackout"],
+                "capacity": 32,
+                "magazinesystem": "STANAG 4179",
+                "can_stack": false,
+                "in_armory": true
+            },
+            {
+                "name": "Heckler & Koch 30-Round stamped steel 5.56x45mm NATO STANAG magazine",
+                "value": 50,
+                "description": "Durable 30-round stamped steel magazine for 5.56x45mm NATO chambered STANAG rifles.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 0.5,
+                "id": 413,
+                "caliber": ["5.56x45mm NATO", ".300 AAC Blackout"],
+                "capacity": 30,
+                "magazinesystem": "STANAG 4179",
+                "can_stack": false,
+                "in_armory": true
+            },
+            {
+                "name": "Heckler & Koch GEN 3 30-Round polymer 5.56x45mm NATO STANAG magazine",
+                "value": 55,
+                "description": "Reliable 30-round polymer magazine for 5.56x45mm NATO chambered STANAG rifles.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 0.45,
+                "id": 414,
+                "caliber": ["5.56x45mm NATO", ".300 AAC Blackout"],
+                "capacity": 30,
+                "magazinesystem": "STANAG 4179",
+                "can_stack": false,
+                "in_armory": true
             }
         ],
         "melee": [
@@ -7294,7 +7877,9 @@
                     {"name": "AR-15 Auto Sear", "slot": "ar15_auto_sear", "current": {"name": "AR-15 Auto Sear", "value": 15, "description": "A small metal piece that allows an AR-15 rifle to fire in fully automatic mode when installed.", "rarity": "Legendary", "random_quantity": false, "weight": 0.05, "id": 105, "attachment": true, "slot": "ar15_auto_sear", "overrides": {"action": ["Semi", "Auto"]}, "can_stack": false}},
                     {"name": "Muzzle Device", "slot": "muzzle_556", "current": {"name": "Spike's Tactical ST6Ti 5.56mm Suppressor", "value": 1500, "description": "5.56mm suppressor that hides muzzle flash and dampens sound.", "rarity": "Rare", "random_quantity": false, "weight": 0.35, "id": 112, "attachment": true, "slot": "muzzle_556", "suppressor": true, "modifiers": {"stats": {"stealth": 2}}, "can_stack": false}}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "infinite_ammo": true,
+                "mag_to_load": 408
             },
             {
                 "name": "Colt M16A1",
@@ -7321,7 +7906,9 @@
                     {"name": "Bayonet Lug", "slot": "bayonet_mount_ar15", "current": null, "conflicts_with": ["muzzle_556"]},    
                     {"name": "Muzzle Device", "slot": "muzzle_556", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "infinite_ammo": true,
+                "mag_to_load": 13
             },
             {
                 "name": "M4 SOPMOD II",
@@ -7345,14 +7932,16 @@
                 "magazinesystem": "STANAG 4179",
                 "jamrate": 0.01,
                 "accessories": [
-                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": 118},
+                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": {"name":"EOTech SU-231/PEQ Holographic Sight","value":900,"description":"Holographic sight providing rapid target acquisition at close to medium ranges. Mounts to a picatinny rail.","rarity":"Uncommon","random_quantity":false,"weight":0.7,"id":118,"attachment":true,"slot":"picatinny_optic","modifiers":{"stats":{"aim":1}},"magnified":false,"variable":false,"night_vision_compatible":true,"subslots":[{"name":"Magnifier","slot":"magnifier","current":null}],"can_stack":false,"in_armory":true}},
                     {"name": "Picatinny Rail (Handguard Top)", "slot": "picatinny_rifle", "current": null},
                     {"name": "Picatinny Rail (Handguard Left)", "slot": "picatinny_rifle", "current": null},
                     {"name": "Picatinny Rail (Handguard Right)", "slot": "picatinny_rifle", "current": {"name":"Insight AN/PEQ-2 IR laser","value":1500,"description":"Infrared laser designator for use with night vision devices. Mounts to a picatinny rail.","rarity":"Rare","random_quantity":false,"weight":0.25,"id":119,"attachment":true,"slot":"picatinny_rifle","modifiers":{"stats":{"aim":1}},"electronic":true,"battery_type":"CR123A","battery_life":5,"can_stack":false}},
                     {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_556", "current": null}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "infinite_ammo": true,
+                "mag_to_load": 411
             },
             {
                 "name": "Colt M4A1 Carbine",
@@ -7383,7 +7972,9 @@
                     {"name": "Bayonet Lug", "slot": "bayonet_mount_ar15", "current": null, "conflicts_with": ["muzzle_556"]},    
                     {"name": "Muzzle Device", "slot": "muzzle_556", "current": {"name":"SIG NG556-QD Suppressor","value":1300,"description":"5.56mm suppressor that hides muzzle flash and dampens sound.","rarity":"Rare","random_quantity":false,"weight":0.38,"id":121,"attachment":true,"slot":"muzzle_556","suppressor":true,"modifiers":{"stats":{"stealth":2}},"can_stack":false}}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "infinite_ammo": true,
+                "mag_to_load": 407
             },
             {
                 "name": "Heckler & Koch HK416",
@@ -7413,7 +8004,9 @@
                     {"name": "MLOK Mounts (Handguard Bottom)", "slot": "mlok_bottom", "current": {"name":"Magpul RVG Vertical Foregrip","value":25,"description":"Vertical foregrip that improves weapon handling and reduces recoil. Mounts to a picatinny rail.","rarity":"Common","random_quantity":false,"weight":0.2,"id":110,"attachment":true,"slot":["picatinny_bottom","picatinny_bottom_nounderbarrel"],"modifiers":{"stats":{"aim":1}},"can_stack":false}},
                     {"name": "Muzzle Device", "slot": "muzzle_556", "current": {"name":"Knight's Armament QDSS-NT4 Suppressor","value":1200,"description":"5.56mm suppressor that hides muzzle flash and dampens sound.","rarity":"Rare","random_quantity":false,"weight":0.4,"id":7,"attachment":true,"slot":"muzzle_556","suppressor":true,"modifiers":{"stats":{"stealth":2}},"can_stack":false}}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "infinite_ammo": true,
+                "mag_to_load": 413
             },
             {
                 "name": "Heckler & Koch UMP-45",
@@ -7444,7 +8037,9 @@
                     {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom_nounderbarrel", "current": {"name":"Knight's Armament VFG Vertical Foregrip","value":80,"description":"Vertical foregrip that improves weapon handling and reduces recoil. Mounts to a picatinny rail.","rarity":"Common","random_quantity":false,"weight":0.2,"id":9,"attachment":true,"slot":["picatinny_bottom","picatinny_bottom_nounderbarrel"],"modifiers":{"stats":{"aim":1}},"can_stack":false}},
                     {"name": "Muzzle Device", "slot": "muzzle_45", "current": {"name":"Rugged Suppressors Obsidian45 Suppressor","value":1400,"description":".45 ACP suppressor that hides muzzle flash and dampens sound.","rarity":"Rare","random_quantity":false,"weight":0.3,"id":129,"attachment":true,"slot":"muzzle_45","suppressor":true,"modifiers":{"stats":{"stealth":1}},"can_stack":false}}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "infinite_ammo": true,
+                "mag_to_load": 14
             },
             {
                 "name": "Heckler & Koch UMP-9",
@@ -7475,7 +8070,9 @@
                     {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom_nounderbarrel", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_9mm", "current": {"name":"Rugged Suppressors Obsidian9 Suppressor","value":1400,"description":"9mm suppressor that hides muzzle flash and dampens sound.","rarity":"Rare","random_quantity":false,"weight":0.3,"id":130,"attachment":true,"slot":"muzzle_9mm","suppressor":true,"modifiers":{"stats":{"stealth":1}},"can_stack":false}}
                 ],
-                "can_stack": false
+                "can_stack": false,
+                "infinite_ammo": true,
+                "mag_to_load": 127
             },
             {
                 "name": "Heckler & Koch G11K2",
@@ -7523,7 +8120,7 @@
             {
                 "name": "Persica water",
                 "value": 5,
-                "description": "A bottle of Persica brand water. Drinking it restores a small amount of health.",
+                "description": "A paper cup with a liquid inside. It smells like fish.",
                 "rarity": "Common",
                 "random_quantity": false,
                 "weight": 0.5,
@@ -7609,7 +8206,7 @@
                     {"name": "Dovetail NVG Mount", "slot": "nvg_mount", "current": null},
                     {"name": "NVG battery pack", "slot": "nvg_battery", "current": null},
                     {"name": "Ear protection", "slot": "ear_protection", "current": null},
-                    {"name": "CSAD Mount", "slot": "CSAD", "current": null}
+                    {"name": "CSAD Mount", "slot": "CSAD", "current": null, "conflicts_with": {"type": "main", "slot": "face"}}
                 ]
             },
             {
@@ -7642,6 +8239,34 @@
                 "in_armory": true,
                 "infinite_ammo": true,
                 "mag_to_load": 384
+            },
+            {
+                "name": "Mossberg M500",
+                "value": 500,
+                "description": "Pump-action shotgun known for its reliability and versatility. Covered in blonde dog hairs.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 3.1,
+                "id": 406,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "shotgun",
+                "platform": "M500",
+                "caliber": ["12 Gauge"],
+                "action": ["Pump"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 250,
+                "magazinetype": "Internal tube",
+                "capacity": 5,
+                "can_chamber_extra": true,
+                "jamrate": 0.02,
+                "accessories": [
+                    {"name": "Picatinny Rail Optic", "slot": "picatinny_optic", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_12g", "current": null}
+                ],
+                "can_stack": false,
+                "infinite_ammo": true
             }
         ],
         "equipment": [
@@ -7923,16 +8548,19 @@
                 "in_armory": true
             },
             {
-                "name": "L3Harris AN/PVS-31A Binocular NVG",
+                "name": "L3Harris AN/PVS-31A Binocular NVG Gen III+ White Phosphor",
                 "value": 5000,
                 "description": "Binocular night vision goggles (NVG) providing enhanced vision in low-light conditions. Compatible with helmets equipped with NVG mounts.",
-                "rarity": "Rare",
+                "rarity": "Legendary",
                 "random_quantity": false,
                 "weight": 0.9,
                 "id": 95,
                 "equippable": true,
                 "encumbrance_reduction": 0.5,
                 "slot": "nvg_mount",
+                "subslots": [
+                    {"name": "Thermal Imager", "slot": "thermal_imager", "current": null}
+                ],
                 "night_vision": true,
                 "electronic": true,
                 "battery_type": "AA",
@@ -8257,6 +8885,517 @@
                 "protection": "III",
                 "material": "steel",
                 "in_armory": true
+            },
+            {
+                "name": "Hard Head Veterans Ballistic Helmet ATE GEN2",
+                "value": 500,
+                "description": "Modular helmet providing small arms ballistic protection.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 1.36,
+                "id": 415,
+                "equippable": true,
+                "encumbrance_reduction": 0.5,
+                "slot": "head",
+                "protection": "IIIa",
+                "material": "composite",
+                "subslots": [
+                    {"name": "Dovetail NVG Mount", "slot": "nvg_mount", "current": null},
+                    {"name": "NVG battery pack", "slot": "nvg_battery", "current": null},
+                    {"name": "Ear protection", "slot": "ear_protection", "current": null}
+                ],
+                "in_armory": true
+            },
+            {
+                "name": "Carhartt Knit Beanie",
+                "value": 50,
+                "description": "A warm knit beanie made by Carhartt, suitable for cold weather.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.2,
+                "id": 416,
+                "equippable": true,
+                "encumbrance_reduction": 0.1,
+                "slot": "head",
+                "material": "fabric",
+                "subslots": [
+                    {"name": "Ear protection", "slot": "ear_protection", "current": null}
+                ],
+                "modifiers": {"stats": {"agility": 1}}
+            },
+            {
+                "name": "Tru-Spec Gen II Boonie",
+                "value": 60,
+                "description": "A durable boonie hat made by Tru-Spec, suitable for outdoor and tactical use.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.25,
+                "id": 417,
+                "equippable": true,
+                "encumbrance_reduction": 0.1,
+                "slot": "head",
+                "material": "fabric",
+                "subslots": [
+                    {"name": "Ear protection", "slot": "ear_protection", "current": null}
+                ],
+                "modifiers": {"stats": {"stealth": 1}}
+            },
+            {
+                "name": "Crye Precision Shooter's Cap",
+                "value": 70,
+                "description": "A tactical cap made by Crye Precision, suitable for shooters and outdoor activities.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.2,
+                "id": 418,
+                "equippable": true,
+                "encumbrance_reduction": 0.1,
+                "slot": "head",
+                "material": "fabric",
+                "subslots": [
+                    {"name": "Ear protection", "slot": "ear_protection", "current": null}
+                ],
+                "modifiers": {"stats": {"aim": 1}}
+            },
+            {
+                "name": "Crye Precision Nightcap",
+                "value": 70,
+                "description": "A solution for wearing night vision in situations where a standard helmet is not practical.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.2,
+                "id": 419,
+                "equippable": true,
+                "encumbrance_reduction": 0.1,
+                "slot": "head",
+                "material": "fabric",
+                "subslots": [
+                    {"name": "Dovetail NVG Mount", "slot": "nvg_mount", "current": null},
+                    {"name": "NVG battery pack", "slot": "nvg_battery", "current": null},
+                    {"name": "Ear protection", "slot": "ear_protection", "current": null}
+                ],
+                "in_armory": true
+            },
+            {
+                "name": "Avon Protection IHIPS Ballistic Helmet",
+                "value": 200,
+                "description": "A high-performance ballistic helmet designed for maximum protection in combat situations.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 1.5,
+                "id": 420,
+                "equippable": true,
+                "encumbrance_reduction": 0.2,
+                "slot": "head",
+                "material": "composite",
+                "protection": "IIIa",
+                "subslots": [
+                    {"name": "Dovetail NVG Mount", "slot": "nvg_mount", "current": null},
+                    {"name": "NVG battery pack", "slot": "nvg_battery", "current": null},
+                    {"name": "Ear protection", "slot": "ear_protection", "current": null}
+                ],
+                "in_armory": true
+            },
+            {
+                "name": "Gentex MICH Ballistic Helmet",
+                "value": 200,
+                "description": "A high-performance ballistic helmet designed for maximum protection in combat situations.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 1.5,
+                "id": 421,
+                "equippable": true,
+                "encumbrance_reduction": 0.2,
+                "slot": "head",
+                "material": "composite",
+                "protection": "IIIa",
+                "subslots": [
+                    {"name": "Dovetail NVG Mount", "slot": "nvg_mount", "current": null},
+                    {"name": "NVG battery pack", "slot": "nvg_battery", "current": null},
+                    {"name": "Ear protection", "slot": "ear_protection", "current": null}
+                ],
+                "in_armory": true
+            },
+            {
+                "name": "Gentex OPS-CORE FAST XP Ballistic Helmet",
+                "value": 200,
+                "description": "A high-performance ballistic helmet designed for maximum protection in combat situations.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 1.5,
+                "id": 422,
+                "equippable": true,
+                "encumbrance_reduction": 0.2,
+                "slot": "head",
+                "material": "composite",
+                "protection": "IIIa",
+                "subslots": [
+                    {"name": "Dovetail NVG Mount", "slot": "nvg_mount", "current": null},
+                    {"name": "NVG battery pack", "slot": "nvg_battery", "current": null},
+                    {"name": "Ear protection", "slot": "ear_protection", "current": null}
+                ],
+                "in_armory": true
+            },
+            {
+                "name": "Team Wendy EXFIL Ballistic Helmet",
+                "value": 200,
+                "description": "A high-performance ballistic helmet designed for maximum protection in combat situations.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 1.5,
+                "id": 423,
+                "equippable": true,
+                "encumbrance_reduction": 0.2,
+                "slot": "head",
+                "material": "composite",
+                "protection": "IIIa",
+                "subslots": [
+                    {"name": "Dovetail NVG Mount", "slot": "nvg_mount", "current": null},
+                    {"name": "NVG battery pack", "slot": "nvg_battery", "current": null},
+                    {"name": "Ear protection", "slot": "ear_protection", "current": null}
+                ],
+                "in_armory": true
+            },
+            {
+                "name": "Crye Precision AVS",
+                "value": 200,
+                "description": "Modular plate carrier system designed for a balance between comfort and protection.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 1.5,
+                "id": 424,
+                "equippable": true,
+                "encumbrance_reduction": 0.2,
+                "slot": "chest",
+                "material": "kevlar",
+                "subslots": [
+                    {"name": "Front Armor Slot", "slot": "front_armor", "current": null},
+                    {"name": "Back Armor Slot", "slot": "back_armor", "current": null},
+                    {"name": "Left 6x6 Armor Slot", "slot": "6x6_armor", "current": null},
+                    {"name": "Right 6x6 Armor Slot", "slot": "6x6_armor", "current": null},
+                    {"name": "MOLLE Webbing front", "slot": "molle_front", "current": null},
+                    {"name": "MOLLE Webbing back", "slot": "molle_back", "current": null, "conflicts_with": {"type": "main", "slot": "back"}},
+                    {"name": "MOLLE Webbing left side", "slot": "molle_side", "current": null},
+                    {"name": "MOLLE Webbing right side", "slot": "molle_side", "current": null}
+                ],
+                "in_armory": true
+            },
+            {
+                "name": "LBT Sentinel Releasable Plate Carrier",
+                "value": 200,
+                "description": "A versatile plate carrier with quick-release functionality for rapid removal in emergency situations.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 1.5,
+                "id": 425,
+                "equippable": true,
+                "encumbrance_reduction": 0.2,
+                "slot": "chest",
+                "material": "kevlar",
+                "subslots": [
+                    {"name": "Front Armor Slot", "slot": "front_armor", "current": null},
+                    {"name": "Back Armor Slot", "slot": "back_armor", "current": null},
+                    {"name": "MOLLE Webbing front", "slot": "molle_front", "current": null},
+                    {"name": "MOLLE Webbing back", "slot": "molle_back", "current": null, "conflicts_with": {"type": "main", "slot": "back"}},
+                    {"name": "MOLLE Webbing left side", "slot": "molle_side", "current": null},
+                    {"name": "MOLLE Webbing right side", "slot": "molle_side", "current": null}
+                ],
+                "in_armory": true
+            },
+            {
+                "name": "Hardwire LLC MSV Plate Carrier",
+                "value": 200,
+                "description": "A modern plate carrier designed for maximum mobility and protection.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 1.5,
+                "id": 426,
+                "equippable": true,
+                "encumbrance_reduction": 0.2,
+                "slot": "chest",
+                "material": "kevlar",
+                "protection": "IIIa",
+                "subslots": [
+                    {"name": "Front Armor Slot", "slot": "front_armor", "current": null},
+                    {"name": "Back Armor Slot", "slot": "back_armor", "current": null},
+                    {"name": "MOLLE Webbing front", "slot": "molle_front", "current": null},
+                    {"name": "MOLLE Webbing back", "slot": "molle_back", "current": null, "conflicts_with": {"type": "main", "slot": "back"}},
+                    {"name": "MOLLE Webbing left side", "slot": "molle_side", "current": null},
+                    {"name": "MOLLE Webbing right side", "slot": "molle_side", "current": null}
+                ],
+                "in_armory": true
+            },
+            {
+                "name": "NFM Thor Plate Carrier",
+                "value": 200,
+                "description": "A high-end plate carrier offering superior protection and modularity.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 1.5,
+                "id": 427,
+                "equippable": true,
+                "encumbrance_reduction": 0.2,
+                "slot": "chest",
+                "material": "kevlar",
+                "protection": "IIIa",
+                "subslots": [
+                    {"name": "Front Armor Slot", "slot": "front_armor", "current": null},
+                    {"name": "Back Armor Slot", "slot": "back_armor", "current": null},
+                    {"name": "Left 6x6 Armor Slot", "slot": "6x6_armor", "current": null},
+                    {"name": "Right 6x6 Armor Slot", "slot": "6x6_armor", "current": null},
+                    {"name": "MOLLE Webbing front", "slot": "molle_front", "current": null},
+                    {"name": "MOLLE Webbing back", "slot": "molle_back", "current": null, "conflicts_with": {"type": "main", "slot": "back"}},
+                    {"name": "MOLLE Webbing left side", "slot": "molle_side", "current": null},
+                    {"name": "MOLLE Webbing right side", "slot": "molle_side", "current": null}
+                ],
+                "in_armory": true
+            },
+            {
+                "name": "Spiritus Systems LV-120 Plate Carrier",
+                "value": 200,
+                "description": "A lightweight plate carrier designed for high mobility and modularity.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 1.5,
+                "id": 428,
+                "equippable": true,
+                "encumbrance_reduction": 0.2,
+                "slot": "chest",
+                "material": "kevlar",
+                "protection": "IIIa",
+                "subslots": [
+                    {"name": "Front Armor Slot", "slot": "front_armor", "current": null},
+                    {"name": "Back Armor Slot", "slot": "back_armor", "current": null},
+                    {"name": "Left 6x6 Armor Slot", "slot": "6x6_armor", "current": null},
+                    {"name": "Right 6x6 Armor Slot", "slot": "6x6_armor", "current": null},
+                    {"name": "MOLLE Webbing front", "slot": "molle_front", "current": null},
+                    {"name": "MOLLE Webbing back", "slot": "molle_back", "current": null, "conflicts_with": {"type": "main", "slot": "back"}},
+                    {"name": "MOLLE Webbing left side", "slot": "molle_side", "current": null},
+                    {"name": "MOLLE Webbing right side", "slot": "molle_side", "current": null}
+                ],
+                "in_armory": true
+            },
+            {
+                "name": "Acelink Armor Skeletac Plate Carrier",
+                "value": 250,
+                "description": "A high-end plate carrier offering superior protection and modularity.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 0.45,
+                "id": 429,
+                "equippable": true,
+                "encumbrance_reduction": 0.5,
+                "slot": "chest",
+                "subslots": [
+                    {"name": "Front Armor Slot", "slot": "front_armor", "current": null},
+                    {"name": "Back Armor Slot", "slot": "back_armor", "current": null},
+                    {"name": "Left 6x6 Armor Slot", "slot": "6x6_armor", "current": null},
+                    {"name": "Right 6x6 Armor Slot", "slot": "6x6_armor", "current": null},
+                    {"name": "MOLLE Webbing front", "slot": "molle_front", "current": null},
+                    {"name": "MOLLE Webbing back", "slot": "molle_back", "current": null, "conflicts_with": {"type": "main", "slot": "back"}},
+                    {"name": "MOLLE Webbing left side", "slot": "molle_side", "current": null},
+                    {"name": "MOLLE Webbing right side", "slot": "molle_side", "current": null}
+                ],
+                "in_armory": true
+            },
+            {
+                "name": "Blue Alpha Battle Belt",
+                "value": 150,
+                "description": "A durable battle belt designed for carrying essential gear and providing quick access to equipment.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 0.45,
+                "id": 430,
+                "equippable": true,
+                "encumbrance_reduction": 1,
+                "slot": ["waist"],
+                "subslots": [
+                    {"name": "MOLLE Webbing left side", "slot": "molle_side_belt", "current": null},
+                    {"name": "MOLLE Webbing right side", "slot": "molle_side_belt", "current": null},
+                    {"name": "MOLLE Webbing front", "slot": "molle_front_belt", "current": null},
+                    {"name": "MOLLE Webbing back", "slot": "molle_back_belt", "current": null}
+                ],
+                "in_armory": true
+            },
+            {
+                "name": "L3Harris AN/PVS-31A Binocular NVG Gen III+ Green Phosphor",
+                "value": 5000,
+                "description": "Binocular night vision goggles (NVG) providing enhanced vision in low-light conditions. Compatible with helmets equipped with NVG mounts.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 0.9,
+                "id": 431,
+                "equippable": true,
+                "encumbrance_reduction": 0.5,
+                "slot": "nvg_mount",
+                "subslots": [
+                    {"name": "Thermal Imager", "slot": "thermal_imager", "current": null}
+                ],
+                "night_vision": true,
+                "electronic": true,
+                "battery_type": "AA",
+                "battery_life": 10,
+                "in_armory": true
+            },
+            {
+                "name": "Safran DSI AN/PAS-29B ECOTI clip-on thermal imager",
+                "value": 8000,
+                "description": "A clip-on thermal imager for night vision goggles, providing enhanced thermal imaging capabilities.",
+                "rarity": "Mythic",
+                "random_quantity": false,
+                "weight": 0.8,
+                "id": 432,
+                "equippable": true,
+                "encumbrance_reduction": 0.5,
+                "slot": "thermal_imager",
+                "electronic": true,
+                "battery_type": "AA",
+                "battery_life": 8,
+                "in_armory": true
+            },
+            {
+                "name": "Steiner AN/PVS-21 LPNVG Gen III+ White Phosphor",
+                "value": 12000,
+                "description": "A lightweight low profile dual tube night vision goggle providing enhanced situational awareness in low-light conditions, with integrated thermal imaging and HUD.",
+                "rarity": "Mythic",
+                "random_quantity": false,
+                "weight": 0.7,
+                "id": 433,
+                "equippable": true,
+                "encumbrance_reduction": 0.5,
+                "slot": "nvg_mount",
+                "night_vision": true,
+                "electronic": true,
+                "battery_type": "AA",
+                "battery_life": 12,
+                "in_armory": true
+            },
+            {
+                "name": "Steiner AN/PVS-21 LPNVG Gen III+ Green Phosphor",
+                "value": 12000,
+                "description": "A lightweight low profile dual tube night vision goggle providing enhanced situational awareness in low-light conditions, with integrated thermal imaging and HUD.",
+                "rarity": "Legendary",
+                "random_quantity": false,
+                "weight": 0.7,
+                "id": 434,
+                "equippable": true,
+                "encumbrance_reduction": 0.5,
+                "slot": "nvg_mount",
+                "night_vision": true,
+                "electronic": true,
+                "battery_type": "AA",
+                "battery_life": 12,
+                "in_armory": true
+            },
+            {
+                "name": "L3Harris AN/PVS-14 Monocular Night Vision Device Gen III+ White Phosphor",
+                "value": 6000,
+                "description": "A monocular night vision device providing enhanced situational awareness in low-light conditions.",
+                "rarity": "Legendary",
+                "random_quantity": false,
+                "weight": 0.5,
+                "id": 435,
+                "equippable": true,
+                "encumbrance_reduction": 0.5,
+                "slot": "nvg_mount",
+                "subslots": [
+                    {"name": "Thermal Imager", "slot": "thermal_imager", "current": null}
+                ],
+                "night_vision": true,
+                "electronic": true,
+                "battery_type": "AA",
+                "battery_life": 10,
+                "in_armory": true
+            },
+            {
+                "name": "L3Harris AN/PVS-14 Monocular Night Vision Device Gen III+ Green Phosphor",
+                "value": 6000,
+                "description": "A monocular night vision device providing enhanced situational awareness in low-light conditions.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 0.5,
+                "id": 436,
+                "equippable": true,
+                "encumbrance_reduction": 0.5,
+                "slot": "nvg_mount",
+                "subslots": [
+                    {"name": "Thermal Imager", "slot": "thermal_imager", "current": null}
+                ],
+                "night_vision": true,
+                "electronic": true,
+                "battery_type": "AA",
+                "battery_life": 10,
+                "in_armory": true
+            },
+            {
+                "name": "L3Harris GPNVG-18 Gen III+ White Phosphor",
+                "value": 15000,
+                "description": "A quad-tube night vision goggle providing unparalleled situational awareness in low-light conditions.",
+                "rarity": "Mythic",
+                "random_quantity": false,
+                "weight": 1.2,
+                "id": 437,
+                "equippable": true,
+                "encumbrance_reduction": 0.5,
+                "slot": "nvg_mount",
+                "subslots": [
+                    {"name": "Thermal Imager", "slot": "thermal_imager", "current": null}
+                ],
+                "night_vision": true,
+                "electronic": true,
+                "battery_type": "AA",
+                "battery_life": 12,
+                "in_armory": true
+            },
+            {
+                "name": "L3Harris GPNVG-18 Gen III+ Green Phosphor",
+                "value": 15000,
+                "description": "A quad-tube night vision goggle providing unparalleled situational awareness in low-light conditions.",
+                "rarity": "Legendary",
+                "random_quantity": false,
+                "weight": 1.2,
+                "id": 438,
+                "equippable": true,
+                "encumbrance_reduction": 0.5,
+                "slot": "nvg_mount",
+                "subslots": [
+                    {"name": "Thermal Imager", "slot": "thermal_imager", "current": null}
+                ],
+                "night_vision": true,
+                "electronic": true,
+                "battery_type": "AA",
+                "battery_life": 12,
+                "in_armory": true
+            },
+            {
+                "name": "L3Harris AN/PSQ-42 ENVG-B Gen III+ White Phosphor",
+                "value": 20000,
+                "description": "Advanced binocular night vision device providing a HUD and thermal imaging on top of night vision.",
+                "rarity": "Mythic",
+                "random_quantity": false,
+                "weight": 1.5,
+                "id": 439,
+                "equippable": true,
+                "encumbrance_reduction": 0.5,
+                "slot": "nvg_mount",
+                "night_vision": true,
+                "electronic": true,
+                "battery_type": "AA",
+                "battery_life": 12,
+                "in_armory": true
+            },
+            {
+                "name": "YesWelder LYG-R100A auto-darkening welding goggle",
+                "value": 59,
+                "description": "Auto-darkening welding goggle providing eye protection during welding operations.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.5,
+                "id": 440,
+                "equippable": true,
+                "slot": "face",
+                "flashbang_goggle": true,
+                "in_armory": true
             }
         ],
         "enemy_drops": [
@@ -8447,6 +9586,155 @@
                 "pulls": 3,
                 "loot_table": [
                     {"type": "table", "table": "equipment", "rarity": "Common"}
+                ]
+            },
+            {
+                "name": "LEDF Weapons Supply Crate",
+                "description": "A weapons supply crate for LEDF forces",
+                "rarity": "Uncommon",
+                "locked": false,
+                "pulls": {"min": 3, "max": 6},
+                "loot_table": [
+                    {"type": "id", "id": 64, "rarity": "Common"},
+                    {"type": "id", "id": 65, "rarity": "Common"},
+                    {"type": "id", "id": 40, "rarity": "Legendary"},
+                    {"type": "id", "id": 44, "rarity": "Rare"},
+                    {"type": "id", "id": 337, "rarity": "Legendary"},
+                    {"type": "id", "id": 344, "rarity": "Legendary"},
+                    {"type": "id", "id": 349, "rarity": "Mythic"},
+                    {"type": "id", "id": 66, "rarity": "Common"},
+                    {"type": "id", "id": 67, "rarity": "Common"},
+                    {"type": "id", "id": 72, "rarity": "Uncommon"},
+                    {"type": "id", "id": 73, "rarity": "Uncommon"},
+                    {"type": "id", "id": 81, "rarity": "Rare"},
+                    {"type": "id", "id": 77, "rarity": "Common"},
+                    {"type": "id", "id": 78, "rarity": "Common"},
+                    {"type": "id", "id": 79, "rarity": "Common"}
+                ]
+            },
+            {
+                "name": "LEDF Ammunition Crate",
+                "description": "A crate containing various types of ammunition for LEDF forces",
+                "rarity": "Uncommon",
+                "locked": false,
+                "pulls": {"min": 3, "max": 6},
+                "loot_table": [
+                    {"type": "id", "id": 85, "rarity": "Mythic"},
+                    {"type": "id", "id": 82, "rarity": "Common"},
+                    {"type": "id", "id": 83, "rarity": "Uncommon"},
+                    {"type": "id", "id": 71, "rarity": "Rare"},
+                    {"type": "id", "id": 70, "rarity": "Uncommon"},
+                    {"type": "id", "id": 69, "rarity": "Uncommon"},
+                    {"type": "id", "id": 68, "rarity": "Common"},
+                    {"type": "id", "id": 42, "rarity": "Rare"},
+                    {"type": "id", "id": 338, "rarity": "Legendary"},
+                    {"type": "id", "id": 348, "rarity": "Mythic"}
+                ]
+            },
+            {
+                "name": "LEDF Magazine Crate",
+                "description": "A crate containing various magazines for LEDF forces",
+                "rarity": "Uncommon",
+                "locked": false,
+                "pulls": {"min": 3, "max": 6},
+                "loot_table": [
+                    {"type": "id", "id": 12, "rarity": "Common"},
+                    {"type": "id", "id": 13, "rarity": "Common"},
+                    {"type": "id", "id": 14, "rarity": "Uncommon"},
+                    {"type": "id", "id": 15, "rarity": "Uncommon"},
+                    {"type": "id", "id": 16, "rarity": "Rare"},
+                    {"type": "id", "id": 17, "rarity": "Legendary"}
+                ]
+            },
+            {
+                "name": "LEDF Attachments Crate",
+                "description": "A crate containing various weapon attachments for LEDF forces",
+                "rarity": "Uncommon",
+                "locked": false,
+                "pulls": {"min": 3, "max": 6},
+                "loot_table": [
+                    {"type": "id", "id": 5, "rarity": "Common"},
+                    {"type": "id", "id": 6, "rarity": "Common"},
+                    {"type": "id", "id": 8, "rarity": "Uncommon"},
+                    {"type": "id", "id": 9, "rarity": "Uncommon"},
+                    {"type": "id", "id": 38, "rarity": "Mythic"},
+                    {"type": "id", "id": 74, "rarity": "Legendary"},
+                    {"type": "id", "id": 80, "rarity": "Rare"},
+                    {"type": "id", "id": 94, "rarity": "Uncommon"},
+                    {"type": "id", "id": 108, "rarity": "Uncommon"},
+                    {"type": "id", "id": 109, "rarity": "Common"},
+                    {"type": "id", "id": 110, "rarity": "Common"},
+                    {"type": "id", "id": 111, "rarity": "Common"},
+                    {"type": "id", "id": 118, "rarity": "Uncommon"},
+                    {"type": "id", "id": 122, "rarity": "Uncommon"},
+                    {"type": "id", "id": 124, "rarity": "Common"},
+                    {"type": "id", "id": 125, "rarity": "Uncommon"},
+                    {"type": "id", "id": 201, "rarity": "Legendary"},
+                    {"type": "id", "id": 207, "rarity": "Rare"},
+                    {"type": "id", "id": 208, "rarity": "Rare"},
+                    {"type": "id", "id": 213, "rarity": "Rare"},
+                    {"type": "id", "id": 214, "rarity": "Rare"},
+                    {"type": "id", "id": 215, "rarity": "Rare"},
+                    {"type": "id", "id": 216, "rarity": "Rare"},
+                    {"type": "id", "id": 219, "rarity": "Rare"},
+                    {"type": "id", "id": 221, "rarity": "Uncommon"},
+                    {"type": "id", "id": 222, "rarity": "Uncommon"},
+                    {"type": "id", "id": 223, "rarity": "Uncommon"},
+                    {"type": "id", "id": 225, "rarity": "Uncommon"},
+                    {"type": "id", "id": 226, "rarity": "Uncommon"},
+                    {"type": "id", "id": 227, "rarity": "Uncommon"},
+                    {"type": "id", "id": 234, "rarity": "Uncommon"},
+                    {"type": "id", "id": 341, "rarity": "Mythic"},
+                    {"type": "id", "id": 342, "rarity": "Mythic"},
+                    {"type": "id", "id": 343, "rarity": "Mythic"},
+                    {"type": "id", "id": 367, "rarity": "Mythic"},
+                    {"type": "id", "id": 368, "rarity": "Mythic"},
+                    {"type": "id", "id": 386, "rarity": "Rare"},
+                    {"type": "id", "id": 107, "rarity": "Rare"}
+                ]
+            },
+            {
+                "name": "LEDF Equipment Crate",
+                "description": "A crate containing various equipment for LEDF forces",
+                "rarity": "Uncommon",
+                "locked": false,
+                "pulls": {"min": 6, "max": 9},
+                "loot_table": [
+                    {"type": "id", "id": 23, "rarity": "Common"},
+                    {"type": "id", "id": 252, "rarity": "Common"},
+                    {"type": "id", "id": 253, "rarity": "Uncommon"},
+                    {"type": "id", "id": 255, "rarity": "Uncommon"},
+                    {"type": "id", "id": 257, "rarity": "Common"},
+                    {"type": "id", "id": 258, "rarity": "Common"},
+                    {"type": "id", "id": 259, "rarity": "Common"},
+                    {"type": "id", "id": 260, "rarity": "Common"},
+                    {"type": "id", "id": 281, "rarity": "Mythic"},
+                    {"type": "id", "id": 282, "rarity": "Legendary"},
+                    {"type": "id", "id": 25, "rarity": "Common"},
+                    {"type": "id", "id": 26, "rarity": "Common"},
+                    {"type": "id", "id": 27, "rarity": "Common"},
+                    {"type": "id", "id": 28, "rarity": "Common"},
+                    {"type": "id", "id": 29, "rarity": "Common"},
+                    {"type": "id", "id": 30, "rarity": "Uncommon"},
+                    {"type": "id", "id": 31, "rarity": "Common"},
+                    {"type": "id", "id": 32, "rarity": "Common"},
+                    {"type": "id", "id": 33, "rarity": "Uncommon"},
+                    {"type": "id", "id": 34, "rarity": "Common"},
+                    {"type": "id", "id": 35, "rarity": "Common"},
+                    {"type": "id", "id": 37, "rarity": "Rare"},
+                    {"type": "id", "id": 43, "rarity": "Rare"},
+                    {"type": "id", "id": 92, "rarity": "Uncommon"},
+                    {"type": "id", "id": 93, "rarity": "Uncommon"},
+                    {"type": "id", "id": 95, "rarity": "Rare"},
+                    {"type": "id", "id": 97, "rarity": "Common"},
+                    {"type": "id", "id": 235, "rarity": "Common"},
+                    {"type": "id", "id": 237, "rarity": "Uncommon"},
+                    {"type": "id", "id": 323, "rarity": "Rare"},
+                    {"type": "id", "id": 289, "rarity": "Mythic"},
+                    {"type": "id", "id": 18, "rarity": "Legendary"},
+                    {"type": "id", "id": 19, "rarity": "Legendary"},
+                    {"type": "id", "id": 20, "rarity": "Legendary"},
+                    {"type": "id", "id": 21, "rarity": "Legendary"}
                 ]
             }
         ],
