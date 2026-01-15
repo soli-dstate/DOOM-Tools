@@ -1,5 +1,8 @@
 version = "1.0.7"
 
+# TODO: add support for armory
+# TODO: fix subslots of subslots
+
 import os
 import logging
 import re

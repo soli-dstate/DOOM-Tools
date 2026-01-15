@@ -8267,6 +8267,33 @@
                 ],
                 "can_stack": false,
                 "infinite_ammo": true
+            },
+            {
+                "name": "Accuracy International Arctic Warfare Police",
+                "value": 4000,
+                "description": "A bolt-action sniper rifle chambered in 7.62x51mm NATO. Known for its extreme accuracy and long-range capabilities.",
+                "rarity": "Legendary",
+                "random_quantity": false,
+                "weight": 6,
+                "id": 441,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "AWP",
+                "caliber": ["7.62x51mm NATO"],
+                "action": ["Bolt"],
+                "bolt": "closed",
+                "cyclic": 40,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "AW",
+                "jamrate": 0.001,
+                "accessories": [
+                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": {"name":"Leopuld VX-6HD GEN 2 3-18x50mm Scope","value":1500,"description":"High magnification variable optic providing enhanced target acquisition at long ranges. Mounts to a picatinny rail.","rarity":"Rare","random_quantity":false,"weight":0.75,"id":107,"attachment":true,"slot":"picatinny_optic","modes":[{"name":"3x","type":"magnification","usage":null,"modifiers":{"stats":{"aim":1},"night_vision_compatible":false},"position":0},{"name":"6x","type":"magnification","usage":null,"modifiers":{"stats":{"aim":2},"night_vision_compatible":false},"position":45},{"name":"9x","type":"magnification","usage":null,"modifiers":{"stats":{"aim":3},"night_vision_compatible":false},"position":90},{"name":"12x","type":"magnification","usage":null,"modifiers":{"stats":{"aim":4},"night_vision_compatible":false},"position":135},{"name":"15x","type":"magnification","usage":null,"modifiers":{"stats":{"aim":5},"night_vision_compatible":false},"position":180},{"name":"18x","type":"magnification","usage":null,"modifiers":{"stats":{"aim":6},"night_vision_compatible":false},"position":225},{"mode_method":"dial"}],"can_stack":false,"in_armory":true}},
+                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
+                ],
+                "can_stack": false,
+                "infinite_ammo": true,
+                "mag_to_load": 338
             }
         ],
         "equipment": [
