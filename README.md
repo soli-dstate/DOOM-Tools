@@ -13,3 +13,5 @@ pyperclip (https://github.com/asweigart/pyperclip)
 Other miscellaneous files were derived from open sources, as follows;
 
 CTkThemesPack (https://github.com/a13xe/CTkThemesPack)
+LCD-Font (https://github.com/Palingenesis/LCD-Font)
+
