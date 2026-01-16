@@ -1,6 +1,5 @@
 version = "1.0.7"
 
-# TODO: add support for armory
 # TODO: fix subslots of subslots
 
 import os
@@ -2237,6 +2236,20 @@ class App:
             logging.info(f"Persistent data saved to {persistent_path}")
         except Exception as e:
             logging.error(f"Failed to save persistent data: {e}")
+    def _format_item_name(self, item):
+        try:
+            if not isinstance(item, dict):
+                return str(item)
+            base = item.get('name', 'Unknown')
+            arm = item.get('_from_armory')
+            if arm:
+                return f"{base} (Armory: {arm})"
+            return base
+        except Exception:
+            try:
+                return item.get('name', 'Unknown')
+            except Exception:
+                return 'Unknown'
     def _safe_focus(self, widget):
 
         try:
@@ -5464,7 +5477,7 @@ class App:
             checkbox.select()
             selected_items_checkboxes[i]= checkbox
 
-            item_info_text = f"{item.get('name', 'Unknown')} - {self._format_weight(item.get('weight', 0))}"
+            item_info_text = f"{self._format_item_name(item)} - {self._format_weight(item.get('weight', 0))}"
             if item.get("quantity", 1)>1:
                 item_info_text +=f" x{item.get('quantity')}"
             if item.get("value"):
@@ -5578,7 +5591,7 @@ class App:
                         os.remove(crate_file_path)
                         logging.info(f"Deleted empty loot crate file: {crate_file_path}")
 
-                item_summary = ", ".join([f"{item.get('name', 'Unknown')}"for item in items_to_take])
+                item_summary = ", ".join([f"{self._format_item_name(item)}" for item in items_to_take])
                 logging.info(f"Looted crate '{crate.get('name')}' into {selected_container_name}: {item_summary}")
                 self._popup_show_info("Success", f"Took {len(items_to_take)} item(s) into {selected_container_name}:\n{item_summary}", sound = "success")
                 self._open_loot_tool()
@@ -5613,8 +5626,2222 @@ class App:
         update_weight_display()
 
     def _open_business_tool(self):
-        logging.info("Business definition called")
-        self._popup_show_info("Businesses", "Businesses are under development.")
+        logging.info("Business tool opened")
+        self._clear_window()
+
+        self.root.grid_rowconfigure(0, weight = 1)
+        self.root.grid_columnconfigure(0, weight = 1)
+
+        main_frame = customtkinter.CTkFrame(self.root)
+        main_frame.grid(row = 0, column = 0, sticky = "nsew")
+
+        title_label = customtkinter.CTkLabel(main_frame, text = "Businesses", font = customtkinter.CTkFont(size = 24, weight = "bold"))
+        title_label.pack(pady = 20)
+
+        try:
+            table_files = glob.glob(os.path.join("tables", "*.sldtbl"))
+            if not table_files:
+                self._popup_show_info("Error", "No table files found.", sound = "error")
+                return
+
+            with open(table_files[0], 'r') as f:
+                table_data = json.load(f)
+
+            stores = table_data.get("tables", {}).get("stores", [])
+
+            if not stores:
+                error_label = customtkinter.CTkLabel(main_frame, text = "No businesses available in current table.", font = customtkinter.CTkFont(size = 14), text_color = "orange")
+                error_label.pack(pady = 20)
+                back_button = self._create_sound_button(main_frame, "Back to Main Menu", lambda: [self._clear_window(), self._build_main_menu()], width = 500, height = 50, font = customtkinter.CTkFont(size = 16))
+                back_button.pack(pady = 20)
+                return
+
+            scroll_frame = customtkinter.CTkScrollableFrame(main_frame)
+            scroll_frame.pack(fill = "both", expand = True, padx = 20, pady = 20)
+
+            armories = [s for s in stores if s.get("type") == "armory"]
+            regular_stores = [s for s in stores if s.get("type") == "store"]
+
+            if armories:
+                armory_section = customtkinter.CTkLabel(scroll_frame, text = "Armories", font = customtkinter.CTkFont(size = 18, weight = "bold"))
+                armory_section.pack(pady = (10, 10), anchor = "w", padx = 10)
+
+                for store in armories:
+                    store_frame = customtkinter.CTkFrame(scroll_frame)
+                    store_frame.pack(fill = "x", pady = 10, padx = 10)
+
+                    name_label = customtkinter.CTkLabel(store_frame, text = store.get("name", "Unknown Armory"), font = customtkinter.CTkFont(size = 14, weight = "bold"))
+                    name_label.pack(anchor = "w", padx = 10, pady = (10, 5))
+
+                    shopkeeper = store.get("shopkeeper", "Unknown")
+                    shopkeeper_label = customtkinter.CTkLabel(store_frame, text = f"Quartermaster: {shopkeeper}", font = customtkinter.CTkFont(size = 11), text_color = "gray")
+                    shopkeeper_label.pack(anchor = "w", padx = 10)
+
+                    points = store.get("armory_points", "disabled")
+                    if points != "disabled":
+                        points_label = customtkinter.CTkLabel(store_frame, text = f"Points: {points} (resets at 7 PM CST)", font = customtkinter.CTkFont(size = 11), text_color = "orange")
+                        points_label.pack(anchor = "w", padx = 10)
+                    else:
+                        points_label = customtkinter.CTkLabel(store_frame, text = "Unlimited requisitions", font = customtkinter.CTkFont(size = 11), text_color = "green")
+                        points_label.pack(anchor = "w", padx = 10)
+
+                    enter_button = self._create_sound_button(store_frame, "Enter Armory", lambda s = store: self._open_armory_interface(s, table_data), width = 200, height = 40, font = customtkinter.CTkFont(size = 12))
+                    enter_button.pack(pady = 10, padx = 10)
+
+            if regular_stores:
+                store_section = customtkinter.CTkLabel(scroll_frame, text = "Stores", font = customtkinter.CTkFont(size = 18, weight = "bold"))
+                store_section.pack(pady = (20, 10), anchor = "w", padx = 10)
+
+                for store in regular_stores:
+                    store_frame = customtkinter.CTkFrame(scroll_frame)
+                    store_frame.pack(fill = "x", pady = 10, padx = 10)
+
+                    name_label = customtkinter.CTkLabel(store_frame, text = store.get("name", "Unknown Store"), font = customtkinter.CTkFont(size = 14, weight = "bold"))
+                    name_label.pack(anchor = "w", padx = 10, pady = (10, 5))
+
+                    shopkeeper = store.get("shopkeeper", "Unknown")
+                    shopkeeper_label = customtkinter.CTkLabel(store_frame, text = f"Shopkeeper: {shopkeeper}", font = customtkinter.CTkFont(size = 11), text_color = "gray")
+                    shopkeeper_label.pack(anchor = "w", padx = 10)
+
+                    prices = store.get("prices", {})
+                    buy_mult = prices.get("buy", 1.0)
+                    sell_mult = prices.get("sell", 1.0)
+                    prices_label = customtkinter.CTkLabel(store_frame, text = f"Buy: {buy_mult}x value | Sell: {sell_mult}x value", font = customtkinter.CTkFont(size = 11), text_color = "orange")
+                    prices_label.pack(anchor = "w", padx = 10)
+
+                    if store.get("accepts_trades"):
+                        trades_label = customtkinter.CTkLabel(store_frame, text = "Accepts trades", font = customtkinter.CTkFont(size = 11), text_color = "green")
+                        trades_label.pack(anchor = "w", padx = 10)
+
+                    enter_button = self._create_sound_button(store_frame, "Enter Store", lambda s = store: self._open_store_interface(s, table_data), width = 200, height = 40, font = customtkinter.CTkFont(size = 12))
+                    enter_button.pack(pady = 10, padx = 10)
+
+            back_button = self._create_sound_button(main_frame, "Back to Main Menu", lambda: [self._clear_window(), self._build_main_menu()], width = 500, height = 50, font = customtkinter.CTkFont(size = 16))
+            back_button.pack(pady = 20)
+
+        except Exception as e:
+            logging.error(f"Failed to open business tool: {e}")
+            self._popup_show_info("Error", f"Failed to load businesses: {e}", sound = "error")
+
+    def _get_armory_points_status(self, store_name):
+        """Get the current armory points status, checking if they should reset (7 PM CST daily)"""
+        import pytz
+        from datetime import datetime, timedelta
+
+        try:
+            cst = pytz.timezone('US/Central')
+            now_cst = datetime.now(cst)
+
+            reset_time_today = now_cst.replace(hour = 19, minute = 0, second = 0, microsecond = 0)
+
+            if now_cst >= reset_time_today:
+                last_reset = reset_time_today
+            else:
+                last_reset = reset_time_today - timedelta(days = 1)
+
+            armory_key = f"armory_points_{store_name}"
+            last_reset_key = f"armory_reset_{store_name}"
+
+            stored_reset = persistentdata.get(last_reset_key)
+            if stored_reset:
+                try:
+                    stored_reset_dt = datetime.fromisoformat(stored_reset)
+                    if stored_reset_dt.tzinfo is None:
+                        stored_reset_dt = cst.localize(stored_reset_dt)
+                except Exception:
+                    stored_reset_dt = None
+            else:
+                stored_reset_dt = None
+
+            if stored_reset_dt is None or stored_reset_dt < last_reset:
+                persistentdata[last_reset_key] = last_reset.isoformat()
+                persistentdata[armory_key] = None
+                self._save_persistent_data()
+                return None
+
+            return persistentdata.get(armory_key)
+
+        except Exception as e:
+            logging.warning(f"Failed to check armory points reset: {e}")
+            return persistentdata.get(f"armory_points_{store_name}")
+
+    def _set_armory_points_used(self, store_name, points_used):
+        """Set the armory points used for a store"""
+        armory_key = f"armory_points_{store_name}"
+        persistentdata[armory_key] = points_used
+        self._save_persistent_data()
+
+    def _start_business_music(self, playlists, first_play: bool = False):
+        """Start playing background music from the specified playlists.
+        If `first_play` is True the first selected track will start at a random position;
+        subsequent tracks will start at the beginning.
+        """
+        try:
+            if not playlists:
+                return None
+
+            all_tracks = []
+            for playlist in playlists:
+                music_folder = os.path.join("sounds", "music", playlist)
+                if os.path.exists(music_folder):
+                    tracks = glob.glob(os.path.join(music_folder, "track*.ogg"))
+                    all_tracks.extend(tracks)
+
+            if all_tracks:
+                prev = getattr(self, "_last_business_music_track", None)
+                # avoid immediately replaying the same track when possible
+                if len(all_tracks) > 1 and prev in all_tracks:
+                    choices = [t for t in all_tracks if t != prev]
+                    track = random.choice(choices) if choices else random.choice(all_tracks)
+                else:
+                    track = random.choice(all_tracks)
+                try:
+                    self._last_business_music_track = track
+                except Exception:
+                    pass
+                
+                try:
+                    sound = pygame.mixer.Sound(track)
+                    track_length = sound.get_length()
+                except Exception:
+                    track_length = 60.0
+                
+                random_start = 0.0
+                if first_play:
+                    try:
+                        random_start = random.uniform(0, max(0, track_length - 10))
+                    except Exception:
+                        random_start = 0.0
+
+                pygame.mixer.music.load(track)
+                pygame.mixer.music.set_volume(0.3)
+                # play once; when it ends we'll start the next track via a poll loop
+                pygame.mixer.music.play(loops = 0, start = random_start)
+
+                logging.info(f"Started business music: {os.path.basename(track)} at {random_start:.1f}s")
+                music_info = {"track": track, "playlist": playlists, "start_pos": random_start, "started_at": time.time()}
+
+                # store current music info on the app so UI (marquee) can read live state
+                try:
+                    self._current_business_music = music_info
+                except Exception:
+                    pass
+                try:
+                    logging.debug(f"_start_business_music set _current_business_music -> {os.path.basename(track)} start={random_start:.1f}")
+                except Exception:
+                    pass
+
+                # cancel any existing poll job
+                try:
+                    existing = getattr(self, "_music_poll_job", None)
+                    if existing:
+                        try:
+                            self.root.after_cancel(existing)
+                        except Exception:
+                            pass
+                        self._music_poll_job = None
+                except Exception:
+                    pass
+
+                # poll for track end and start another when finished
+                def _poll_music():
+                    try:
+                        if not pygame.mixer.music.get_busy():
+                            # start a new track from the same playlists
+                            try:
+                                # subsequent tracks should start at the beginning
+                                logging.debug("business music finished, starting next track")
+                                self._start_business_music(playlists, first_play = False)
+                            except Exception:
+                                pass
+                        else:
+                            # continue polling
+                            self._music_poll_job = self.root.after(1000, _poll_music)
+                    except Exception:
+                        pass
+
+                try:
+                    self._music_poll_job = self.root.after(1000, _poll_music)
+                except Exception:
+                    self._music_poll_job = None
+
+                return music_info
+        except Exception as e:
+            logging.warning(f"Failed to start business music: {e}")
+        return None
+
+    def _stop_business_music(self, music_info):
+        """Stop the business music"""
+        try:
+            # cancel poll job if present
+            try:
+                job = getattr(self, "_music_poll_job", None)
+                if job:
+                    try:
+                        self.root.after_cancel(job)
+                    except Exception:
+                        pass
+                    self._music_poll_job = None
+            except Exception:
+                pass
+
+            pygame.mixer.music.stop()
+            try:
+                pygame.mixer.music.unload()
+            except Exception:
+                pass
+            try:
+                # clear current music info so UI knows nothing is playing
+                if hasattr(self, "_current_business_music"):
+                    self._current_business_music = None
+            except Exception:
+                pass
+        except Exception:
+            pass
+
+    def _open_armory_interface(self, store, table_data):
+        """Open the armory interface for requisitioning items"""
+        logging.info(f"Opening armory: {store.get('name')}")
+
+        music_channel = None
+        if store.get("music") and store.get("playlist"):
+            music_channel = self._start_business_music(store.get("playlist"), first_play = True)
+
+        self._clear_window()
+
+        self.root.grid_rowconfigure(0, weight = 1)
+        self.root.grid_columnconfigure(0, weight = 1)
+
+        main_frame = customtkinter.CTkFrame(self.root)
+        main_frame.grid(row = 0, column = 0, sticky = "nsew")
+        main_frame.grid_columnconfigure(0, weight = 1)
+        main_frame.grid_rowconfigure(1, weight = 1)
+
+        header_frame = customtkinter.CTkFrame(main_frame, fg_color = "transparent")
+        header_frame.grid(row = 0, column = 0, sticky = "ew", padx = 20, pady = 10)
+
+        title_label = customtkinter.CTkLabel(header_frame, text = store.get("name", "Armory"), font = customtkinter.CTkFont(size = 24, weight = "bold"))
+        title_label.pack(pady = (10, 5))
+
+        shopkeeper_label = customtkinter.CTkLabel(header_frame, text = f"Quartermaster: {store.get('shopkeeper', 'Unknown')}", font = customtkinter.CTkFont(size = 14), text_color = "gray")
+        shopkeeper_label.pack()
+
+        max_points = store.get("armory_points", "disabled")
+        points_used = self._get_armory_points_status(store.get("name", "Unknown")) or 0
+
+        if max_points != "disabled":
+            overflow_key = f"armory_overflow_{store.get('name','Unknown')}"
+            overflow_amt = persistentdata.get(overflow_key, 0) or 0
+            remaining_points = max_points + overflow_amt - points_used
+            points_label = customtkinter.CTkLabel(header_frame, text = f"Requisition Points: {remaining_points}/{max_points} (+{overflow_amt} overflow) (resets 7 PM CST)", font = customtkinter.CTkFont(size = 14), text_color = "orange")
+            points_label.pack(pady = 5)
+        else:
+            remaining_points = float('inf')
+            points_label = customtkinter.CTkLabel(header_frame, text = "Unlimited Requisitions", font = customtkinter.CTkFont(size = 14), text_color = "green")
+            points_label.pack(pady = 5)
+
+        # Marquee / now-playing display for business music
+        marquee_label = None
+        marquee_job: list[object] = [None]
+
+        def _get_track_info(track_path):
+            artist = None
+            title = None
+            length = None
+            try:
+                logging.debug(f"_get_track_info called for: {os.path.basename(track_path or '')}")
+            except Exception:
+                pass
+            try:
+                # get length via pygame if possible
+                try:
+                    sound = pygame.mixer.Sound(track_path)
+                    length = float(sound.get_length())
+                except Exception:
+                    length = None
+
+                # try reading metadata via mutagen if available
+                try:
+                    from mutagen._file import File as MutagenFile
+                    mf = MutagenFile(track_path)
+                    if mf is not None:
+                        tags = getattr(mf, 'tags', {}) or {}
+                        # common tag names
+                        def _get_tag(keys):
+                            for k in keys:
+                                v = tags.get(k)
+                                if v:
+                                    try:
+                                        if isinstance(v, (list, tuple)):
+                                            return str(v[0])
+                                        return str(v)
+                                    except Exception:
+                                        return str(v)
+                            return None
+                        artist = _get_tag(["artist", "ARTIST", "TPE1"])
+                        title = _get_tag(["title", "TITLE", "TIT2"])
+                except Exception:
+                    pass
+
+            except Exception:
+                pass
+
+            # fallback to filename for title
+            if not title:
+                try:
+                    title = os.path.basename(track_path or "")
+                except Exception:
+                    title = "Unknown"
+
+            return {"artist": artist, "title": title, "length": length}
+
+        def stop_ui_music():
+            try:
+                if marquee_job[0]:
+                    try:
+                        self.root.after_cancel(marquee_job[0])  # type: ignore[arg-type]
+                    except Exception:
+                        pass
+                    marquee_job[0] = None
+            except Exception:
+                pass
+            try:
+                self._stop_business_music(music_channel)
+            except Exception:
+                pass
+
+        # create marquee if music started
+        if music_channel and music_channel.get("track"):
+            try:
+                # use live app-level music info so marquee updates when track changes
+                marquee_frame = customtkinter.CTkFrame(header_frame, fg_color = "black")
+                # pack anchored left so frame width matches label content
+                # fixed-width, centered marquee bar
+                marquee_frame.pack(pady = (6, 0))
+                try:
+                    marquee_frame.configure(width = 500)
+                    # prevent children from forcing the frame to resize
+                    try:
+                        marquee_frame.pack_propagate(False)
+                    except Exception:
+                        pass
+                except Exception:
+                    pass
+                try:
+                    # attempt to temporarily load bundled TTF so it's usable without system install
+                    label_font = None
+                    try:
+                        import ctypes
+                        import tkinter.font as tkfont
+                        fp = os.path.join(os.path.dirname(__file__), "fonts", "Tims_8x5_LCD_Matrix.ttf")
+                        if os.path.exists(fp) and hasattr(ctypes, 'windll'):
+                            try:
+                                FR_PRIVATE = 0x10
+                                ctypes.windll.gdi32.AddFontResourceExW(fp, FR_PRIVATE, 0)
+                            except Exception:
+                                pass
+                            # refresh families and pick a matching name
+                            try:
+                                self.root.update_idletasks()
+                                fams = list(tkfont.families())
+                                for f in fams:
+                                    if any(x in f.lower() for x in ("tims", "8x5", "lcd")):
+                                        label_font = customtkinter.CTkFont(size = 12, family = f)
+                                        break
+                            except Exception:
+                                pass
+                    except Exception:
+                        pass
+                    if not label_font:
+                        label_font = customtkinter.CTkFont(size = 12)
+                except Exception:
+                    label_font = customtkinter.CTkFont(size = 12)
+                marquee_label = customtkinter.CTkLabel(marquee_frame, text = "", anchor = "w", font = label_font, width = 480, height = 26, text_color = "#7CFC00")
+                marquee_label.pack(anchor = "center", padx = 4)
+                try:
+                    marquee_debug_label = customtkinter.CTkLabel(marquee_frame, text = "", anchor = "w", font = customtkinter.CTkFont(size = 9, weight = "bold"), text_color = "#FFFF00")
+                    marquee_debug_label.pack(anchor = "center", padx = 4, pady = (2,0))
+                except Exception:
+                    marquee_debug_label = None
+                try:
+                    self.root.update_idletasks()
+                    lh = marquee_label.winfo_reqheight() or marquee_label.winfo_height()
+                    if lh:
+                        try:
+                            marquee_frame.configure(height = lh)
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+
+                pos = [0]
+
+                def _fmt_time(s):
+                    try:
+                        s = max(0, int(s))
+                        return f"{s//60}:{s%60:02d}"
+                    except Exception:
+                        return "0:00"
+
+                def _update_marquee():
+                    try:
+                        current = getattr(self, "_current_business_music", music_channel)
+                        if not current:
+                            marquee_label.configure(text = "")
+                            return
+
+                        track_path = current.get("track")
+                        meta_info = current.get("_meta")
+                        if meta_info:
+                            base_artist = meta_info.get("artist") or ""
+                            base_title = meta_info.get("title") or os.path.basename(track_path or "")
+                            total = meta_info.get("length") or 0.0
+                        else:
+                            base_artist = ""
+                            base_title = os.path.basename(track_path or "")
+                            total = 0.0
+                            # kick off a background load once
+                            try:
+                                if not current.get("_meta_loading"):
+                                    current["_meta_loading"] = True
+                                    def _bg_load():
+                                        try:
+                                            info = _get_track_info(track_path)
+                                            def _apply():
+                                                try:
+                                                    try:
+                                                        logging.debug(f"applying _meta (bg_load): {os.path.basename((current or {}).get('track') or '')} -> title={info.get('title')} artist={info.get('artist')}")
+                                                    except Exception:
+                                                        pass
+                                                    try:
+                                                        target = getattr(self, "_current_business_music", None)
+                                                        if target is None:
+                                                            # fallback to updating the captured current dict
+                                                            target = current
+                                                        if target is not None:
+                                                                target.update({"_meta": info})
+                                                                try:
+                                                                    logging.debug(f"triggering marquee refresh after applying meta for {os.path.basename((target or {}).get('track') or '')}")
+                                                                except Exception:
+                                                                    pass
+                                                                try:
+                                                                    # ensure marquee sees the new meta immediately
+                                                                    self.root.after(0, _update_marquee)
+                                                                except Exception:
+                                                                    pass
+                                                    except Exception:
+                                                        try:
+                                                            logging.exception("failed to apply _meta in bg_load for store marquee")
+                                                        except Exception:
+                                                            pass
+                                                except Exception:
+                                                    try:
+                                                        logging.exception("unexpected error in _apply for bg_load")
+                                                    except Exception:
+                                                        pass
+                                            try:
+                                                logging.debug(f"scheduling _apply via root.after for track {os.path.basename((getattr(self,'_current_business_music', current) or {}).get('track') or '')}")
+                                            except Exception:
+                                                pass
+                                            self.root.after(0, _apply)
+                                        except Exception:
+                                            pass
+                                        finally:
+                                            try:
+                                                current.pop("_meta_loading", None)
+                                            except Exception:
+                                                pass
+                                    import threading
+                                    try:
+                                        logging.debug("starting background _bg_load thread for store marquee (in _update_marquee)")
+                                    except Exception:
+                                        pass
+                                    threading.Thread(target=_bg_load, daemon=True).start()
+                            except Exception:
+                                pass
+
+                        started = current.get("started_at") or time.time()
+                        start_offset = current.get("start_pos") or 0.0
+                        elapsed = (time.time() - started) + float(start_offset)
+
+                        # display elapsed (count-up) rather than remaining
+                        elapsed_display = _fmt_time(elapsed)
+                        total_fmt = _fmt_time(total)
+
+                        meta = f"{base_artist} | {base_title} | {elapsed_display}/{total_fmt}" if (base_artist or base_title) else os.path.basename(track_path or "")
+
+                        # determine visible character width based on label pixel width
+                        try:
+                            self.root.update_idletasks()
+                            label_px = marquee_label.winfo_width() or int(marquee_label.cget("width") or 480)
+                        except Exception:
+                            label_px = int(marquee_label.cget("width") or 480)
+
+                        avg_char_px = 8
+                        visible_chars = max(8, int(label_px / max(1, avg_char_px)))
+
+                        scrollfull = "   " + meta + "   "
+                        if len(scrollfull) < visible_chars:
+                            scrollfull = scrollfull + (" " * (visible_chars - len(scrollfull) + 2))
+
+                        # render only the visible window of characters so text scrolls across full bar
+                        doubled = (scrollfull * 3)
+                        display = doubled[pos[0]: pos[0] + visible_chars]
+                        marquee_label.configure(text = display)
+                        pos[0] = (pos[0] + 1) % max(1, len(scrollfull))
+                        try:
+                            # slow down updates for long strings so scrolling appears smooth
+                            len_scroll = max(1, len(scrollfull))
+                            delay_ms = int(min(500, max(60, 80 + (len_scroll * 4))))
+                        except Exception:
+                            delay_ms = 220
+                        marquee_job[0] = self.root.after(delay_ms, _update_marquee)
+                    except Exception:
+                        try:
+                            marquee_label.configure(text = os.path.basename((getattr(self, "_current_business_music", music_channel) or {}).get("track") or ""))
+                        except Exception:
+                            pass
+                # load metadata off the main thread to avoid hitching the UI
+                try:
+                    import threading
+                    def _load_meta():
+                        try:
+                            cur = getattr(self, "_current_business_music", music_channel)
+                            if not cur:
+                                return
+                            info = _get_track_info(cur.get("track"))
+                            def _apply():
+                                try:
+                                    # update stored info so _update_marquee will use it
+                                    cur.update({"_meta": info})
+                                except Exception:
+                                    pass
+                            self.root.after(0, _apply)
+                        except Exception:
+                            pass
+                    try:
+                        import threading
+                        try:
+                            logging.debug("starting initial background _load_meta thread for store marquee")
+                        except Exception:
+                            pass
+                        threading.Thread(target=_load_meta, daemon=True).start()
+                    except Exception:
+                        pass
+                except Exception:
+                    pass
+
+                _update_marquee()
+            except Exception:
+                pass
+
+        save_path = os.path.join(saves_folder or "", (currentsave or "") + ".sldsv")
+        save_data = self._load_file((currentsave or "") + ".sldsv")
+        if save_data is None:
+            self._popup_show_info("Error", "Failed to load character data.", sound = "error")
+            try:
+                self._stop_business_music(music_channel)
+            except Exception:
+                pass
+            return
+
+        equipped_weapons = self._get_equipped_weapons(save_data, table_data)
+        equipped_calibers = set()
+        equipped_magazine_systems = set()
+
+        for wpn in equipped_weapons:
+            item = wpn.get("item", {})
+            calibers = item.get("caliber", [])
+            if isinstance(calibers, str):
+                calibers = [calibers]
+            for cal in calibers:
+                equipped_calibers.add(cal)
+
+            mag_system = item.get("magazinesystem")
+            if mag_system:
+                equipped_magazine_systems.add(mag_system)
+
+        # collect accessory/attachment slot names available on equipped weapons
+        equipped_attachment_slots = set()
+        for wpn in equipped_weapons:
+            for acc in (wpn.get('accessories') or []):
+                try:
+                    slot = acc.get('slot')
+                    if slot:
+                        equipped_attachment_slots.add(slot)
+                except Exception:
+                    pass
+
+        armory_items = []
+        tables = table_data.get("tables", {})
+        for table_name, items in tables.items():
+            if isinstance(items, list):
+                for item in items:
+                    if isinstance(item, dict) and item.get("in_armory"):
+                        item_copy = item.copy()
+                        item_copy["_table_category"] = table_name
+                        armory_items.append(item_copy)
+
+        categories = {}
+        for item in armory_items:
+            cat = item.get("armory_category", "Uncategorized")
+            if cat not in categories:
+                categories[cat] = []
+            categories[cat].append(item)
+
+        content_frame = customtkinter.CTkFrame(main_frame)
+        content_frame.grid(row = 1, column = 0, sticky = "nsew", padx = 20, pady = 10)
+        # layout: [category_frame][subcat_scroll][items_frame/content_right]
+        content_frame.grid_columnconfigure(0, weight = 0)
+        content_frame.grid_columnconfigure(1, weight = 0)
+        content_frame.grid_columnconfigure(2, weight = 1)
+        content_frame.grid_rowconfigure(0, weight = 1)
+
+        category_frame = customtkinter.CTkScrollableFrame(content_frame, width = 200)
+        category_frame.grid(row = 0, column = 0, sticky = "ns", padx = (0, 10))
+
+        # placeholder for subcategory column (will be created later and parented to content_frame)
+        # Use a plain frame here and create a CTkScrollableFrame for item lists per-category
+        items_frame = customtkinter.CTkFrame(content_frame)
+        items_frame.grid(row = 0, column = 2, sticky = "nsew")
+
+        cart = []
+        cart_points = [0]
+        # track the subcategory scroll widget so we can remove it when not needed
+        subcat_scroll = None
+        # track the scrollable frame used to render items (created per-category)
+        items_scroll = None
+
+        def update_cart_display():
+            if max_points != "disabled":
+                overflow_key = f"armory_overflow_{store.get('name','Unknown')}"
+                overflow_amt = persistentdata.get(overflow_key, 0) or 0
+                current_remaining = max_points + overflow_amt - points_used - cart_points[0]
+                points_label.configure(text = f"Requisition Points: {current_remaining}/{max_points} (+{overflow_amt} overflow) (Cart: {cart_points[0]} pts)")
+            else:
+                points_label.configure(text = f"Unlimited Requisitions (Cart: {len(cart)} items)")
+
+        def show_category_items(category_name):
+            nonlocal subcat_scroll, items_scroll
+            # clean up any previous subcategory or items scroll areas so we don't leave extra scrollbars
+            try:
+                if subcat_scroll is not None:
+                    try:
+                        subcat_scroll.grid_forget()
+                    except Exception:
+                        pass
+                    try:
+                        subcat_scroll.destroy()
+                    except Exception:
+                        pass
+                    subcat_scroll = None
+            except Exception:
+                pass
+            try:
+                if items_scroll is not None:
+                    try:
+                        items_scroll.pack_forget()
+                    except Exception:
+                        pass
+                    try:
+                        items_scroll.destroy()
+                    except Exception:
+                        pass
+                    items_scroll = None
+            except Exception:
+                pass
+            try:
+                # also clear any remaining children of items_frame
+                for widget in items_frame.winfo_children():
+                    try:
+                        widget.destroy()
+                    except Exception:
+                        try:
+                            widget.grid_forget()
+                        except Exception:
+                            pass
+            except Exception:
+                pass
+
+            # update selected category border
+            try:
+                selected_category[0] = category_name
+                for name, btn in category_buttons.items():
+                    try:
+                        if name == category_name:
+                            btn.configure(border_color = "white", border_width = 2)
+                        else:
+                            btn.configure(border_width = 0)
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+
+            cat_items = categories.get(category_name, [])
+
+            # For multi-subcategory layout the title will be created in the right content pane;
+            # for single-subcategory we create it later inside the single branch to avoid
+            # mixing pack and grid on the same parent.
+
+            # Group into subcategories (use armory_subcategory if present)
+            subcats = {}
+            for it in cat_items:
+                sub = it.get("armory_subcategory") or it.get("subtype") or "General"
+                subcats.setdefault(sub, []).append(it)
+
+            # If there are no multiple subcategories, remove any existing subcategory column
+            if len(subcats) <= 1:
+                if subcat_scroll is not None:
+                    try:
+                        subcat_scroll.grid_forget()
+                    except Exception:
+                        pass
+                    try:
+                        subcat_scroll.destroy()
+                    except Exception:
+                        pass
+                    subcat_scroll = None
+                # move items_frame into the center column to give it more room
+                try:
+                    # ensure previous items_scroll is removed
+                    if items_scroll is not None:
+                        try:
+                            items_scroll.pack_forget()
+                        except Exception:
+                            pass
+                        try:
+                            items_scroll.destroy()
+                        except Exception:
+                            pass
+                        items_scroll = None
+                    items_frame.grid(row = 0, column = 1, sticky = "nsew")
+                    content_frame.grid_columnconfigure(1, weight = 1)
+                    content_frame.grid_columnconfigure(2, weight = 0)
+                except Exception:
+                    pass
+
+            subcat_buttons_frame = None
+            selected_subcat = [None]
+
+            def render_item_list(items_list, parent=None):
+                if parent is None:
+                    parent = items_scroll if items_scroll is not None else items_frame
+                for item in items_list:
+                    item_frame = customtkinter.CTkFrame(parent)
+                    item_frame.pack(fill = "x", pady = 5, padx = 10)
+
+                    is_highlighted = False
+                    calibers = item.get("caliber", [])
+                    if isinstance(calibers, str):
+                        calibers = [calibers]
+
+                    if item.get("_table_category") == "ammunition":
+                        for cal in calibers:
+                            if cal in equipped_calibers:
+                                is_highlighted = True
+                                break
+
+                    if item.get("_table_category") == "magazines":
+                        mag_system = item.get("magazinesystem")
+                        if mag_system in equipped_magazine_systems:
+                            for cal in calibers:
+                                if cal in equipped_calibers:
+                                    is_highlighted = True
+                                    break
+
+                    # highlight attachments that fit equipped weapons
+                    if not is_highlighted:
+                        try:
+                            is_attachment = bool(item.get('attachment') or item.get('accessory') or (item.get('_table_category') in ('attachments', 'accessories')))
+                            if is_attachment:
+                                item_slots = item.get('slot') or item.get('attach_to') or item.get('accessory_slot') or item.get('parent_accessory_slot') or []
+                                if isinstance(item_slots, str):
+                                    item_slots = [item_slots]
+                                for s in item_slots:
+                                    if s and s in equipped_attachment_slots:
+                                        is_highlighted = True
+                                        break
+                        except Exception:
+                            pass
+
+                    if is_highlighted:
+                        item_frame.configure(fg_color = "#2a4a2a")
+
+                    name_text = self._format_item_name(item)
+                    if is_highlighted:
+                        name_text = "⭐ " + name_text
+
+                    name_label = customtkinter.CTkLabel(item_frame, text = name_text, font = customtkinter.CTkFont(size = 13, weight = "bold"), anchor = "w")
+                    name_label.pack(anchor = "w", padx = 10, pady = (8, 2))
+
+                    if item.get("description"):
+                        desc_label = customtkinter.CTkLabel(item_frame, text = item.get("description"), font = customtkinter.CTkFont(size = 10), text_color = "gray", wraplength = 500, justify = "left", anchor = "w")
+                        desc_label.pack(anchor = "w", padx = 10, pady = (0, 5))
+
+                    info_parts = []
+                    if item.get("weight"):
+                        info_parts.append(f"Weight: {self._format_weight(item.get('weight'))}")
+                    if item.get("caliber"):
+                        cal = item.get("caliber")
+                        if isinstance(cal, list):
+                            cal = ", ".join(cal)
+                        info_parts.append(f"Caliber: {cal}")
+                    if item.get("rarity"):
+                        info_parts.append(f"Rarity: {item.get('rarity')}")
+
+                    if info_parts:
+                        info_label = customtkinter.CTkLabel(item_frame, text = " | ".join(info_parts), font = customtkinter.CTkFont(size = 10), text_color = "orange")
+                        info_label.pack(anchor = "w", padx = 10, pady = (0, 5))
+
+                    def add_to_cart(it = item):
+                        if max_points != "disabled":
+                            current_remaining = max_points - points_used - cart_points[0]
+                            if current_remaining < 1:
+                                self._popup_show_info("No Points", "You don't have enough requisition points.", sound = "error")
+                                return
+
+                        table_category = it.get("_table_category") or it.get("table_category")
+
+                        # Handle magazines: ask whether to load with ammo and which variant
+                        if table_category == "magazines":
+                            choice = self._popup_select_option("Load Magazine?", "Load this magazine with ammunition?", ["No", "Yes"]) or "No"
+                            mag_copy = it.copy()
+                            mag_copy.pop("_table_category", None)
+                            mag_copy["rounds"] = mag_copy.get("rounds", [])
+
+                            if choice == "Yes":
+                                # find compatible ammo variants from tables
+                                ammo_table = tables.get("ammunition", [])
+                                mag_cal = mag_copy.get("caliber")
+                                if isinstance(mag_cal, str):
+                                    mag_cal = [mag_cal]
+
+                                variant_options = []
+                                variant_map = {}
+                                for ammo_def in ammo_table:
+                                    ammo_cal = ammo_def.get("caliber")
+                                    if isinstance(ammo_cal, str):
+                                        ammo_cal = [ammo_cal]
+                                    if mag_cal and ammo_cal and any(c in ammo_cal for c in mag_cal):
+                                        for var in ammo_def.get("variants", []):
+                                            label = f"{ammo_def.get('name')} | {var.get('name')}"
+                                            variant_options.append(label)
+                                            variant_map[label] = (ammo_def, var)
+
+                                if not variant_options:
+                                    self._popup_show_info("No Compatible Ammo", "No compatible ammunition variants found for this magazine.", sound = "error")
+                                else:
+                                    sel = self._popup_select_option("Choose Variant", "Select ammo variant to load:", variant_options)
+                                    if sel:
+                                        ammo_def, var = variant_map.get(sel) # type: ignore
+                                        capacity = mag_copy.get("capacity", 30)
+                                        qty = self._popup_ask_integer("Rounds to Load", f"How many rounds to load into the magazine?", initial_value = capacity, min_value = 1, max_value = capacity)
+                                        if qty is None:
+                                            return
+                                        # populate rounds
+                                        mag_copy["rounds"] = []
+                                        for _ in range(int(qty)):
+                                            round_data = {
+                                            "name": ammo_def.get("name"),
+                                            "caliber": (mag_cal[0] if mag_cal else ammo_def.get("caliber")),
+                                            "variant": var.get("name"),
+                                            "type": var.get("type"),
+                                            "pen": var.get("pen"),
+                                            "modifiers": var.get("modifiers"),
+                                            "tip": var.get("tip")
+                                            }
+                                            mag_copy["rounds"].append(round_data)
+
+                            cart.append(mag_copy)
+                            cart_points[0] += 1
+                            update_cart_display()
+                            self._play_ui_sound("click")
+                            logging.info(f"Added magazine to cart: {mag_copy.get('name')}")
+                            return
+
+                        # Handle ammunition: ask variant and quantity
+                        if table_category == "ammunition":
+                            ammo_def = it
+                            variants = ammo_def.get("variants", [])
+                            sel_var = None
+                            if variants:
+                                opts = [v.get("name") for v in variants]
+                                sel_var = self._popup_select_option("Ammo Variant", "Choose ammo variant:", opts)
+                                if sel_var is None:
+                                    return
+                                chosen = next((v for v in variants if v.get("name") == sel_var), None)
+                            else:
+                                chosen = None
+
+                            qty = self._popup_ask_integer("Quantity", "How many rounds to requisition?", initial_value = 10, min_value = 1, max_value = 999)
+                            if qty is None:
+                                return
+
+                            stack_item = {
+                                "name": ammo_def.get("name", "Ammunition"),
+                                "caliber": ammo_def.get("caliber"),
+                                "variant": chosen.get("name") if chosen else None,
+                                "quantity": int(qty)
+                            }
+                            for k in ["type", "pen", "modifiers", "tip", "rarity"]:
+                                if chosen and k in chosen:
+                                    stack_item[k] = chosen.get(k)
+                                elif k in ammo_def:
+                                    stack_item[k] = ammo_def.get(k)
+
+                            cart.append(stack_item)
+                            cart_points[0] += 1
+                            update_cart_display()
+                            self._play_ui_sound("click")
+                            logging.info(f"Added ammo to cart: {stack_item.get('name')} x{stack_item.get('quantity')}")
+                            return
+
+                        # Default: add item copy
+                        cart.append(it.copy())
+                        cart_points[0] += 1
+                        update_cart_display()
+                        self._play_ui_sound("click")
+                        logging.info(f"Added to cart: {it.get('name')}")
+
+                    add_btn = self._create_sound_button(item_frame, "Requisition (+1 pt)", add_to_cart, width = 150, height = 30, font = customtkinter.CTkFont(size = 11))
+                    add_btn.pack(anchor = "e", padx = 10, pady = 8)
+
+            # If multiple subcategories, show them as a vertical scrollable list on the left
+            if len(subcats) > 1:
+                # ensure items_frame uses grid layout to allow left subcategory column to fill height
+                try:
+                    items_frame.grid_rowconfigure(0, weight = 1)
+                    items_frame.grid_columnconfigure(0, weight = 1)
+                except Exception:
+                    pass
+
+                # create and remember the subcategory column in the content frame
+                subcat_scroll = customtkinter.CTkScrollableFrame(content_frame, width = 180)
+                subcat_scroll.grid(row = 0, column = 1, sticky = "ns", padx = (10, 6), pady = (0, 6))
+
+                # ensure items_frame moves to the rightmost column to make room for subcats
+                try:
+                    items_frame.grid(row = 0, column = 2, sticky = "nsew")
+                    content_frame.grid_columnconfigure(1, weight = 0)
+                    content_frame.grid_columnconfigure(2, weight = 1)
+                except Exception:
+                    pass
+
+                content_right = customtkinter.CTkFrame(items_frame)
+                content_right.grid(row = 0, column = 0, sticky = "nsew")
+
+                # create scroll area for items inside the right content pane
+                try:
+                    items_scroll = customtkinter.CTkScrollableFrame(content_right)
+                    items_scroll.pack(fill = "both", expand = True, padx = 0, pady = 0)
+                except Exception:
+                    items_scroll = None
+
+                # subcategory button map for selection styling
+                subcat_buttons = {}
+
+                def make_subcat_btn(name):
+                    def on_click():
+                        nonlocal items_scroll
+                        # clear right content area only
+                        for w in content_right.winfo_children():
+                            w.destroy()
+                        # recreate items_scroll inside content_right
+                        try:
+                            items_scroll = customtkinter.CTkScrollableFrame(content_right)
+                            items_scroll.pack(fill = "both", expand = True, padx = 0, pady = 0)
+                        except Exception:
+                            items_scroll = None
+                        sub_title = customtkinter.CTkLabel(content_right, text = name, font = customtkinter.CTkFont(size = 16, weight = "bold"))
+                        sub_title.pack(pady = (6, 12), anchor = "w", padx = 10)
+                        render_item_list(subcats.get(name, []), parent=items_scroll if items_scroll is not None else content_right)
+                        selected_subcat[0] = name
+                        # update subcategory button borders to show selection
+                        for nm, b in subcat_buttons.items():
+                            try:
+                                if nm == name:
+                                    b.configure(border_color = "white", border_width = 2)
+                                else:
+                                    b.configure(border_width = 0)
+                            except Exception:
+                                pass
+                    return on_click
+
+                for sname in sorted(subcats.keys()):
+                    # determine if this subcategory should be highlighted (contains ammo/magazines compatible with equipped weapons)
+                    has_highlighted = False
+                    for it in subcats.get(sname, []):
+                        calibers = it.get("caliber", [])
+                        if isinstance(calibers, str):
+                            calibers = [calibers]
+                        if it.get("_table_category") == "ammunition":
+                            for cal in calibers:
+                                if cal in equipped_calibers:
+                                    has_highlighted = True
+                                    break
+                        if has_highlighted:
+                            break
+                        if it.get("_table_category") == "magazines":
+                            mag_system = it.get("magazinesystem")
+                            if mag_system in equipped_magazine_systems:
+                                for cal in calibers:
+                                    if cal in equipped_calibers:
+                                        has_highlighted = True
+                                        break
+                        if has_highlighted:
+                            break
+                    btn_text = sname if not has_highlighted else ("⭐ " + sname)
+                    btn_kwargs = {"width": 160, "height": 30, "font": customtkinter.CTkFont(size = 10)}
+                    if has_highlighted:
+                        btn_kwargs["fg_color"] = "#2a8a2a"
+                    btn = self._create_sound_button(subcat_scroll, btn_text, make_subcat_btn(sname), **btn_kwargs)
+                    btn.pack(fill = "x", pady = 3, padx = 6)
+                    subcat_buttons[sname] = btn
+
+                # Show first subcategory by default in the right content area
+                first = sorted(subcats.keys())[0]
+                sub_title = customtkinter.CTkLabel(content_right, text = first, font = customtkinter.CTkFont(size = 16, weight = "bold"))
+                sub_title.pack(pady = (6, 12), anchor = "w", padx = 10)
+                render_item_list(subcats.get(first, []), parent=items_scroll if items_scroll is not None else content_right)
+                selected_subcat[0] = first
+                # mark initial selected subcategory button
+                for nm, b in subcat_buttons.items():
+                    try:
+                        if nm == first:
+                            b.configure(border_color = "white", border_width = 2)
+                        else:
+                            b.configure(border_width = 0)
+                    except Exception:
+                        pass
+                # if for some reason the subcategory column ended up empty, remove it and give items more room
+                try:
+                    if subcat_scroll is not None and len(subcat_scroll.winfo_children()) == 0:
+                        subcat_scroll.destroy()
+                        subcat_scroll = None
+                        items_frame.grid(row = 0, column = 1, sticky = "nsew")
+                        content_frame.grid_columnconfigure(1, weight = 1)
+                        content_frame.grid_columnconfigure(2, weight = 0)
+                except Exception:
+                    pass
+            else:
+                # single or no subcategory - render all items directly into the existing items_frame
+                # create the category title here (pack in items_frame) so items_frame uses pack-only children
+                # create a scroll area for items when no subcategories
+                try:
+                    items_scroll = customtkinter.CTkScrollableFrame(items_frame)
+                    items_scroll.pack(fill = "both", expand = True, padx = 0, pady = 0)
+                except Exception:
+                    items_scroll = None
+                if items_scroll is not None:
+                    cat_title = customtkinter.CTkLabel(items_scroll, text = category_name, font = customtkinter.CTkFont(size = 18, weight = "bold"))
+                    cat_title.pack(pady = (10, 6), anchor = "w", padx = 10)
+                    render_item_list(cat_items, parent=items_scroll)
+                else:
+                    cat_title = customtkinter.CTkLabel(items_frame, text = category_name, font = customtkinter.CTkFont(size = 18, weight = "bold"))
+                    cat_title.pack(pady = (10, 6), anchor = "w", padx = 10)
+                    render_item_list(cat_items, parent=items_frame)
+
+        sorted_categories = sorted(categories.keys())
+
+        ammo_mags_first = []
+        others = []
+        for cat in sorted_categories:
+            if cat.lower() in ["ammunition", "magazines", "ammo"]:
+                ammo_mags_first.append(cat)
+            else:
+                others.append(cat)
+        sorted_categories = ammo_mags_first + others
+
+        category_buttons = {}
+        selected_category = [None]
+        for cat_name in sorted_categories:
+            has_highlighted = False
+            for item in categories.get(cat_name, []):
+                calibers = item.get("caliber", [])
+                if isinstance(calibers, str):
+                    calibers = [calibers]
+                for cal in calibers:
+                    if cal in equipped_calibers:
+                        has_highlighted = True
+                        break
+                if has_highlighted:
+                    break
+
+            btn_text = cat_name
+            if has_highlighted:
+                btn_text = "⭐ " + cat_name
+
+            # set green background for categories that contain highlighted items
+            cat_kwargs = {"width": 180, "height": 35, "font": customtkinter.CTkFont(size = 11)}
+            if has_highlighted:
+                cat_kwargs["fg_color"] = "#2a8a2a"
+            cat_btn = self._create_sound_button(category_frame, btn_text, lambda c = cat_name: show_category_items(c), **cat_kwargs)
+            cat_btn.pack(pady = 3, padx = 5)
+            category_buttons[cat_name] = cat_btn
+
+        if sorted_categories:
+            # mark initial selected category when showing
+            selected_category[0] = sorted_categories[0]
+            # apply selection border after widgets exist
+            for name, btn in category_buttons.items():
+                try:
+                    if name == selected_category[0]:
+                        btn.configure(border_color = "white", border_width = 2)
+                    else:
+                        btn.configure(border_width = 0)
+                except Exception:
+                    pass
+            show_category_items(sorted_categories[0])
+
+        button_frame = customtkinter.CTkFrame(main_frame, fg_color = "transparent")
+        button_frame.grid(row = 2, column = 0, sticky = "ew", padx = 20, pady = 10)
+
+        def view_cart():
+            if not cart:
+                self._popup_show_info("Empty Cart", "Your requisition cart is empty.", sound = "popup")
+                return
+
+            cart_popup = customtkinter.CTkToplevel(self.root)
+            cart_popup.title("Requisition Cart")
+            cart_popup.geometry("600x500")
+            cart_popup.transient(self.root)
+            cart_popup.grab_set()
+
+            cart_scroll = customtkinter.CTkScrollableFrame(cart_popup)
+            cart_scroll.pack(fill = "both", expand = True, padx = 10, pady = 10)
+
+            for idx, item in enumerate(cart):
+                item_frame = customtkinter.CTkFrame(cart_scroll)
+                item_frame.pack(fill = "x", pady = 3)
+
+                customtkinter.CTkLabel(item_frame, text = f"{self._format_item_name(item)} (1 pt)", font = customtkinter.CTkFont(size = 12)).pack(side = "left", padx = 10, pady = 5)
+
+                def remove_item(i = idx):
+                    cart.pop(i)
+                    cart_points[0] -= 1
+                    update_cart_display()
+                    cart_popup.destroy()
+                    view_cart()
+
+                remove_btn = customtkinter.CTkButton(item_frame, text = "Remove", command = remove_item, width = 80, height = 25)
+                remove_btn.pack(side = "right", padx = 10, pady = 5)
+
+            total_label = customtkinter.CTkLabel(cart_popup, text = f"Total: {cart_points[0]} points", font = customtkinter.CTkFont(size = 14, weight = "bold"))
+            total_label.pack(pady = 10)
+
+            def clear_cart():
+                cart.clear()
+                cart_points[0] = 0
+                update_cart_display()
+                cart_popup.destroy()
+
+            clear_btn = customtkinter.CTkButton(cart_popup, text = "Clear Cart", command = clear_cart, width = 150)
+            clear_btn.pack(pady = 5)
+
+            close_btn = customtkinter.CTkButton(cart_popup, text = "Close", command = cart_popup.destroy, width = 150)
+            close_btn.pack(pady = 5)
+
+        def checkout():
+            if not cart:
+                self._popup_show_info("Empty Cart", "Your requisition cart is empty.", sound = "popup")
+                return
+
+            if max_points != "disabled":
+                current_remaining = max_points - points_used - cart_points[0]
+                if current_remaining < 0:
+                    self._popup_show_info("Insufficient Points", "You don't have enough requisition points.", sound = "error")
+                    return
+
+            try:
+                hands_items = save_data.get("hands", {}).get("items", [])
+
+                for item in cart:
+                    item_copy = item.copy()
+                    item_copy.pop("_table_category", None)
+                    item_copy = add_subslots_to_item(item_copy)
+                    # mark item as coming from this armory (non-visible tag)
+                    try:
+                        item_copy["_from_armory"] = store.get("name", "Unknown")
+                    except Exception:
+                        pass
+                    self._add_item_to_container(hands_items, item_copy)
+
+                save_data["hands"]["items"] = hands_items
+                self._write_save_to_path(save_path, save_data)
+
+                if max_points != "disabled":
+                    new_points_used = points_used + cart_points[0]
+                    self._set_armory_points_used(store.get("name", "Unknown"), new_points_used)
+
+                item_names = [it.get("name", "Unknown") for it in cart]
+                logging.info(f"Requisitioned items: {item_names}")
+                self._popup_show_info("Requisition Complete", f"Requisitioned {len(cart)} item(s):\n" + "\n".join(item_names[:10]) + ("..." if len(item_names) > 10 else ""), sound = "success")
+
+                cart.clear()
+                cart_points[0] = 0
+                stop_ui_music()
+                self._open_business_tool()
+
+            except Exception as e:
+                logging.error(f"Failed to checkout: {e}")
+                self._popup_show_info("Error", f"Failed to requisition items: {e}", sound = "error")
+
+        def leave_armory():
+            def _do_leave(confirmed: bool = True):
+                if not confirmed:
+                    return
+                try:
+                    stop_ui_music()
+                except Exception:
+                    try:
+                        self._stop_business_music(music_channel)
+                    except Exception:
+                        pass
+                self._open_business_tool()
+
+            # confirm if cart has items
+            try:
+                if cart and len(cart) > 0:
+                    msg = f"You have {len(cart)} item(s) in your cart. Leaving will discard them. Leave anyway?"
+                    self._popup_confirm("Leave Armory", msg, _do_leave)
+                    return
+            except Exception:
+                pass
+
+            _do_leave()
+
+        cart_btn = self._create_sound_button(button_frame, f"View Cart ({len(cart)})", view_cart, width = 200, height = 40, font = customtkinter.CTkFont(size = 14))
+        cart_btn.pack(side = "left", padx = 10)
+
+        checkout_btn = self._create_sound_button(button_frame, "Confirm Requisition", checkout, width = 200, height = 40, font = customtkinter.CTkFont(size = 14))
+        checkout_btn.pack(side = "left", padx = 10)
+
+        def return_armory_items():
+            nonlocal points_used
+            store_name = store.get("name", "Unknown")
+            all_items = get_all_player_items()
+            matches = [d for d in all_items if d.get("item", {}).get("_from_armory") == store_name]
+            if not matches:
+                self._popup_show_info("No Items", "No items from this armory were found on the character.", sound = "popup")
+                return
+
+            names = [m.get("item", {}).get("name", "Unknown") for m in matches]
+            def do_return():
+                try:
+                    locations_to_remove = {}
+                    for m in matches:
+                        loc = m.get("location")
+                        idx = m.get("index")
+                        locations_to_remove.setdefault(loc, []).append(idx)
+
+                    for loc in locations_to_remove:
+                        locations_to_remove[loc] = sorted(locations_to_remove[loc], reverse = True)
+
+                    for loc, indices in locations_to_remove.items():
+                        for idx in indices:
+                            remove_item_from_location(loc, idx)
+
+                    # write save
+                    self._write_save_to_path(save_path, save_data)
+
+                    # refund points
+                    refund_count = len(matches)
+                    if max_points != "disabled":
+                        cur_used = self._get_armory_points_status(store_name) or 0
+                        new_used = max(cur_used - refund_count, 0)
+                        extra = max(refund_count - cur_used, 0)
+                        if extra > 0:
+                            overflow_key = f"armory_overflow_{store_name}"
+                            persistentdata[overflow_key] = (persistentdata.get(overflow_key, 0) or 0) + extra
+                        self._set_armory_points_used(store_name, new_used)
+                        points_used = new_used
+
+                    self._popup_show_info("Return Complete", f"Returned {len(matches)} item(s) to {store_name}. Refunded {refund_count} point(s).", sound = "success")
+                    stop_ui_music()
+                    self._open_business_tool()
+                except Exception as e:
+                    logging.error(f"Failed to return armory items: {e}")
+                    self._popup_show_info("Error", f"Failed to return items: {e}", sound = "error")
+
+            self._popup_confirm("Return Items", f"Return {len(matches)} item(s) from this armory?\n\n" + "\n".join(names[:10]) + ("..." if len(names) > 10 else ""), do_return)
+
+        return_btn = self._create_sound_button(button_frame, "Return Armory Items", return_armory_items, width = 200, height = 40, font = customtkinter.CTkFont(size = 14))
+        return_btn.pack(side = "left", padx = 10)
+
+        back_btn = self._create_sound_button(button_frame, "Leave Armory", leave_armory, width = 200, height = 40, font = customtkinter.CTkFont(size = 14))
+        back_btn.pack(side = "right", padx = 10)
+
+    def _open_store_interface(self, store, table_data):
+        """Open the store interface for buying and selling items"""
+        logging.info(f"Opening store: {store.get('name')}")
+
+        music_channel = None
+        if store.get("music") and store.get("playlist"):
+            music_channel = self._start_business_music(store.get("playlist"), first_play = True)
+
+        self._clear_window()
+
+        self.root.grid_rowconfigure(0, weight = 1)
+        self.root.grid_columnconfigure(0, weight = 1)
+
+        main_frame = customtkinter.CTkFrame(self.root)
+        main_frame.grid(row = 0, column = 0, sticky = "nsew")
+        main_frame.grid_columnconfigure(0, weight = 1)
+        main_frame.grid_rowconfigure(1, weight = 1)
+
+        header_frame = customtkinter.CTkFrame(main_frame, fg_color = "transparent")
+        header_frame.grid(row = 0, column = 0, sticky = "ew", padx = 20, pady = 10)
+
+        title_label = customtkinter.CTkLabel(header_frame, text = store.get("name", "Store"), font = customtkinter.CTkFont(size = 24, weight = "bold"))
+        title_label.pack(pady = (10, 5))
+
+        shopkeeper_label = customtkinter.CTkLabel(header_frame, text = f"Shopkeeper: {store.get('shopkeeper', 'Unknown')}", font = customtkinter.CTkFont(size = 14), text_color = "gray")
+        shopkeeper_label.pack()
+
+        save_path = os.path.join(saves_folder or "", (currentsave or "") + ".sldsv")
+        save_data = self._load_file((currentsave or "") + ".sldsv")
+        if save_data is None:
+            self._popup_show_info("Error", "Failed to load character data.", sound = "error")
+            try:
+                self._stop_business_music(music_channel)
+            except Exception:
+                pass
+            return
+
+        player_money = [save_data.get("money", 0)]
+
+        money_label = customtkinter.CTkLabel(header_frame, text = f"Your Money: ${player_money[0]}", font = customtkinter.CTkFont(size = 16, weight = "bold"), text_color = "green")
+        money_label.pack(pady = 5)
+
+        prices = store.get("prices", {"buy": 1.0, "sell": 1.0})
+        buy_mult = prices.get("buy", 1.0)
+        sell_mult = prices.get("sell", 1.0)
+
+        prices_label = customtkinter.CTkLabel(header_frame, text = f"Shop buys at {buy_mult}x | Shop sells at {sell_mult}x value", font = customtkinter.CTkFont(size = 12), text_color = "orange")
+        prices_label.pack()
+
+        # Marquee / now-playing display for business music (store)
+        marquee_label = None
+        marquee_job: list[object] = [None]
+
+        def _get_track_info(track_path):
+            artist = None
+            title = None
+            length = None
+            try:
+                try:
+                    sound = pygame.mixer.Sound(track_path)
+                    length = float(sound.get_length())
+                except Exception:
+                    length = None
+                try:
+                    from mutagen._file import File as MutagenFile
+                    mf = MutagenFile(track_path)
+                    if mf is not None:
+                        tags = getattr(mf, 'tags', {}) or {}
+                        def _get_tag(keys):
+                            for k in keys:
+                                v = tags.get(k)
+                                if v:
+                                    try:
+                                        if isinstance(v, (list, tuple)):
+                                            return str(v[0])
+                                        return str(v)
+                                    except Exception:
+                                        return str(v)
+                            return None
+                        artist = _get_tag(["artist", "ARTIST", "TPE1"])
+                        title = _get_tag(["title", "TITLE", "TIT2"])
+                except Exception:
+                    pass
+            except Exception:
+                pass
+            if not title:
+                try:
+                    title = os.path.basename(track_path or "")
+                except Exception:
+                    title = "Unknown"
+            try:
+                logging.debug(f"_get_track_info result: title={title} artist={artist} length={length}")
+            except Exception:
+                pass
+            return {"artist": artist, "title": title, "length": length}
+
+        def stop_ui_music():
+            try:
+                if marquee_job[0]:
+                    try:
+                        self.root.after_cancel(marquee_job[0])  # type: ignore[arg-type]
+                    except Exception:
+                        pass
+                    marquee_job[0] = None
+            except Exception:
+                pass
+            try:
+                self._stop_business_music(music_channel)
+            except Exception:
+                pass
+
+        # create marquee if music started
+        if music_channel and music_channel.get("track"):
+            try:
+                track_path = music_channel.get("track")
+                info = _get_track_info(track_path)
+                base_artist = info.get("artist") or ""
+                base_title = info.get("title") or os.path.basename(track_path or "")
+                track_len = info.get("length") or 0.0
+
+                marquee_frame = customtkinter.CTkFrame(header_frame, fg_color = "black")
+                # pack anchored left so frame width matches label content
+                # fixed-width, centered marquee bar
+                marquee_frame.pack(pady = (6, 0))
+                try:
+                    marquee_frame.configure(width = 500)
+                    # prevent children from forcing the frame to resize
+                    try:
+                        marquee_frame.pack_propagate(False)
+                    except Exception:
+                        pass
+                except Exception:
+                    pass
+                try:
+                    # attempt to temporarily load bundled TTF so it's usable without system install
+                    label_font = None
+                    try:
+                        import ctypes
+                        import tkinter.font as tkfont
+                        fp = os.path.join(os.path.dirname(__file__), "fonts", "Tims_8x5_LCD_Matrix.ttf")
+                        if os.path.exists(fp) and hasattr(ctypes, 'windll'):
+                            try:
+                                FR_PRIVATE = 0x10
+                                ctypes.windll.gdi32.AddFontResourceExW(fp, FR_PRIVATE, 0)
+                            except Exception:
+                                pass
+                            # refresh families and pick a matching name
+                            try:
+                                self.root.update_idletasks()
+                                fams = list(tkfont.families())
+                                for f in fams:
+                                    if any(x in f.lower() for x in ("tims", "8x5", "lcd")):
+                                        label_font = customtkinter.CTkFont(size = 12, family = f)
+                                        break
+                            except Exception:
+                                pass
+                    except Exception:
+                        pass
+                    if not label_font:
+                        label_font = customtkinter.CTkFont(size = 12)
+                except Exception:
+                    label_font = customtkinter.CTkFont(size = 12)
+                marquee_label = customtkinter.CTkLabel(marquee_frame, text = "", anchor = "w", font = label_font, width = 480, height = 26, text_color = "#7CFC00")
+                marquee_label.pack(anchor = "center", padx = 4)
+                try:
+                    marquee_debug_label = customtkinter.CTkLabel(marquee_frame, text = "", anchor = "w", font = customtkinter.CTkFont(size = 9), text_color = "white")
+                    marquee_debug_label.pack(anchor = "center", padx = 4, pady = (2,0))
+                except Exception:
+                    marquee_debug_label = None
+                try:
+                    self.root.update_idletasks()
+                    lh = marquee_label.winfo_reqheight() or marquee_label.winfo_height()
+                    if lh:
+                        try:
+                            marquee_frame.configure(height = lh)
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+
+                pos = [0]
+
+                def _fmt_time(s):
+                    try:
+                        s = max(0, int(s))
+                        return f"{s//60}:{s%60:02d}"
+                    except Exception:
+                        return "0:00"
+
+                def _update_marquee():
+                    try:
+                        # try to use live meta if available
+                        current = getattr(self, "_current_business_music", music_channel)
+                        meta_info = None
+                        if current:
+                            meta_info = current.get("_meta")
+                        try:
+                            logging.debug(f"store marquee update: track={os.path.basename((current or {}).get('track') or '')} meta={bool(meta_info)} pos={pos[0]} ids: current={id(current)} music_channel={id(music_channel)} self_cur={id(getattr(self,'_current_business_music',None))}")
+                        except Exception:
+                            pass
+                        try:
+                            if marquee_debug_label is not None:
+                                dbg = f"meta={bool(meta_info)} id={id(current)}"
+                                try:
+                                    # include a short title if available
+                                    tt = (meta_info or {}).get('title') if meta_info else ((current or {}).get('track') or '')
+                                    if tt:
+                                        dbg += f" title={tt[:30]}"
+                                except Exception:
+                                    pass
+                                marquee_debug_label.configure(text = dbg)
+                        except Exception:
+                            pass
+
+                        if meta_info:
+                            base_artist = meta_info.get("artist") or ""
+                            base_title = meta_info.get("title") or os.path.basename((current or {}).get("track") or "")
+                            total = meta_info.get("length") or 0.0
+                        else:
+                            # fallback to the initial values but kick off a background load for the current track
+                            base_artist = base_artist or "" # type: ignore
+                            base_title = base_title or os.path.basename((music_channel or {}).get("track") or "") # type: ignore
+                            total = track_len or 0.0
+                            try:
+                                if current and not current.get("_meta_loading"):
+                                    current["_meta_loading"] = True
+                                    def _bg_load():
+                                        try:
+                                            info = _get_track_info((current or {}).get("track"))
+                                            def _apply():
+                                                try:
+                                                    try:
+                                                        logging.debug(f"applying _meta (bg_load current): {os.path.basename((current or {}).get('track') or '')} -> title={info.get('title')} artist={info.get('artist')}")
+                                                    except Exception:
+                                                        pass
+                                                    try:
+                                                        target = getattr(self, "_current_business_music", None)
+                                                        if target is None:
+                                                            target = current
+                                                        if target is not None:
+                                                                target.update({"_meta": info})
+                                                                try:
+                                                                    logging.debug(f"triggering marquee refresh after applying meta for {os.path.basename((target or {}).get('track') or '')} (current)")
+                                                                except Exception:
+                                                                    pass
+                                                                try:
+                                                                    self.root.after(0, _update_marquee)
+                                                                except Exception:
+                                                                    pass
+                                                    except Exception:
+                                                        try:
+                                                            logging.exception("failed to apply _meta in bg_load (current) for store marquee")
+                                                        except Exception:
+                                                            pass
+                                                except Exception:
+                                                    try:
+                                                        logging.exception("unexpected error in _apply for bg_load (current)")
+                                                    except Exception:
+                                                        pass
+                                            try:
+                                                logging.debug(f"scheduling _apply (current) via root.after for track {os.path.basename((getattr(self,'_current_business_music', current) or {}).get('track') or '')}")
+                                            except Exception:
+                                                pass
+                                            self.root.after(0, _apply)
+                                        except Exception:
+                                            pass
+                                        finally:
+                                            try:
+                                                current.pop("_meta_loading", None)
+                                            except Exception:
+                                                pass
+                                    import threading
+                                    threading.Thread(target=_bg_load, daemon=True).start()
+                            except Exception:
+                                pass
+
+                        started = (current or {}).get("started_at") or time.time()
+                        start_offset = (current or {}).get("start_pos") or 0.0
+                        elapsed = (time.time() - started) + float(start_offset)
+
+                        # display elapsed (count-up) rather than remaining
+                        elapsed_display = _fmt_time(elapsed)
+                        total_fmt = _fmt_time(total)
+
+                        meta = f"{base_artist} | {base_title} | {elapsed_display}/{total_fmt}" if (base_artist or base_title) else os.path.basename((music_channel or {}).get("track") or "")
+
+                        # determine visible character width based on label pixel width
+                        try:
+                            self.root.update_idletasks()
+                            label_px = marquee_label.winfo_width() or int(marquee_label.cget("width") or 480)
+                        except Exception:
+                            label_px = int(marquee_label.cget("width") or 480)
+
+                        avg_char_px = 8
+                        visible_chars = max(8, int(label_px / max(1, avg_char_px)))
+
+                        scrollfull = "   " + meta + "   "
+                        if len(scrollfull) < visible_chars:
+                            scrollfull = scrollfull + (" " * (visible_chars - len(scrollfull) + 2))
+
+                        # render only the visible window of characters so text scrolls across full bar
+                        doubled = (scrollfull * 3)
+                        display = doubled[pos[0]: pos[0] + visible_chars]
+                        marquee_label.configure(text = display)
+                        pos[0] = (pos[0] + 1) % max(1, len(scrollfull))
+                        try:
+                            len_scroll = max(1, len(scrollfull))
+                            delay_ms = int(min(500, max(60, 70 + (len_scroll * 3))))
+                        except Exception:
+                            delay_ms = 120
+                        marquee_job[0] = self.root.after(delay_ms, _update_marquee)
+                    except Exception:
+                        try:
+                            marquee_label.configure(text = os.path.basename((getattr(self, "_current_business_music", music_channel) or {}).get("track") or ""))
+                        except Exception:
+                            pass
+
+                # load metadata off the main thread to avoid hitching the UI
+                try:
+                    import threading
+                    try:
+                        logging.debug("starting initial background _load_meta thread for store marquee")
+                    except Exception:
+                        pass
+                    def _load_meta():
+                        try:
+                            cur = getattr(self, "_current_business_music", music_channel)
+                            if not cur:
+                                return
+                            info = _get_track_info(cur.get("track"))
+                            try:
+                                logging.debug(f"_load_meta fetched info: title={info.get('title')} artist={info.get('artist')}")
+                            except Exception:
+                                pass
+                            def _apply():
+                                try:
+                                    try:
+                                        logging.debug(f"applying initial _meta (from _load_meta): {os.path.basename((cur or {}).get('track') or '')} -> title={info.get('title')} artist={info.get('artist')}")
+                                    except Exception:
+                                        pass
+                                    try:
+                                        # Prefer updating the live app-level dict if present
+                                        target = getattr(self, "_current_business_music", None)
+                                        if target is None:
+                                            target = cur
+                                        if target is not None:
+                                            target.update({"_meta": info})
+                                            try:
+                                                logging.debug(f"triggering marquee refresh after initial apply for {os.path.basename((target or {}).get('track') or '')}")
+                                            except Exception:
+                                                pass
+                                            try:
+                                                self.root.after(0, _update_marquee)
+                                            except Exception:
+                                                pass
+                                    except Exception:
+                                        try:
+                                            logging.exception("failed to apply initial _meta in _load_meta for store marquee")
+                                        except Exception:
+                                            pass
+                                except Exception:
+                                    try:
+                                        logging.exception("unexpected error in initial _apply for store marquee")
+                                    except Exception:
+                                        pass
+                            try:
+                                logging.debug(f"scheduling initial _apply via root.after for store marquee: {os.path.basename((cur or {}).get('track') or '')}")
+                            except Exception:
+                                pass
+                            try:
+                                self.root.after(0, _apply)
+                            except Exception:
+                                pass
+                        except Exception:
+                            pass
+                    threading.Thread(target=_load_meta, daemon=True).start()
+                except Exception:
+                    pass
+
+                _update_marquee()
+            except Exception:
+                pass
+
+        def get_all_player_items():
+            """Get all items from hands and all containers"""
+            all_items = []
+            
+            hands_items = save_data.get("hands", {}).get("items", [])
+            for idx, item in enumerate(hands_items):
+                if isinstance(item, dict):
+                    all_items.append({"item": item, "location": "hands", "index": idx})
+            
+            equipment = save_data.get("equipment", {})
+            for slot_name, slot_item in equipment.items():
+                if slot_item and isinstance(slot_item, dict):
+                    if "items" in slot_item and "capacity" in slot_item:
+                        for idx, item in enumerate(slot_item.get("items", [])):
+                            if isinstance(item, dict):
+                                all_items.append({"item": item, "location": f"equipment.{slot_name}", "index": idx})
+                    
+                    if "subslots" in slot_item:
+                        for subslot_idx, subslot_data in enumerate(slot_item.get("subslots", [])):
+                            subslot_item = subslot_data.get("current")
+                            if subslot_item and isinstance(subslot_item, dict) and "items" in subslot_item:
+                                for idx, item in enumerate(subslot_item.get("items", [])):
+                                    if isinstance(item, dict):
+                                        all_items.append({"item": item, "location": f"equipment.{slot_name}.subslot.{subslot_idx}", "index": idx})
+                
+                elif isinstance(slot_item, list):
+                    for list_idx, list_item in enumerate(slot_item):
+                        if list_item and isinstance(list_item, dict):
+                            if "items" in list_item and "capacity" in list_item:
+                                for idx, item in enumerate(list_item.get("items", [])):
+                                    if isinstance(item, dict):
+                                        all_items.append({"item": item, "location": f"equipment.{slot_name}.list.{list_idx}", "index": idx})
+                            
+                            if "subslots" in list_item:
+                                for subslot_idx, subslot_data in enumerate(list_item.get("subslots", [])):
+                                    subslot_item = subslot_data.get("current")
+                                    if subslot_item and isinstance(subslot_item, dict) and "items" in subslot_item:
+                                        for idx, item in enumerate(subslot_item.get("items", [])):
+                                            if isinstance(item, dict):
+                                                all_items.append({"item": item, "location": f"equipment.{slot_name}.list.{list_idx}.subslot.{subslot_idx}", "index": idx})
+            
+            return all_items
+
+        def remove_item_from_location(location, index):
+            """Remove an item from a specific location"""
+            if location == "hands":
+                items = save_data.get("hands", {}).get("items", [])
+                if 0 <= index < len(items):
+                    items.pop(index)
+            elif location.startswith("equipment."):
+                parts = location.split(".")
+                slot = parts[1]
+                slot_item = save_data.get("equipment", {}).get(slot)
+                
+                if len(parts) == 2:
+                    if slot_item and isinstance(slot_item, dict) and "items" in slot_item:
+                        items = slot_item.get("items", [])
+                        if 0 <= index < len(items):
+                            items.pop(index)
+                elif len(parts) >= 4 and parts[2] == "subslot":
+                    subslot_idx = int(parts[3])
+                    if slot_item and isinstance(slot_item, dict) and "subslots" in slot_item:
+                        subslot_item = slot_item["subslots"][subslot_idx].get("current")
+                        if subslot_item and "items" in subslot_item:
+                            items = subslot_item.get("items", [])
+                            if 0 <= index < len(items):
+                                items.pop(index)
+                elif len(parts) >= 4 and parts[2] == "list":
+                    list_idx = int(parts[3])
+                    if isinstance(slot_item, list) and 0 <= list_idx < len(slot_item):
+                        list_item = slot_item[list_idx]
+                        if len(parts) == 4:
+                            if list_item and isinstance(list_item, dict) and "items" in list_item:
+                                items = list_item.get("items", [])
+                                if 0 <= index < len(items):
+                                    items.pop(index)
+                        elif len(parts) >= 6 and parts[4] == "subslot":
+                            subslot_idx = int(parts[5])
+                            if list_item and isinstance(list_item, dict) and "subslots" in list_item:
+                                subslot_item = list_item["subslots"][subslot_idx].get("current")
+                                if subslot_item and "items" in subslot_item:
+                                    items = subslot_item.get("items", [])
+                                    if 0 <= index < len(items):
+                                        items.pop(index)
+
+        store_inventory = []
+        store_inv_config = store.get("inventory", [])
+        tables = table_data.get("tables", {})
+
+        for inv_entry in store_inv_config:
+            if inv_entry.get("type") == "table":
+                table_name = inv_entry.get("table")
+                table_items = tables.get(table_name, [])
+                for item in table_items:
+                    if isinstance(item, dict):
+                        item_copy = item.copy()
+                        item_copy["_table_category"] = table_name
+                        store_inventory.append(item_copy)
+            elif inv_entry.get("type") == "id":
+                item_id = inv_entry.get("id")
+                for table_name, table_items in tables.items():
+                    if isinstance(table_items, list):
+                        for item in table_items:
+                            if isinstance(item, dict) and item.get("id") == item_id:
+                                item_copy = item.copy()
+                                item_copy["_table_category"] = table_name
+                                store_inventory.append(item_copy)
+                                break
+
+        inv_qty = store.get("inventory_quantity", "disabled")
+        if inv_qty != "disabled" and isinstance(inv_qty, dict):
+            min_qty = inv_qty.get("min", 20)
+            max_qty = inv_qty.get("max", 40)
+            target_qty = random.randint(min_qty, max_qty)
+            if len(store_inventory) > target_qty:
+                store_inventory = random.sample(store_inventory, target_qty)
+
+        tab_view = customtkinter.CTkTabview(main_frame)
+        tab_view.grid(row = 1, column = 0, sticky = "nsew", padx = 20, pady = 10)
+
+        buy_tab = tab_view.add("Buy")
+        sell_tab = tab_view.add("Sell")
+        if store.get("accepts_trades"):
+            trade_tab = tab_view.add("Trade")
+
+        buy_scroll = customtkinter.CTkScrollableFrame(buy_tab)
+        buy_scroll.pack(fill = "both", expand = True)
+
+        buy_cart = []
+        buy_total = [0]
+
+        def update_buy_display():
+            money_label.configure(text = f"Your Money: ${player_money[0]} | Cart Total: ${buy_total[0]}")
+
+        for item in store_inventory:
+            item_frame = customtkinter.CTkFrame(buy_scroll)
+            item_frame.pack(fill = "x", pady = 5, padx = 10)
+
+            base_value = item.get("value", 0)
+            buy_price = int(base_value * sell_mult)
+
+            name_label = customtkinter.CTkLabel(item_frame, text = f"{self._format_item_name(item)} - ${buy_price}", font = customtkinter.CTkFont(size = 13, weight = "bold"), anchor = "w")
+            name_label.pack(anchor = "w", padx = 10, pady = (8, 2))
+
+            if item.get("description"):
+                desc_label = customtkinter.CTkLabel(item_frame, text = item.get("description")[:100] + "..." if len(item.get("description", "")) > 100 else item.get("description", ""), font = customtkinter.CTkFont(size = 10), text_color = "gray", wraplength = 400, justify = "left", anchor = "w")
+                desc_label.pack(anchor = "w", padx = 10, pady = (0, 5))
+
+            def add_to_buy_cart(it = item, price = buy_price):
+                if player_money[0] - buy_total[0] < price:
+                    self._popup_show_info("Not Enough Money", f"You need ${price} but only have ${player_money[0] - buy_total[0]} remaining.", sound = "error")
+                    return
+                buy_cart.append({"item": it.copy(), "price": price})
+                buy_total[0] += price
+                update_buy_display()
+                self._play_ui_sound("click")
+
+            add_btn = self._create_sound_button(item_frame, f"Buy (${buy_price})", add_to_buy_cart, width = 120, height = 30, font = customtkinter.CTkFont(size = 11))
+            add_btn.pack(anchor = "e", padx = 10, pady = 8)
+
+        sell_scroll = customtkinter.CTkScrollableFrame(sell_tab)
+        sell_scroll.pack(fill = "both", expand = True)
+
+        sell_cart = []
+        sell_total = [0]
+
+        def update_sell_display():
+            money_label.configure(text = f"Your Money: ${player_money[0]} | Sell Value: ${sell_total[0]}")
+
+        all_player_items = get_all_player_items()
+
+        for item_data in all_player_items:
+            item = item_data["item"]
+            location = item_data["location"]
+            item_idx = item_data["index"]
+
+            # Skip armory-provided items (non-sellable here)
+            if item.get("_from_armory"):
+                continue
+
+            item_frame = customtkinter.CTkFrame(sell_scroll)
+            item_frame.pack(fill = "x", pady = 5, padx = 10)
+
+            base_value = item.get("value", 0)
+            sell_price = int(base_value * buy_mult)
+
+            location_text = location.replace("equipment.", "").replace(".list.", " #").replace(".subslot.", " sub#")
+            name_label = customtkinter.CTkLabel(item_frame, text = f"{self._format_item_name(item)} - ${sell_price}", font = customtkinter.CTkFont(size = 13, weight = "bold"), anchor = "w")
+            name_label.pack(anchor = "w", padx = 10, pady = (8, 2))
+
+            loc_label = customtkinter.CTkLabel(item_frame, text = f"Location: {location_text}", font = customtkinter.CTkFont(size = 10), text_color = "gray", anchor = "w")
+            loc_label.pack(anchor = "w", padx = 10, pady = (0, 5))
+
+            def add_to_sell_cart(loc = location, i = item_idx, it = item, price = sell_price):
+                cart_key = f"{loc}:{i}"
+                if cart_key in [f"{s['location']}:{s['index']}" for s in sell_cart]:
+                    self._popup_show_info("Already Added", "This item is already in your sell cart.", sound = "popup")
+                    return
+                sell_cart.append({"location": loc, "index": i, "item": it, "price": price})
+                sell_total[0] += price
+                update_sell_display()
+                self._play_ui_sound("click")
+
+            add_btn = self._create_sound_button(item_frame, f"Sell (${sell_price})", add_to_sell_cart, width = 120, height = 30, font = customtkinter.CTkFont(size = 11))
+            add_btn.pack(anchor = "e", padx = 10, pady = 8)
+
+        if store.get("accepts_trades"):
+            trade_main_frame = customtkinter.CTkFrame(trade_tab)
+            trade_main_frame.pack(fill = "both", expand = True)
+
+            trade_main_frame.grid_columnconfigure(0, weight = 1)
+            trade_main_frame.grid_columnconfigure(1, weight = 1)
+            trade_main_frame.grid_rowconfigure(1, weight = 1)
+
+            your_label = customtkinter.CTkLabel(trade_main_frame, text = "Your Items", font = customtkinter.CTkFont(size = 14, weight = "bold"))
+            your_label.grid(row = 0, column = 0, pady = (10, 5))
+
+            store_label = customtkinter.CTkLabel(trade_main_frame, text = "Store Items", font = customtkinter.CTkFont(size = 14, weight = "bold"))
+            store_label.grid(row = 0, column = 1, pady = (10, 5))
+
+            your_scroll = customtkinter.CTkScrollableFrame(trade_main_frame)
+            your_scroll.grid(row = 1, column = 0, sticky = "nsew", padx = 5, pady = 5)
+
+            store_scroll = customtkinter.CTkScrollableFrame(trade_main_frame)
+            store_scroll.grid(row = 1, column = 1, sticky = "nsew", padx = 5, pady = 5)
+
+            trade_offer = {"your_items": [], "store_items": []}
+            trade_values = {"your_total": 0, "store_total": 0}
+
+            trade_status_label = customtkinter.CTkLabel(trade_main_frame, text = "Your offer: $0 | Store offer: $0", font = customtkinter.CTkFont(size = 12))
+            trade_status_label.grid(row = 2, column = 0, columnspan = 2, pady = 10)
+
+            def update_trade_display():
+                trade_status_label.configure(text = f"Your offer: ${trade_values['your_total']} | Store offer: ${trade_values['store_total']}")
+
+            for item_data in all_player_items:
+                item = item_data["item"]
+                location = item_data["location"]
+                item_idx = item_data["index"]
+
+                # skip armory-provided items for trade offers
+                if item.get("_from_armory"):
+                    continue
+
+                item_frame = customtkinter.CTkFrame(your_scroll)
+                item_frame.pack(fill = "x", pady = 3, padx = 5)
+
+                trade_value = int(item.get("value", 0) * buy_mult)
+                location_text = location.replace("equipment.", "").replace(".list.", " #").replace(".subslot.", " sub#")
+
+                name_label = customtkinter.CTkLabel(item_frame, text = f"{self._format_item_name(item)} (${trade_value})", font = customtkinter.CTkFont(size = 11), anchor = "w")
+                name_label.pack(anchor = "w", padx = 8, pady = (5, 0))
+
+                loc_label = customtkinter.CTkLabel(item_frame, text = f"{location_text}", font = customtkinter.CTkFont(size = 9), text_color = "gray", anchor = "w")
+                loc_label.pack(anchor = "w", padx = 8, pady = (0, 3))
+
+                def toggle_your_item(loc = location, i = item_idx, it = item, val = trade_value, frame = item_frame):
+                    cart_key = f"{loc}:{i}"
+                    existing = [idx for idx, e in enumerate(trade_offer["your_items"]) if f"{e['location']}:{e['index']}" == cart_key]
+                    if existing:
+                        trade_offer["your_items"].pop(existing[0])
+                        trade_values["your_total"] -= val
+                        frame.configure(fg_color = ("gray86", "gray17"))
+                    else:
+                        trade_offer["your_items"].append({"location": loc, "index": i, "item": it, "value": val})
+                        trade_values["your_total"] += val
+                        frame.configure(fg_color = ("green", "darkgreen"))
+                    update_trade_display()
+                    self._play_ui_sound("click")
+
+                item_frame.bind("<Button-1>", lambda e, f = toggle_your_item: f())
+                name_label.bind("<Button-1>", lambda e, f = toggle_your_item: f())
+                loc_label.bind("<Button-1>", lambda e, f = toggle_your_item: f())
+
+            for item in store_inventory:
+                item_frame = customtkinter.CTkFrame(store_scroll)
+                item_frame.pack(fill = "x", pady = 3, padx = 5)
+
+                trade_value = int(item.get("value", 0) * sell_mult)
+
+                name_label = customtkinter.CTkLabel(item_frame, text = f"{self._format_item_name(item)} (${trade_value})", font = customtkinter.CTkFont(size = 11), anchor = "w")
+                name_label.pack(anchor = "w", padx = 8, pady = 5)
+
+                def toggle_store_item(it = item, val = trade_value, frame = item_frame):
+                    item_id = it.get("id", id(it))
+                    existing = [idx for idx, e in enumerate(trade_offer["store_items"]) if e["item"].get("id", id(e["item"])) == item_id]
+                    if existing:
+                        trade_offer["store_items"].pop(existing[0])
+                        trade_values["store_total"] -= val
+                        frame.configure(fg_color = ("gray86", "gray17"))
+                    else:
+                        trade_offer["store_items"].append({"item": it.copy(), "value": val})
+                        trade_values["store_total"] += val
+                        frame.configure(fg_color = ("green", "darkgreen"))
+                    update_trade_display()
+                    self._play_ui_sound("click")
+
+                item_frame.bind("<Button-1>", lambda e, f = toggle_store_item: f())
+                name_label.bind("<Button-1>", lambda e, f = toggle_store_item: f())
+
+            def complete_trade():
+                if not trade_offer["your_items"] and not trade_offer["store_items"]:
+                    self._popup_show_info("Empty Trade", "Select items to trade.", sound = "popup")
+                    return
+
+                diff = trade_values["store_total"] - trade_values["your_total"]
+
+                if diff > player_money[0]:
+                    self._popup_show_info("Not Enough Money", f"This trade requires ${diff} extra but you only have ${player_money[0]}.", sound = "error")
+                    return
+
+                try:
+                    locations_to_remove = {}
+                    for entry in trade_offer["your_items"]:
+                        loc = entry["location"]
+                        idx = entry["index"]
+                        if loc not in locations_to_remove:
+                            locations_to_remove[loc] = []
+                        locations_to_remove[loc].append(idx)
+
+                    for loc in locations_to_remove:
+                        locations_to_remove[loc] = sorted(locations_to_remove[loc], reverse = True)
+
+                    for loc, indices in locations_to_remove.items():
+                        for idx in indices:
+                            remove_item_from_location(loc, idx)
+
+                    hands_items = save_data.get("hands", {}).get("items", [])
+                    for entry in trade_offer["store_items"]:
+                        item_copy = entry["item"].copy()
+                        item_copy.pop("_table_category", None)
+                        item_copy = add_subslots_to_item(item_copy)
+                        self._add_item_to_container(hands_items, item_copy)
+
+                    save_data["hands"]["items"] = hands_items
+                    save_data["money"] = player_money[0] - diff
+                    self._write_save_to_path(save_path, save_data)
+
+                    your_names = [e["item"].get("name", "Unknown") for e in trade_offer["your_items"]]
+                    store_names = [e["item"].get("name", "Unknown") for e in trade_offer["store_items"]]
+                    logging.info(f"Trade completed: gave {your_names}, received {store_names}, paid ${diff if diff > 0 else 0}")
+
+                    msg = f"Traded {len(trade_offer['your_items'])} of your item(s) for {len(trade_offer['store_items'])} store item(s)."
+                    if diff > 0:
+                        msg += f" Paid ${diff} extra."
+                    elif diff < 0:
+                        msg += f" Received ${-diff}."
+                    self._popup_show_info("Trade Complete", msg, sound = "success")
+
+                    stop_ui_music()
+                    self._open_business_tool()
+
+                except Exception as e:
+                    logging.error(f"Failed to complete trade: {e}")
+                    self._popup_show_info("Error", f"Failed to complete trade: {e}", sound = "error")
+
+            trade_btn = self._create_sound_button(trade_main_frame, "Complete Trade", complete_trade, width = 200, height = 35, font = customtkinter.CTkFont(size = 13))
+            trade_btn.grid(row = 3, column = 0, columnspan = 2, pady = 10)
+
+        button_frame = customtkinter.CTkFrame(main_frame, fg_color = "transparent")
+        button_frame.grid(row = 2, column = 0, sticky = "ew", padx = 20, pady = 10)
+
+        def complete_purchase():
+            if not buy_cart:
+                self._popup_show_info("Empty Cart", "Your buy cart is empty.", sound = "popup")
+                return
+
+            if buy_total[0] > player_money[0]:
+                self._popup_show_info("Not Enough Money", f"You need ${buy_total[0]} but only have ${player_money[0]}.", sound = "error")
+                return
+
+            try:
+                hands_items = save_data.get("hands", {}).get("items", [])
+
+                for cart_entry in buy_cart:
+                    item_copy = cart_entry["item"].copy()
+                    item_copy.pop("_table_category", None)
+                    item_copy = add_subslots_to_item(item_copy)
+                    self._add_item_to_container(hands_items, item_copy)
+
+                save_data["hands"]["items"] = hands_items
+                save_data["money"] = player_money[0] - buy_total[0]
+                self._write_save_to_path(save_path, save_data)
+
+                item_names = [e["item"].get("name", "Unknown") for e in buy_cart]
+                logging.info(f"Purchased items for ${buy_total[0]}: {item_names}")
+                self._popup_show_info("Purchase Complete", f"Purchased {len(buy_cart)} item(s) for ${buy_total[0]}.", sound = "success")
+
+                buy_cart.clear()
+                buy_total[0] = 0
+                player_money[0] = save_data["money"]
+                try:
+                    stop_ui_music()
+                except Exception:
+                    try:
+                        self._stop_business_music(music_channel)
+                    except Exception:
+                        pass
+                self._open_business_tool()
+
+            except Exception as e:
+                logging.error(f"Failed to complete purchase: {e}")
+                self._popup_show_info("Error", f"Failed to complete purchase: {e}", sound = "error")
+
+        def complete_sale():
+            if not sell_cart:
+                self._popup_show_info("Empty Cart", "Your sell cart is empty.", sound = "popup")
+                return
+
+            try:
+                locations_to_remove = {}
+                for entry in sell_cart:
+                    loc = entry["location"]
+                    idx = entry["index"]
+                    if loc not in locations_to_remove:
+                        locations_to_remove[loc] = []
+                    locations_to_remove[loc].append(idx)
+
+                for loc in locations_to_remove:
+                    locations_to_remove[loc] = sorted(locations_to_remove[loc], reverse = True)
+
+                for loc, indices in locations_to_remove.items():
+                    for idx in indices:
+                        remove_item_from_location(loc, idx)
+
+                save_data["money"] = player_money[0] + sell_total[0]
+                self._write_save_to_path(save_path, save_data)
+
+                logging.info(f"Sold {len(sell_cart)} items for ${sell_total[0]}")
+                self._popup_show_info("Sale Complete", f"Sold {len(sell_cart)} item(s) for ${sell_total[0]}.", sound = "success")
+
+                sell_cart.clear()
+                sell_total[0] = 0
+                player_money[0] = save_data["money"]
+                try:
+                    stop_ui_music()
+                except Exception:
+                    try:
+                        self._stop_business_music(music_channel)
+                    except Exception:
+                        pass
+                self._open_business_tool()
+
+            except Exception as e:
+                logging.error(f"Failed to complete sale: {e}")
+                self._popup_show_info("Error", f"Failed to complete sale: {e}", sound = "error")
+
+        def leave_store():
+            def _do_leave(confirmed: bool = True):
+                if not confirmed:
+                    return
+                try:
+                    stop_ui_music()
+                except Exception:
+                    try:
+                        self._stop_business_music(music_channel)
+                    except Exception:
+                        pass
+                self._open_business_tool()
+
+            # confirm if there are items in buy or sell carts
+            try:
+                has_buy = bool(buy_cart)
+                has_sell = bool(sell_cart)
+                if has_buy or has_sell:
+                    parts = []
+                    if has_buy:
+                        parts.append(f"{len(buy_cart)} item(s) in buy cart")
+                    if has_sell:
+                        parts.append(f"{len(sell_cart)} item(s) in sell cart")
+                    details = " and ".join(parts)
+                    msg = f"You have {details}. Leaving will discard these items. Leave anyway?"
+                    self._popup_confirm("Leave Store", msg, _do_leave)
+                    return
+            except Exception:
+                pass
+
+            _do_leave()
+
+        buy_btn = self._create_sound_button(button_frame, "Complete Purchase", complete_purchase, width = 200, height = 40, font = customtkinter.CTkFont(size = 14))
+        buy_btn.pack(side = "left", padx = 10)
+
+        sell_btn = self._create_sound_button(button_frame, "Complete Sale", complete_sale, width = 200, height = 40, font = customtkinter.CTkFont(size = 14))
+        sell_btn.pack(side = "left", padx = 10)
+
+        back_btn = self._create_sound_button(button_frame, "Leave Store", leave_store, width = 200, height = 40, font = customtkinter.CTkFont(size = 14))
+        back_btn.pack(side = "right", padx = 10)
+
     def _open_inventory_manager_tool(self):
         logging.info("Inventory Manager definition called")
         self._clear_window()
@@ -6777,7 +9004,7 @@ class App:
         }
 
         strat_window = customtkinter.CTkToplevel(self.root)
-        strat_window.title(f"Stratagem: {item.get('name', 'Unknown')}")
+        strat_window.title(f"Stratagem: {self._format_item_name(item)}")
         strat_window.transient(self.root)
         self._center_popup_on_window(strat_window, 600, 400)
         strat_window.grab_set()
@@ -7202,7 +9429,7 @@ class App:
 
                     checkbox = customtkinter.CTkCheckBox(
                     item_frame,
-                    text = f"{item.get('name', 'Unknown')} x{item.get('quantity', 1)}",
+                    text = f"{self._format_item_name(item)} x{item.get('quantity', 1)}",
                     variable = var,
                     command = on_check
                     )
@@ -8030,7 +10257,7 @@ class App:
             item_frame.pack(fill = "x", pady = 5, padx = 10)
             item_frame.grid_columnconfigure(0, weight = 1)
 
-            item_name = item.get("name", "Unknown")
+            item_name = self._format_item_name(item)
             item_qty = item.get("quantity", 1)
             item_weight = item.get("weight", 0)*item_qty
             item_value = item.get("value", 0)
@@ -8314,7 +10541,7 @@ class App:
                 item_frame = customtkinter.CTkFrame(source_scroll)
                 item_frame.pack(fill = "x", pady = 2)
 
-                item_name = item.get("name", "Unknown")
+                item_name = self._format_item_name(item)
                 item_weight = item.get("weight", 0)*item.get("quantity", 1)
 
                 item_label = customtkinter.CTkLabel(
@@ -8362,7 +10589,7 @@ class App:
                 item_frame = customtkinter.CTkFrame(dest_scroll)
                 item_frame.pack(fill = "x", pady = 2)
 
-                item_name = item.get("name", "Unknown")
+                item_name = self._format_item_name(item)
                 item_weight = item.get("weight", 0)*item.get("quantity", 1)
 
                 item_label = customtkinter.CTkLabel(
@@ -8669,7 +10896,7 @@ class App:
 
                             continue
                     else:
-                        item_name = item.get("name", "Unknown")if isinstance(item, dict)else str(item)
+                        item_name = self._format_item_name(item) if isinstance(item, dict) else str(item)
                         display_text = f" {item_name}"
 
                     item_label = customtkinter.CTkLabel(
@@ -8946,7 +11173,7 @@ class App:
                 item_frame = customtkinter.CTkFrame(items_scroll)
                 item_frame.pack(fill = "x", pady = 2, padx = 5)
 
-                item_name = item.get("name", "Unknown")
+                item_name = self._format_item_name(item)
 
                 if item.get("equippable"):
                     slots = item.get("slot", [])
@@ -9572,7 +11799,7 @@ class App:
                 self._play_ui_sound("click")
 
                 popup = customtkinter.CTkToplevel(self.root)
-                popup.title(f"Container: {container_item.get('name', 'Unknown')}")
+                popup.title(f"Container: {self._format_item_name(container_item)}")
                 popup.transient(self.root)
                 self._center_popup_on_window(popup, 500, 600)
 
@@ -9604,7 +11831,7 @@ class App:
                         item_frame = customtkinter.CTkFrame(items_frame)
                         item_frame.pack(fill = "x", pady = 3, padx = 5)
 
-                        item_name = item.get("name", "Unknown")
+                        item_name = self._format_item_name(item)
                         quantity = item.get("quantity", 1)
                         weight = item.get("weight", 0)
 
@@ -22220,7 +24447,7 @@ class App:
                         loot.extend(item)
                     else:
                         if global_variables.get("devmode", {}).get("value", False):
-                            entry_debug.append(f" → Resolved: {item.get('name', 'Unknown')}({item.get('rarity', 'Unknown')})")
+                            entry_debug.append(f" → Resolved: {self._format_item_name(item)}({item.get('rarity', 'Unknown')})")
                         loot.append(item)
 
             if global_variables.get("devmode", {}).get("value", False):
@@ -22615,7 +24842,7 @@ class App:
             popup.transient(self.root)
             popup.grab_set()
 
-            item_name = item.get("name", "Unknown")
+            item_name = self._format_item_name(item)
             item_rarity = item.get("rarity", "Common")
 
             title_label = customtkinter.CTkLabel(popup, text = f"Add: {item_name}", font = customtkinter.CTkFont(size = 14, weight = "bold"))
@@ -23123,7 +25350,7 @@ class App:
 
                 item_label = customtkinter.CTkLabel(
                 item_row,
-                text = f"ID {item.get('id', '?')}: {item.get('name', 'Unknown')[:25]}",
+                text = f"ID {item.get('id', '?')}: {self._format_item_name(item)[:25]}",
                 font = customtkinter.CTkFont(size = 11),
                 anchor = "w"
                 )

@@ -6,6 +6,7 @@ customtkinter==5.2.2
 darkdetect==0.8.0
 distro==1.9.0
 idna==3.11
+mutagen==1.47.0
 numpy==2.4.0
 packaging==25.0
 pefile==2024.8.26
@@ -14,6 +15,7 @@ pygame==2.6.1
 pyinstaller-hooks-contrib==2025.11
 pyinstaller==6.17.0
 pyperclip==1.11.0
+pytz==2025.2
 pywin32-ctypes==0.2.3
 requests==2.32.5
 setuptools==80.9.0
