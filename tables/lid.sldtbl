@@ -872,7 +872,7 @@
                 "accessories": [
                     {"name": "Carry Handle Mount", "slot": "m16_carryhandle", "current": null},
                     {"name": "Bayonet Lug", "slot": "bayonet_mount_ar15", "current": null, "conflicts_with": ["muzzle_556"]},
-                    {"name": "AR-15 Auto Sear", "slot": "auto_sear", "current": null},
+                    {"name": "AR-15 Auto Sear", "slot": "ar15_auto_sear", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_556", "current": null}
                 ],
                 "can_stack": false,
@@ -934,7 +934,7 @@
                     {"name": "Picatinny Rail (Handguard Right)", "slot": "picatinny_rifle", "current": null},
                     {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom", "current": null},
                     {"name": "Bayonet Lug", "slot": "bayonet_mount_ar15", "current": null, "conflicts_with": ["muzzle_556"]},    
-                    {"name": "AR-15 Auto Sear", "slot": "auto_sear", "current": null},
+                    {"name": "AR-15 Auto Sear", "slot": "ar15_auto_sear", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_556", "current": null}
                 ],
                 "can_stack": false,
