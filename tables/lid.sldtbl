@@ -2284,7 +2284,7 @@
                 "type": "conventional",
                 "subtype": "smg",
                 "platform": "AK-74",
-                "caliber": ["5.45x39mm"],
+                "caliber": ["5.45x39mm Soviet"],
                 "action": ["Semi", "Auto"],
                 "bolt": "closed",
                 "bolt_catch": true,

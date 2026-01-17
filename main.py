@@ -11697,12 +11697,44 @@ class App:
                         return
 
                 def apply_choice(choice):
-                    if location =="storage":
-                        removed_item = save_data["storage"].pop(item_idx)
-                    elif location =="hands":
-                        removed_item = save_data["hands"]["items"].pop(item_idx)
-                        item_weight = removed_item.get("weight", 0)*removed_item.get("quantity", 1)
-                        save_data["hands"]["encumbrance"]= max(0, save_data["hands"].get("encumbrance", 0)-item_weight)
+                    def _take_one_from_list(lst, idx):
+                        try:
+                            if not isinstance(lst, list):
+                                return None
+                            if idx is None or not (0 <= int(idx) < len(lst)):
+                                return None
+                            it = lst[int(idx)]
+                            if isinstance(it, dict):
+                                qty = it.get('quantity')
+                                if isinstance(qty, (int, float)) and qty > 1:
+                                    # decrement stack and return a single-unit copy
+                                    try:
+                                        it['quantity'] = int(qty) - 1
+                                    except Exception:
+                                        pass
+                                    single = it.copy()
+                                    single['quantity'] = 1
+                                    return single
+                            # otherwise remove the element entirely
+                            try:
+                                return lst.pop(int(idx))
+                            except Exception:
+                                try:
+                                    # fallback: set to None and return original
+                                    val = lst[int(idx)]
+                                    lst[int(idx)] = None
+                                    return val
+                                except Exception:
+                                    return None
+                        except Exception:
+                            return None
+
+                    if location == "storage":
+                        removed_item = _take_one_from_list(save_data["storage"], item_idx)
+                    elif location == "hands":
+                        removed_item = _take_one_from_list(save_data["hands"]["items"], item_idx)
+                        item_weight = (removed_item.get("weight", 0) * removed_item.get("quantity", 1)) if isinstance(removed_item, dict) else 0
+                        save_data["hands"]["encumbrance"] = max(0, save_data["hands"].get("encumbrance", 0) - item_weight)
                     elif location.startswith("equipment."):
 
                         # Generic parser for equipment.* locations supporting arbitrary nesting
@@ -11717,9 +11749,9 @@ class App:
                                 if token == 'items':
                                     # cur should be a dict with 'items' or a list
                                     if isinstance(cur, dict) and 'items' in cur:
-                                        removed_item = cur['items'].pop(item_idx)
+                                        removed_item = _take_one_from_list(cur['items'], item_idx)
                                     elif isinstance(cur, list):
-                                        removed_item = cur.pop(item_idx)
+                                        removed_item = _take_one_from_list(cur, item_idx)
                                     else:
                                         removed_item = item
                                     break
@@ -16909,31 +16941,55 @@ class App:
             try:
 
                 try:
-                    if location =='hands':
-                        if throwable_item in save_data.get('hands', {}).get('items', []):
-                            save_data.get('hands', {}).get('items', []).remove(throwable_item)
-                    elif location =='equipment':
+                    # helper to remove one instance (or decrement quantity) of the throwable
+                    def _consume_throwable_from_list(lst, target):
+                        try:
+                            for i, it in enumerate(lst):
+                                if it is target:
+                                    if isinstance(it, dict):
+                                        qty = it.get('quantity')
+                                        if isinstance(qty, (int, float)) and qty > 1:
+                                            try:
+                                                it['quantity'] = int(qty) - 1
+                                                return True
+                                            except Exception:
+                                                pass
+                                        else:
+                                            try:
+                                                lst.pop(i)
+                                                return True
+                                            except Exception:
+                                                pass
+                                    return False
+                        except Exception:
+                            pass
+                        return False
+
+                    if location == 'hands':
+                        hands_list = save_data.get('hands', {}).get('items', [])
+                        _consume_throwable_from_list(hands_list, throwable_item)
+                    elif location == 'equipment':
                         for slot_name, eq_item in save_data.get('equipment', {}).items():
                             if not eq_item or not isinstance(eq_item, dict):
                                 continue
-                            if 'items'in eq_item and throwable_item in eq_item['items']:
-                                try:
-                                    eq_item['items'].remove(throwable_item)
+                            if 'items' in eq_item and isinstance(eq_item['items'], list):
+                                if _consume_throwable_from_list(eq_item['items'], throwable_item):
                                     break
-                                except Exception:
-                                    pass
-                            if 'subslots'in eq_item:
+                            if 'subslots' in eq_item:
                                 for sub in eq_item.get('subslots', []):
                                     try:
                                         curr = sub.get('current')
-                                        if curr and isinstance(curr, dict)and 'items'in curr and throwable_item in curr['items']:
-                                            try:
-                                                curr['items'].remove(throwable_item)
+                                        if curr and isinstance(curr, dict) and 'items' in curr and isinstance(curr['items'], list):
+                                            if _consume_throwable_from_list(curr['items'], throwable_item):
                                                 break
-                                            except Exception:
-                                                pass
                                     except Exception:
                                         pass
+                except Exception:
+                    pass
+
+                # persist save data after changing quantities
+                try:
+                    self._save_file(save_data)
                 except Exception:
                     pass
 
@@ -17074,7 +17130,9 @@ class App:
             frame.pack(fill = 'both', expand = True, padx = 10, pady = 10)
             for idx, (loc, itm)in enumerate(all_throw):
                 name = itm.get('name')or itm.get('type')or f'Throwable {idx}'
-                desc = f"{name} - {loc} - fuse {itm.get('fuse_time')or itm.get('fuse', '?')}s"
+                qty = int(itm.get('quantity') or 1) if isinstance(itm.get('quantity'), (int, float, str)) else 1
+                qty_text = f" x{qty}" if qty > 1 else ""
+                desc = f"{name}{qty_text} - {loc} - fuse {itm.get('fuse_time')or itm.get('fuse', '?')}s"
                 rb = customtkinter.CTkRadioButton(frame, text = desc, variable = sel_var, value = str(idx))
                 rb.pack(anchor = 'w', pady = 2)
 
@@ -18977,6 +19035,113 @@ class App:
         is_internal = "internal"in magazine_type or "tube"in magazine_type
         is_revolver = "revolver"in weapon.get("platform", "").lower()
 
+        # treat windowed_magazine as providing HUD-like precise info
+        # The `windowed_magazine` flag may be on the loaded magazine dict (or on the chambered round),
+        # so check those first; fall back to weapon-level flag if present.
+        # resolve references: loaded_mag or chambered may be IDs referencing table items
+        def _resolve_ref(obj):
+            if isinstance(obj, dict):
+                return obj
+            try:
+                td = globals().get('table_data') or {}
+                tables = td.get('tables', {}) if isinstance(td, dict) else {}
+                iid = None
+                if isinstance(obj, (int, float)):
+                    iid = int(obj)
+                elif isinstance(obj, str) and str(obj).isdigit():
+                    iid = int(obj)
+                if iid is None:
+                    return None
+                for arr in tables.values():
+                    if isinstance(arr, list):
+                        for cand in arr:
+                            try:
+                                if isinstance(cand, dict) and cand.get('id') == iid:
+                                    return cand
+                            except Exception:
+                                pass
+            except Exception:
+                pass
+            # fallback: search current save data for an item with this id
+            try:
+                iid_local = iid if 'iid' in locals() else None
+                if iid_local is not None:
+                    seen = set()
+                    def _search(obj):
+                        try:
+                            oid = id(obj)
+                            if oid in seen:
+                                return None
+                            seen.add(oid)
+                        except Exception:
+                            pass
+                        if isinstance(obj, dict):
+                            try:
+                                if obj.get('id') == iid_local:
+                                    return obj
+                            except Exception:
+                                pass
+                            for v in obj.values():
+                                try:
+                                    res = _search(v)
+                                    if res:
+                                        return res
+                                except Exception:
+                                    pass
+                        elif isinstance(obj, list):
+                            for it in obj:
+                                try:
+                                    res = _search(it)
+                                    if res:
+                                        return res
+                                except Exception:
+                                    pass
+                        return None
+
+                    sd = globals().get('save_data') or getattr(self, '_current_save_data', None)
+                    if isinstance(sd, dict):
+                        # search common roots
+                        for root_key in ('storage', 'hands', 'equipment'):
+                            try:
+                                root = sd.get(root_key)
+                                if root:
+                                    found = _search(root)
+                                    if found:
+                                        return found
+                            except Exception:
+                                pass
+                    # last resort: scan entire save_data
+                    if isinstance(sd, dict):
+                        found = _search(sd)
+                        if found:
+                            return found
+            except Exception:
+                pass
+
+            return None
+
+        loaded_mag_obj = _resolve_ref(loaded_mag) or (loaded_mag if isinstance(loaded_mag, dict) else None)
+        chambered_obj = _resolve_ref(chambered) or (chambered if isinstance(chambered, dict) else None)
+
+        try:
+            mag_windowed = False
+            if loaded_mag_obj and isinstance(loaded_mag_obj, dict) and loaded_mag_obj.get('windowed_magazine'):
+                mag_windowed = True
+            elif chambered_obj and isinstance(chambered_obj, dict) and chambered_obj.get('windowed_magazine'):
+                mag_windowed = True
+            elif isinstance(weapon, dict) and weapon.get('windowed_magazine'):
+                mag_windowed = True
+        except Exception:
+            mag_windowed = False
+
+        # debug log to help diagnose windowed_magazine detection issues
+        try:
+            logging.debug("_get_ammo_display: loaded_mag_raw=%s loaded_mag_resolved=%s chambered_resolved=%s mag_windowed=%s has_hud=%s", repr(loaded_mag), repr(loaded_mag_obj), repr(chambered_obj), mag_windowed, has_hud)
+        except Exception:
+            pass
+
+        effective_has_hud = bool(has_hud) or bool(mag_windowed)
+
         if is_internal or is_revolver:
 
             internal_rounds = weapon.get("rounds", [])
@@ -18984,7 +19149,7 @@ class App:
             if chambered:
                 total_rounds +=1
 
-            if has_hud:
+            if effective_has_hud:
                 chamber_text = "(+1 chambered)"if chambered else ""
                 capacity = weapon.get("capacity", 0)
                 return f"Ammo: {total_rounds}/{capacity} rounds{chamber_text}"
@@ -19004,7 +19169,7 @@ class App:
             rounds_in_mag = len(loaded_mag.get("rounds", []))
             total_rounds +=rounds_in_mag
 
-        if has_hud:
+        if effective_has_hud:
 
             chamber_text = "(+1 chambered)"if chambered else ""
             if loaded_mag and not loaded_mag.get("rounds"):
