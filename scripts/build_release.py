@@ -31,7 +31,7 @@ SOUNDS_DIR = ROOT / 'sounds'
 TABLES_DIR = ROOT / 'tables'
 BUILD_DIR = ROOT / 'build'
 DIST_DIR = ROOT / 'dist'
-
+FONTS_DIR = ROOT / 'fonts'
 
 def get_version_from_main():
     """Read version from line 1 of main.py"""
@@ -103,6 +103,10 @@ def make_release_zip(exe_path: Path, out_dir: Path, version: str = '0.0.0', incl
         if TABLES_DIR.exists():
             dest_tables = tmpdir / 'tables'
             shutil.copytree(TABLES_DIR, dest_tables)
+
+        if FONTS_DIR.exists():
+            dest_fonts = tmpdir / 'fonts'
+            shutil.copytree(FONTS_DIR, dest_fonts)
 
         # create zip
         with zipfile.ZipFile(zip_name, 'w', compression=zipfile.ZIP_DEFLATED) as zf:

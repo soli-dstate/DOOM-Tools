@@ -1,7 +1,5 @@
 version = "1.0.7"
 
-# TODO: fix subslots of subslots
-
 import os
 import logging
 import re
@@ -1552,6 +1550,40 @@ def populate_equipment_with_subslots(save_data):
                                 except Exception:
                                     pass
 
+                            # Attempt to populate nested subslots for each subslot placeholder
+                            try:
+                                for sub in eq.get("subslots", []) or []:
+                                    try:
+                                        s_slot = sub.get('slot')
+                                        # find a table equipment item whose slot matches this subslot
+                                        for candidate in equipment_items:
+                                            try:
+                                                if isinstance(candidate, dict) and candidate.get('slot') == s_slot and 'subslots' in candidate:
+                                                    nested = []
+                                                    for ss in candidate.get('subslots', []) or []:
+                                                        try:
+                                                            nested.append({'name': ss.get('name'), 'slot': ss.get('slot'), 'current': None})
+                                                        except Exception:
+                                                            pass
+                                                    if nested:
+                                                        sub.setdefault('subslots', nested)
+                                                        logging.debug(f"Added {len(nested)} nested subslots to subslot '{sub.get('name')}' on item ID {item_id}")
+                                                        # ensure any nested current dicts are processed
+                                                        for nsub in sub.get('subslots', []) or []:
+                                                            try:
+                                                                cur2 = nsub.get('current')
+                                                                if isinstance(cur2, dict):
+                                                                    add_subslots_to_item(cur2)
+                                                            except Exception:
+                                                                pass
+                                                    break
+                                            except Exception:
+                                                pass
+                                    except Exception:
+                                        pass
+                            except Exception:
+                                pass
+
                             for acc in eq.get("accessories", [])or[]:
                                 try:
                                     cur = acc.get("current")
@@ -1731,24 +1763,24 @@ def _add_subslots_to_item_recursive(item, seen = None):
                                         table_item = it
                                         if "subslots"in table_item:
 
-                                            resolved_subslots =[]
+                                            resolved_subslots = []
                                             for subslot in table_item["subslots"]:
                                                 cur = subslot.get("current", None)
                                                 resolved_cur = cur
-                                                if cur is not None and(isinstance(cur, int)or(isinstance(cur, str)and str(cur).isdigit())):
+                                                if cur is not None and (isinstance(cur, int) or (isinstance(cur, str) and str(cur).isdigit())):
                                                     try:
                                                         iid = int(cur)
 
                                                         for _tf in table_files:
                                                             try:
-                                                                with open(_tf, 'r', encoding = 'utf-8')as _f:
+                                                                with open(_tf, 'r', encoding = 'utf-8') as _f:
                                                                     _td = json.load(_f)
                                                             except Exception:
                                                                 continue
                                                             for arr in _td.get('tables', {}).values():
                                                                 if isinstance(arr, list):
                                                                     for candidate in arr:
-                                                                        if isinstance(candidate, dict)and candidate.get('id')==iid:
+                                                                        if isinstance(candidate, dict) and candidate.get('id') == iid:
                                                                             resolved_cur = candidate.copy()
                                                                             break
                                                                     if isinstance(resolved_cur, dict):
@@ -1758,11 +1790,14 @@ def _add_subslots_to_item_recursive(item, seen = None):
                                                     except Exception:
                                                         resolved_cur = cur
 
-                                                    resolved_subslots.append({
-                                                    "name":subslot.get("name"),
-                                                    "slot":subslot.get("slot"),
-                                                    "current":None
-                                                    })
+                                                # preserve resolved current (dict) when available, else None
+                                                current_val = resolved_cur if isinstance(resolved_cur, dict) else None
+
+                                                resolved_subslots.append({
+                                                    "name": subslot.get("name"),
+                                                    "slot": subslot.get("slot"),
+                                                    "current": current_val
+                                                })
 
                                             try:
                                                 if isinstance(item, dict):
@@ -5940,6 +5975,75 @@ class App:
             points_label = customtkinter.CTkLabel(header_frame, text = "Unlimited Requisitions", font = customtkinter.CTkFont(size = 14), text_color = "green")
             points_label.pack(pady = 5)
 
+        # Armory search box (search across all categories)
+        try:
+            search_frame = customtkinter.CTkFrame(header_frame, fg_color = "transparent")
+            search_frame.pack(pady = (6, 2))
+            search_entry = customtkinter.CTkEntry(search_frame, placeholder_text = "Search armory items...", width = 360)
+            search_entry.pack(side = "left", padx = (0,6))
+            def _perform_armory_search(event = None):
+                try:
+                    q = (search_entry.get() or "").strip().lower()
+                    if not q:
+                        # clear search: show previously selected category if available
+                        try:
+                            if selected_category and selected_category[0]:
+                                show_category_items(selected_category[0])
+                                return
+                        except Exception:
+                            pass
+                        return
+                    # gather matches across all categories (categories created later but referenced at call-time)
+                    matches = []
+                    try:
+                        for cat, items in list(categories.items()):
+                            for it in items:
+                                try:
+                                    name = (self._format_item_name(it) or "").lower()
+                                except Exception:
+                                    name = (it.get('name') or '').lower()
+                                desc = (it.get('description') or '').lower()
+                                if q in name or q in desc:
+                                    matches.append(it)
+                        # register a temporary category for results
+                        categories["Search Results"] = matches
+                        show_category_items("Search Results")
+                        try:
+                            # highlight search box briefly when results found
+                            search_entry.configure(text_color = "#7CFC00")
+                            self.root.after(800, lambda: search_entry.configure(text_color = "#000000"))
+                        except Exception:
+                            pass
+                    except Exception:
+                        pass
+                except Exception:
+                    pass
+
+            search_btn = self._create_sound_button(search_frame, "Search", _perform_armory_search, width = 80, height = 28, font = customtkinter.CTkFont(size = 11))
+            search_btn.pack(side = "left")
+            def _clear_search():
+                try:
+                    search_entry.delete(0, 'end')
+                    try:
+                        categories.pop("Search Results", None)
+                    except Exception:
+                        pass
+                    try:
+                        if selected_category and selected_category[0]:
+                            show_category_items(selected_category[0])
+                    except Exception:
+                        pass
+                except Exception:
+                    pass
+            clear_btn = self._create_sound_button(search_frame, "Clear", _clear_search, width = 60, height = 28, font = customtkinter.CTkFont(size = 11))
+            clear_btn.pack(side = "left", padx = (6,0))
+            try:
+                search_entry.bind("<Return>", _perform_armory_search)
+            except Exception:
+                pass
+        except Exception:
+            pass
+
         # Marquee / now-playing display for business music
         marquee_label = None
         marquee_job: list[object] = [None]
@@ -6075,6 +6179,7 @@ class App:
                     pass
 
                 pos = [0]
+                prev_track = [music_channel.get('track') if (music_channel and music_channel.get('track')) else None]
 
                 def _fmt_time(s):
                     try:
@@ -7167,6 +7272,14 @@ class App:
                         meta_info = None
                         if current:
                             meta_info = current.get("_meta")
+                        # detect track changes and reset scroll position
+                        try:
+                            track_path = (current or {}).get('track')
+                            if track_path != prev_track[0]:
+                                prev_track[0] = track_path
+                                pos[0] = 0
+                        except Exception:
+                            track_path = (current or {}).get('track')
                         try:
                             logging.debug(f"store marquee update: track={os.path.basename((current or {}).get('track') or '')} meta={bool(meta_info)} pos={pos[0]} ids: current={id(current)} music_channel={id(music_channel)} self_cur={id(getattr(self,'_current_business_music',None))}")
                         except Exception:
@@ -7187,13 +7300,13 @@ class App:
 
                         if meta_info:
                             base_artist = meta_info.get("artist") or ""
-                            base_title = meta_info.get("title") or os.path.basename((current or {}).get("track") or "")
+                            base_title = meta_info.get("title") or os.path.basename(track_path or "")
                             total = meta_info.get("length") or 0.0
                         else:
-                            # fallback to the initial values but kick off a background load for the current track
-                            base_artist = base_artist or "" # type: ignore
-                            base_title = base_title or os.path.basename((music_channel or {}).get("track") or "") # type: ignore
-                            total = track_len or 0.0
+                            # fallback to the live track filename for the current track and kick off a background load
+                            base_artist = ""
+                            base_title = os.path.basename(track_path or "")
+                            total = 0.0
                             try:
                                 if current and not current.get("_meta_loading"):
                                     current["_meta_loading"] = True
@@ -10974,6 +11087,60 @@ class App:
                                     height = 25
                                     )
                                     view_button.pack(side = "left", padx = 2)
+                                # render nested subslots of the current item (subslots of subslots)
+                                try:
+                                    def _render_nested_subslots(parent_item, parent_frame, parent_slot, parent_subslot):
+                                        try:
+                                            for n_idx, n_sub in enumerate(parent_item.get('subslots', []) or []):
+                                                try:
+                                                    n_name = n_sub.get('name', 'Unknown Subslot')
+                                                    n_slot = n_sub.get('slot', 'unknown')
+                                                    n_current = n_sub.get('current')
+
+                                                    n_frame = customtkinter.CTkFrame(parent_frame)
+                                                    n_frame.pack(fill = 'x', pady = 2, padx = 20)
+
+                                                    n_label = customtkinter.CTkLabel(
+                                                    n_frame,
+                                                    text = f"  ↳ {n_name}:",
+                                                    font = customtkinter.CTkFont(size = 10),
+                                                    anchor = "w",
+                                                    text_color = "#FFD700"
+                                                    )
+                                                    n_label.pack(side = "top", anchor = "w", padx = 10, pady = (4, 0))
+
+                                                    if n_current:
+                                                        try:
+                                                            nn_name = n_current.get('name', 'Unknown') if isinstance(n_current, dict) else str(n_current)
+                                                        except Exception:
+                                                            nn_name = 'Unknown'
+                                                        nn_label = customtkinter.CTkLabel(n_frame, text = f"  {nn_name}", anchor = 'w', text_color = 'lightgreen', font = customtkinter.CTkFont(size = 10))
+                                                        nn_label.pack(side = 'top', anchor = 'w', padx = 10)
+
+                                                        btn_cont = customtkinter.CTkFrame(n_frame, fg_color = 'transparent')
+                                                        btn_cont.pack(side = 'right', padx = 10, pady = 4)
+
+                                                        unequip_n = self._create_sound_button(btn_cont, 'Unequip', lambda s = parent_slot, ss = parent_subslot, idx = n_idx: unequip_from_subslot(s, ss, subindex = idx) if callable(unequip_from_subslot) else None, width = 70, height = 22)
+                                                        unequip_n.pack(side = 'left', padx = 2)
+
+                                                        # recurse deeper
+                                                        try:
+                                                            if isinstance(n_current, dict):
+                                                                _render_nested_subslots(n_current, n_frame, parent_slot, n_sub)
+                                                        except Exception:
+                                                            pass
+                                                    else:
+                                                        empty_n = customtkinter.CTkLabel(n_frame, text = f"(empty - accepts: {n_slot})", anchor = 'w', text_color = 'gray', font = customtkinter.CTkFont(size = 9))
+                                                        empty_n.pack(side = 'top', anchor = 'w', padx = 10, pady = (0, 4))
+                                                except Exception:
+                                                    pass
+                                        except Exception:
+                                            pass
+
+                                    if isinstance(current_item, dict) and current_item.get('subslots'):
+                                        _render_nested_subslots(current_item, subslot_frame, slot, subslot_data)
+                                except Exception:
+                                    pass
                             else:
                                 try:
                                     conflicts = subslot_data.get('conflicts_with')
@@ -11006,6 +11173,33 @@ class App:
                                 font = customtkinter.CTkFont(size = 10)
                                 )
                                 empty_sub_label.pack(side = "top", anchor = "w", padx = 20, pady =(0, 5))
+                                # render nested placeholder subslots (subslots of this subslot) even when empty
+                                try:
+                                    nested_list = subslot_data.get('subslots') or []
+                                    if nested_list:
+                                        for nsub in nested_list:
+                                            try:
+                                                n_name = nsub.get('name', 'Unknown Subslot')
+                                                n_slot = nsub.get('slot', 'unknown')
+
+                                                n_frame = customtkinter.CTkFrame(subslot_frame)
+                                                n_frame.pack(fill = 'x', pady = 2, padx = 20)
+
+                                                n_label = customtkinter.CTkLabel(
+                                                n_frame,
+                                                text = f"  ↳ {n_name}:",
+                                                font = customtkinter.CTkFont(size = 10),
+                                                anchor = "w",
+                                                text_color = "#FFD700"
+                                                )
+                                                n_label.pack(side = "top", anchor = "w", padx = 10, pady = (4, 0))
+
+                                                empty_n = customtkinter.CTkLabel(n_frame, text = f"(empty - accepts: {n_slot})", anchor = 'w', text_color = 'gray', font = customtkinter.CTkFont(size = 9))
+                                                empty_n.pack(side = 'top', anchor = 'w', padx = 10, pady = (0, 4))
+                                            except Exception:
+                                                pass
+                                except Exception:
+                                    pass
                 else:
 
                     try:
@@ -11132,8 +11326,9 @@ class App:
                     )
                     equip_slot_btn.pack(side = "right", padx = 10, pady = 5)
 
-            all_items =[]
+            all_items = []
 
+            # hands (top-level) items
             for i, item in enumerate(save_data["hands"].get("items", [])):
                 if isinstance(item, dict):
                     is_equippable = item.get("equippable", False)
@@ -11142,32 +11337,57 @@ class App:
                     if is_equippable or is_firearm or is_melee:
                         all_items.append(("hands", i, item))
 
+            # recursively collect items from equipment (support nested subslots/lists)
             equipment = save_data.get("equipment", {})
+
+            def _collect_from_obj(loc_prefix, obj):
+                try:
+                    if isinstance(obj, dict):
+                        # direct items list on this object
+                        if "items" in obj and isinstance(obj.get("items"), list):
+                            for ci, citem in enumerate(obj.get("items") or []):
+                                if not isinstance(citem, dict):
+                                    continue
+                                is_equippable = citem.get("equippable", False)
+                                is_firearm = citem.get("firearm", False)
+                                is_melee = citem.get("melee", False)
+                                if is_equippable or is_firearm or is_melee:
+                                    all_items.append((f"{loc_prefix}.items", ci, citem))
+
+                        # nested subslots
+                        for ss_idx, subslot_data in enumerate(obj.get("subslots") or []):
+                            try:
+                                subcur = subslot_data.get("current")
+                                if isinstance(subcur, dict):
+                                    _collect_from_obj(f"{loc_prefix}.subslot.{ss_idx}", subcur)
+                            except Exception:
+                                pass
+
+                        # if this dict is actually an element of a list container, it may itself contain list entries
+                        for list_idx, lst_item in enumerate(obj.get("items") or []):
+                            try:
+                                if isinstance(lst_item, dict):
+                                    _collect_from_obj(f"{loc_prefix}.list.{list_idx}", lst_item)
+                            except Exception:
+                                pass
+
+                    elif isinstance(obj, list):
+                        for idx, sub in enumerate(obj):
+                            try:
+                                if isinstance(sub, dict):
+                                    _collect_from_obj(f"{loc_prefix}.list.{idx}", sub)
+                            except Exception:
+                                pass
+                except Exception:
+                    pass
+
             for eq_slot, eq_item in equipment.items():
-                if not eq_item or not isinstance(eq_item, dict):
-                    continue
-
-                if "items"in eq_item and isinstance(eq_item.get("items"), list):
-                    for ci, citem in enumerate(eq_item["items"]):
-                        if not isinstance(citem, dict):
-                            continue
-                        is_equippable = citem.get("equippable", False)
-                        is_firearm = citem.get("firearm", False)
-                        is_melee = citem.get("melee", False)
-                        if is_equippable or is_firearm or is_melee:
-                            all_items.append((f"equipment.{eq_slot}.items", ci, citem))
-
-                for ss_idx, subslot_data in enumerate(eq_item.get("subslots", [])or[]):
-                    subslot_item = subslot_data.get("current")
-                    if subslot_item and isinstance(subslot_item, dict)and "items"in subslot_item:
-                        for ci, citem in enumerate(subslot_item["items"]):
-                            if not isinstance(citem, dict):
-                                continue
-                            is_equippable = citem.get("equippable", False)
-                            is_firearm = citem.get("firearm", False)
-                            is_melee = citem.get("melee", False)
-                            if is_equippable or is_firearm or is_melee:
-                                all_items.append((f"equipment.{eq_slot}.subslot.{ss_idx}.items", ci, citem))
+                try:
+                    if eq_item is None:
+                        continue
+                    _collect_from_obj(f"equipment.{eq_slot}", eq_item)
+                except Exception:
+                    pass
 
             for location, idx, item in all_items:
                 item_frame = customtkinter.CTkFrame(items_scroll)
@@ -11406,56 +11626,69 @@ class App:
                             except Exception:
                                 pass
 
-                    for parent_slot, equipped_item in equipment.items():
-                        if isinstance(equipped_item, dict)and "subslots"in equipped_item:
-                            for subslot_data in equipped_item["subslots"]:
-                                subslot_type = subslot_data.get("slot", "")
-                                if subslot_type in valid_slots and subslot_data.get("current")is None:
-                                    conflicts = subslot_data.get("conflicts_with")
-                                    blocked = False
-                                    if conflicts:
-                                        if isinstance(conflicts, dict):
-                                            conflict_type = conflicts.get("type")
-                                            conflict_slot = conflicts.get("slot")
-                                            if conflict_type =="main"and conflict_slot in equipment and equipment.get(conflict_slot)is not None:
-                                                blocked = True
-                                        elif isinstance(conflicts, (list, tuple)):
-                                            for conflict_slot in conflicts:
-                                                if conflict_slot in equipment and equipment.get(conflict_slot)is not None:
+                    # Recursively scan equipped items (and their accessories/current subitems)
+                    # to find any empty subslot at any nesting depth that matches valid_slots.
+                    def _recurse_find_subslots(root_slot, container, label_prefix=None):
+                        try:
+                            if not container or not isinstance(container, dict):
+                                return
+                            for subslot_data in container.get('subslots', []) or []:
+                                try:
+                                    subslot_type = subslot_data.get('slot', '')
+                                    # build label
+                                    lbl_suffix = subslot_data.get('name', subslot_type)
+                                    label = f"{root_slot.title()} - {lbl_suffix}" if not label_prefix else f"{label_prefix} -> {lbl_suffix}"
+
+                                    # if this subslot is empty and its type matches valid slots, consider it
+                                    if subslot_type in valid_slots and subslot_data.get('current') is None:
+                                        conflicts = subslot_data.get('conflicts_with')
+                                        blocked = False
+                                        if conflicts:
+                                            if isinstance(conflicts, dict):
+                                                conflict_type = conflicts.get('type')
+                                                conflict_slot = conflicts.get('slot')
+                                                if conflict_type == 'main' and conflict_slot in equipment and equipment.get(conflict_slot) is not None:
                                                     blocked = True
-                                                    break
-                                    if blocked:
-                                        continue
-                                    label = f"{parent_slot.title()} - {subslot_data.get('name', subslot_type)}"
-                                    add_choice(label, parent_slot = parent_slot, subslot = subslot_data)
+                                            elif isinstance(conflicts, (list, tuple)):
+                                                for conflict_slot in conflicts:
+                                                    if conflict_slot in equipment and equipment.get(conflict_slot) is not None:
+                                                        blocked = True
+                                                        break
+                                        if not blocked:
+                                            add_choice(label, parent_slot=root_slot, subslot=subslot_data)
+
+                                    # recurse into the current item for deeper subslots
+                                    cur = subslot_data.get('current')
+                                    if isinstance(cur, dict):
+                                        _recurse_find_subslots(root_slot, cur, label_prefix=label)
+                                except Exception:
+                                    pass
+                        except Exception:
+                            pass
 
                     for parent_slot, equipped_item in equipment.items():
-                        if isinstance(equipped_item, dict)and isinstance(equipped_item.get("accessories"), list):
-                            for acc in equipped_item.get("accessories")or[]:
+                        if isinstance(equipped_item, dict):
+                            _recurse_find_subslots(parent_slot, equipped_item)
+                        elif isinstance(equipped_item, list):
+                            for idx, subitem in enumerate(equipped_item):
+                                _recurse_find_subslots(parent_slot, subitem, label_prefix=f"{parent_slot.title()}#{idx}")
+
+                    # Also scan accessories (and their nested current items) for empty subslots
+                    def _recurse_accessory_subslots(root_slot, accessory, label_prefix=None):
+                        try:
+                            cur = accessory.get('current') if isinstance(accessory, dict) else None
+                            if not isinstance(cur, dict):
+                                return
+                            # reuse same recursion over the current item's subslots
+                            _recurse_find_subslots(root_slot, cur, label_prefix=label_prefix or f"{root_slot.title()} - {accessory.get('name', 'Accessory')}")
+                        except Exception:
+                            pass
+
+                    for parent_slot, equipped_item in equipment.items():
+                        if isinstance(equipped_item, dict) and isinstance(equipped_item.get('accessories'), list):
+                            for acc in equipped_item.get('accessories') or []:
                                 try:
-                                    cur = acc.get("current")
-                                    if not isinstance(cur, dict):
-                                        continue
-                                    for subslot_data in(cur.get("subslots")or[]):
-                                        subslot_type = subslot_data.get("slot", "")
-                                        if subslot_type in valid_slots and subslot_data.get("current")is None:
-                                            conflicts = subslot_data.get("conflicts_with")
-                                            blocked = False
-                                            if conflicts:
-                                                if isinstance(conflicts, dict):
-                                                    conflict_type = conflicts.get("type")
-                                                    conflict_slot = conflicts.get("slot")
-                                                    if conflict_type =="main"and conflict_slot in equipment and equipment.get(conflict_slot)is not None:
-                                                        blocked = True
-                                                elif isinstance(conflicts, (list, tuple)):
-                                                    for conflict_slot in conflicts:
-                                                        if conflict_slot in equipment and equipment.get(conflict_slot)is not None:
-                                                            blocked = True
-                                                            break
-                                            if blocked:
-                                                continue
-                                            parent_label = f"{parent_slot.title()} - {acc.get('name', 'Accessory')} -> {subslot_data.get('name', subslot_type)}"
-                                            add_choice(parent_label, parent_slot = parent_slot, subslot = subslot_data)
+                                    _recurse_accessory_subslots(parent_slot, acc)
                                 except Exception:
                                     pass
 
@@ -11472,31 +11705,57 @@ class App:
                         save_data["hands"]["encumbrance"]= max(0, save_data["hands"].get("encumbrance", 0)-item_weight)
                     elif location.startswith("equipment."):
 
-                        parts = location.split(".")
-                        eq_slot = parts[1]
-                        eq_item = save_data.get("equipment", {}).get(eq_slot)
-                        if len(parts)==3 and parts[2]=="items":
-
-                            if eq_item and isinstance(eq_item, dict)and "items"in eq_item:
-                                removed_item = eq_item["items"].pop(item_idx)
-                            else:
-                                removed_item = item
-                        elif len(parts)==5 and parts[2]=="subslot"and parts[4]=="items":
-
-                            ss_idx = int(parts[3])
-                            if eq_item and isinstance(eq_item, dict):
-                                subslots = eq_item.get("subslots", [])
-                                if ss_idx <len(subslots):
-                                    subslot_item = subslots[ss_idx].get("current")
-                                    if subslot_item and isinstance(subslot_item, dict)and "items"in subslot_item:
-                                        removed_item = subslot_item["items"].pop(item_idx)
+                        # Generic parser for equipment.* locations supporting arbitrary nesting
+                        parts = location.split('.')
+                        removed_item = item
+                        try:
+                            eq_slot = parts[1]
+                            cur = save_data.get('equipment', {}).get(eq_slot)
+                            i = 2
+                            while i < len(parts):
+                                token = parts[i]
+                                if token == 'items':
+                                    # cur should be a dict with 'items' or a list
+                                    if isinstance(cur, dict) and 'items' in cur:
+                                        removed_item = cur['items'].pop(item_idx)
+                                    elif isinstance(cur, list):
+                                        removed_item = cur.pop(item_idx)
                                     else:
                                         removed_item = item
+                                    break
+                                elif token == 'subslot':
+                                    # next token is index
+                                    idx = int(parts[i+1]) if i+1 < len(parts) else None
+                                    if idx is None:
+                                        removed_item = item
+                                        break
+                                    if isinstance(cur, dict) and 'subslots' in cur and idx < len(cur['subslots']):
+                                        cur = cur['subslots'][idx].get('current')
+                                        if cur is None:
+                                            removed_item = item
+                                            break
+                                        i += 2
+                                        continue
+                                    else:
+                                        removed_item = item
+                                        break
+                                elif token == 'list':
+                                    idx = int(parts[i+1]) if i+1 < len(parts) else None
+                                    if idx is None:
+                                        removed_item = item
+                                        break
+                                    if isinstance(cur, list) and 0 <= idx < len(cur):
+                                        cur = cur[idx]
+                                        i += 2
+                                        continue
+                                    else:
+                                        removed_item = item
+                                        break
                                 else:
+                                    # unknown token, bail
                                     removed_item = item
-                            else:
-                                removed_item = item
-                        else:
+                                    break
+                        except Exception:
                             removed_item = item
                     else:
                         removed_item = item
@@ -11730,9 +11989,25 @@ class App:
                 logging.error(f"Unequip failed: {e}")
                 self._popup_show_info("Error", f"Unequip failed: {e}", sound = "error")
 
-        def unequip_from_subslot(parent_slot, subslot_data):
+        def unequip_from_subslot(parent_slot, subslot_data, subindex=None):
             try:
-                current_item = subslot_data.get("current")
+                # support unequipping nested subslots (subslots of subslots)
+                if subindex is not None:
+                    try:
+                        nested = subslot_data.get('subslots') or []
+                        if 0 <= int(subindex) < len(nested):
+                            target = nested[int(subindex)]
+                            current_item = target.get('current')
+                            target_key = target
+                        else:
+                            current_item = None
+                            target_key = None
+                    except Exception:
+                        current_item = None
+                        target_key = None
+                else:
+                    current_item = subslot_data.get("current")
+                    target_key = subslot_data
                 if not current_item:
                     return
 
@@ -11783,7 +12058,16 @@ class App:
                     pass
 
                 save_data["hands"]["items"].append(current_item)
-                subslot_data["current"]= None
+                try:
+                    if subindex is not None and target_key is not None:
+                        target_key['current'] = None
+                    else:
+                        subslot_data["current"] = None
+                except Exception:
+                    try:
+                        subslot_data["current"] = None
+                    except Exception:
+                        pass
 
                 self._save_file(save_data)
 

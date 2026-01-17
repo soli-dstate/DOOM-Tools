@@ -22,7 +22,7 @@
             {
                 "name": "Colt M4A1 Carbine",
                 "value": 950,
-                "description": "Verstaile carbine designed by Colt USA, manufactured in Hartford, Connecticut. This rifle was once used by the US military, the LEDF, and is presently used by the Kyntarian resistance.",
+                "description": "Versatile carbine designed by Colt USA, manufactured in Hartford, Connecticut. This rifle was once used by the US military, the LEDF, and is presently used by the Kyntarian resistance.",
                 "rarity": "Common",
                 "random_quantity": false,
                 "weight": 2.88,
@@ -357,7 +357,7 @@
             {
                 "name": "M1 Carbine",
                 "value": 800,
-                "description": "A lightweight semi-automatic carbine used during World War II and the Korean War. Chambered in .30 Carbine.",
+                "description": "A lightweight semi-automatic carbine used during World War II and the Korean War. Chambered in .30 Carbine. This thing sucks.",
                 "rarity": "Common",
                 "random_quantity": false,
                 "weight": 2.4,
@@ -468,7 +468,7 @@
             {
                 "name": "Izhmash AKM",
                 "value": 1200,
-                "description": "A modernized version of the AK-47, chambered in 7.62x39mm. Known for its durability and reliability in harsh conditions.",
+                "description": "A modernized version of the AK-47, chambered in 7.62x39mm. Cheap surplus trash.",
                 "rarity": "Legendary",
                 "random_quantity": false,
                 "weight": 3.4,
@@ -496,7 +496,7 @@
             {
                 "name": "Izhmash AK-74M",
                 "value": 1300,
-                "description": "A modernized version of the AK-74, chambered in 5.45x39mm. Known for its durability and reliability in harsh conditions.",
+                "description": "A modernized version of the AK-74, chambered in 5.45x39mm. Dolled up cheap surplus trash.",
                 "rarity": "Mythic",
                 "random_quantity": false,
                 "weight": 3.3,
@@ -672,7 +672,7 @@
             {
                 "name": "Daniel Defense Mk. 18 MOD 1",
                 "value": 1800,
-                "description": "Carbine developed by the US Navy, specifically for the Navy SEALs. This rifle features a 10.3\" barrel and rails, where the standard M4A1 carbine does not.",
+                "description": "Carbine developed by the US Navy, specifically for the Navy SEALs. This rifle features a 10.3\" barrel and rails, where the standard M4A1 carbine does not. Larper weapon of choice right here.",
                 "rarity": "Legendary",
                 "random_quantity": false,
                 "weight": 2.72,
@@ -755,7 +755,7 @@
             {
                 "name": "Heckler & Koch HK416A5",
                 "value": 3500,
-                "description": "An improved version of the M4 carbine, chambered in 5.56x45mm NATO. Known for its reliability and accuracy.",
+                "description": "An improved version of the M4 carbine, chambered in 5.56x45mm NATO. Known for its reliability and accuracy. Features a short-stroke gas piston system that doesn't explode if water gets in it.",
                 "rarity": "Legendary",
                 "random_quantity": false,
                 "weight": 3.6,
@@ -787,7 +787,7 @@
             {
                 "name": "Heckler & Koch HK416D",
                 "value": 3000,
-                "description": "An improved version of the M4 carbine, chambered in 5.56x45mm NATO. Known for its reliability and accuracy.",
+                "description": "An improved version of the M4 carbine, chambered in 5.56x45mm NATO. Known for its reliability and accuracy. Killed Bin Laden!",
                 "rarity": "Uncommon",
                 "random_quantity": false,
                 "weight": 3.6,
@@ -819,7 +819,7 @@
             {
                 "name": "Sig Sauer MCX",
                 "value": 3200,
-                "description": "A modular assault rifle platform, chambered in 5.56x45mm NATO. Known for its versatility and adaptability.",
+                "description": "A modular assault rifle platform, chambered in 5.56x45mm NATO. Known for its versatility and adaptability. Not to be confused with the MCX Spear which fires .277 Fury/7.62x51mm NATO.",
                 "rarity": "Legendary",
                 "random_quantity": false,
                 "weight": 3.3,
@@ -851,7 +851,7 @@
             {
                 "name": "Colt M16A2",
                 "value": 2800,
-                "description": "A classic military rifle, chambered in 5.56x45mm NATO. Known for its reliability and accuracy.",
+                "description": "A classic military rifle, chambered in 5.56x45mm NATO. Known for its reliability and accuracy. Old surplus left over from the 80s and 90s.",
                 "rarity": "Rare",
                 "random_quantity": false,
                 "weight": 3.5,
@@ -861,7 +861,7 @@
                 "subtype": "rifle",
                 "platform": "AR-15",
                 "caliber": ["5.56x45mm NATO"],
-                "action": ["Semi", "Burst", "Auto"],
+                "action": ["Semi", "Burst"],
                 "burst_count": 3,
                 "bolt": "closed",
                 "bolt_catch": true,
@@ -871,7 +871,8 @@
                 "jamrate": 0.001,
                 "accessories": [
                     {"name": "Carry Handle Mount", "slot": "m16_carryhandle", "current": null},
-                    {"name": "Bayonet Lug", "slot": "bayonet_mount_ar15", "current": null, "conflicts_with": ["muzzle_556"]},    
+                    {"name": "Bayonet Lug", "slot": "bayonet_mount_ar15", "current": null, "conflicts_with": ["muzzle_556"]},
+                    {"name": "AR-15 Auto Sear", "slot": "auto_sear", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_556", "current": null}
                 ],
                 "can_stack": false,
@@ -881,7 +882,7 @@
             {
                 "name": "Colt M16A3",
                 "value": 2900,
-                "description": "A modern military rifle, chambered in 5.56x45mm NATO. Known for its fully automatic capability and reliability.",
+                "description": "A modern military rifle, chambered in 5.56x45mm NATO. Known for its fully automatic capability and reliability. Rare variant of the M16 series with full-auto capability.",
                 "rarity": "Rare",
                 "random_quantity": false,
                 "weight": 3.5,
@@ -891,8 +892,7 @@
                 "subtype": "rifle",
                 "platform": "AR-15",
                 "caliber": ["5.56x45mm NATO"],
-                "action": ["Semi", "Burst", "Auto"],
-                "burst_count": 3,
+                "action": ["Semi", "Auto"],
                 "bolt": "closed",
                 "bolt_catch": true,
                 "cyclic": 800,
@@ -919,7 +919,8 @@
                 "subtype": "rifle",
                 "platform": "AR-15",
                 "caliber": ["5.56x45mm NATO"],
-                "action": ["Semi", "Burst", "Auto"],
+                "action": ["Semi", "Burst"],
+                "burst_count": 3,
                 "bolt": "closed",
                 "bolt_catch": true,
                 "cyclic": 800,
@@ -933,6 +934,7 @@
                     {"name": "Picatinny Rail (Handguard Right)", "slot": "picatinny_rifle", "current": null},
                     {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom", "current": null},
                     {"name": "Bayonet Lug", "slot": "bayonet_mount_ar15", "current": null, "conflicts_with": ["muzzle_556"]},    
+                    {"name": "AR-15 Auto Sear", "slot": "auto_sear", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_556", "current": null}
                 ],
                 "can_stack": false,
@@ -1006,7 +1008,7 @@
             {
                 "name": "Heckler & Koch HK33",
                 "value": 2600,
-                "description": "Assault rifle based on the G3 platform, chambered in 5.56x45mm NATO.",
+                "description": "Assault rifle based on the G3 platform, chambered in 5.56x45mm NATO. They made the G3 but bad.",
                 "rarity": "Rare",
                 "random_quantity": false,
                 "weight": 3.25,
@@ -1034,7 +1036,7 @@
             {
                 "name": "Tula Arms AS Val",
                 "value": 3200,
-                "description": "A compact assault rifle with an integrated suppressor, chambered in 9x39mm, designed for special operations.",
+                "description": "A compact assault rifle with an integrated suppressor, chambered in 9x39mm, designed for special operations. What are you doing here, you silly lil guy?",
                 "rarity": "Rare",
                 "random_quantity": false,
                 "weight": 3.0,
@@ -1092,7 +1094,7 @@
             {
                 "name": "Knight's Armament SR-16",
                 "value": 4000,
-                "description": "A modern assault rifle designed for special operations, featuring a modular design and high reliability.",
+                "description": "A high-end modern assault rifle designed for special operations, featuring a modular design and high reliability.",
                 "rarity": "Rare",
                 "random_quantity": false,
                 "weight": 3.5,
@@ -1347,7 +1349,7 @@
             {
                 "name": "Accuracy International Arctic Warfare Police",
                 "value": 4000,
-                "description": "A bolt-action sniper rifle chambered in 7.62x51mm NATO. Known for its extreme accuracy and long-range capabilities.",
+                "description": "A bolt-action sniper rifle chambered in 7.62x51mm NATO. Known for being in Counter Strike: Global Offensive.",
                 "rarity": "Legendary",
                 "random_quantity": false,
                 "weight": 6,
@@ -1405,7 +1407,7 @@
             {
                 "name": "PGM Precision Hecate II",
                 "value": 7000,
-                "description": "A French bolt-action sniper rifle chambered in .50 BMG. Known for its extreme accuracy and long-range capabilities.",
+                "description": "A French bolt-action sniper rifle chambered in .50 BMG. What's wrong with you? Why are you... French.",
                 "rarity": "Mythic",
                 "random_quantity": false,
                 "weight": 12.3,
@@ -1430,7 +1432,7 @@
             {
                 "name": "Barrett M107A1",
                 "value": 8000,
-                "description": "A semi-automatic sniper rifle chambered in .50 BMG. Known for its long-range capabilities and anti-materiel role.",
+                "description": "A semi-automatic sniper rifle chambered in .50 BMG. Possibly the most famous .50 BMG sniper rifle. Also used to hold a lot of long-distance kill records until Ukraine happened.",
                 "rarity": "Legendary",
                 "random_quantity": false,
                 "weight": 13.5,
@@ -1459,7 +1461,7 @@
             {
                 "name": "TheAKGuy AK-50",
                 "value": 9000,
-                "description": "A custom .50 BMG sniper rifle built on an AK platform. Known for its unique design and powerful cartridge.",
+                "description": "A custom .50 BMG sniper rifle built on an AK platform. Known for its unique design and powerful cartridge. How is this thing even here?",
                 "rarity": "Mythic",
                 "random_quantity": false,
                 "weight": 14,
@@ -1488,7 +1490,7 @@
             {
                 "name": "Heckler & Koch G28",
                 "value": 4000,
-                "description": "Designated marksman rifle based off of the HK417, used by the LEDF and Kyntarian resistance.",
+                "description": "Designated marksman rifle based off of the HK417, used by the LEDF and Kyntarian resistance. Used by the German Bundeswehr.",
                 "rarity": "Rare",
                 "random_quantity": false,
                 "weight": 5.4,
@@ -1520,7 +1522,7 @@
             {
                 "name": "CheyTac M300 Praetorian Carbon Fiber",
                 "value": 12000,
-                "description": "A high-end sniper rifle made from carbon fiber for reduced weight and increased accuracy.",
+                "description": "A high-end sniper rifle made from carbon fiber for reduced weight and increased accuracy. Possibly the lightest weight \"true anti-materiel\" rifle available.",
                 "rarity": "Legendary",
                 "random_quantity": false,
                 "weight": 12,
@@ -1551,7 +1553,7 @@
             {
                 "name": "CheyTac M200 Intervention",
                 "value": 15000,
-                "description": "A high-end sniper rifle designed for extreme long-range precision, chambered in .50 BMG.",
+                "description": "A high-end sniper rifle designed for extreme long-range precision, chambered in .50 BMG. A classic from games like Call of Duty.",
                 "rarity": "Legendary",
                 "random_quantity": false,
                 "weight": 14,
@@ -1582,7 +1584,7 @@
             {
                 "name": "Barrett M99",
                 "value": 5000,
-                "description": "A single-shot sniper rifle designed for extreme long-range precision, chambered in .50 BMG.",
+                "description": "A single-shot sniper rifle designed for extreme long-range precision, chambered in .50 BMG. Pretty basic.",
                 "rarity": "Legendary",
                 "random_quantity": false,
                 "weight": 14,
@@ -1610,7 +1612,7 @@
             {
                 "name": "Serbu BFG-50",
                 "value": 4000,
-                "description": "A single-shot anti-materiel sniper rifle chambered in .50 BMG, designed for extreme long-range precision.",
+                "description": "A single-shot anti-materiel sniper rifle chambered in .50 BMG, designed for extreme long-range precision. Extremely basic.",
                 "rarity": "Legendary",
                 "random_quantity": false,
                 "weight": 14,
@@ -1638,7 +1640,7 @@
             {
                 "name": "Serbu BFG-50A",
                 "value": 8000,
-                "description": "Magazine-fed anti-materiel sniper rifle chambered in .50 BMG, designed for extreme long-range precision.",
+                "description": "Magazine-fed anti-materiel sniper rifle chambered in .50 BMG, designed for extreme long-range precision. An M107A1 for the average Joe. (still costs a fortune)",
                 "rarity": "Legendary",
                 "random_quantity": false,
                 "weight": 14,
@@ -1701,7 +1703,7 @@
             {
                 "name": "Colt M9H PDW",
                 "value": 1850,
-                "description": "Replacement for the MP7 and GAU-5A, firing a rifle cartridge out of a PDW platform.",
+                "description": "Replacement for the MP7 and GAU-5A, firing a rifle cartridge out of a PDW platform. A tad overkill for a PDW but penetrates armor better than any other option.",
                 "rarity": "Common",
                 "random_quantity": false,
                 "weight": 2,
@@ -1736,7 +1738,7 @@
             {
                 "name": "Colt M9L PDW",
                 "value": 1850,
-                "description": "Replacement for the MP7 and GAU-5A, firing a pistol caliber cartridge.",
+                "description": "Replacement for the MP7 and GAU-5A, firing a pistol caliber cartridge. A more sensible choice for a PDW. Significantly less overkill than the M9H.",
                 "rarity": "Common",
                 "random_quantity": false,
                 "weight": 2,
@@ -1860,7 +1862,7 @@
             {
                 "name": "Military Armament Corporation MAC-11",
                 "value": 1100,
-                "description": "Compact submachine gun chambered in 9x19mm Parabellum. Known for its high rate of fire and ease of concealment.",
+                "description": "Compact submachine gun chambered in 9x19mm Parabellum. Known for its high rate of fire and ease of concealment... and ease of aiming it sideways.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
                 "weight": 1.6,
@@ -1886,7 +1888,7 @@
             {
                 "name": "Heckler & Koch MP5A3",
                 "value": 1300,
-                "description": "Iconic submachine gun chambered in 9x19mm Parabellum. Known for its reliability and accuracy, widely used by military and law enforcement worldwide.",
+                "description": "Iconic submachine gun chambered in 9x19mm Parabellum. Known for its reliability and accuracy, widely used by military and law enforcement worldwide. Used in every game ever.",
                 "rarity": "Common",
                 "random_quantity": false,
                 "weight": 2.5,
@@ -1914,7 +1916,7 @@
             {
                 "name": "Heckler & Koch MP5A5",
                 "value": 1350,
-                "description": "Iconic submachine gun chambered in 9x19mm Parabellum. Known for its reliability and accuracy, widely used by military and law enforcement worldwide.",
+                "description": "Iconic submachine gun chambered in 9x19mm Parabellum. Known for its reliability and accuracy, widely used by military and law enforcement worldwide. Not really used in every game ever but still popular.",
                 "rarity": "Common",
                 "random_quantity": false,
                 "weight": 2.5,
@@ -1947,7 +1949,7 @@
             {
                 "name": "Heckler & Koch MP5SD6",
                 "value": 2000,
-                "description": "Integrally suppressed submachine gun chambered in 9x19mm Parabellum. Known for its stealth capabilities and reliability, widely used by special forces and covert operations.",
+                "description": "Integrally suppressed submachine gun chambered in 9x19mm Parabellum. Known for its stealth capabilities and reliability, widely used by special forces and covert operations. Basically hasn't changed a bit appearance wise, besides the collapsible stock.",
                 "rarity": "Rare",
                 "random_quantity": false,
                 "weight": 3,
@@ -2004,7 +2006,7 @@
             {
                 "name": "Heckler & Koch MP5KA5",
                 "value": 1400,
-                "description": "Compact variant of the iconic MP5 submachine gun, chambered in 9x19mm Parabellum. Known for its reliability and accuracy, widely used by military and law enforcement worldwide.",
+                "description": "Compact variant of the iconic MP5 submachine gun, chambered in 9x19mm Parabellum. The stupidest personal defense weapon ever. I hate it.",
                 "rarity": "Common",
                 "random_quantity": false,
                 "weight": 2.3,
@@ -2336,7 +2338,7 @@
                 "armory_category": "Personal Defense Weapon"
             },
             {
-                "name": "FN Herstal P90",
+                "name": "FN Herstal P90 UPDATE HERE",
                 "value": 1750,
                 "description": "Compact personal defense weapon chambered in 5.7x28mm. Known for its futuristic design, high-capacity magazine, and armor-piercing capabilities. Widely used by special forces and law enforcement units.",
                 "rarity": "Uncommon",
@@ -9984,6 +9986,102 @@
                 "in_armory": true,
                 "armory_category": "Accessories",
                 "armory_subcategory": "Flash Goggles"
+            },
+            {
+                "name": "3M Peltor ComTac VII Headset",
+                "value": 800,
+                "description": "Tactical headset providing hearing protection and enhanced situational awareness. Compatible with helmets equipped with ear protection slots.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 0.4,
+                "id": 443,
+                "equippable": true,
+                "encumbrance_reduction": 0.5,
+                "slot": ["ear_protection", "head"],
+                "ear_protection": true,
+                "in_armory": true,
+                "armory_category": "Accessories",
+                "armory_subcategory": "Hearing Protection"
+            },
+            {
+                "name": "3M Peltor ComTac VIII Headset",
+                "value": 800,
+                "description": "Tactical headset providing hearing protection and enhanced situational awareness. Compatible with helmets equipped with ear protection slots.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 0.4,
+                "id": 444,
+                "equippable": true,
+                "encumbrance_reduction": 0.5,
+                "slot": ["ear_protection", "head"],
+                "ear_protection": true,
+                "in_armory": true,
+                "armory_category": "Accessories",
+                "armory_subcategory": "Hearing Protection"
+            },
+            {
+                "name": "3M Peltor ComTac IV Headset",
+                "value": 800,
+                "description": "Hybrid tactical headset with both an over ear and in ear design, providing hearing protection and enhanced situational awareness. Compatible with helmets equipped with ear protection slots.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 0.4,
+                "id": 445,
+                "equippable": true,
+                "encumbrance_reduction": 0.5,
+                "slot": ["ear_protection", "head"],
+                "ear_protection": true,
+                "in_armory": true,
+                "armory_category": "Accessories",
+                "armory_subcategory": "Hearing Protection"
+            },
+            {
+                "name": "MSA Sordin T2 Headset",
+                "value": 900,
+                "description": "Advanced tactical headset providing superior hearing protection and situational awareness. Compatible with helmets equipped with ear protection slots.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 0.5,
+                "id": 446,
+                "equippable": true,
+                "encumbrance_reduction": 0.5,
+                "slot": ["ear_protection", "head"],
+                "ear_protection": true,
+                "in_armory": true,
+                "armory_category": "Accessories",
+                "armory_subcategory": "Hearing Protection"
+            },
+            {
+                "name": "Gentex OPS-CORE AMP Headset",
+                "value": 950,
+                "description": "High-end tactical headset offering exceptional hearing protection and situational awareness. Compatible with helmets equipped with ear protection slots.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 0.5,
+                "id": 447,
+                "equippable": true,
+                "encumbrance_reduction": 0.5,
+                "slot": ["ear_protection", "head"],
+                "ear_protection": true,
+                "in_armory": true,
+                "armory_category": "Accessories",
+                "armory_subcategory": "Hearing Protection"
+            },
+            {
+                "name": "Walkers Razor Slim Electronic Muff",
+                "value": 700,
+                "description": "Civilian grade active electronic hearing protection, lacking communication capabilities. Generally bad for military work.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.3,
+                "id": 448,
+                "equippable": true,
+                "encumbrance_reduction": 0.3,
+                "slot": ["ear_protection", "head"],
+                "ear_protection": true,
+                "in_armory": true,
+                "armory_category": "Accessories",
+                "armory_subcategory": "Hearing Protection"
             }
         ],
         "enemy_drops": [
