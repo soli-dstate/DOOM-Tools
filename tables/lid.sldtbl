@@ -21,7 +21,7 @@
         "rifles": [
             {
                 "name": "Colt M4A1 Carbine",
-                "value": 950,
+                "value": 1500,
                 "description": "Versatile carbine designed by Colt USA, manufactured in Hartford, Connecticut. This rifle was once used by the US military, the LEDF, and is presently used by the Kyntarian resistance.",
                 "rarity": "Common",
                 "random_quantity": false,
@@ -54,7 +54,7 @@
             },
             {
                 "name": "Colt M8 Carbine",
-                "value": 1250,
+                "value": 1850,
                 "description": "Replacement for the standard issue M4A1 carbine. Fires 6.5x45mm Colt with an 11.5 inch barrel. Used by the LEDF.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
@@ -89,7 +89,7 @@
             },
             {
                 "name": "Colt M17 Rifle",
-                "value": 1300,
+                "value": 1850,
                 "description": "Replacement for the standard issue M16A4. Fires 6.5x45mm Colt with a 20 inch barrel. Used by the LEDF.",
                 "rarity": "Rare",
                 "random_quantity": false,
@@ -124,7 +124,7 @@
             },
             {
                 "name": "US FRL439 Repeating Rifle",
-                "value": 350,
+                "value": 450,
                 "description": "A Moxarian designed magic bolt action rifle. Looks similar to the MAS-36 bolt action rifle.",
                 "rarity": "Common",
                 "random_quantity": false,
@@ -148,7 +148,7 @@
             },
             {
                 "name": "US FAR439 Repeating Anti-Tank Rifle",
-                "value": 9500,
+                "value": 20500,
                 "description": "A Moxarian designed magic anti-materiel bolt action rifle. Looks similar to the PTRS-41 anti-tank rifle.",
                 "rarity": "Mythic",
                 "random_quantity": false,
@@ -172,7 +172,7 @@
             },
             {
                 "name": "Knight's Armament SR-25 K5",
-                "value": 4500,
+                "value": 7000,
                 "description": "A high-end civilian semi-automatic AR-10, firing 7.62x51mm NATO. This one has a 14.5 inch carbine barrel.",
                 "rarity": "Legendary",
                 "random_quantity": false,
@@ -234,7 +234,7 @@
             },
             {
                 "name": "SIG Sauer MCX Spear",
-                "value": 4200,
+                "value": 4500,
                 "description": "A civilian semi-automatic rifle based on the MCX platform, chambered in 7.62x51mm NATO.",
                 "rarity": "Legendary",
                 "random_quantity": false,
@@ -265,7 +265,7 @@
             },
             {
                 "name": "Spike's Tactical 10th Anniversary AR-15",
-                "value": 8500,
+                "value": 10500,
                 "description": "A high-end civilian semi-automatic AR-15, firing 5.56x45mm NATO. A special edition model released to commemorate Spike's Tactical's 10th anniversary.",
                 "rarity": "Mythic",
                 "random_quantity": false,
@@ -296,9 +296,9 @@
             },
             {
                 "name": "Colt M16A1",
-                "value": 1750,
+                "value": 20750,
                 "description": "A classic from the Vietnam War era, chambered in 5.56x45mm NATO. Known best for jamming in the jungle.",
-                "rarity": "Rare",
+                "rarity": "Mythic",
                 "random_quantity": false,
                 "weight": 3.4,
                 "id": 114,
@@ -323,7 +323,7 @@
             },
             {
                 "name": "M4 SOPMOD II",
-                "value": 2000,
+                "value": 4500,
                 "description": "An upgraded M4 carbine with a different handguard and stock. This model has a 14.5\" barrel and was meant to have accessories, which this one does not come with.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
@@ -380,7 +380,7 @@
             },
             {
                 "name": "Remington ACR",
-                "value": 3000,
+                "value": 5500,
                 "description": "A modular assault rifle platform, chambered in 5.56x45mm NATO. This rifle is unique in that it has a quick-change barrel.",
                 "rarity": "Rare",
                 "random_quantity": false,
@@ -406,6 +406,7 @@
                     {"name": "MLOK Mounts (Handguard Bottom)", "slot": "mlok_bottom", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_556", "current": null}
                 ],
+                "barrel_swap": true,
                 "can_stack": false
             },
             {
@@ -467,7 +468,7 @@
             },
             {
                 "name": "Izhmash AKM",
-                "value": 1200,
+                "value": 750,
                 "description": "A modernized version of the AK-47, chambered in 7.62x39mm. Cheap surplus trash.",
                 "rarity": "Legendary",
                 "random_quantity": false,
@@ -495,7 +496,7 @@
             },
             {
                 "name": "Izhmash AK-74M",
-                "value": 1300,
+                "value": 1050,
                 "description": "A modernized version of the AK-74, chambered in 5.45x39mm. Dolled up cheap surplus trash.",
                 "rarity": "Mythic",
                 "random_quantity": false,
@@ -523,7 +524,7 @@
             },
             {
                 "name": "FAF-439 Battle Rifle",
-                "value": 1500,
+                "value": 950,
                 "description": "Standard issue Legionaire battle rifle, chambered in 7.62x51mm NATO. Looks a lot like an FN FAL.",
                 "rarity": "Common",
                 "random_quantity": false,
@@ -549,7 +550,7 @@
             },
             {
                 "name": "FN Herstal FAL",
-                "value": 2000,
+                "value": 1250,
                 "description": "A battle rifle chambered in 7.62x51mm NATO. The right arm of the free world.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
@@ -1710,7 +1711,7 @@
                 "id": 66,
                 "firearm": true,
                 "type": "conventional",
-                "subtype": "rifle",
+                "subtype": "smg",
                 "platform": "M17",
                 "caliber": ["6.5x45mm Colt"],
                 "action": ["Semi", "Burst", "Auto"],
@@ -1804,7 +1805,7 @@
                 "id": 96,
                 "firearm": true,
                 "type": "conventional",
-                "subtype": "rifle",
+                "subtype": "smg",
                 "platform": "AR-15",
                 "caliber": ["5.56x45mm NATO"],
                 "action": ["Semi", "Auto"],
@@ -2338,9 +2339,9 @@
                 "armory_category": "Personal Defense Weapon"
             },
             {
-                "name": "FN Herstal P90 UPDATE HERE",
+                "name": "FN Herstal P90",
                 "value": 1750,
-                "description": "Compact personal defense weapon chambered in 5.7x28mm. Known for its futuristic design, high-capacity magazine, and armor-piercing capabilities. Widely used by special forces and law enforcement units.",
+                "description": "Compact personal defense weapon chambered in 5.7x28mm. Famous sci-fi gun from Golden Eye 007 and Stargate, among other things.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
                 "weight": 2.6,
@@ -2368,7 +2369,7 @@
             {
                 "name": "Rhineland Arms AR-57",
                 "value": 2000,
-                "description": "Modern personal defense weapon chambered in 5.7x28mm. Based on the AR-15 platform, known for its reliability and modularity. Features a unique top-mounted magazine design.",
+                "description": "Modern personal defense weapon chambered in 5.7x28mm. Based on the AR-15 platform, has got more modularity than a P90 normally would have. It's also tuff as hell.",
                 "rarity": "Rare",
                 "random_quantity": false,
                 "weight": 2.7,
@@ -2399,7 +2400,7 @@
             {
                 "name": "Q Honey Badger",
                 "value": 2500,
-                "description": "Integrally suppressed personal defense weapon chambered in 300 AAC Blackout. Known for its compact design, low recoil, and versatility in close-quarters combat.",
+                "description": "Integrally suppressed personal defense weapon chambered in 300 AAC Blackout. Make sure you use this to piss off Katz.",
                 "rarity": "Rare",
                 "random_quantity": false,
                 "weight": 3.0,
@@ -2433,7 +2434,7 @@
             {
                 "name": "Benelli M1014",
                 "value": 550,
-                "description": "Semi-automatic shotgun once used by the LEDF, now popular among the Kyntarians. Chambered in 12 gauge, known for its reliability and quick follow-up shots.",
+                "description": "Semi-automatic shotgun once used by the LEDF, now popular among the Kyntarians. A shotgun so good it made other militaries drool over it.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
                 "weight": 3.82,
@@ -2462,7 +2463,7 @@
             {
                 "name": "Mossberg M590A1",
                 "value": 650,
-                "description": "Pump-action shotgun widely used by law enforcement and military forces. Chambered in 12 gauge, known for its reliability and ruggedness.",
+                "description": "Pump-action shotgun widely used by law enforcement and military forces. Didn't one of these turn into a girl once?",
                 "rarity": "Common",
                 "random_quantity": false,
                 "weight": 3.2,
@@ -2491,7 +2492,7 @@
             {
                 "name": "Franchi SPAS-12",
                 "value": 950,
-                "description": "Combat shotgun known for its dual-mode operation (pump-action and semi-automatic). Chambered in 12 gauge, popular among military and law enforcement units for versatility and firepower.",
+                "description": "Combat shotgun known for the selectable action mode, being either pump or semi-automatic. Used in a lot of media, nowadays it's a pretty obsolete firearm.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
                 "weight": 3.9,
@@ -2586,7 +2587,7 @@
             {
                 "name": "Benelli M2 Super 90",
                 "value": 700,
-                "description": "Semi-automatic shotgun known for its reliability and versatility. Chambered in 12 gauge, popular among hunters, sport shooters, and law enforcement.",
+                "description": "Semi-automatic shotgun known for its reliability and versatility. This one's only here because Katz wanted it.",
                 "rarity": "Common",
                 "random_quantity": false,
                 "weight": 3.4,
@@ -2615,7 +2616,7 @@
             {
                 "name": "Mossberg M590M",
                 "value": 600,
-                "description": "Magazine-fed variant of the Mossberg M590A1 pump-action shotgun. Chambered in 12 gauge, designed for tactical applications with improved reload speed.",
+                "description": "Magazine-fed variant of the Mossberg M590A1 pump-action shotgun. The superior M590A1 that everyone hates.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
                 "weight": 3.3,
@@ -2643,7 +2644,7 @@
             {
                 "name": "Kalashnikov Concern Saiga-12",
                 "value": 1100,
-                "description": "Russian semi-automatic shotgun based on the AK platform. Chambered in 12 gauge, known for its reliability and ruggedness.",
+                "description": "Russian semi-automatic shotgun based on the AK platform. Leftovers from Southpoint State.",
                 "rarity": "Rare",
                 "random_quantity": false,
                 "weight": 3.5,
@@ -2670,7 +2671,7 @@
             {
                 "name": "Atchisson AA-12",
                 "value": 2500,
-                "description": "Fully automatic shotgun known for its high rate of fire and low recoil. Chambered in 12 gauge, designed for military and law enforcement applications.",
+                "description": "Fully automatic shotgun known for its high rate of fire and low recoil. Hello my friends, it is FPSRussia and I have something very nice for you today.",
                 "rarity": "Mythic",
                 "random_quantity": false,
                 "weight": 5.5,
@@ -2698,7 +2699,7 @@
             {
                 "name": "Mossberg M500",
                 "value": 500,
-                "description": "Pump-action shotgun known for its reliability and versatility. Chambered in 12 gauge, popular among hunters, sport shooters, and law enforcement.",
+                "description": "Pump-action shotgun known for its reliability and versatility. A civilian shotgun that is far from its original home.",
                 "rarity": "Common",
                 "random_quantity": false,
                 "weight": 3.1,
@@ -2726,15 +2727,15 @@
         "machine_guns": [
             {
                 "name": "Heckler & Koch M27 Infantry Automatic Rifle",
-                "value": 1200,
-                "description": "Lightweight automatic rifle based on the HK416 platform. Chambered in 5.56x45mm NATO, designed to provide suppressive fire in a more mobile package compared to traditional machine guns.",
+                "value": 4500,
+                "description": "Lightweight automatic rifle based on the HK416 platform. There's genuinely zero point in this thing existing.",
                 "rarity": "Rare",
                 "random_quantity": false,
                 "weight": 3.6,
                 "id": 3,
                 "firearm": true,
                 "type": "conventional",
-                "subtype": "rifle",
+                "subtype": "machine_gun",
                 "platform": "AR-15",
                 "caliber": ["5.56x45mm NATO"],
                 "action": ["Semi", "Auto"],
@@ -2758,7 +2759,7 @@
             },
             {
                 "name": "Colt M17-MG",
-                "value": 1500,
+                "value": 5000,
                 "description": "A Colt M17 with a heavier barrel and decreased cyclic rate, designed for sustained fire support. Chambered in 6.5x45mm Colt.",
                 "rarity": "Rare",
                 "random_quantity": false,
@@ -2766,7 +2767,7 @@
                 "id": 81,
                 "firearm": true,
                 "type": "conventional",
-                "subtype": "rifle",
+                "subtype": "machine_gun",
                 "platform": "M17",
                 "caliber": ["6.5x45mm Colt"],
                 "action": ["Auto"],
@@ -2786,20 +2787,21 @@
                     {"name": "Muzzle Device", "slot": "muzzle_65", "current": null}
                 ],
                 "can_stack": false,
+                "barrel_swap": true,
                 "in_armory": true,
                 "armory_category": "Squad Automatic Weapon"
             },
             {
                 "name": "Colt M231 Firing Port Weapon",
-                "value": 1750,
+                "value": 20950,
                 "description": "Compact automatic weapon designed for use in firing ports of armored vehicles. Chambered in 5.56x45mm NATO, capable of high rates of fire in a small package.",
-                "rarity": "Uncommon",
+                "rarity": "Mythic",
                 "random_quantity": false,
                 "weight": 3.33,
                 "id": 84,
                 "firearm": true,
                 "type": "conventional",
-                "subtype": "rifle",
+                "subtype": "machine_gun",
                 "platform": "AR-15",
                 "caliber": ["5.56x45mm NATO"],
                 "action": ["Auto"],
@@ -2825,7 +2827,7 @@
                 "id": 86,
                 "firearm": true,
                 "type": "conventional",
-                "subtype": "rifle",
+                "subtype": "machine_gun",
                 "platform": "G36",
                 "caliber": ["5.56x45mm NATO"],
                 "action": ["Auto"],
@@ -2852,7 +2854,7 @@
                 "id": 89,
                 "firearm": true,
                 "type": "magic",
-                "subtype": "rifle",
+                "subtype": "machine_gun",
                 "magicsoundsystem": "mg",
                 "temp_gain_per_shot": 10,
                 "temp_loss_per_cooling_cycle": 7.5,
@@ -2876,7 +2878,7 @@
                 "id": 247,
                 "firearm": true,
                 "type": "conventional",
-                "subtype": "rifle",
+                "subtype": "machine_gun",
                 "platform": "MPF-439",
                 "caliber": ["7.62x51mm NATO"],
                 "action": ["Auto"],
@@ -2902,7 +2904,7 @@
                 "id": 306,
                 "firearm": true,
                 "type": "conventional",
-                "subtype": "rifle",
+                "subtype": "machine_gun",
                 "platform": "SCAR",
                 "caliber": ["5.56x45mm NATO"],
                 "action": ["Auto"],
@@ -2921,8 +2923,141 @@
                     {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
                 ],
                 "can_stack": false,
+                "barrel_swap": true,
                 "in_armory": true,
                 "armory_category": "Squad Automatic Weapon"
+            },
+            {
+                "name": "FN Herstal M249 SAW",
+                "value": 10500,
+                "description": "American designation for the FN Herstal Minimi light machine gun, chambered in 5.56x45mm NATO. Used by the LEDF and Kyntarian resistance forces.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 7.5,
+                "id": 449,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "machine_gun",
+                "platform": "M249",
+                "caliber": ["5.56x45mm NATO"],
+                "action": ["Auto"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 850,
+                "magazinetype": "Belt",
+                "capacity": 200,
+                "jamrate": 0.002,
+                "accessories": [
+                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": null},
+                    {"name": "Picatinny Rail (Handguard Top)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Left)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Right)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_556", "current": null}
+                ],
+                "can_stack": false,
+                "barrel_swap": true,
+                "in_armory": true,
+                "armory_category": "Belt-fed Machine Guns"
+            },
+            {
+                "name": "FN Herstal M240 Bravo",
+                "value": 12000,
+                "description": "General-purpose machine gun used by the LEDF and Kyntarian resistance forces. Chambered in 7.62x51mm NATO.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 12.5,
+                "id": 450,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "machine_gun",
+                "platform": "M240",
+                "caliber": ["7.62x51mm NATO"],
+                "action": ["Auto"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 750,
+                "magazinetype": "Belt",
+                "capacity": 100,
+                "jamrate": 0.0025,
+                "accessories": [
+                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": null},
+                    {"name": "Picatinny Rail (Handguard Top)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Left)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Right)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
+                ],
+                "can_stack": false,
+                "barrel_swap": true,
+                "in_armory": true,
+                "armory_category": "Belt-fed Machine Guns"
+            },
+            {
+                "name": "Rheinmettal MG3KWS",
+                "value": 13000,
+                "description": "General-purpose machine gun rarely used by the LEDF. Chambered in 7.62x51mm NATO, typically an implement of the Bundeswehr rather than the LEDF.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 11.5,
+                "id": 451,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "machine_gun",
+                "platform": "MG3",
+                "caliber": ["7.62x51mm NATO"],
+                "action": ["Auto"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 1200,
+                "magazinetype": "Belt",
+                "capacity": 100,
+                "jamrate": 0.003,
+                "accessories": [
+                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": null},
+                    {"name": "Picatinny Rail (Handguard Top)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Left)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Right)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
+                ],
+                "can_stack": false,
+                "barrel_swap": true,
+                "in_armory": true,
+                "armory_category": "Belt-fed Machine Guns"
+            },
+            {
+                "name": "Empty Shell XM556 microgun",
+                "value": 25000,
+                "description": "A rotary 5.56x45mm NATO rotary machine gun, designed to provide high rates of fire for suppressive purposes.",
+                "rarity": "Mythic",
+                "random_quantity": false,
+                "weight": 8.0,
+                "id": 452,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "machine_gun",
+                "platform": "XM556",
+                "caliber": ["5.56x45mm NATO"],
+                "action": ["Auto"],
+                "bolt": "open",
+                "bolt_catch": false,
+                "cyclic": 6000,
+                "magazinetype": "Belt",
+                "capacity": 1000,
+                "jamrate": 0,
+                "accessories": [
+                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": null},
+                    {"name": "Picatinny Rail (Handguard Top)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Left)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Right)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_556", "current": null}
+                ],
+                "can_stack": false,
+                "barrel_swap": true,
+                "rotary_gun": true,
+                "can_melt": false
             }
         ],
         "pistols": [
@@ -8939,7 +9074,7 @@
                 "encumbrance_reduction": 2,
                 "slot": ["chest","back","left shoulder","right shoulder"],
                 "holster_sling": true,
-                "weapon_types": ["rifle", "smg", "shotgun", "mg"],
+                "weapon_types": ["rifle", "smg", "shotgun", "machine_gun"],
                 "subslots": [
                     {"name": "Weapon", "slot": "weapon_slot", "current": null}
                 ],
@@ -9093,7 +9228,8 @@
                 "slot": ["ear_protection", "head"],
                 "ear_protection": true,
                 "in_armory": true,
-                "armory_category": "Combat Electronics"
+                "armory_category": "Accessories",
+                "armory_subcategory": "Hearing Protection"
             },
             {
                 "name": "Wilcox Aeronox Battery Pack",
@@ -9226,7 +9362,7 @@
                 "encumbrance_reduction": 2,
                 "slot": ["chest","back","left shoulder","right shoulder"],
                 "holster_sling": true,
-                "weapon_types": ["rifle", "smg", "shotgun", "mg"],
+                "weapon_types": ["rifle", "smg", "shotgun", "machine_gun"],
                 "subslots": [
                     {"name": "Weapon", "slot": "weapon_slot", "current": null}
                 ],
@@ -9316,7 +9452,7 @@
                 "encumbrance_reduction": 1,
                 "slot": ["chest","back","left shoulder","right shoulder"],
                 "holster_sling": true,
-                "weapon_types": ["rifle", "smg", "shotgun", "mg"],
+                "weapon_types": ["rifle", "smg", "shotgun", "machine_gun"],
                 "subslots": [
                     {"name": "Weapon", "slot": "weapon_slot", "current": null}
                 ]
