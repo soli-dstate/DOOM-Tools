@@ -34,6 +34,142 @@ pygame.init()
 
 pygame.mixer.init(channels = 4096)
 
+# Ensure mouse wheel scrolling works on Linux and other platforms for
+# customtkinter.CTkScrollableFrame by binding mouse-wheel handlers when
+# the pointer enters the frame and unbinding when it leaves. The handler
+# searches the frame's children for a widget that supports `yview_scroll`.
+try:
+    import platform as _platform_mod
+
+    _orig_ctk_sf_init = getattr(customtkinter.CTkScrollableFrame, "__init__", None)
+
+    def _find_scrollable_canvas(widget):
+        try:
+            # breadth-first search for a child that exposes yview_scroll
+            queue = [widget]
+            while queue:
+                w = queue.pop(0)
+                if hasattr(w, "yview_scroll"):
+                    return w
+                try:
+                    queue.extend(w.winfo_children())
+                except Exception:
+                    pass
+        except Exception:
+            pass
+        return None
+
+    def _ctk_scrollableframe_init_wrapper(self, *a, **k):
+        if _orig_ctk_sf_init:
+            _orig_ctk_sf_init(self, *a, **k)
+
+        def _on_mousewheel_global(event):
+            try:
+                c = _find_scrollable_canvas(self)
+                if not c:
+                    return
+                sys_platform = _platform_mod.system()
+                # X11 (Linux) sends Button-4/5 events; Windows/macOS send delta
+                if hasattr(event, 'num') and event.num in (4, 5):
+                    if event.num == 4:
+                        c.yview_scroll(-1, "units")
+                    else:
+                        c.yview_scroll(1, "units")
+                else:
+                    delta = getattr(event, 'delta', 0)
+                    if sys_platform == "Windows":
+                        lines = int(-1 * (delta / 120)) if delta else 0
+                    elif sys_platform == "Darwin":
+                        lines = int(-1 * delta) if delta else 0
+                    else:
+                        # fallback: small delta values
+                        try:
+                            lines = int(-1 * (delta / 120))
+                        except Exception:
+                            lines = 0
+                    if lines:
+                        c.yview_scroll(lines, "units")
+            except Exception:
+                pass
+
+        # Avoid using bind_all/unbind_all (they can remove other handlers).
+        # Rely on CTkScrollableFrame's own <MouseWheel> handlers (it binds with add="+")
+        # and add persistent Button-4/5 handlers that synthesize an event targeted
+        # at this frame's internal canvas so the built-in _mouse_wheel_all handles it.
+
+        try:
+            # Ensure X11 Button-4/5 events call the widget's own _mouse_wheel_all
+            def _bt4(ev):
+                try:
+                    # determine widget under pointer and ensure it's inside this frame's canvas
+                    x = getattr(ev, 'x_root', None)
+                    y = getattr(ev, 'y_root', None)
+                    target = None
+                    if x is not None and y is not None:
+                        try:
+                            target = self._parent_canvas.winfo_containing(x, y)
+                        except Exception:
+                            target = None
+                    if target is None:
+                        target = getattr(ev, 'widget', None)
+                    if not target:
+                        return
+                    if not self.check_if_master_is_canvas(target):
+                        return
+                    class _E: pass
+                    e = _E()
+                    e.widget = getattr(self, "_parent_canvas", None)
+                    e.delta = 1
+                    e.num = 4
+                except Exception:
+                    e = ev
+                try:
+                    self._mouse_wheel_all(e)
+                except Exception:
+                    pass
+
+            def _bt5(ev):
+                try:
+                    x = getattr(ev, 'x_root', None)
+                    y = getattr(ev, 'y_root', None)
+                    target = None
+                    if x is not None and y is not None:
+                        try:
+                            target = self._parent_canvas.winfo_containing(x, y)
+                        except Exception:
+                            target = None
+                    if target is None:
+                        target = getattr(ev, 'widget', None)
+                    if not target:
+                        return
+                    if not self.check_if_master_is_canvas(target):
+                        return
+                    class _E: pass
+                    e = _E()
+                    e.widget = getattr(self, "_parent_canvas", None)
+                    e.delta = -1
+                    e.num = 5
+                except Exception:
+                    e = ev
+                try:
+                    self._mouse_wheel_all(e)
+                except Exception:
+                    pass
+
+            # add="+" preserves any existing handlers (the CTkScrollableFrame binds its own handlers)
+            # Bind once per instance; do NOT unbind globally.
+            self.bind_all("<Button-4>", _bt4, add="+")
+            self.bind_all("<Button-5>", _bt5, add="+")
+        except Exception:
+            pass
+
+    try:
+        customtkinter.CTkScrollableFrame.__init__ = _ctk_scrollableframe_init_wrapper
+    except Exception:
+        pass
+except Exception:
+    pass
+
 try:
     _orig_focus = getattr(_tk.Misc, 'focus', None)
     _orig_focus_set = getattr(_tk.Misc, 'focus_set', None)
@@ -3331,6 +3467,18 @@ class App:
         self._center_popup_on_window(popup, 450, 220)
         popup.deiconify()
         popup.lift()
+        try:
+            self._safe_focus(popup)
+        except Exception:
+            pass
+        try:
+            popup.grab_set()
+        except Exception:
+            pass
+        try:
+            popup.wait_window()
+        except Exception:
+            pass
 
     def _popup_ask_integer(self, title, prompt, initial_value = 1, min_value = 1, max_value = 100, on_result = None):
 
@@ -6576,60 +6724,152 @@ class App:
 
                         table_category = it.get("_table_category")or it.get("table_category")
 
-                        if table_category =="magazines":
-                            choice = self._popup_select_option("Load Magazine?", "Load this magazine with ammunition?", ["No", "Yes"])or "No"
+                        if table_category == "magazines":
                             mag_copy = it.copy()
                             mag_copy.pop("_table_category", None)
-                            mag_copy["rounds"]= mag_copy.get("rounds", [])
+                            mag_copy.setdefault("rounds", [])
 
-                            if choice =="Yes":
+                            # Ask whether to load; default checked
+                            try:
+                                load_var = customtkinter.BooleanVar(value=True)
+                                dlg = customtkinter.CTkToplevel(self.root)
+                                dlg.title('Load Magazine?')
+                                dlg.transient(self.root)
+                                chk = customtkinter.CTkCheckBox(dlg, text='Load magazine with ammunition', variable=load_var)
+                                chk.pack(padx=12, pady=8)
+                            except Exception:
+                                load_var = None
 
-                                ammo_table = tables.get("ammunition", [])
-                                mag_cal = mag_copy.get("caliber")
-                                if isinstance(mag_cal, str):
-                                    mag_cal =[mag_cal]
+                            def _open_shop_magazine_editor():
+                                try:
+                                    ammo_table = tables.get('ammunition', [])
+                                    mag_cal = mag_copy.get('caliber')
+                                    if isinstance(mag_cal, str):
+                                        mag_cal = [mag_cal]
 
-                                variant_options =[]
-                                variant_map = {}
-                                for ammo_def in ammo_table:
-                                    ammo_cal = ammo_def.get("caliber")
-                                    if isinstance(ammo_cal, str):
-                                        ammo_cal =[ammo_cal]
-                                    if mag_cal and ammo_cal and any(c in ammo_cal for c in mag_cal):
-                                        for var in ammo_def.get("variants", []):
-                                            label = f"{ammo_def.get('name')} | {var.get('name')}"
-                                            variant_options.append(label)
-                                            variant_map[label]=(ammo_def, var)
+                                    # build variant labels and map
+                                    variant_options = []
+                                    variant_map = {}
+                                    for ammo_def in ammo_table:
+                                        ammo_cal = ammo_def.get('caliber')
+                                        if isinstance(ammo_cal, str):
+                                            ammo_cal = [ammo_cal]
+                                        if mag_cal and ammo_cal and any(c in ammo_cal for c in mag_cal):
+                                            for var in ammo_def.get('variants', []):
+                                                label = f"{ammo_def.get('name')} | {var.get('name')}"
+                                                variant_options.append(label)
+                                                variant_map[label] = (ammo_def, var)
 
-                                if not variant_options:
-                                    self._popup_show_info("No Compatible Ammo", "No compatible ammunition variants found for this magazine.", sound = "error")
-                                else:
-                                    sel = self._popup_select_option("Choose Variant", "Select ammo variant to load:", variant_options)
-                                    if sel:
-                                        ammo_def, var = variant_map.get(sel)# type: ignore
-                                        capacity = mag_copy.get("capacity", 30)
-                                        qty = self._popup_ask_integer("Rounds to Load", f"How many rounds to load into the magazine?", initial_value = capacity, min_value = 1, max_value = capacity)
-                                        if qty is None:
+                                    if not variant_options:
+                                        self._popup_show_info('No Compatible Ammo', 'No compatible ammunition variants found for this magazine.', sound='error')
+                                        return
+
+                                    # Editor window
+                                    editor = customtkinter.CTkToplevel(self.root)
+                                    editor.title('Magazine Editor')
+                                    editor.transient(self.root)
+                                    cap = int(mag_copy.get('capacity', 30) or 30)
+
+                                    # scrollable slots area for large capacities
+                                    scroll_h = max(300, min(1000, cap * 24))
+                                    slots_frame = customtkinter.CTkScrollableFrame(editor, width=420, height=scroll_h, fg_color='transparent')
+                                    slots_frame.pack(side='left', fill='both', expand=True, padx=8, pady=8)
+
+                                    side = customtkinter.CTkFrame(editor, fg_color='transparent')
+                                    side.pack(side='right', fill='y', padx=8, pady=8)
+
+                                    slot_vars = []
+                                    for i in range(cap):
+                                        lbl = customtkinter.CTkLabel(slots_frame, text=f'Slot {i+1}:')
+                                        lbl.pack(anchor='w')
+                                        sv = customtkinter.StringVar(value=variant_options[0])
+                                        opt = customtkinter.CTkOptionMenu(slots_frame, values=variant_options, variable=sv, width=260)
+                                        opt.pack(anchor='w', pady=2)
+                                        slot_vars.append(sv)
+
+                                    bulk_var = customtkinter.StringVar(value=variant_options[0])
+                                    bulk_label = customtkinter.CTkLabel(side, text='Bulk set variant:', font=customtkinter.CTkFont(size=12))
+                                    bulk_label.pack(pady=(6,2))
+                                    bulk_menu = customtkinter.CTkOptionMenu(side, values=variant_options, variable=bulk_var, width=180)
+                                    bulk_menu.pack(pady=4)
+
+                                    def set_all():
+                                        v = bulk_var.get()
+                                        for sv in slot_vars:
+                                            sv.set(v)
+
+                                    set_all_btn = customtkinter.CTkButton(side, text='Set All', command=set_all, width=180)
+                                    set_all_btn.pack(pady=6)
+
+                                    def apply_editor():
+                                        try:
+                                            rounds = []
+                                            for sv in slot_vars:
+                                                v = sv.get()
+                                                if not v:
+                                                    continue
+                                                pair = variant_map.get(v)
+                                                if not pair:
+                                                    continue
+                                                ammo_def, var = pair
+                                                rd = {
+                                                    'name': ammo_def.get('name'),
+                                                    'caliber': (mag_cal[0] if mag_cal and isinstance(mag_cal, (list, tuple)) else (mag_cal[0] if mag_cal else ammo_def.get('caliber'))),
+                                                    'variant': var.get('name'),
+                                                    'type': var.get('type'),
+                                                    'pen': var.get('pen'),
+                                                    'modifiers': var.get('modifiers'),
+                                                    'tip': var.get('tip')
+                                                }
+                                                rounds.append(rd)
+
+                                            mag_copy['rounds'] = rounds[:cap]
+                                            editor.destroy()
+                                            # finish by adding to cart
+                                            cart.append(mag_copy)
+                                            cart_points[0] += 1
+                                            update_cart_display()
+                                            self._play_ui_sound('click')
+                                            logging.info(f"Added magazine to cart: {mag_copy.get('name')}")
+                                            dlg.destroy()
                                             return
+                                        except Exception:
+                                            logging.exception('Failed to apply shop magazine editor')
 
-                                        mag_copy["rounds"]=[]
-                                        for _ in range(int(qty)):
-                                            round_data = {
-                                            "name":ammo_def.get("name"),
-                                            "caliber":(mag_cal[0]if mag_cal else ammo_def.get("caliber")),
-                                            "variant":var.get("name"),
-                                            "type":var.get("type"),
-                                            "pen":var.get("pen"),
-                                            "modifiers":var.get("modifiers"),
-                                            "tip":var.get("tip")
-                                            }
-                                            mag_copy["rounds"].append(round_data)
+                                    apply_btn = customtkinter.CTkButton(side, text='Apply', command=apply_editor, width=180)
+                                    apply_btn.pack(pady=10)
 
-                            cart.append(mag_copy)
-                            cart_points[0]+=1
-                            update_cart_display()
-                            self._play_ui_sound("click")
-                            logging.info(f"Added magazine to cart: {mag_copy.get('name')}")
+                                    cancel_btn = customtkinter.CTkButton(side, text='Cancel', command=lambda: editor.destroy(), width=180, fg_color='#444444')
+                                    cancel_btn.pack()
+
+                                    editor.grab_set()
+                                    editor.lift()
+                                except Exception:
+                                    logging.exception('Failed to open shop magazine editor')
+
+                            # Buttons on the dialog
+                            btn_frame = customtkinter.CTkFrame(dlg, fg_color='transparent')
+                            btn_frame.pack(fill='x', padx=8, pady=8)
+
+                            def _add_plain():
+                                cart.append(mag_copy)
+                                cart_points[0] += 1
+                                update_cart_display()
+                                self._play_ui_sound('click')
+                                logging.info(f"Added magazine to cart: {mag_copy.get('name')}")
+                                dlg.destroy()
+                                return
+
+                            open_editor_btn = customtkinter.CTkButton(btn_frame, text='Open Editor', command=_open_shop_magazine_editor, width=140)
+                            open_editor_btn.pack(side='left', padx=6)
+                            add_plain_btn = customtkinter.CTkButton(btn_frame, text='Add (Empty)', command=_add_plain, width=140)
+                            add_plain_btn.pack(side='left', padx=6)
+                            cancel_btn = customtkinter.CTkButton(btn_frame, text='Cancel', command=dlg.destroy, width=120, fg_color='#444444')
+                            cancel_btn.pack(side='left', padx=6)
+
+                            dlg.grab_set()
+                            dlg.lift()
+                            self._safe_focus(dlg)
                             return
 
                         if table_category =="ammunition":
@@ -6883,7 +7123,6 @@ class App:
             cart_popup.title("Requisition Cart")
             cart_popup.geometry("600x500")
             cart_popup.transient(self.root)
-            cart_popup.grab_set()
 
             cart_scroll = customtkinter.CTkScrollableFrame(cart_popup)
             cart_scroll.pack(fill = "both", expand = True, padx = 10, pady = 10)
@@ -6918,6 +7157,18 @@ class App:
 
             close_btn = customtkinter.CTkButton(cart_popup, text = "Close", command = cart_popup.destroy, width = 150)
             close_btn.pack(pady = 5)
+
+            try:
+                cart_popup.update_idletasks()
+                cart_popup.deiconify()
+                cart_popup.lift()
+                cart_popup.grab_set()
+                self._safe_focus(cart_popup)
+            except Exception:
+                try:
+                    cart_popup.grab_set()
+                except Exception:
+                    pass
 
         def checkout():
             if not cart:
@@ -15658,104 +15909,176 @@ class App:
                     self._popup_show_info("Reload Magazine", f"No loose rounds in hands matching {cal_str}")
                     return
 
-                def proceed_with_reload(selected_variant):
+                # Open magazine editor window to allow per-slot selection for empty slots
+                try:
+                    popup.destroy()
+                except Exception:
+                    pass
 
-                    if selected_variant and selected_variant !="All Variants":
-                        variant_available = available_by_variant.get(selected_variant, 0)
-                    else:
-                        variant_available = total_available
-                        selected_variant = None
+                def _open_magazine_editor():
+                    try:
+                        editor = customtkinter.CTkToplevel(self.root)
+                        editor.title('Magazine Editor')
+                        editor.transient(self.root)
+                        cap = int(mag_item.get('capacity', 0) or 0)
+                        existing = list(mag_item.get('rounds', []) or [])
 
-                    max_load = min(variant_available, capacity -current_rounds)
-                    if max_load <=0:
-                        self._popup_show_info("Reload Magazine", "Magazine has no space to load rounds")
-                        return
+                        main_area = customtkinter.CTkFrame(editor)
+                        main_area.grid(row = 0, column = 0, sticky = 'nsew', padx = 8, pady = 8)
+                        # make slots area scrollable to support many slots (up to ~100)
+                        scroll_h = max(300, min(1000, cap * 24))
+                        slots_frame = customtkinter.CTkScrollableFrame(main_area, width = 420, height = scroll_h, fg_color = 'transparent')
+                        slots_frame.pack(side = 'left', fill = 'both', expand = True)
 
-                    def on_amount_selected(to_load):
-                        if to_load is None or to_load <=0:
-                            return
+                        variants = ['Empty'] + sorted(available_by_variant.keys())
 
-                        def on_reload_complete(result_msg):
-                            self._popup_show_info("Reload Magazine", result_msg)
+                        slot_vars = []
+                        for i in range(cap):
+                            if i < len(existing):
+                                # display current round, read-only
+                                rv = customtkinter.StringVar(value = (existing[i].get('variant') if isinstance(existing[i], dict) else (str(existing[i]) if existing[i] else 'Empty')))
+                                lbl = customtkinter.CTkLabel(slots_frame, text = f'Slot {i+1}: ')
+                                lbl.pack(anchor = 'w')
+                                vlabel = customtkinter.CTkLabel(slots_frame, textvariable = rv)
+                                vlabel.pack(anchor = 'w', padx = 12)
+                                slot_vars.append(None)
+                            else:
+                                sv = customtkinter.StringVar(value = 'Empty')
+                                opt = customtkinter.CTkOptionMenu(slots_frame, values = variants, variable = sv, width = 220)
+                                opt.pack(anchor = 'w', pady = 2)
+                                slot_vars.append(sv)
+
+                        # Side panel for bulk actions
+                        side = customtkinter.CTkFrame(editor, fg_color = 'transparent')
+                        side.grid(row = 0, column = 1, sticky = 'ns', padx = 8, pady = 8)
+                        side.pack_propagate(False)
+
+                        bulk_label = customtkinter.CTkLabel(side, text = 'Bulk Actions', font = customtkinter.CTkFont(size = 12, weight = 'bold'))
+                        bulk_label.pack(pady = 6)
+
+                        bulk_var = customtkinter.StringVar(value = variants[0])
+                        bulk_menu = customtkinter.CTkOptionMenu(side, values = variants, variable = bulk_var, width = 180)
+                        bulk_menu.pack(pady = 6)
+
+                        def set_all():
+                            val = bulk_var.get()
+                            for sv in slot_vars:
+                                if sv is not None:
+                                    sv.set(val)
+
+                        set_all_btn = customtkinter.CTkButton(side, text = 'Set All', command = set_all, width = 160)
+                        set_all_btn.pack(pady = 6)
+
+                        def apply_changes():
+                            # Build desired sequence of variants for empty slots
+                            desired = []
+                            for sv in slot_vars:
+                                if sv is None:
+                                    continue
+                                v = sv.get()
+                                if v and v != 'Empty':
+                                    desired.append(v)
+                            if not desired:
+                                editor.destroy()
+                                return
+
+                            # Collect matching rounds from hands/equipment in order
+                            collected = []
+
+                            def _take_round_from_container(variant_name):
+                                # search hands
+                                for hi in range(len(save_data.get('hands', {}).get('items', [])) -1, -1, -1):
+                                    itm = save_data['hands']['items'][hi]
+                                    try:
+                                        if not itm or not isinstance(itm, dict):
+                                            continue
+                                        # item with rounds list
+                                        rds = itm.get('rounds')
+                                        if isinstance(rds, list) and rds:
+                                            for ri, r in enumerate(rds):
+                                                rv = (r.get('variant') if isinstance(r, dict) else (str(r) if r else None))
+                                                if rv == variant_name:
+                                                    return rds.pop(ri)
+                                        qty = int(itm.get('quantity') or 0) if isinstance(itm.get('quantity'), (int, float)) else 0
+                                        if qty > 0:
+                                            name = itm.get('variant') or itm.get('name') or itm.get('caliber')
+                                            if name and str(name) == variant_name:
+                                                # consume one
+                                                itm['quantity'] = qty -1
+                                                r = {k:v for k, v in itm.items() if k != 'quantity'}
+                                                return r
+                                        if itm.get('caliber') and (itm.get('variant') or itm.get('name')) and (itm.get('variant') == variant_name or itm.get('name') == variant_name):
+                                            try:
+                                                save_data['hands']['items'].pop(hi)
+                                            except Exception:
+                                                pass
+                                    except Exception:
+                                        continue
+                                # search equipment
+                                for slot_name, eq_item in list(save_data.get('equipment', {}).items()):
+                                    if not eq_item or not isinstance(eq_item, dict):
+                                        continue
+                                    for cidx in range(len(eq_item.get('items', []) )-1, -1, -1):
+                                        try:
+                                            itm = eq_item['items'][cidx]
+                                            if not itm or not isinstance(itm, dict):
+                                                continue
+                                            rds = itm.get('rounds')
+                                            if isinstance(rds, list) and rds:
+                                                for ri, r in enumerate(rds):
+                                                    rv = (r.get('variant') if isinstance(r, dict) else (str(r) if r else None))
+                                                    if rv == variant_name:
+                                                        return rds.pop(ri)
+                                            qty = int(itm.get('quantity') or 0) if isinstance(itm.get('quantity'), (int, float)) else 0
+                                            if qty > 0:
+                                                name = itm.get('variant') or itm.get('name') or itm.get('caliber')
+                                                if name and str(name) == variant_name:
+                                                    itm['quantity'] = qty -1
+                                                    r = {k:v for k, v in itm.items() if k != 'quantity'}
+                                                    return r
+                                        except Exception:
+                                            pass
+                                return None
+
+                            for vname in desired:
+                                r = _take_round_from_container(vname)
+                                if r is not None:
+                                    collected.append(r)
+                                else:
+                                    logging.debug('Magazine editor: could not find round for variant %s', vname)
+
+                            # Append collected rounds to magazine up to capacity
+                            space = cap - len(mag_item.get('rounds', []) or [])
+                            to_add = collected[:space]
+                            if to_add:
+                                mag_item.setdefault('rounds', []).extend(to_add)
+                            editor.destroy()
                             update_weapon_view()
-
-                        self._reload_magazine(mag_item, save_data, max_rounds = to_load, has_ammo_in_pool = wpn.get('has_ammo_in_pool', True), on_complete = on_reload_complete, is_loaded_in_weapon =(location =="loaded"), weapon = wpn, variant_filter = selected_variant)
-
-                    self._popup_ask_integer("Load Rounds", f"Enter rounds to load(1-{max_load}):", initial_value = max_load, min_value = 1, max_value = max_load, on_result = on_amount_selected)
-
-                if len(available_by_variant)>1:
-
-                    try:
-                        popup.destroy()
+                            if load_into_weapon_var is None or load_into_weapon_var.get():
+                                try:
+                                    update_weapon_view()
+                                except Exception:
+                                    pass
+                            self._popup_show_info('Magazine', f'Added {len(to_add)} rounds to {mag_item.get("name","magazine")}')
                     except Exception:
-                        pass
-                    variant_popup = customtkinter.CTkToplevel(self.root)
-                    variant_popup.title("Select Ammo Variant")
-                    variant_popup.transient(self.root)
-                    self._center_popup_on_window(variant_popup, 400, 350)
+                        logging.exception('Failed to apply magazine editor changes')
 
-                    label = customtkinter.CTkLabel(
-                    variant_popup,
-                    text = "Multiple ammo variants available.\nSelect which to load:",
-                    font = customtkinter.CTkFont(size = 13),
-                    wraplength = 380
-                    )
-                    label.pack(pady = 10, padx = 10)
+                    apply_btn = customtkinter.CTkButton(side, text = 'Apply', command = apply_changes, width = 160)
+                    apply_btn.pack(pady = 6)
 
-                    scroll_frame = customtkinter.CTkScrollableFrame(variant_popup, fg_color = "transparent")
-                    scroll_frame.pack(fill = "both", expand = True, padx = 10, pady = 5)
+                    editor.update_idletasks()
+                    ew = editor.winfo_reqwidth()
+                    eh = editor.winfo_reqheight()
+                    sw = editor.winfo_screenwidth()
+                    sh = editor.winfo_screenheight()
+                    x = (sw//2) - (ew//2)
+                    y = (sh//2) - (eh//2)
+                    editor.geometry(f'+{x}+{y}')
+                    editor.grab_set()
+                    editor.lift()
+                    self._safe_focus(editor)
 
-                    selected_variant_var = customtkinter.StringVar(value = "All Variants")
-
-                    radio = customtkinter.CTkRadioButton(
-                    scroll_frame,
-                    text = f"All Variants({total_available} rounds)",
-                    variable = selected_variant_var,
-                    value = "All Variants",
-                    font = customtkinter.CTkFont(size = 11)
-                    )
-                    radio.pack(anchor = "w", pady = 3)
-
-                    for variant, count in sorted(available_by_variant.items()):
-                        radio = customtkinter.CTkRadioButton(
-                        scroll_frame,
-                        text = f"{variant}({count} rounds)",
-                        variable = selected_variant_var,
-                        value = variant,
-                        font = customtkinter.CTkFont(size = 11)
-                        )
-                        radio.pack(anchor = "w", pady = 3)
-
-                    def on_variant_selected():
-                        variant_popup.destroy()
-                        proceed_with_reload(selected_variant_var.get())
-
-                    btn_frame = customtkinter.CTkFrame(variant_popup, fg_color = "transparent")
-                    btn_frame.pack(fill = "x", padx = 10, pady = 10)
-
-                    ok_btn = customtkinter.CTkButton(btn_frame, text = "Continue", command = on_variant_selected, width = 120)
-                    ok_btn.pack(side = "left", padx = 5)
-
-                    cancel_btn = customtkinter.CTkButton(btn_frame, text = "Cancel", command = variant_popup.destroy, width = 120, fg_color = "#444444")
-                    cancel_btn.pack(side = "left", padx = 5)
-
-                    variant_popup.update_idletasks()
-                    screen_width = variant_popup.winfo_screenwidth()
-                    screen_height = variant_popup.winfo_screenheight()
-                    x =(screen_width //2)-(200)
-                    y =(screen_height //2)-(175)
-                    variant_popup.geometry(f"+{x}+{y}")
-                    variant_popup.grab_set()
-                    variant_popup.lift()
-                    self._safe_focus(variant_popup)
-                else:
-
-                    try:
-                        popup.destroy()
-                    except Exception:
-                        pass
-                    variant = list(available_by_variant.keys())[0]if available_by_variant else None
-                    proceed_with_reload(variant)
+                _open_magazine_editor()
 
             button_frame = customtkinter.CTkFrame(popup, fg_color = "transparent")
             button_frame.pack(fill = "x", padx = 10, pady = 10)
@@ -15958,6 +16281,14 @@ class App:
 
                 lab = customtkinter.CTkLabel(popup, text = 'Magazine Actions', font = customtkinter.CTkFont(size = 14, weight = 'bold'))
                 lab.pack(pady = 8)
+
+                # Checkbox: whether to load the magazine into the weapon after filling
+                try:
+                    load_into_weapon_var = customtkinter.BooleanVar(value = True)
+                    load_checkbox = customtkinter.CTkCheckBox(popup, text = 'Load magazine into weapon', variable = load_into_weapon_var)
+                    load_checkbox.pack(pady = 4)
+                except Exception:
+                    load_into_weapon_var = None
 
                 try:
                     wpn_local = current_weapon_state.get('weapon')or {}
@@ -17976,119 +18307,34 @@ class App:
             def add_individual_magazine():
 
                 try:
-                    current_weapon = current_weapon_state["weapon"]
-                    mag_system = current_weapon.get("magazinesystem")
-
-                    sub_mag_system = current_weapon.get("submagazinesystem")or current_weapon.get("submagazinetype")
-                    caliber_list = current_weapon.get("caliber", [])or[]
-                    caliber = caliber_list[0]if caliber_list else "Unknown"
-                    try:
-                        dev_cal_var = current_weapon_state.get("dev_caliber_var")
-                        if dev_cal_var and hasattr(dev_cal_var, 'get'):
-                            sel = dev_cal_var.get()
-                            if sel:
-                                caliber = sel
-                    except Exception:
-                        pass
-
-                    if not mag_system and sub_mag_system:
-                        mag_system = sub_mag_system
+                    # Simple devmode helper: add an empty magazine instance based on table template
+                    current_weapon = current_weapon_state.get("weapon", {})
+                    mag_system = current_weapon.get("magazinesystem") or current_weapon.get("submagazinesystem") or current_weapon.get("submagazinetype")
 
                     if not mag_system:
                         self._popup_show_info("DevMode Error", "Weapon doesn't use detachable magazines")
                         return
 
                     magazines_table = table_data.get("tables", {}).get("magazines", [])
-
-                    compatible_mags =[]
-                    for mag in magazines_table:
-                        m_ms = mag.get("magazinesystem")
-                        if m_ms ==mag_system or(sub_mag_system and m_ms ==sub_mag_system):
-                            compatible_mags.append(mag)
-
-                    try:
-                        dev_cal_var = current_weapon_state.get("dev_caliber_var")
-                        if dev_cal_var and hasattr(dev_cal_var, 'get'):
-                            sel_cal = dev_cal_var.get()
-                            if sel_cal:
-                                def _template_matches_cal(m, c):
-                                    try:
-                                        mcal = m.get("caliber")
-                                        if isinstance(mcal, (list, tuple)):
-                                            return any(str(e)==str(c)for e in mcal)
-                                        if isinstance(mcal, str):
-                                            return str(mcal)==str(c)
-                                        return False
-                                    except Exception:
-                                        return False
-                                compatible_mags =[m for m in compatible_mags if _template_matches_cal(m, sel_cal)]
-                    except Exception:
-                        pass
+                    compatible_mags = [m for m in magazines_table if (m.get("magazinesystem") == mag_system or m.get("magazinetype") == mag_system)]
 
                     if not compatible_mags:
                         self._popup_show_info("DevMode Error", f"No magazines in table for {mag_system}")
                         return
 
-                    if len(compatible_mags)>1:
-                        try:
-                            opt_names =[str(m.get('name')or f"Mag {i}")for i, m in enumerate(compatible_mags)]
-                            choice = self._popup_select_option("Select Magazine", "Multiple compatible magazines found.Choose one to add:", opt_names)
-                            if not choice:
-                                return
-
-                            sel_index = opt_names.index(choice)
-                            mag_template = compatible_mags[sel_index]
-                        except Exception:
-                            mag_template = compatible_mags[0]
-                    else:
-                        mag_template = compatible_mags[0]
-                    capacity = mag_template.get("capacity", 30)
-
-                    variant_name = variant_var.get()
-                    round_format = f"{caliber} | {variant_name}"
-
-                    ammo_tables = table_data.get("tables", {}).get("ammunition", [])if table_data else[]
-                    variant_info = None
-                    for ammo in ammo_tables:
-                        ammo_cal = ammo.get("caliber")
-                        cal_match = False
-                        if isinstance(ammo_cal, (list, tuple)):
-                            cal_match = caliber in ammo_cal
-                        elif isinstance(ammo_cal, str):
-                            cal_match = ammo_cal ==caliber
-                        if cal_match:
-                            for var in ammo.get("variants", []):
-                                if var.get("name")==variant_name:
-                                    variant_info = var
-                                    break
-                            if not variant_info and ammo.get("variants"):
-                                variant_info = ammo["variants"][0]
-                            break
-
-                    round_obj = {"name":round_format, "caliber":caliber, "variant":variant_name}
-                    if variant_info:
-                        if variant_info.get("type"):
-                            round_obj["type"]= variant_info.get("type")
-                        if variant_info.get("pen"):
-                            round_obj["pen"]= variant_info.get("pen")
-                        if variant_info.get("tip"):
-                            round_obj["tip"]= variant_info.get("tip")
-                        if variant_info.get("modifiers"):
-                            round_obj["modifiers"]= variant_info.get("modifiers")
-
+                    mag_template = compatible_mags[0]
                     new_mag = {
-                    "name":mag_template.get("name"),
-                    "id":mag_template.get("id"),
-                    "magazinetype":mag_template.get("magazinetype", "Unknown"),
-                    "magazinesystem":mag_system,
-                    "capacity":capacity,
-                    "rounds":[dict(round_obj)for _ in range(capacity)]
+                        'name': mag_template.get('name'),
+                        'id': mag_template.get('id'),
+                        'magazinetype': mag_template.get('magazinetype', 'Unknown'),
+                        'magazinesystem': mag_system,
+                        'capacity': mag_template.get('capacity', 30),
+                        'rounds': []
                     }
 
-                    save_data.get("hands", {}).get("items", []).append(new_mag)
-
-                    self._popup_show_info("DevMode Ammo", f"Added {mag_template.get('name')} to hands\n({capacity} rounds, {mag_system})")
+                    save_data.setdefault('hands', {}).setdefault('items', []).append(new_mag)
                     update_weapon_view()
+                    self._popup_show_info('DevMode Ammo', f"Added {new_mag.get('name')} to hands (empty)")
                 except Exception as e:
                     logging.error(f"Error adding magazine: {e}")
                     self._popup_show_info("DevMode Error", str(e))
@@ -24045,10 +24291,60 @@ class App:
         except Exception as e:
             logging.exception("Error during safe exit: %s", e)
         try:
+            # Try a graceful shutdown of the Tk main loop
+            try:
+                # release any grabs on widgets (modal dialogs)
+                for w in list(self.root.winfo_children()):
+                    try:
+                        if getattr(w, 'grab_release', None):
+                            w.grab_release()
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+
             self.root.quit()
+            try:
+                # allow pending events to process
+                self.root.update()
+            except Exception:
+                pass
+            try:
+                # destroy any remaining children (toplevels)
+                for w in list(self.root.winfo_children()):
+                    try:
+                        w.destroy()
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+            try:
+                self.root.destroy()
+            except Exception:
+                pass
         except Exception:
             try:
                 self.root.destroy()
+            except Exception:
+                pass
+
+        # Stop pygame subsystems which may keep threads alive
+        try:
+            pygame.mixer.quit()
+        except Exception:
+            pass
+        try:
+            pygame.quit()
+        except Exception:
+            pass
+
+        # If the process is still running with GUI resources held, force exit as a last resort
+        try:
+            import os as _os, sys as _sys
+            _sys.exit(0)
+        except SystemExit:
+            try:
+                _os._exit(0)
             except Exception:
                 pass
 
