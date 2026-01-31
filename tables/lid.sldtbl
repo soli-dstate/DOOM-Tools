@@ -3046,14 +3046,7 @@
                 "magazinetype": "Belt",
                 "capacity": 1000,
                 "jamrate": 0,
-                "accessories": [
-                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": null},
-                    {"name": "Picatinny Rail (Handguard Top)", "slot": "picatinny_rifle", "current": null},
-                    {"name": "Picatinny Rail (Handguard Left)", "slot": "picatinny_rifle", "current": null},
-                    {"name": "Picatinny Rail (Handguard Right)", "slot": "picatinny_rifle", "current": null},
-                    {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom", "current": null},
-                    {"name": "Muzzle Device", "slot": "muzzle_556", "current": null}
-                ],
+                "accessories": [],
                 "can_stack": false,
                 "barrel_swap": true,
                 "rotary_gun": true,
@@ -10655,6 +10648,15 @@
                 "playlist": ["armory"],
                 "inventory_quantity": {"min": 50, "max": 75},
                 "display_in_program": false
+            }
+        ],
+        "rooms": [
+            {
+                "name": "Entrance",
+                "type": "entrance",
+                "attachment_points": [
+                    {"attachment_point": "top"}
+                ]
             }
         ]
     }

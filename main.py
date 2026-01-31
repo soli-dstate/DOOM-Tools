@@ -8229,6 +8229,17 @@ class App:
         )
         view_stats_button.pack(pady = 20)
 
+        modify_stats_button = self._create_sound_button(
+        self.root,
+        "Modify Character Stats",
+        lambda:[self._clear_window(), self._modify_character_stats()],
+        width = 500,
+        height = 50,
+        font = customtkinter.CTkFont(size = 16),
+        state = "disabled"if currentsave is None else "normal"
+        )
+        modify_stats_button.pack(pady = 20)
+
         return_button = self._create_sound_button(self.root, "Return to Inventory Manager", lambda:[self._clear_window(), self._open_inventory_manager_tool()], width = 500, height = 50, font = customtkinter.CTkFont(size = 16))
         return_button.pack(pady = 20)
 
@@ -8402,6 +8413,173 @@ class App:
         height = 40
         )
         back_button.grid(row = 0, column = 1, padx =(10, 0))
+
+    def _modify_character_stats(self):
+        logging.info("Modify Character Stats called")
+
+        if currentsave is None:
+            self._popup_show_info("Error", "No character loaded.", sound = "error")
+            return
+
+        save_filename =(currentsave or "")+".sldsv"
+        save_data = self._load_file(save_filename)
+
+        if save_data is None:
+            self._popup_show_info("Error", "Failed to load character data.", sound = "error")
+            return
+
+        stat_clamp = 20
+        slot_disable_points = 6
+        try:
+            table_files = glob.glob(os.path.join("tables", "*.sldtbl"))
+            if table_files:
+                with open(table_files[0], 'r')as f:
+                    table_data = json.load(f)
+                    stat_clamp = table_data.get("additional_settings", {}).get("stat_clamp", 20)
+                    slot_disable_points = table_data.get("additional_settings", {}).get("slot_disable_points", 1)
+        except Exception:
+            pass
+
+        self.root.grid_rowconfigure(0, weight = 1)
+        self.root.grid_columnconfigure(0, weight = 1)
+
+        scrollable_frame = customtkinter.CTkScrollableFrame(self.root, width = 650, height = 700)
+        scrollable_frame.grid(row = 0, column = 0, sticky = "nsew", padx = 20, pady = 20)
+        scrollable_frame.grid_columnconfigure(0, weight = 1)
+
+        title = customtkinter.CTkLabel(scrollable_frame, text = "Modify Character Stats", font = customtkinter.CTkFont(size = 24, weight = "bold"))
+        title.grid(row = 0, column = 0, pady =(0, 20))
+
+        stats_frame = customtkinter.CTkFrame(scrollable_frame)
+        stats_frame.grid(row = 1, column = 0, sticky = "ew", pady = 10, padx = 10)
+        stats_frame.grid_columnconfigure((1, 2, 3), weight = 1)
+
+        stat_names = list(emptysave["stats"].keys())
+        stat_sliders = {}
+        stat_value_labels = {}
+        for i, stat in enumerate(stat_names):
+            stat_label = customtkinter.CTkLabel(stats_frame, text = f"{stat}:", font = customtkinter.CTkFont(size = 12), width = 100)
+            stat_label.grid(row = i +1, column = 0, sticky = "w", padx =(0, 10), pady = 8)
+            value_label = customtkinter.CTkLabel(stats_frame, text = "0", font = customtkinter.CTkFont(size = 12, weight = "bold"), width = 30)
+            value_label.grid(row = i +1, column = 1, sticky = "e", padx =(0, 10), pady = 8)
+            stat_value_labels[stat]= value_label
+            def make_slider_callback(stat_name, value_lbl):
+                def on_slider_change(val):
+                    value_lbl.configure(text = str(int(float(val))))
+                return on_slider_change
+            if stat =="Luck":
+                stat_min, stat_max = -4, 4
+                stat_steps = 8
+            else:
+                stat_min, stat_max = -20, stat_clamp
+                stat_steps = 40 +stat_clamp
+            slider = customtkinter.CTkSlider(
+            stats_frame,
+            from_ = stat_min,
+            to = stat_max,
+            number_of_steps = stat_steps,
+            command = make_slider_callback(stat, value_label)
+            )
+            slider.set(int(save_data.get('stats', {}).get(stat, 0)))
+            slider.grid(row = i +1, column = 2, sticky = "ew", padx = 10, pady = 8)
+            stat_sliders[stat]= slider
+            range_label = customtkinter.CTkLabel(stats_frame, text = f"[{stat_min}, +{stat_max}]", font = customtkinter.CTkFont(size = 10), text_color = "gray")
+            range_label.grid(row = i +1, column = 3, sticky = "w", padx =(10, 0), pady = 8)
+
+        equipment_frame = customtkinter.CTkFrame(scrollable_frame)
+        equipment_frame.grid(row = 2, column = 0, sticky = "ew", pady = 10, padx = 10)
+        equipment_frame.grid_columnconfigure((0, 1, 2), weight = 1)
+
+        equipment_slots = list(emptysave["equipment"].keys())
+        slot_checkboxes = {}
+        for i, slot in enumerate(equipment_slots):
+            row = (i //3)+1
+            col = i %3
+            checkbox = customtkinter.CTkCheckBox(
+            equipment_frame,
+            text = slot.title(),
+            font = customtkinter.CTkFont(size = 11)
+            )
+            if slot in save_data.get('equipment', {}):
+                checkbox.select()
+            else:
+                checkbox.deselect()
+            checkbox.grid(row = row, column = col, sticky = "w", padx = 10, pady = 5)
+            slot_checkboxes[slot]= checkbox
+
+        sum_frame = customtkinter.CTkFrame(scrollable_frame)
+        sum_frame.grid(row = 3, column = 0, sticky = "ew", pady = 15, padx = 10)
+        sum_frame.grid_columnconfigure(1, weight = 1)
+        sum_label = customtkinter.CTkLabel(sum_frame, text = "Total Points:", font = customtkinter.CTkFont(size = 12, weight = "bold"))
+        sum_label.grid(row = 0, column = 0, sticky = "w", padx =(0, 10))
+        sum_value_label = customtkinter.CTkLabel(sum_frame, text = "0", font = customtkinter.CTkFont(size = 12, weight = "bold"))
+        sum_value_label.grid(row = 0, column = 1, sticky = "w")
+
+        def update_sum(*args):
+            stat_total = sum(int(float(stat_sliders[stat].get()))for stat in stat_names)
+            disabled_slots = sum(1 for slot, checkbox in slot_checkboxes.items()if not checkbox.get())
+            bonus_points = disabled_slots *slot_disable_points *-1
+            total = stat_total +bonus_points
+
+            sum_value_label.configure(text = f"{stat_total} + {bonus_points} = {total}")
+            if total >0:
+                sum_value_label.configure(text_color = "red")
+                save_button.configure(state = "disabled")
+            else:
+                sum_value_label.configure(text_color = "white")
+                save_button.configure(state = "normal")
+
+        for stat in stat_names:
+            stat_sliders[stat].configure(command = lambda val, s = stat:[
+            stat_value_labels[s].configure(text = str(int(float(stat_sliders[s].get())))),
+            update_sum()
+            ])
+
+        for slot in equipment_slots:
+            slot_checkboxes[slot].configure(command = update_sum)
+
+        button_frame = customtkinter.CTkFrame(scrollable_frame, fg_color = "transparent")
+        button_frame.grid(row = 4, column = 0, sticky = "ew", pady =(20, 0), padx = 10)
+        button_frame.grid_columnconfigure((0, 1), weight = 1)
+
+        def perform_save_modifications():
+            try:
+                stat_total = sum(int(float(stat_sliders[stat].get()))for stat in stat_names)
+                disabled_slots = sum(1 for slot, checkbox in slot_checkboxes.items()if not checkbox.get())
+                bonus_points = disabled_slots *slot_disable_points *-1
+                total = stat_total +bonus_points
+
+                if total > 0:
+                    self._popup_show_info('Error', 'Point total must be zero or negative; adjust stats or slots.', sound='error')
+                    return
+
+                for stat in stat_names:
+                    save_data.setdefault('stats', {})[stat] = int(float(stat_sliders[stat].get()))
+
+                for slot, checkbox in slot_checkboxes.items():
+                    if not checkbox.get():
+                        if slot in save_data.get('equipment', {}):
+                            del save_data['equipment'][slot]
+                    else:
+                        save_data.setdefault('equipment', {}).setdefault(slot, None)
+
+                save_path = os.path.join(saves_folder or 'saves', (currentsave or '') + '.sldsv')
+                self._write_save_to_path(save_path, save_data)
+                self._popup_show_info('Success', 'Stats saved successfully!', sound='success')
+                self._clear_window()
+                self._open_character_management()
+            except Exception as e:
+                logging.exception('Failed saving modified stats')
+                self._popup_show_info('Error', f'Failed to save: {e}', sound='error')
+
+        save_button = self._create_sound_button(button_frame, 'Save', perform_save_modifications, width = 200, height = 50, font = customtkinter.CTkFont(size = 14))
+        save_button.grid(row = 0, column = 0, padx =(0, 10))
+        cancel_button = self._create_sound_button(button_frame, 'Cancel', lambda:self._popup_confirm(
+        'Cancel Modifications',
+        'Are you sure you want to cancel? Unsaved changes will be lost.',
+        lambda:[self._clear_window(), self._open_character_management()]
+        ), width = 200, height = 50, font = customtkinter.CTkFont(size = 14))
+        cancel_button.grid(row = 0, column = 1, padx =(10, 0))
     def _create_new_character(self):
         import uuid
         import json
@@ -18934,7 +19112,10 @@ class App:
         stats_text = f"Platform: {weapon.get('platform', 'Unknown')}\n"
         stats_text +=f"Caliber: {', '.join(weapon.get('caliber', ['Unknown']))}\n"
         stats_text +=f"Action: {', '.join(weapon.get('action', ['Unknown']))}\n"
-        stats_text +=f"Cyclic Rate: {weapon.get('cyclic', 0)} RPM\n"
+        if weapon.get("burst_cyclic"):
+            stats_text +=f"Cyclic Rate: {weapon.get('cyclic', 0)} RPM ({weapon.get('burst_cyclic', 0)} RPM burst)\n"
+        else:
+            stats_text +=f"Cyclic Rate: {weapon.get('cyclic', 0)} RPM\n"
         stats_text +=f"Magazine Type: {weapon.get('magazinetype', 'Unknown')}\n"
 
         if weapon.get("magazinesystem"):
