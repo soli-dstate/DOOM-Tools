@@ -673,6 +673,18 @@ ide_indicators =[
 'VSCODE_INJECTION'
 ]
 
+# auto-detect attached debugger and push -debug flag
+try:
+    _debugger_attached = sys.gettrace() is not None
+except Exception:
+    _debugger_attached = False
+if not _debugger_attached:
+    _debugger_attached = any(m in sys.modules for m in ('pydevd', 'debugpy', 'ptvsd'))
+if _debugger_attached:
+    if ('-debug' not in sys.argv) and ('--debug' not in sys.argv):
+        sys.argv.append('-debug')
+        logging.info('Debugger detected; added -debug to argv')
+
 dm_users =["bGlseQ==", "amFjemk=", "cGhvbmU=", "YWlkZW4="]
 
 if any(indicator in os.environ for indicator in ide_indicators):
@@ -687,13 +699,11 @@ if any(indicator in os.environ for indicator in ide_indicators):
     global_variables["ide"]= True
     try:
 
-        try:
-            out = subprocess.check_output([sys.executable, '-m', 'pip', 'freeze'], text = True, stderr = subprocess.DEVNULL)
-            with open('requirements.txt', 'w', encoding = 'utf-8')as _rq:
-                _rq.write(out)
-            logging.info('Updated requirements.txt from pip freeze(IDE mode)')
-        except Exception:
-            logging.exception('Failed to refresh requirements.txt in IDE mode')
+            try:
+                from scripts import generate_requirements
+                generate_requirements.generate_requirements(ide_mode=True)
+            except Exception:
+                logging.exception('Failed to refresh requirements.txt in IDE mode')
     except Exception:
         pass
     for folder_entry in folders:
@@ -721,22 +731,8 @@ if any(indicator in os.environ for indicator in ide_indicators):
             else:
                 logging.info(f"'{entry}' already exists in.gitignore")
     try:
-        import subprocess
-        result = subprocess.run([sys.executable, '-m', 'pip', 'freeze'], capture_output = True, text = True)
-        current_packages = set(result.stdout.strip().split('\n'))
-
-        existing_packages = set()
-        try:
-            with open('requirements.txt', 'r')as f:
-                existing_packages = set(line.strip()for line in f if line.strip())
-        except FileNotFoundError:
-            pass
-        all_packages = existing_packages |current_packages
-        all_packages.discard('')
-        with open('requirements.txt', 'w')as f:
-            for package in sorted(all_packages):
-                f.write(f'{package}\n')
-        logging.info(f"Updated requirements.txt with {len(all_packages)} packages")
+        from scripts import generate_requirements
+        generate_requirements.generate_requirements(ide_mode=False)
     except Exception as e:
         logging.warning(f"Failed to update requirements.txt: {e}")
 
@@ -3638,6 +3634,8 @@ class App:
 
                 if getattr(widget, "_is_dev_toolbar", False):
                     continue
+                if getattr(widget, "_is_persistent_window", False):
+                    continue
             except Exception:
                 pass
             try:
@@ -5839,6 +5837,9 @@ class App:
                 table_data = json.load(f)
 
             stores = table_data.get("tables", {}).get("stores", [])
+
+            # Exclude stores that should not be displayed in the program
+            stores = [s for s in stores if s.get("display_in_program", True)]
 
             if not stores:
                 error_label = customtkinter.CTkLabel(main_frame, text = "No businesses available in current table.", font = customtkinter.CTkFont(size = 14), text_color = "orange")
@@ -25091,8 +25092,261 @@ class App:
         modify_settings_button = self._create_sound_button(scroll_frame, "Modify Settings", self._open_modify_settings_tool, width = 500, height = 50, font = customtkinter.CTkFont(size = 16))
         modify_settings_button.pack(pady = 10)
 
+        dungeon_generator_button = self._create_sound_button(scroll_frame, "Dungeon Generator", self._open_dungeon_generator, width = 500, height = 50, font = customtkinter.CTkFont(size = 16))
+        dungeon_generator_button.pack(pady = 10)
+
         back_button = self._create_sound_button(main_frame, "Back to Main Menu", lambda:[self._clear_window(), self._build_main_menu()], width = 500, height = 50, font = customtkinter.CTkFont(size = 16))
         back_button.pack(pady = 20)
+
+    def _open_dungeon_generator(self):
+        # Use a CTkToplevel attached to the main `self.root` so it does not block
+        # the main UI. Ensure only one instance exists and focus it if already open.
+        try:
+            existing = getattr(self, '_dg_window', None)
+            if existing and getattr(existing, 'winfo_exists', lambda: False)():
+                try:
+                    existing.deiconify()
+                    existing.lift()
+                    existing.focus_force()
+                    try:
+                        self._popup_show_info("Dungeon Generator", "Dungeon Generator is already open.")
+                    except Exception:
+                        pass
+                except Exception:
+                    pass
+                return
+
+            try:
+                theme = customtkinter.ThemeManager.theme
+                toplevel_fg = theme.get('CTkToplevel', {}).get('fg_color')
+            except Exception:
+                toplevel_fg = None
+
+            if toplevel_fg:
+                dg = customtkinter.CTkToplevel(self.root, fg_color = toplevel_fg)
+            else:
+                dg = customtkinter.CTkToplevel(self.root)
+
+            # mark this window persistent so menu clears don't close it
+            try:
+                dg._is_persistent_window = True
+            except Exception:
+                pass
+
+            dg.title("Dungeon Generator")
+            dg.transient(self.root)
+
+            def _on_close():
+                try:
+                    dg.destroy()
+                except Exception:
+                    pass
+                try:
+                    self._dg_window = None
+                except Exception:
+                    self._dg_window = None
+
+            def _confirm_close():
+                try:
+                    import tkinter as _tk_local
+                    from tkinter import messagebox as _mb
+                    if _mb.askyesno("Confirm", "Close Dungeon Generator?"):
+                        _on_close()
+                except Exception:
+                    _on_close()
+
+            dg.protocol("WM_DELETE_WINDOW", _confirm_close)
+
+            frm = customtkinter.CTkFrame(dg)
+            frm.pack(fill = "both", expand = True, padx = 12, pady = 12)
+            lbl = customtkinter.CTkLabel(frm, text = "Dungeon Generator", font = customtkinter.CTkFont(size = 14))
+            lbl.pack(pady = 8)
+            # Controls area
+            controls = customtkinter.CTkFrame(frm)
+            controls.pack(fill = "x", pady = 8)
+            # initialize state and difficulty labels for per-floor controls
+            try:
+                self._dg_state = getattr(self, '_dg_state', {})
+            except Exception:
+                self._dg_state = {}
+            # Difficulty labels matching Encounter Roll categories (low -> high)
+            diff_labels = ["None/Friendly", "Easy", "Medium", "Hard", "Miniboss"]
+
+            # Removed global X/Y size controls; sizes are now per-floor
+
+            # Levels slider (1..3) and per-floor settings container
+            try:
+                self._dg_state['levels'] = _tk.IntVar(value = 1)
+                self._dg_state.setdefault('floors', [])
+
+                def _on_levels(v):
+                    try:
+                        iv = int(round(float(v)))
+                        if iv < 1:
+                            iv = 1
+                        if iv > 3:
+                            iv = 3
+                        self._dg_state['levels'].set(iv)
+                        lbl_levels.configure(text = f"Levels: {iv}")
+                        _rebuild_floors()
+                    except Exception:
+                        pass
+
+                lbl_levels = customtkinter.CTkLabel(controls, text = f"Levels: {self._dg_state['levels'].get()}")
+                lbl_levels.pack(anchor = "w", pady = 4)
+                s_levels = customtkinter.CTkSlider(controls, from_ = 1, to = 3, number_of_steps = 2, command = _on_levels)
+                s_levels.set(self._dg_state['levels'].get())
+                s_levels.pack(fill = "x", pady = 2)
+
+                # Container for transport mode controls (shown when 3 levels)
+                entrance_frame = customtkinter.CTkFrame(controls)
+
+                # Floors container - don't expand vertically to avoid large blank space
+                floors_container = customtkinter.CTkFrame(frm)
+                floors_container.pack(fill = "x", expand = False, pady = 8)
+
+                def _rebuild_floors():
+                    try:
+                        for w in floors_container.winfo_children():
+                            try:
+                                w.destroy()
+                            except Exception:
+                                pass
+                        self._dg_state['floors'] = []
+                        levels = max(1, min(3, int(self._dg_state['levels'].get())))
+                        if levels != 3:
+                            try:
+                                entrance_frame.pack_forget()
+                            except Exception:
+                                pass
+                        for i in range(levels):
+                            ffrm = customtkinter.CTkFrame(floors_container)
+                            ffrm.pack(fill = 'x', pady = 4, padx = 8)
+                            floor_label = customtkinter.CTkLabel(ffrm, text = f"Floor {i+1}")
+                            floor_label.pack(anchor = 'w')
+
+                            # per-floor enemy count
+                            fv_enemy = _tk.IntVar(value = 10)
+                            def make_enemy_cb(var, lbl):
+                                return lambda v: (var.set(int(round(float(v)))), lbl.configure(text = f"Enemies: {var.get()}"))
+                            lbl_fe = customtkinter.CTkLabel(ffrm, text = f"Enemies: {fv_enemy.get()}")
+                            lbl_fe.pack(anchor = 'w')
+                            s_fe = customtkinter.CTkSlider(ffrm, from_ = 1, to = 50, number_of_steps = 49, command = make_enemy_cb(fv_enemy, lbl_fe))
+                            s_fe.set(fv_enemy.get())
+                            s_fe.pack(fill='x', pady=2)
+
+                            # per-floor Max Difficulty (matching Encounter Roll categories)
+                            fv_diff = _tk.IntVar(value = 4)
+                            def make_diff_cb(var, lbl):
+                                return lambda v: (var.set(int(round(float(v)))), lbl.configure(text = f"Max Difficulty: {diff_labels[var.get()] }"))
+                            lbl_fd = customtkinter.CTkLabel(ffrm, text = f"Max Difficulty: {diff_labels[fv_diff.get()]}")
+                            lbl_fd.pack(anchor = 'w')
+                            s_fd = customtkinter.CTkSlider(ffrm, from_ = 0, to = 4, number_of_steps = 4, command = make_diff_cb(fv_diff, lbl_fd))
+                            s_fd.set(fv_diff.get())
+                            s_fd.pack(fill='x', pady=2)
+
+                            # per-floor X/Y size (10..50 step 5)
+                            try:
+                                fv_x = _tk.IntVar(value = 20)
+                                fv_y = _tk.IntVar(value = 20)
+
+                                def make_x_cb(var, lbl):
+                                    return lambda v: (var.set(int(round(float(v)))), lbl.configure(text = f"X Size: {var.get()}"))
+
+                                def make_y_cb(var, lbl):
+                                    return lambda v: (var.set(int(round(float(v)))), lbl.configure(text = f"Y Size: {var.get()}"))
+
+                                lbl_x = customtkinter.CTkLabel(ffrm, text = f"X Size: {fv_x.get()}")
+                                lbl_x.pack(anchor = 'w')
+                                s_x = customtkinter.CTkSlider(ffrm, from_ = 10, to = 50, number_of_steps = 8, command = make_x_cb(fv_x, lbl_x))
+                                s_x.set(fv_x.get())
+                                s_x.pack(fill='x', pady=2)
+
+                                lbl_y = customtkinter.CTkLabel(ffrm, text = f"Y Size: {fv_y.get()}")
+                                lbl_y.pack(anchor = 'w')
+                                s_y = customtkinter.CTkSlider(ffrm, from_ = 10, to = 50, number_of_steps = 8, command = make_y_cb(fv_y, lbl_y))
+                                s_y.set(fv_y.get())
+                                s_y.pack(fill='x', pady=2)
+                            except Exception:
+                                logging.exception("Failed to create per-floor size controls")
+
+                            # per-floor transport type (Stairs / Elevator) only when multiple levels
+                            fv_transport = None
+                            try:
+                                # do not add transport for the last floor
+                                # determine transport mode (default to Multiple)
+                                try:
+                                    tm_var = self._dg_state.get('transport_mode')
+                                    tm = tm_var.get() if hasattr(tm_var, 'get') else (tm_var or 'Multiple')
+                                except Exception:
+                                    tm = 'Multiple'
+
+                                # create transport controls only for non-final floors,
+                                # and if transport_mode == 'Single', only for the top floor (i == 0)
+                                if levels > 1 and i < (levels - 1) and not (tm == 'Single' and i != 0):
+                                    fv_transport = _tk.StringVar(value = "Stairs")
+                                    lbl_ft = customtkinter.CTkLabel(ffrm, text = "Transport: Stairs")
+                                    lbl_ft.pack(anchor = 'w')
+                                    opt = customtkinter.CTkOptionMenu(ffrm, values = ["Stairs", "Elevator"], command = lambda v, var=fv_transport, l=lbl_ft: (var.set(v), l.configure(text = f"Transport: {v}")))
+                                    opt.set(fv_transport.get())
+                                    opt.pack(fill='x', pady=2)
+                            except Exception:
+                                logging.exception("Failed to create transport option for floor")
+
+                            # include x/y sizes if present
+                            try:
+                                self._dg_state['floors'].append({'enemy_count': fv_enemy, 'difficulty': fv_diff, 'transport': fv_transport, 'x_size': fv_x, 'y_size': fv_y})
+                            except Exception:
+                                self._dg_state['floors'].append({'enemy_count': fv_enemy, 'difficulty': fv_diff, 'transport': fv_transport})
+
+                        # If there are exactly 3 levels, show entrance-mode selector
+                        try:
+                            for w in entrance_frame.winfo_children():
+                                try:
+                                    w.destroy()
+                                except Exception:
+                                    pass
+                            if levels == 3:
+                                # show entrance/transport selector frame
+                                try:
+                                    entrance_frame.pack(fill = 'x', pady = 4)
+                                except Exception:
+                                    pass
+                                self._dg_state.setdefault('transport_mode', _tk.StringVar(value = 'Multiple'))
+                                lbl_em = customtkinter.CTkLabel(entrance_frame, text = 'Transport Mode:')
+                                lbl_em.pack(side = 'left', padx = 6)
+                                def _set_transport_mode(v):
+                                    try:
+                                        self._dg_state['transport_mode'].set(v)
+                                    except Exception:
+                                        pass
+                                    try:
+                                        _rebuild_floors()
+                                    except Exception:
+                                        pass
+                                opt_em = customtkinter.CTkOptionMenu(entrance_frame, values = ['Multiple', 'Single'], command = _set_transport_mode)
+                                opt_em.set(self._dg_state.get('transport_mode', _tk.StringVar(value='Multiple')).get())
+                                opt_em.pack(side = 'left', padx = 6)
+                        except Exception:
+                            logging.exception('Failed to build entrance mode control')
+                    except Exception:
+                        logging.exception("Failed to rebuild floor controls")
+
+                _rebuild_floors()
+            except Exception:
+                logging.exception("Failed to create levels/floors controls")
+
+            btn_close = customtkinter.CTkButton(frm, text = "Close", command = _confirm_close)
+            btn_close.pack(pady = 8)
+
+            self._dg_window = dg
+            try:
+                dg.focus_force()
+                dg.lift()
+            except Exception:
+                pass
+        except Exception:
+            logging.exception("Failed to open Dungeon Generator window")
 
     def _open_encounter_roll_tool(self):
 
@@ -27593,5 +27847,23 @@ class App:
         font = customtkinter.CTkFont(size = 16)
         )
         back_button.pack(pady = 20)
-if __name__ =="__main__":
+        
+if __name__ == "__main__":
+    try:
+        _gil = os.environ.get('PYTHON_GIL', '1')
+        if _gil != '0':
+            try:
+                import tkinter as _tk
+                from tkinter import messagebox as _mb
+                _root = _tk.Tk()
+                _root.withdraw()
+                _mb.showinfo("DOOM Tools", "Python GIL was detected as enabled. For best performance, please disable the GIL by setting the environment variable PYTHON_GIL=0 or using runwithoutgil.bat. Disabling the GIL will allow the program to run with more than one thread.")
+                _root.destroy()
+            except Exception:
+                try:
+                    print('Warning: running with GIL enabled. Running with GIL disabled may improve performance.')
+                except Exception:
+                    pass
+    except Exception:
+        pass
     app = App()

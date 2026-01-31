@@ -3058,6 +3058,39 @@
                 "barrel_swap": true,
                 "rotary_gun": true,
                 "can_melt": false
+            },
+            {
+                "name": "Sig Sauer MMG 338",
+                "value": 13000,
+                "description": "General-purpose machine gun rarely used by the LEDF. Chambered in .338 Norma Magnum, offering superior range and stopping power compared to traditional 7.62x51mm NATO machine guns.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 11.5,
+                "id": 454,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "machine_gun",
+                "platform": "MMG 338",
+                "caliber": [".338 Norma Magnum"],
+                "action": ["Auto"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 600,
+                "magazinetype": "Belt",
+                "capacity": 100,
+                "jamrate": 0.003,
+                "accessories": [
+                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": null},
+                    {"name": "Picatinny Rail (Handguard Top)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Left)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Right)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_338", "current": null}
+                ],
+                "can_stack": false,
+                "barrel_swap": true,
+                "in_armory": true,
+                "armory_category": "Belt-fed Machine Guns"
             }
         ],
         "pistols": [
@@ -6331,6 +6364,29 @@
                 ],
                 "in_armory": true,
                 "armory_category": "Rifle Ammunition"
+            },
+            {
+                "name": ".338 Norma Magnum",
+                "value": 2,
+                "description": "High-caliber precision sniper rifle / general purpose machine gun round.",
+                "rarity": "Rare",
+                "random_quantity": {"min": 5, "max": 50},
+                "weight": 0.03,
+                "id": 453,
+                "caliber": [".338 Norma Magnum"],
+                "sounds": "338",
+                "variants": [
+                    {
+                        "name": "Ball",
+                        "type": "Ball",
+                        "pen": "IV",
+                        "modifiers": null,
+                        "rarity": "Common",
+                        "tip": null
+                    }
+                ],
+                "in_armory": true,
+                "armory_category": "Anti-materiel Ammunition"
             }
         ],
         "magazines": [
@@ -10587,7 +10643,8 @@
                     "sell": 1.5
                 },
                 "restock_time_minutes": 30,
-                "accepts_trades": true
+                "accepts_trades": true,
+                "display_in_program": false
             },
             {
                 "name": "Example Armory",
@@ -10596,7 +10653,8 @@
                 "armory_points": 10,
                 "music": true,
                 "playlist": ["armory"],
-                "inventory_quantity": {"min": 50, "max": 75}
+                "inventory_quantity": {"min": 50, "max": 75},
+                "display_in_program": false
             }
         ]
     }
