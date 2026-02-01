@@ -673,15 +673,14 @@ ide_indicators =[
 'VSCODE_INJECTION'
 ]
 
-# auto-detect attached debugger and push -debug flag
 try:
-    _debugger_attached = sys.gettrace() is not None
+    _debugger_attached = sys.gettrace()is not None
 except Exception:
     _debugger_attached = False
 if not _debugger_attached:
-    _debugger_attached = any(m in sys.modules for m in ('pydevd', 'debugpy', 'ptvsd'))
+    _debugger_attached = any(m in sys.modules for m in('pydevd', 'debugpy', 'ptvsd'))
 if _debugger_attached:
-    if ('-debug' not in sys.argv) and ('--debug' not in sys.argv):
+    if('-debug'not in sys.argv)and('--debug'not in sys.argv):
         sys.argv.append('-debug')
         logging.info('Debugger detected; added -debug to argv')
 
@@ -701,7 +700,7 @@ if any(indicator in os.environ for indicator in ide_indicators):
 
             try:
                 from scripts import generate_requirements
-                generate_requirements.generate_requirements(ide_mode=True)
+                generate_requirements.generate_requirements(ide_mode = True)
             except Exception:
                 logging.exception('Failed to refresh requirements.txt in IDE mode')
     except Exception:
@@ -732,7 +731,7 @@ if any(indicator in os.environ for indicator in ide_indicators):
                 logging.info(f"'{entry}' already exists in.gitignore")
     try:
         from scripts import generate_requirements
-        generate_requirements.generate_requirements(ide_mode=False)
+        generate_requirements.generate_requirements(ide_mode = False)
     except Exception as e:
         logging.warning(f"Failed to update requirements.txt: {e}")
 
@@ -5838,8 +5837,7 @@ class App:
 
             stores = table_data.get("tables", {}).get("stores", [])
 
-            # Exclude stores that should not be displayed in the program
-            stores = [s for s in stores if s.get("display_in_program", True)]
+            stores =[s for s in stores if s.get("display_in_program", True)]
 
             if not stores:
                 error_label = customtkinter.CTkLabel(main_frame, text = "No businesses available in current table.", font = customtkinter.CTkFont(size = 14), text_color = "orange")
@@ -8493,7 +8491,7 @@ class App:
         equipment_slots = list(emptysave["equipment"].keys())
         slot_checkboxes = {}
         for i, slot in enumerate(equipment_slots):
-            row = (i //3)+1
+            row =(i //3)+1
             col = i %3
             checkbox = customtkinter.CTkCheckBox(
             equipment_frame,
@@ -8549,12 +8547,12 @@ class App:
                 bonus_points = disabled_slots *slot_disable_points *-1
                 total = stat_total +bonus_points
 
-                if total > 0:
-                    self._popup_show_info('Error', 'Point total must be zero or negative; adjust stats or slots.', sound='error')
+                if total >0:
+                    self._popup_show_info('Error', 'Point total must be zero or negative; adjust stats or slots.', sound = 'error')
                     return
 
                 for stat in stat_names:
-                    save_data.setdefault('stats', {})[stat] = int(float(stat_sliders[stat].get()))
+                    save_data.setdefault('stats', {})[stat]= int(float(stat_sliders[stat].get()))
 
                 for slot, checkbox in slot_checkboxes.items():
                     if not checkbox.get():
@@ -8563,14 +8561,14 @@ class App:
                     else:
                         save_data.setdefault('equipment', {}).setdefault(slot, None)
 
-                save_path = os.path.join(saves_folder or 'saves', (currentsave or '') + '.sldsv')
+                save_path = os.path.join(saves_folder or 'saves', (currentsave or '')+'.sldsv')
                 self._write_save_to_path(save_path, save_data)
-                self._popup_show_info('Success', 'Stats saved successfully!', sound='success')
+                self._popup_show_info('Success', 'Stats saved successfully!', sound = 'success')
                 self._clear_window()
                 self._open_character_management()
             except Exception as e:
                 logging.exception('Failed saving modified stats')
-                self._popup_show_info('Error', f'Failed to save: {e}', sound='error')
+                self._popup_show_info('Error', f'Failed to save: {e}', sound = 'error')
 
         save_button = self._create_sound_button(button_frame, 'Save', perform_save_modifications, width = 200, height = 50, font = customtkinter.CTkFont(size = 14))
         save_button.grid(row = 0, column = 0, padx =(0, 10))
@@ -19113,7 +19111,7 @@ class App:
         stats_text +=f"Caliber: {', '.join(weapon.get('caliber', ['Unknown']))}\n"
         stats_text +=f"Action: {', '.join(weapon.get('action', ['Unknown']))}\n"
         if weapon.get("burst_cyclic"):
-            stats_text +=f"Cyclic Rate: {weapon.get('cyclic', 0)} RPM ({weapon.get('burst_cyclic', 0)} RPM burst)\n"
+            stats_text +=f"Cyclic Rate: {weapon.get('cyclic', 0)} RPM({weapon.get('burst_cyclic', 0)} RPM burst)\n"
         else:
             stats_text +=f"Cyclic Rate: {weapon.get('cyclic', 0)} RPM\n"
         stats_text +=f"Magazine Type: {weapon.get('magazinetype', 'Unknown')}\n"
@@ -25280,11 +25278,10 @@ class App:
         back_button.pack(pady = 20)
 
     def _open_dungeon_generator(self):
-        # Use a CTkToplevel attached to the main `self.root` so it does not block
-        # the main UI. Ensure only one instance exists and focus it if already open.
+
         try:
             existing = getattr(self, '_dg_window', None)
-            if existing and getattr(existing, 'winfo_exists', lambda: False)():
+            if existing and getattr(existing, 'winfo_exists', lambda:False)():
                 try:
                     existing.deiconify()
                     existing.lift()
@@ -25308,7 +25305,6 @@ class App:
             else:
                 dg = customtkinter.CTkToplevel(self.root)
 
-            # mark this window persistent so menu clears don't close it
             try:
                 dg._is_persistent_window = True
             except Exception:
@@ -25316,8 +25312,28 @@ class App:
 
             dg.title("Dungeon Generator")
             dg.transient(self.root)
+            dg.geometry("700x650")
+
+            self._dg_map_window = None
 
             def _on_close():
+                try:
+
+                    if background_combat_timer[0]:
+                        try:
+                            dg.after_cancel(background_combat_timer[0])
+                        except Exception:
+                            pass
+                        background_combat_timer[0]= None
+                except Exception:
+                    pass
+                try:
+
+                    if self._dg_map_window and self._dg_map_window.winfo_exists():
+                        self._dg_map_window.destroy()
+                    self._dg_map_window = None
+                except Exception:
+                    pass
                 try:
                     dg.destroy()
                 except Exception:
@@ -25342,30 +25358,36 @@ class App:
             frm.pack(fill = "both", expand = True, padx = 12, pady = 12)
             lbl = customtkinter.CTkLabel(frm, text = "Dungeon Generator", font = customtkinter.CTkFont(size = 14))
             lbl.pack(pady = 8)
-            # Controls area
-            controls = customtkinter.CTkFrame(frm)
+
+            main_content = customtkinter.CTkFrame(frm)
+            main_content.pack(fill = "both", expand = True)
+
+            left_column = customtkinter.CTkFrame(main_content)
+            left_column.pack(side = "left", fill = "both", expand = True, padx =(0, 6))
+
+            right_column = customtkinter.CTkFrame(main_content)
+            right_column.pack(side = "right", fill = "both", expand = True, padx =(6, 0))
+
+            controls = customtkinter.CTkFrame(left_column)
             controls.pack(fill = "x", pady = 8)
-            # initialize state and difficulty labels for per-floor controls
+
             try:
                 self._dg_state = getattr(self, '_dg_state', {})
             except Exception:
                 self._dg_state = {}
-            # Difficulty labels matching Encounter Roll categories (low -> high)
-            diff_labels = ["None/Friendly", "Easy", "Medium", "Hard", "Miniboss"]
 
-            # Removed global X/Y size controls; sizes are now per-floor
+            diff_labels =["None/Friendly", "Easy", "Medium", "Hard", "Miniboss"]
 
-            # Levels slider (1..3) and per-floor settings container
             try:
-                self._dg_state['levels'] = _tk.IntVar(value = 1)
+                self._dg_state['levels']= _tk.IntVar(value = 1)
                 self._dg_state.setdefault('floors', [])
 
                 def _on_levels(v):
                     try:
                         iv = int(round(float(v)))
-                        if iv < 1:
+                        if iv <1:
                             iv = 1
-                        if iv > 3:
+                        if iv >3:
                             iv = 3
                         self._dg_state['levels'].set(iv)
                         lbl_levels.configure(text = f"Levels: {iv}")
@@ -25379,11 +25401,9 @@ class App:
                 s_levels.set(self._dg_state['levels'].get())
                 s_levels.pack(fill = "x", pady = 2)
 
-                # Container for transport mode controls (shown when 3 levels)
                 entrance_frame = customtkinter.CTkFrame(controls)
 
-                # Floors container - don't expand vertically to avoid large blank space
-                floors_container = customtkinter.CTkFrame(frm)
+                floors_container = customtkinter.CTkFrame(left_column)
                 floors_container.pack(fill = "x", expand = False, pady = 8)
 
                 def _rebuild_floors():
@@ -25393,9 +25413,9 @@ class App:
                                 w.destroy()
                             except Exception:
                                 pass
-                        self._dg_state['floors'] = []
+                        self._dg_state['floors']=[]
                         levels = max(1, min(3, int(self._dg_state['levels'].get())))
-                        if levels != 3:
+                        if levels !=3:
                             try:
                                 entrance_frame.pack_forget()
                             except Exception:
@@ -25403,92 +25423,83 @@ class App:
                         for i in range(levels):
                             ffrm = customtkinter.CTkFrame(floors_container)
                             ffrm.pack(fill = 'x', pady = 4, padx = 8)
-                            floor_label = customtkinter.CTkLabel(ffrm, text = f"Floor {i+1}")
+                            floor_label = customtkinter.CTkLabel(ffrm, text = f"Floor {i +1}")
                             floor_label.pack(anchor = 'w')
 
-                            # per-floor enemy count
                             fv_enemy = _tk.IntVar(value = 10)
                             def make_enemy_cb(var, lbl):
-                                return lambda v: (var.set(int(round(float(v)))), lbl.configure(text = f"Enemies: {var.get()}"))
+                                return lambda v:(var.set(int(round(float(v)))), lbl.configure(text = f"Enemies: {var.get()}"))
                             lbl_fe = customtkinter.CTkLabel(ffrm, text = f"Enemies: {fv_enemy.get()}")
                             lbl_fe.pack(anchor = 'w')
                             s_fe = customtkinter.CTkSlider(ffrm, from_ = 1, to = 50, number_of_steps = 49, command = make_enemy_cb(fv_enemy, lbl_fe))
                             s_fe.set(fv_enemy.get())
-                            s_fe.pack(fill='x', pady=2)
+                            s_fe.pack(fill = 'x', pady = 2)
 
-                            # per-floor Max Difficulty (matching Encounter Roll categories)
                             fv_diff = _tk.IntVar(value = 4)
                             def make_diff_cb(var, lbl):
-                                return lambda v: (var.set(int(round(float(v)))), lbl.configure(text = f"Max Difficulty: {diff_labels[var.get()] }"))
+                                return lambda v:(var.set(int(round(float(v)))), lbl.configure(text = f"Max Difficulty: {diff_labels[var.get()]}"))
                             lbl_fd = customtkinter.CTkLabel(ffrm, text = f"Max Difficulty: {diff_labels[fv_diff.get()]}")
                             lbl_fd.pack(anchor = 'w')
                             s_fd = customtkinter.CTkSlider(ffrm, from_ = 0, to = 4, number_of_steps = 4, command = make_diff_cb(fv_diff, lbl_fd))
                             s_fd.set(fv_diff.get())
-                            s_fd.pack(fill='x', pady=2)
+                            s_fd.pack(fill = 'x', pady = 2)
 
-                            # per-floor X/Y size (10..50 step 5)
                             try:
                                 fv_x = _tk.IntVar(value = 20)
                                 fv_y = _tk.IntVar(value = 20)
 
                                 def make_x_cb(var, lbl):
-                                    return lambda v: (var.set(int(round(float(v)))), lbl.configure(text = f"X Size: {var.get()}"))
+                                    return lambda v:(var.set(int(round(float(v)))), lbl.configure(text = f"X Size: {var.get()}"))
 
                                 def make_y_cb(var, lbl):
-                                    return lambda v: (var.set(int(round(float(v)))), lbl.configure(text = f"Y Size: {var.get()}"))
+                                    return lambda v:(var.set(int(round(float(v)))), lbl.configure(text = f"Y Size: {var.get()}"))
 
                                 lbl_x = customtkinter.CTkLabel(ffrm, text = f"X Size: {fv_x.get()}")
                                 lbl_x.pack(anchor = 'w')
                                 s_x = customtkinter.CTkSlider(ffrm, from_ = 10, to = 50, number_of_steps = 8, command = make_x_cb(fv_x, lbl_x))
                                 s_x.set(fv_x.get())
-                                s_x.pack(fill='x', pady=2)
+                                s_x.pack(fill = 'x', pady = 2)
 
                                 lbl_y = customtkinter.CTkLabel(ffrm, text = f"Y Size: {fv_y.get()}")
                                 lbl_y.pack(anchor = 'w')
                                 s_y = customtkinter.CTkSlider(ffrm, from_ = 10, to = 50, number_of_steps = 8, command = make_y_cb(fv_y, lbl_y))
                                 s_y.set(fv_y.get())
-                                s_y.pack(fill='x', pady=2)
+                                s_y.pack(fill = 'x', pady = 2)
                             except Exception:
                                 logging.exception("Failed to create per-floor size controls")
 
-                            # per-floor transport type (Stairs / Elevator) only when multiple levels
                             fv_transport = None
                             try:
-                                # do not add transport for the last floor
-                                # determine transport mode (default to Multiple)
+
                                 try:
                                     tm_var = self._dg_state.get('transport_mode')
-                                    tm = tm_var.get() if hasattr(tm_var, 'get') else (tm_var or 'Multiple')
+                                    tm = tm_var.get()if hasattr(tm_var, 'get')else(tm_var or 'Multiple')
                                 except Exception:
                                     tm = 'Multiple'
 
-                                # create transport controls only for non-final floors,
-                                # and if transport_mode == 'Single', only for the top floor (i == 0)
-                                if levels > 1 and i < (levels - 1) and not (tm == 'Single' and i != 0):
+                                if levels >1 and i <(levels -1)and not(tm =='Single'and i !=0):
                                     fv_transport = _tk.StringVar(value = "Stairs")
                                     lbl_ft = customtkinter.CTkLabel(ffrm, text = "Transport: Stairs")
                                     lbl_ft.pack(anchor = 'w')
-                                    opt = customtkinter.CTkOptionMenu(ffrm, values = ["Stairs", "Elevator"], command = lambda v, var=fv_transport, l=lbl_ft: (var.set(v), l.configure(text = f"Transport: {v}")))
+                                    opt = customtkinter.CTkOptionMenu(ffrm, values =["Stairs", "Elevator"], command = lambda v, var = fv_transport, l = lbl_ft:(var.set(v), l.configure(text = f"Transport: {v}")))
                                     opt.set(fv_transport.get())
-                                    opt.pack(fill='x', pady=2)
+                                    opt.pack(fill = 'x', pady = 2)
                             except Exception:
                                 logging.exception("Failed to create transport option for floor")
 
-                            # include x/y sizes if present
                             try:
-                                self._dg_state['floors'].append({'enemy_count': fv_enemy, 'difficulty': fv_diff, 'transport': fv_transport, 'x_size': fv_x, 'y_size': fv_y})
+                                self._dg_state['floors'].append({'enemy_count':fv_enemy, 'difficulty':fv_diff, 'transport':fv_transport, 'x_size':fv_x, 'y_size':fv_y})
                             except Exception:
-                                self._dg_state['floors'].append({'enemy_count': fv_enemy, 'difficulty': fv_diff, 'transport': fv_transport})
+                                self._dg_state['floors'].append({'enemy_count':fv_enemy, 'difficulty':fv_diff, 'transport':fv_transport})
 
-                        # If there are exactly 3 levels, show entrance-mode selector
                         try:
                             for w in entrance_frame.winfo_children():
                                 try:
                                     w.destroy()
                                 except Exception:
                                     pass
-                            if levels == 3:
-                                # show entrance/transport selector frame
+                            if levels ==3:
+
                                 try:
                                     entrance_frame.pack(fill = 'x', pady = 4)
                                 except Exception:
@@ -25505,8 +25516,8 @@ class App:
                                         _rebuild_floors()
                                     except Exception:
                                         pass
-                                opt_em = customtkinter.CTkOptionMenu(entrance_frame, values = ['Multiple', 'Single'], command = _set_transport_mode)
-                                opt_em.set(self._dg_state.get('transport_mode', _tk.StringVar(value='Multiple')).get())
+                                opt_em = customtkinter.CTkOptionMenu(entrance_frame, values =['Multiple', 'Single'], command = _set_transport_mode)
+                                opt_em.set(self._dg_state.get('transport_mode', _tk.StringVar(value = 'Multiple')).get())
                                 opt_em.pack(side = 'left', padx = 6)
                         except Exception:
                             logging.exception('Failed to build entrance mode control')
@@ -25516,6 +25527,1876 @@ class App:
                 _rebuild_floors()
             except Exception:
                 logging.exception("Failed to create levels/floors controls")
+
+            dungeon_display_frame = customtkinter.CTkFrame(right_column)
+            dungeon_display_frame.pack(fill = "both", expand = True, pady = 8)
+
+            location_label = customtkinter.CTkLabel(dungeon_display_frame, text = "No dungeon generated", font = customtkinter.CTkFont(size = 12, weight = "bold"))
+            location_label.pack(anchor = 'w', pady = 4)
+
+            room_info_label = customtkinter.CTkLabel(dungeon_display_frame, text = "", font = customtkinter.CTkFont(size = 11), wraplength = 280, justify = "left")
+            room_info_label.pack(anchor = 'w', pady = 4)
+
+            grid_tiles = {}
+            grid_rooms = {}
+            TILE_SIZE = 20
+            grid_canvas =[None]
+            tooltip_label =[None]
+
+            def _open_map_window():
+
+                try:
+                    if self._dg_map_window and self._dg_map_window.winfo_exists():
+                        self._dg_map_window.focus_force()
+                        self._dg_map_window.lift()
+                        return
+                except Exception:
+                    pass
+
+                try:
+                    theme = customtkinter.ThemeManager.theme
+                    toplevel_fg = theme.get('CTkToplevel', {}).get('fg_color')
+                except Exception:
+                    toplevel_fg = None
+
+                if toplevel_fg:
+                    map_win = customtkinter.CTkToplevel(dg, fg_color = toplevel_fg)
+                else:
+                    map_win = customtkinter.CTkToplevel(dg)
+
+                map_win.title("Dungeon Map")
+                map_win.transient(dg)
+
+                dungeon = self._dg_state.get('generated_dungeon')
+                if dungeon and dungeon.get("floors"):
+                    floor_idx = self._dg_state.get('current_floor', 0)
+                    floor = dungeon["floors"][floor_idx]if floor_idx <len(dungeon["floors"])else dungeon["floors"][0]
+                    x_size = floor.get("x_size", 20)
+                    y_size = floor.get("y_size", 20)
+                    win_width = min(max(x_size *TILE_SIZE +80, 400), 1000)
+                    win_height = min(max(y_size *TILE_SIZE +120, 350), 800)
+                else:
+                    win_width = 500
+                    win_height = 400
+
+                map_win.geometry(f"{win_width}x{win_height}")
+
+                def _on_map_close():
+                    try:
+                        grid_canvas[0]= None
+                        tooltip_label[0]= None
+                        map_win.destroy()
+                        self._dg_map_window = None
+                    except Exception:
+                        pass
+
+                map_win.protocol("WM_DELETE_WINDOW", _on_map_close)
+                self._dg_map_window = map_win
+
+                map_frm = customtkinter.CTkFrame(map_win)
+                map_frm.pack(fill = "both", expand = True, padx = 8, pady = 8)
+
+                map_title = customtkinter.CTkLabel(map_frm, text = "Dungeon Map", font = customtkinter.CTkFont(size = 12, weight = "bold"))
+                map_title.pack(pady = 4)
+
+                canvas = _tk.Canvas(map_frm, bg = "#1a1a1a", highlightthickness = 0)
+                canvas.pack(fill = 'both', expand = True, pady = 4)
+                grid_canvas[0]= canvas # type: ignore
+
+                tip_label = customtkinter.CTkLabel(map_frm, text = "", font = customtkinter.CTkFont(size = 10), wraplength = 400, justify = "left", fg_color =("gray80", "gray20"), corner_radius = 6)
+                tooltip_label[0]= tip_label # type: ignore
+
+                def _on_tile_hover(event):
+
+                    try:
+                        if not grid_canvas[0]:
+                            return
+                        canvas_x = grid_canvas[0].canvasx(event.x)
+                        canvas_y = grid_canvas[0].canvasy(event.y)
+                        tile_x = int(canvas_x //TILE_SIZE)
+                        tile_y = int(canvas_y //TILE_SIZE)
+
+                        room = grid_rooms.get((tile_x, tile_y))
+                        if room:
+                            info_lines =[]
+                            info_lines.append(f"Room: {room.get('name', 'Unknown')}")
+                            info_lines.append(f"Type: {room.get('type', 'unknown')}")
+
+                            enemies = room.get("enemies", [])
+                            if enemies:
+                                enemy_names =[e.get("name", "Unknown")for e in enemies]
+                                info_lines.append(f"Enemies: {', '.join(enemy_names)}")
+
+                            loot_spawn = room.get("loot_spawn", [])
+                            if loot_spawn:
+                                info_lines.append(f"Loot spawns: {len(loot_spawn)}")
+
+                            doors = room.get("doors_state", {})
+                            if doors:
+                                door_info =[]
+                                for pos, state in doors.items():
+                                    lock_status = "🔒"if state.get("locked")and not state.get("picked")else "🔓"
+                                    door_info.append(f"{pos}: {lock_status}")
+                                info_lines.append(f"Doors: {', '.join(door_info)}")
+
+                            if room.get("type")=="transport":
+                                transport_info = []
+                                if room.get("is_entry_transport") and room.get("leads_to_floor"):
+                                    transport_info.append(f"↑ Floor {room.get('leads_to_floor')}")
+                                if room.get("is_exit_transport") and room.get("leads_to_floor"):
+                                    transport_info.append(f"↓ Floor {room.get('leads_to_floor')}")
+                                if room.get("also_leads_to_floor"):
+                                    transport_info.append(f"↓ Floor {room.get('also_leads_to_floor')}")
+                                if transport_info:
+                                    info_lines.append("Transport: " + ", ".join(transport_info))
+                                else:
+                                    info_lines.append(f"→ Floor {room.get('leads_to_floor', '?')}")
+
+                            if room.get("visited"):
+                                info_lines.append("(Visited)")
+
+                            if tooltip_label[0]:
+                                tooltip_label[0].configure(text = "\n".join(info_lines))
+                                tooltip_label[0].pack(anchor = 'w', pady = 2)
+                        else:
+                            if tooltip_label[0]:
+                                tooltip_label[0].configure(text = "Empty")
+                                tooltip_label[0].pack(anchor = 'w', pady = 2)
+                    except Exception:
+                        pass
+
+                def _on_tile_leave(event):
+
+                    try:
+                        if tooltip_label[0]:
+                            tooltip_label[0].pack_forget()
+                    except Exception:
+                        pass
+
+                def _on_tile_click(event):
+
+                    try:
+                        if not grid_canvas[0]:
+                            return
+                        canvas_x = grid_canvas[0].canvasx(event.x)
+                        canvas_y = grid_canvas[0].canvasy(event.y)
+                        tile_x = int(canvas_x //TILE_SIZE)
+                        tile_y = int(canvas_y //TILE_SIZE)
+
+                        clicked_room = grid_rooms.get((tile_x, tile_y))
+                        if not clicked_room:
+                            return
+
+                        current_room = _get_current_room()
+                        if not current_room:
+                            return
+
+                        exits = _get_available_exits()
+                        for exit_info in exits:
+                            if exit_info.get("to_room")==clicked_room.get("room_id"):
+                                _move_to_room(exit_info)
+                                return
+
+                    except Exception:
+                        pass
+
+                canvas.bind("<Motion>", _on_tile_hover)
+                canvas.bind("<Leave>", _on_tile_leave)
+                canvas.bind("<Button-1>", _on_tile_click)
+
+                _draw_grid()
+
+            def _draw_grid():
+
+                try:
+                    if not grid_canvas[0]:
+                        return
+                    grid_canvas[0].delete("all")
+                    grid_tiles.clear()
+                    grid_rooms.clear()
+
+                    dungeon = self._dg_state.get('generated_dungeon')
+                    if not dungeon:
+                        return
+
+                    floor_idx = self._dg_state.get('current_floor', 0)
+                    if floor_idx >=len(dungeon["floors"]):
+                        return
+
+                    floor = dungeon["floors"][floor_idx]
+                    x_size = floor.get("x_size", 20)
+                    y_size = floor.get("y_size", 20)
+                    current_room_id = self._dg_state.get('current_room_id')
+
+                    canvas_width = x_size *TILE_SIZE +2
+                    canvas_height = y_size *TILE_SIZE +2
+                    grid_canvas[0].configure(width = min(canvas_width, 800), height = min(canvas_height, 600))
+
+                    for gx in range(x_size):
+                        for gy in range(y_size):
+                            x1 = gx *TILE_SIZE
+                            y1 = gy *TILE_SIZE
+                            x2 = x1 +TILE_SIZE -1
+                            y2 = y1 +TILE_SIZE -1
+                            tile_id = grid_canvas[0].create_rectangle(x1, y1, x2, y2, fill = "#1a1a1a", outline = "#333333")
+                            grid_tiles[(gx, gy)]= tile_id
+
+                    for room in floor["rooms"]:
+                        pos = room.get("position", {})
+                        rx = pos.get("x", 0)
+                        ry = pos.get("y", 0)
+
+                        if rx <0 or rx >=x_size or ry <0 or ry >=y_size:
+                            continue
+
+                        enemies =[e for e in room.get("enemies", [])if e.get("alive", True)]
+                        friendlies =[f for f in room.get("friendlies", [])if f.get("alive", True)]
+                        loot_spawn = room.get("loot_spawn", [])
+                        enemies_cleared = room.get("enemies_cleared", False)
+                        has_pending_loot = room.get("pending_loot", [])
+
+                        if enemies and friendlies:
+                            fill_color = "#cc6633"
+                        elif enemies:
+                            fill_color = "#cc3333"
+                        elif friendlies:
+                            fill_color = "#cc3333"
+                        elif has_pending_loot:
+                            fill_color = "#33cc33"
+                        elif loot_spawn:
+                            fill_color = "#33cc33"
+                        elif room.get("type") == "transport":
+                            fill_color = "#3399ff"  # Blue for transport to next floor
+                        elif room.get("visited"):
+                            fill_color = "#808080"
+                        else:
+                            fill_color = "#e0e0e0"
+
+                        outline_color = "#333333"
+                        outline_width = 1
+
+                        # Transport rooms get cyan outline to stand out
+                        if room.get("type") == "transport":
+                            outline_color = "#00ffff"
+                            outline_width = 2
+
+                        if friendlies and not enemies:
+                            outline_color = "#00ff00"
+                            outline_width = 2
+                        elif friendlies and enemies:
+                            outline_color = "#ffaa00"
+                            outline_width = 2
+
+                        if room.get("room_id")==current_room_id:
+                            outline_color = "#ffcc00"
+                            outline_width = 3
+
+                        x1 = rx *TILE_SIZE
+                        y1 = ry *TILE_SIZE
+                        x2 = x1 +TILE_SIZE -1
+                        y2 = y1 +TILE_SIZE -1
+
+                        if(rx, ry)in grid_tiles:
+                            grid_canvas[0].delete(grid_tiles[(rx, ry)])
+                        tile_id = grid_canvas[0].create_rectangle(x1, y1, x2, y2, fill = fill_color, outline = outline_color, width = outline_width)
+                        grid_tiles[(rx, ry)]= tile_id
+                        grid_rooms[(rx, ry)]= room
+
+                        room_type = room.get("type", "")
+                        indicator = ""
+                        if room_type =="entrance":
+                            indicator = "E"
+                        elif room_type =="transport":
+                            indicator = "T"
+                        elif room_type =="hallway":
+                            indicator = "H"
+                        elif room_type =="room":
+                            indicator = "R"
+
+                        if indicator:
+                            text_color = "#000000"if fill_color in["#e0e0e0", "#33cc33", "#808080", "#3399ff"]else "#ffffff"
+                            grid_canvas[0].create_text(x1 +TILE_SIZE //2, y1 +TILE_SIZE //2, text = indicator, fill = text_color, font =("Arial", 8, "bold"))
+
+                    for conn in floor.get("connections", []):
+                        from_room = None
+                        to_room = None
+                        for room in floor["rooms"]:
+                            if room.get("room_id")==conn.get("from_room"):
+                                from_room = room
+                            if room.get("room_id")==conn.get("to_room"):
+                                to_room = room
+
+                        if from_room and to_room:
+                            from_pos = from_room.get("position", {})
+                            to_pos = to_room.get("position", {})
+                            fx = from_pos.get("x", 0)*TILE_SIZE +TILE_SIZE //2
+                            fy = from_pos.get("y", 0)*TILE_SIZE +TILE_SIZE //2
+                            tx = to_pos.get("x", 0)*TILE_SIZE +TILE_SIZE //2
+                            ty = to_pos.get("y", 0)*TILE_SIZE +TILE_SIZE //2
+                            grid_canvas[0].create_line(fx, fy, tx, ty, fill = "#666666", width = 2)
+
+                except Exception as e:
+                    logging.exception("Failed to draw grid")
+
+            nav_frame = customtkinter.CTkFrame(dungeon_display_frame)
+            nav_frame.pack(fill = 'x', pady = 8)
+
+            door_frame = customtkinter.CTkFrame(dungeon_display_frame)
+            door_frame.pack(fill = 'x', pady = 4)
+
+            door_status_label = customtkinter.CTkLabel(door_frame, text = "", font = customtkinter.CTkFont(size = 11))
+            door_status_label.pack(side = 'left', padx = 6)
+
+            pick_door_btn = customtkinter.CTkButton(door_frame, text = "Door Picked Successfully", state = "disabled", width = 180)
+            pick_door_btn.pack(side = 'left', padx = 6)
+
+            combat_frame = customtkinter.CTkFrame(dungeon_display_frame)
+            combat_frame.pack(fill = 'x', pady = 4)
+
+            kill_enemy_btn = customtkinter.CTkButton(combat_frame, text = "Mark Enemies Killed", state = "disabled", width = 160)
+            kill_enemy_btn.pack(side = 'left', padx = 6)
+
+            collect_loot_btn = customtkinter.CTkButton(combat_frame, text = "Collect Loot", state = "disabled", width = 120)
+            collect_loot_btn.pack(side = 'left', padx = 6)
+
+            combat_log_frame = customtkinter.CTkFrame(dungeon_display_frame)
+            combat_log_frame.pack(fill = 'x', pady = 4)
+
+            combat_log_label = customtkinter.CTkLabel(combat_log_frame, text = "Combat Log:", font = customtkinter.CTkFont(size = 10, weight = "bold"))
+            combat_log_label.pack(anchor = 'w', padx = 6)
+
+            combat_log_text = customtkinter.CTkTextbox(combat_log_frame, height = 80, font = customtkinter.CTkFont(size = 9))
+            combat_log_text.pack(fill = 'x', padx = 6, pady = 2)
+            combat_log_text.configure(state = "disabled")
+
+            def _add_combat_log(message):
+
+                try:
+                    combat_log_text.configure(state = "normal")
+                    timestamp = datetime.now().strftime("%H:%M:%S")
+                    combat_log_text.insert("end", f"[{timestamp}]{message}\n")
+                    combat_log_text.see("end")
+
+                    lines = combat_log_text.get("1.0", "end").split("\n")
+                    if len(lines)>50:
+                        combat_log_text.delete("1.0", f"{len(lines)-50}.0")
+                    combat_log_text.configure(state = "disabled")
+                except Exception:
+                    pass
+
+            background_combat_timer =[None]
+
+            map_btn_frame = customtkinter.CTkFrame(dungeon_display_frame)
+            map_btn_frame.pack(fill = 'x', pady = 4)
+            open_map_btn = customtkinter.CTkButton(map_btn_frame, text = "Open Map", width = 120, command = lambda:_open_map_window())
+            open_map_btn.pack(side = 'left', padx = 6)
+
+            self._dg_state.setdefault('generated_dungeon', None)
+            self._dg_state.setdefault('current_floor', 0)
+            self._dg_state.setdefault('current_room_id', None)
+            self._dg_state.setdefault('pending_door', None)
+
+            def _load_rooms_table():
+
+                try:
+                    table_files = glob.glob(os.path.join("tables", "*.sldtbl"))
+                    if not table_files:
+                        return[]
+                    with open(table_files[0], 'r')as f:
+                        table_data = json.load(f)
+                    return table_data.get("tables", {}).get("rooms", [])
+                except Exception as e:
+                    logging.exception("Failed to load rooms table")
+                    return[]
+
+            def _load_enemies_table():
+
+                try:
+                    table_files = glob.glob(os.path.join("tables", "*.sldtbl"))
+                    if not table_files:
+                        return[]
+                    with open(table_files[0], 'r')as f:
+                        table_data = json.load(f)
+                    return table_data.get("tables", {}).get("enemy_drops", [])
+                except Exception as e:
+                    logging.exception("Failed to load enemies table")
+                    return[]
+
+            def _play_distant_combat_sound(sound_path, volume = 0.15):
+
+                try:
+                    if not os.path.exists(sound_path):
+                        return
+                    sound = pygame.mixer.Sound(sound_path)
+                    sound.set_volume(volume)
+                    channel = pygame.mixer.find_channel()
+                    if channel:
+                        channel.play(sound)
+                except Exception as e:
+                    logging.debug(f"Failed to play distant combat sound: {e}")
+
+            def _get_weapon_sound_for_npc(npc):
+
+                try:
+                    items = npc.get("items", [])
+
+                    for item in items:
+                        if isinstance(item, dict):
+                            item_id = item.get("id")
+
+                            if item_id:
+
+                                caliber_folders =["556", "762_39", "9x19", "45acp", "308", "12gauge", "223"]
+                                for cal in caliber_folders:
+                                    sound_dir = os.path.join("sounds", "firearms", cal)
+                                    if os.path.isdir(sound_dir):
+                                        sounds = glob.glob(os.path.join(sound_dir, "*.wav"))+glob.glob(os.path.join(sound_dir, "*.ogg"))
+                                        if sounds:
+                                            return random.choice(sounds)
+
+                    fallback_cals =["556", "762_39", "9x19"]
+                    for cal in fallback_cals:
+                        sound_dir = os.path.join("sounds", "firearms", cal)
+                        if os.path.isdir(sound_dir):
+                            sounds = glob.glob(os.path.join(sound_dir, "*.wav"))+glob.glob(os.path.join(sound_dir, "*.ogg"))
+                            if sounds:
+                                return random.choice(sounds)
+                except Exception as e:
+                    logging.debug(f"Failed to get weapon sound: {e}")
+                return None
+
+            def _process_background_combat():
+
+                try:
+                    dungeon = self._dg_state.get('generated_dungeon')
+                    if not dungeon:
+                        return
+
+                    floor_idx = self._dg_state.get('current_floor', 0)
+                    if floor_idx >=len(dungeon["floors"]):
+                        return
+
+                    floor = dungeon["floors"][floor_idx]
+                    player_room_id = self._dg_state.get('current_room_id')
+                    combat_occurred = False
+
+                    for room in floor["rooms"]:
+
+                        if room.get("room_id")==player_room_id:
+                            continue
+
+                        enemies =[e for e in room.get("enemies", [])if e.get("alive", True)]
+                        friendlies =[f for f in room.get("friendlies", [])if f.get("alive", True)]
+
+                        if enemies and friendlies:
+                            combat_occurred = True
+                            room_name = room.get("name", f"Room {room.get('room_id', '?')}")
+                            room_pos = room.get("position", {})
+                            room_loc = f"({room_pos.get('x', '?')}, {room_pos.get('y', '?')})"
+
+                            for enemy in enemies:
+                                if random.random()<0.3:
+                                    target = random.choice(friendlies)
+                                    damage = random.randint(10, 30)
+                                    target["health"]= target.get("health", 100)-damage
+                                    enemy_name = enemy.get("name", "Enemy")
+                                    target_name = target.get("name", "Friendly")
+                                    if target["health"]<=0:
+                                        target["alive"]= False
+                                        _add_combat_log(f"{room_loc} {enemy_name} killed {target_name}!")
+                                    else:
+                                        _add_combat_log(f"{room_loc} {enemy_name} hit {target_name} for {damage} dmg")
+
+                                    sound_path = _get_weapon_sound_for_npc(enemy)
+                                    if sound_path:
+                                        _play_distant_combat_sound(sound_path, volume = 0.12)
+
+                            alive_friendlies =[f for f in friendlies if f.get("alive", True)]
+                            for friendly in alive_friendlies:
+                                if random.random()<0.35:
+                                    alive_enemies =[e for e in enemies if e.get("alive", True)]
+                                    if alive_enemies:
+                                        target = random.choice(alive_enemies)
+
+                                        target["alive"]= False
+                                        friendly_name = friendly.get("name", "Friendly")
+                                        target_name = target.get("name", "Enemy")
+                                        _add_combat_log(f"{room_loc} {friendly_name} killed {target_name}!")
+
+                                        if "pending_loot"not in room:
+                                            room["pending_loot"]=[]
+                                        room["pending_loot"].append(target.copy())
+
+                                        sound_path = _get_weapon_sound_for_npc(friendly)
+                                        if sound_path:
+                                            _play_distant_combat_sound(sound_path, volume = 0.12)
+
+                    if combat_occurred:
+                        _draw_grid()
+
+                except Exception as e:
+                    logging.debug(f"Background combat error: {e}")
+                finally:
+
+                    try:
+                        if dg.winfo_exists():
+                            delay = random.randint(3000, 5000)
+                            background_combat_timer[0]= dg.after(delay, _process_background_combat)# type: ignore
+                    except Exception:
+                        pass
+
+            def _calculate_distance(pos1, pos2):
+
+                return abs(pos1.get("x", 0)-pos2.get("x", 0))+abs(pos1.get("y", 0)-pos2.get("y", 0))
+
+            def _get_adjacent_rooms(room, floor):
+
+                adjacent =[]
+                room_id = room.get("room_id")
+                for conn in floor.get("connections", []):
+                    if conn.get("from_room")==room_id:
+                        adjacent.append(conn.get("to_room"))
+                    elif conn.get("to_room")==room_id:
+                        adjacent.append(conn.get("from_room"))
+                return adjacent
+
+            def _move_npcs_once():
+
+                try:
+                    dungeon = self._dg_state.get('generated_dungeon')
+                    if not dungeon:
+                        return
+
+                    floor_idx = self._dg_state.get('current_floor', 0)
+                    if floor_idx >=len(dungeon["floors"]):
+                        return
+
+                    floor = dungeon["floors"][floor_idx]
+                    player_room_id = self._dg_state.get('current_room_id')
+                    player_room = None
+
+                    for room in floor["rooms"]:
+                        if room.get("room_id")==player_room_id:
+                            player_room = room
+                            break
+
+                    player_pos = player_room.get("position", {})if player_room else {"x":0, "y":0}
+
+                    for room in floor["rooms"]:
+                        room_pos = room.get("position", {})
+                        distance_to_player = _calculate_distance(room_pos, player_pos)
+
+                        has_enemies = any(e.get("alive", True)for e in room.get("enemies", []))
+
+                        adjacent_room_ids = _get_adjacent_rooms(room, floor)
+                        if not adjacent_room_ids:
+                            continue
+
+                        for enemy in list(room.get("enemies", [])):
+                            if not enemy.get("alive", True):
+                                continue
+
+                            if random.random()>0.6:
+                                continue
+
+                            if distance_to_player <=5:
+
+                                best_room = None
+                                best_dist = distance_to_player
+                                for adj_id in adjacent_room_ids:
+                                    for r in floor["rooms"]:
+                                        if r.get("room_id")==adj_id:
+                                            d = _calculate_distance(r.get("position", {}), player_pos)
+                                            if d <best_dist:
+                                                best_dist = d
+                                                best_room = r
+                                            break
+                                if best_room:
+
+                                    room["enemies"].remove(enemy)
+                                    best_room.setdefault("enemies", []).append(enemy)
+                            else:
+
+                                target_room_id = random.choice(adjacent_room_ids)
+                                for r in floor["rooms"]:
+                                    if r.get("room_id")==target_room_id:
+                                        room["enemies"].remove(enemy)
+                                        r.setdefault("enemies", []).append(enemy)
+                                        break
+
+                        if not has_enemies:
+                            for friendly in list(room.get("friendlies", [])):
+                                if not friendly.get("alive", True):
+                                    continue
+
+                                if random.random()>0.4:
+                                    continue
+
+                                nearest_enemy_room = None
+                                nearest_enemy_dist = float('inf')
+                                for other_room in floor["rooms"]:
+                                    other_pos = other_room.get("position", {})
+                                    dist_to_friendly = _calculate_distance(room_pos, other_pos)
+                                    if dist_to_friendly <=5:
+
+                                        alive_enemies =[e for e in other_room.get("enemies", [])if e.get("alive", True)]
+                                        if alive_enemies and dist_to_friendly <nearest_enemy_dist:
+                                            nearest_enemy_dist = dist_to_friendly
+                                            nearest_enemy_room = other_room
+
+                                if nearest_enemy_room and nearest_enemy_dist >0:
+
+                                    enemy_pos = nearest_enemy_room.get("position", {})
+                                    best_room = None
+                                    best_dist = nearest_enemy_dist
+                                    for adj_id in adjacent_room_ids:
+                                        for r in floor["rooms"]:
+                                            if r.get("room_id")==adj_id:
+                                                d = _calculate_distance(r.get("position", {}), enemy_pos)
+                                                if d <best_dist:
+                                                    best_dist = d
+                                                    best_room = r
+                                                break
+                                    if best_room:
+                                        room["friendlies"].remove(friendly)
+                                        best_room.setdefault("friendlies", []).append(friendly)
+                                else:
+
+                                    best_room = None
+                                    best_dist = distance_to_player
+                                    for adj_id in adjacent_room_ids:
+                                        for r in floor["rooms"]:
+                                            if r.get("room_id")==adj_id:
+                                                d = _calculate_distance(r.get("position", {}), player_pos)
+                                                if d <best_dist:
+                                                    best_dist = d
+                                                    best_room = r
+                                                break
+                                    if best_room:
+                                        room["friendlies"].remove(friendly)
+                                        best_room.setdefault("friendlies", []).append(friendly)
+
+                except Exception as e:
+                    logging.debug(f"NPC movement error: {e}")
+
+            def _kill_enemies_in_room():
+
+                try:
+                    room = _get_current_room()
+                    if not room:
+                        return
+
+                    enemies = room.get("enemies", [])
+                    killed_count = 0
+
+                    for enemy in enemies:
+                        if enemy.get("alive", True):
+                            enemy["alive"]= False
+                            killed_count +=1
+
+                            if "pending_loot"not in room:
+                                room["pending_loot"]=[]
+                            room["pending_loot"].append(enemy.copy())
+
+                    room["enemies_cleared"]= True
+
+                    if killed_count >0:
+                        self._popup_show_info("Combat", f"Defeated {killed_count} enemy(s)! Loot is now available.")
+
+                    _update_display()
+                    _draw_grid()
+
+                except Exception as e:
+                    logging.exception("Failed to kill enemies")
+
+            def _collect_loot_from_room():
+
+                try:
+                    room = _get_current_room()
+                    if not room:
+                        return
+
+                    pending_loot = room.get("pending_loot", [])
+                    if not pending_loot:
+                        self._popup_show_info("Loot", "No loot to collect.")
+                        return
+
+                    table_data = None
+                    try:
+                        table_files = glob.glob(os.path.join("tables", "*.sldtbl"))
+                        if table_files:
+                            with open(table_files[0], 'r')as f:
+                                full_table = json.load(f)
+
+                                table_data = {
+                                "rarity_weights":full_table.get("rarity_weights", {}),
+                                "tables":full_table.get("tables", {})
+                                }
+                    except Exception as e:
+                        logging.error(f"Failed to load table data: {e}")
+
+                    files_generated =[]
+
+                    for enemy in pending_loot:
+                        enemy_name = enemy.get("name", "Unknown Enemy")
+
+                        if table_data:
+
+                            loot_items = self._generate_enemy_loot(enemy, table_data)
+                            if loot_items:
+
+                                self._save_enemy_loot_transfer_silent(enemy_name, loot_items)
+                                files_generated.append(f"enemyloot_{enemy_name.replace(' ', '_').lower()}")
+                        else:
+
+                            self._save_enemy_loot_transfer_silent(enemy_name, enemy.get("items", []))
+                            files_generated.append(f"enemyloot_{enemy_name.replace(' ', '_').lower()}")
+
+                    loot_spawn = room.get("loot_spawn", [])
+                    if loot_spawn and table_data:
+                        lootcrates_table = table_data.get("lootcrates", [])
+                        for spawn in loot_spawn:
+                            spawn_type = spawn.get("type", "lootcrate")
+                            spawn_id = spawn.get("id", 0)
+                            to_spawn = spawn.get("to_spawn", {"min":1, "max":1})
+                            spawn_count = random.randint(to_spawn.get("min", 1), to_spawn.get("max", 1))
+
+                            for _ in range(spawn_count):
+
+                                lootcrate_def = None
+                                for lc in lootcrates_table:
+                                    if lc.get("id_lct")==spawn_id:
+                                        lootcrate_def = lc
+                                        break
+
+                                if lootcrate_def:
+
+                                    crate_items = self._generate_lootcrate_contents(lootcrate_def, table_data)
+                                    if crate_items:
+                                        crate_name = lootcrate_def.get("name", "Lootcrate")
+                                        self._save_lootcrate_transfer_silent(crate_name, crate_items)
+                                        files_generated.append(f"lootcrate_{crate_name.replace(' ', '_').lower()}")
+
+                        room["loot_spawn"]=[]
+
+                    room["pending_loot"]=[]
+
+                    if files_generated:
+                        self._popup_show_info("Loot Generated", f"Generated {len(files_generated)} loot file(s):\n"+"\n".join(files_generated[:10])+("\n..."if len(files_generated)>10 else ""))
+                    else:
+                        self._popup_show_info("Loot", "No loot items were generated.")
+
+                    _update_display()
+                    _draw_grid()
+
+                except Exception as e:
+                    logging.exception("Failed to collect loot")
+                    logging.exception("Failed to collect loot")
+
+            def _generate_dungeon():
+
+                try:
+                    rooms_table = _load_rooms_table()
+                    enemies_table = _load_enemies_table()
+                    if not rooms_table:
+                        self._popup_show_info("Error", "No rooms table found.", sound = "error")
+                        return
+
+                    floors_config = self._dg_state.get('floors', [])
+                    num_floors = len(floors_config)
+                    if num_floors ==0:
+                        self._popup_show_info("Error", "No floors configured.", sound = "error")
+                        return
+
+                    diff_map = {0:"None/Friendly", 1:"Easy", 2:"Medium", 3:"Hard", 4:"Miniboss"}
+                    diff_order =["None/Friendly", "Friendly", "Easy", "Medium", "Hard", "Miniboss"]
+                    opposite_dir = {"top":"bottom", "bottom":"top", "left":"right", "right":"left"}
+                    dir_offset = {"top":(0, -1), "bottom":(0, 1), "left":(-1, 0), "right":(1, 0)}
+
+                    dungeon = {"floors":[], "metadata":{"generated_at":datetime.now().isoformat()}}
+
+                    for floor_idx, floor_cfg in enumerate(floors_config):
+                        floor_generated = False
+                        
+                        while not floor_generated:
+                            
+                            try:
+                                enemy_count = floor_cfg.get('enemy_count')
+                                enemy_count = enemy_count.get()if hasattr(enemy_count, 'get')else(enemy_count or 10)
+                                max_diff_idx = floor_cfg.get('difficulty')
+                                max_diff_idx = max_diff_idx.get()if hasattr(max_diff_idx, 'get')else(max_diff_idx or 4)
+                                x_size = floor_cfg.get('x_size')
+                                x_size = x_size.get()if hasattr(x_size, 'get')else(x_size or 20)
+                                y_size = floor_cfg.get('y_size')
+                                y_size = y_size.get()if hasattr(y_size, 'get')else(y_size or 20)
+                                transport_type = floor_cfg.get('transport')
+                                transport_type = transport_type.get()if hasattr(transport_type, 'get')else transport_type
+                            except Exception:
+                                enemy_count, max_diff_idx, x_size, y_size, transport_type = 10, 4, 20, 20, None
+
+                            max_diff = diff_map.get(max_diff_idx, "Miniboss")
+
+                            entrance_rooms =[r for r in rooms_table if r.get("type")=="entrance"]
+                            hallway_rooms =[r for r in rooms_table if r.get("type")=="hallway"]
+                            regular_rooms =[r for r in rooms_table if r.get("type")=="room"]
+                            transport_rooms =[r for r in rooms_table if r.get("type")=="transport"and r.get("subtype", "").lower()==(transport_type or "stairs").lower()]
+
+                            logging.info(f"Loaded rooms: {len(entrance_rooms)} entrances, {len(hallway_rooms)} hallways, {len(regular_rooms)} rooms, {len(transport_rooms)} transports")
+
+                            max_diff_order = diff_order.index(max_diff)if max_diff in diff_order else len(diff_order)
+                            eligible_enemies =[e for e in enemies_table if diff_order.index(e.get("difficulty", "Medium"))<=max_diff_order if e.get("difficulty", "Medium")in diff_order]
+
+                            floor_data = {
+                            "floor_number":floor_idx +1,
+                            "x_size":x_size,
+                            "y_size":y_size,
+                            "rooms":[],
+                            "connections":[],
+                            "enemies_remaining":enemy_count
+                            }
+
+                            grid =[[None for _ in range(x_size)]for _ in range(y_size)]
+
+                        open_attachments =[]
+                        room_id = 0
+                        enemies_to_place = enemy_count
+
+                        def _get_room_attachments(room):
+
+                            return[ap.get("attachment_point")for ap in room.get("attachment_points", [])]
+
+                        def _rotate_direction(direction, times = 1):
+
+                            rotation_order =["top", "right", "bottom", "left"]
+                            if direction not in rotation_order:
+                                return direction
+                            idx = rotation_order.index(direction)
+                            return rotation_order[(idx +times)%4]
+
+                        def _rotate_room_template(template, times = 1):
+
+                            import copy
+                            if times ==0:
+                                return template.copy()
+                            rotated = copy.deepcopy(template)
+
+                            if "attachment_points"in rotated:
+                                for ap in rotated["attachment_points"]:
+                                    if "attachment_point"in ap:
+                                        ap["attachment_point"]= _rotate_direction(ap["attachment_point"], times)
+
+                            if "doors"in rotated:
+                                for door in rotated["doors"]:
+                                    if "position"in door:
+                                        door["position"]= _rotate_direction(door["position"], times)
+                            return rotated
+
+                        def _check_room_fits(template, x, y, needed_attachment):
+
+                            attachments = _get_room_attachments(template)
+                            for att in attachments:
+                                if att ==needed_attachment:
+                                    continue
+                                dx, dy = dir_offset[att]
+                                nx, ny = x +dx, y +dy
+
+                                if nx <0 or nx >=x_size or ny <0 or ny >=y_size:
+                                    return False
+                            return True
+
+                        def _has_unconnected_adjacency(template, x, y, needed_attachment):
+
+                            attachments = _get_room_attachments(template)
+
+                            for direction in["top", "bottom", "left", "right"]:
+                                dx, dy = dir_offset[direction]
+                                nx, ny = x +dx, y +dy
+                                if 0 <=nx <x_size and 0 <=ny <y_size:
+                                    if grid[ny][nx]is not None:
+
+                                        if direction not in attachments and direction !=opposite_dir.get(needed_attachment):
+                                            return True
+                            return False
+
+                        def _find_fitting_room(needed_attachment, room_pool, target_x, target_y, allow_rotation = True):
+
+                            candidates =[r for r in room_pool if needed_attachment in _get_room_attachments(r)]
+
+                            if not candidates:
+
+                                if allow_rotation:
+                                    for original in room_pool:
+                                        for rot in range(1, 4):
+                                            rotated = _rotate_room_template(original, rot)
+                                            if needed_attachment in _get_room_attachments(rotated):
+                                                if _check_room_fits(rotated, target_x, target_y, needed_attachment):
+
+                                                    if not _has_unconnected_adjacency(rotated, target_x, target_y, needed_attachment):
+                                                        return rotated
+
+                                    for original in room_pool:
+                                        for rot in range(1, 4):
+                                            rotated = _rotate_room_template(original, rot)
+                                            if needed_attachment in _get_room_attachments(rotated):
+                                                if _check_room_fits(rotated, target_x, target_y, needed_attachment):
+                                                    return rotated
+                                return None
+
+                            random.shuffle(candidates)
+                            good_candidates =[]
+                            fallback_candidates =[]
+                            for candidate in candidates:
+                                if _check_room_fits(candidate, target_x, target_y, needed_attachment):
+                                    if not _has_unconnected_adjacency(candidate, target_x, target_y, needed_attachment):
+                                        good_candidates.append(candidate)
+                                    else:
+                                        fallback_candidates.append(candidate)
+
+                            if good_candidates:
+                                return random.choice(good_candidates)
+                            if fallback_candidates:
+                                return random.choice(fallback_candidates)
+
+                            if allow_rotation:
+                                for original in room_pool:
+                                    original_atts = _get_room_attachments(original)
+
+                                    for rot in range(1, 4):
+                                        rotated = _rotate_room_template(original, rot)
+                                        rotated_atts = _get_room_attachments(rotated)
+                                        if needed_attachment in rotated_atts:
+                                            if _check_room_fits(rotated, target_x, target_y, needed_attachment):
+                                                if not _has_unconnected_adjacency(rotated, target_x, target_y, needed_attachment):
+                                                    return rotated
+
+                                for original in room_pool:
+                                    for rot in range(1, 4):
+                                        rotated = _rotate_room_template(original, rot)
+                                        if needed_attachment in _get_room_attachments(rotated):
+                                            if _check_room_fits(rotated, target_x, target_y, needed_attachment):
+                                                return rotated
+
+                            for candidate in candidates:
+                                return candidate
+
+                            return None
+
+                        def _find_fitting_room_weighted(needed_attachment, room_pool, target_x, target_y, prefer_complex = True, allow_rotation = True):
+
+                            candidates =[r for r in room_pool if needed_attachment in _get_room_attachments(r)]
+
+                            rotated_candidates =[]
+                            if allow_rotation:
+                                for original in room_pool:
+                                    for rot in range(1, 4):
+                                        rotated = _rotate_room_template(original, rot)
+                                        if needed_attachment in _get_room_attachments(rotated):
+                                            if _check_room_fits(rotated, target_x, target_y, needed_attachment):
+                                                rotated_candidates.append(rotated)
+
+                            fitting_direct =[c for c in candidates if _check_room_fits(c, target_x, target_y, needed_attachment)]
+                            all_fitting = fitting_direct +rotated_candidates
+
+                            if not all_fitting:
+
+                                return _find_fitting_room(needed_attachment, room_pool, target_x, target_y, allow_rotation)
+
+                            good_rooms =[r for r in all_fitting if not _has_unconnected_adjacency(r, target_x, target_y, needed_attachment)]
+                            fallback_rooms =[r for r in all_fitting if _has_unconnected_adjacency(r, target_x, target_y, needed_attachment)]
+
+                            rooms_to_use = good_rooms if good_rooms else fallback_rooms
+
+                            if not prefer_complex:
+                                return random.choice(rooms_to_use)if rooms_to_use else random.choice(all_fitting)
+
+                            weighted =[]
+                            for r in rooms_to_use:
+                                att_count = len(_get_room_attachments(r))
+
+                                weight = att_count *att_count
+                                if att_count >=3:
+                                    weight *=2
+                                weighted.extend([r]*weight)
+
+                            return random.choice(weighted)if weighted else random.choice(all_fitting)
+
+                        def _prepare_room(template, rid, x, y):
+
+                            import copy
+                            room = copy.deepcopy(template)
+                            room["room_id"]= rid
+                            room["position"]= {"x":x, "y":y}
+                            room["doors_state"]= {}
+                            for door in room.get("doors", []):
+                                is_locked = door.get("locked", "random")
+                                if is_locked =="random":
+                                    is_locked = random.choice([True, False])
+                                room["doors_state"][door.get("position", "unknown")]= {"locked":is_locked, "picked":False}
+                            room["enemies"]=[]
+                            room["friendlies"]=[]
+                            room["visited"]= False
+                            room["enemies_cleared"]= False
+                            return room
+
+                        def _spawn_enemies(room):
+
+                            nonlocal enemies_to_place
+                            if room.get("enemy_spawn_possible", False)and eligible_enemies:
+
+                                hostile_npcs =[e for e in eligible_enemies if e.get("difficulty")not in("Friendly", "None/Friendly")]
+                                friendly_npcs =[e for e in eligible_enemies if e.get("difficulty")in("Friendly", "None/Friendly")]
+
+                                if enemies_to_place >0 and hostile_npcs and random.random()<0.4:
+
+                                    spawn_count = random.randint(1, min(2, enemies_to_place))
+                                    for _ in range(spawn_count):
+                                        enemy = random.choice(hostile_npcs).copy()
+                                        enemy["alive"]= True
+                                        room["enemies"].append(enemy)
+                                        enemies_to_place -=1
+
+                                if friendly_npcs:
+                                    if random.random()<0.15:
+                                        if random.random()<0.5:
+
+                                            friendly_count = random.randint(1, 2)
+                                            for _ in range(friendly_count):
+                                                friendly = random.choice(friendly_npcs).copy()
+                                                friendly["alive"]= True
+                                                friendly["health"]= 100
+                                                room["friendlies"].append(friendly)
+
+                        def _place_room(room, x, y):
+
+                            grid[y][x]= room["room_id"]
+                            floor_data["rooms"].append(room)
+
+                            for direction in _get_room_attachments(room):
+                                dx, dy = dir_offset[direction]
+                                nx, ny = x +dx, y +dy
+                                if 0 <=nx <x_size and 0 <=ny <y_size:
+                                    if grid[ny][nx]is None:
+                                        open_attachments.append((room["room_id"], direction, nx, ny))
+
+                        def _find_room_with_attachment(needed_direction, room_pool):
+
+                            candidates =[r for r in room_pool if needed_direction in _get_room_attachments(r)]
+                            return random.choice(candidates)if candidates else None
+
+                        def _connect_rooms(from_room_id, to_room_id, direction):
+
+                            conn = {"from_room":from_room_id, "to_room":to_room_id, "direction":direction}
+                            rev_conn = {"from_room":to_room_id, "to_room":from_room_id, "direction":opposite_dir[direction]}
+                            if conn not in floor_data["connections"]and rev_conn not in floor_data["connections"]:
+                                floor_data["connections"].append(conn)
+
+                                from_room = None
+                                to_room = None
+                                for room in floor_data["rooms"]:
+                                    if room.get("room_id")==from_room_id:
+                                        from_room = room
+                                    if room.get("room_id")==to_room_id:
+                                        to_room = room
+
+                                if from_room and to_room:
+                                    opp_direction = opposite_dir[direction]
+                                    from_door = from_room.get("doors_state", {}).get(direction, {})
+                                    to_door = to_room.get("doors_state", {}).get(opp_direction, {})
+
+                                    is_locked = from_door.get("locked", False)and to_door.get("locked", False)
+                                    is_picked = from_door.get("picked", False)or to_door.get("picked", False)
+
+                                    if direction in from_room.get("doors_state", {}):
+                                        from_room["doors_state"][direction]= {"locked":is_locked, "picked":is_picked}
+                                    if opp_direction in to_room.get("doors_state", {}):
+                                        to_room["doors_state"][opp_direction]= {"locked":is_locked, "picked":is_picked}
+
+                        # Get transport mode (Multiple/Single entrance)
+                        transport_mode_var = self._dg_state.get('transport_mode')
+                        transport_mode = transport_mode_var.get() if hasattr(transport_mode_var, 'get') else 'Multiple'
+                        is_multi_entrance = transport_mode == 'Multiple'
+                        
+                        is_top_floor = floor_idx == 0
+                        is_bottom_floor = floor_idx == num_floors - 1
+                        is_middle_floor = not is_top_floor and not is_bottom_floor
+                        
+                        start_x = random.randint(1, x_size -2)
+                        start_y = random.randint(1, y_size -2)
+                        
+                        if is_top_floor and entrance_rooms:
+                            # Top floor: place dungeon entrance
+                            entrance_template = random.choice(entrance_rooms)
+                            rotation = random.randint(0, 3)
+                            rotated_entrance = _rotate_room_template(entrance_template, rotation)
+                            entrance = _prepare_room(rotated_entrance, room_id, start_x, start_y)
+                            _place_room(entrance, start_x, start_y)
+                            room_id +=1
+                        elif transport_rooms:
+                            # Non-top floors: place transport room as entry point (from floor above)
+                            entry_transport_template = random.choice(transport_rooms)
+                            rotation = random.randint(0, 3)
+                            rotated_transport = _rotate_room_template(entry_transport_template, rotation)
+                            entry_transport = _prepare_room(rotated_transport, room_id, start_x, start_y)
+                            entry_transport["leads_to_floor"] = floor_idx  # Goes UP to floor above (1-indexed)
+                            entry_transport["is_entry_transport"] = True
+                            _place_room(entry_transport, start_x, start_y)
+                            room_id +=1
+                            
+                            # For middle floors with single entrance mode, this transport goes both ways
+                            if is_middle_floor and not is_multi_entrance:
+                                entry_transport["leads_to_floor"] = floor_idx  # UP
+                                entry_transport["also_leads_to_floor"] = floor_idx + 2  # DOWN (1-indexed)
+                        else:
+                            # Fallback to hallway if no transport rooms available
+                            if hallway_rooms:
+                                entry_hallway = _find_fitting_room("bottom", hallway_rooms, start_x, start_y)
+                                if entry_hallway:
+                                    hallway = _prepare_room(entry_hallway, room_id, start_x, start_y)
+                                    _spawn_enemies(hallway)
+                                    _place_room(hallway, start_x, start_y)
+                                    room_id +=1
+
+                        target_rooms = max(15, (x_size *y_size)//6)
+                        # Need transport DOWN if:
+                        # - Top floor: always needs one DOWN
+                        # - Middle floor with multi-entrance: needs separate transport DOWN
+                        # - Middle floor with single-entrance: entry transport already handles both directions
+                        # - Bottom floor: never needs transport DOWN
+                        need_transport_down = False
+                        if is_top_floor and not is_bottom_floor:
+                            need_transport_down = True  # Top floor needs transport to floor below
+                        elif is_middle_floor and is_multi_entrance:
+                            need_transport_down = True  # Multi-entrance middle floors need separate down transport
+                        # Single entrance middle floors don't need separate down transport (entry handles both)
+                        # Bottom floor never needs down transport
+                        
+                        need_transport = need_transport_down  # Legacy variable for compatibility
+                        max_iterations = target_rooms *20
+                        iterations = 0
+
+                        def _score_room_complexity(room_template):
+
+                            attachments = _get_room_attachments(room_template)
+                            return len(attachments)
+
+                        def _weighted_room_select(room_list, prefer_complex = True):
+
+                            if not room_list:
+                                return None
+                            if not prefer_complex:
+                                return random.choice(room_list)
+
+                            weighted =[]
+                            for r in room_list:
+                                score = _score_room_complexity(r)
+
+                                weight = score *score
+                                weighted.extend([r]*weight)
+                            return random.choice(weighted)if weighted else random.choice(room_list)
+
+                        def _calculate_sprawl_score(x, y, placed_rooms):
+
+                            if not placed_rooms:
+                                return 1
+
+                            avg_x = sum(r["position"]["x"]for r in placed_rooms)/len(placed_rooms)
+                            avg_y = sum(r["position"]["y"]for r in placed_rooms)/len(placed_rooms)
+                            dist_from_center = abs(x -avg_x)+abs(y -avg_y)
+
+                            edge_bonus = min(x, y, x_size -1 -x, y_size -1 -y)
+                            edge_score = max(0, 3 -edge_bonus)
+                            return dist_from_center +edge_score
+
+                        def _select_sprawling_attachment(attachments, placed_rooms):
+
+                            if not attachments:
+                                return None
+
+                            scored =[]
+                            for att in attachments:
+                                _, _, x, y = att
+                                score = _calculate_sprawl_score(x, y, placed_rooms)
+                                scored.append((att, score))
+
+                            scored.sort(key = lambda x:x[1], reverse = True)
+
+                            top_half = scored[:max(1, len(scored)//2)]
+                            weights =[i +1 for i in range(len(top_half), 0, -1)]
+                            weighted_list =[]
+                            for(att, _), w in zip(top_half, weights):
+                                weighted_list.extend([att]*w)
+                            return random.choice(weighted_list)if weighted_list else attachments[0]
+
+                        while len(floor_data["rooms"])<target_rooms and open_attachments and iterations <max_iterations:
+                            iterations +=1
+
+                            selected = _select_sprawling_attachment(open_attachments, floor_data["rooms"])
+                            if not selected:
+                                break
+                            open_attachments.remove(selected)
+                            from_room_id, from_direction, target_x, target_y = selected
+
+                            if grid[target_y][target_x]is not None:
+
+                                existing_room_id = grid[target_y][target_x]
+                                for room in floor_data["rooms"]:
+                                    if room["room_id"]==existing_room_id:
+                                        if opposite_dir[from_direction]in _get_room_attachments(room):
+                                            _connect_rooms(from_room_id, existing_room_id, from_direction)
+                                        break
+                                continue
+
+                            needed_attachment = opposite_dir[from_direction]
+
+                            progress = len(floor_data["rooms"])/target_rooms
+
+                            room_pool =[]
+                            roll = random.random()
+
+                            straight_hallways =[h for h in hallway_rooms if len(_get_room_attachments(h))==2
+                            and set(_get_room_attachments(h))in[{"top", "bottom"}, {"left", "right"}]]
+                            branching_hallways =[h for h in hallway_rooms if len(_get_room_attachments(h))>=3]
+                            corner_hallways =[h for h in hallway_rooms if len(_get_room_attachments(h))==2
+                            and set(_get_room_attachments(h))not in[{"top", "bottom"}, {"left", "right"}]]
+
+                            if progress <0.4:
+                                if roll <0.5 and straight_hallways:
+                                    room_pool = straight_hallways
+                                elif roll <0.75 and corner_hallways:
+                                    room_pool = corner_hallways
+                                elif roll <0.9 and branching_hallways:
+                                    room_pool = branching_hallways
+                                elif hallway_rooms:
+                                    room_pool = hallway_rooms
+
+                            elif progress <0.7:
+                                if roll <0.35 and branching_hallways:
+                                    room_pool = branching_hallways
+                                elif roll <0.6 and corner_hallways:
+                                    room_pool = corner_hallways
+                                elif roll <0.8 and straight_hallways:
+                                    room_pool = straight_hallways
+                                elif hallway_rooms:
+                                    room_pool = hallway_rooms
+
+                            elif progress <0.85:
+                                if roll <0.5 and hallway_rooms:
+                                    room_pool = hallway_rooms
+                                elif regular_rooms:
+                                    room_pool = regular_rooms
+
+                            else:
+                                if roll <0.3 and hallway_rooms:
+                                    room_pool = hallway_rooms
+                                elif regular_rooms:
+                                    room_pool = regular_rooms
+
+                            if not room_pool:
+                                room_pool = hallway_rooms +regular_rooms
+
+                            prefer_complex = progress <0.7
+                            new_template = _find_fitting_room_weighted(needed_attachment, room_pool, target_x, target_y, prefer_complex)
+                            if not new_template:
+                                continue
+
+                            new_room = _prepare_room(new_template, room_id, target_x, target_y)
+                            _spawn_enemies(new_room)
+                            _place_room(new_room, target_x, target_y)
+                            _connect_rooms(from_room_id, room_id, from_direction)
+                            room_id +=1
+
+                        fill_iterations = 0
+                        max_fill = len(open_attachments)*2
+                        while open_attachments and fill_iterations <max_fill:
+                            fill_iterations +=1
+                            from_room_id, from_direction, target_x, target_y = open_attachments.pop(0)
+
+                            if grid[target_y][target_x]is not None:
+
+                                existing_room_id = grid[target_y][target_x]
+                                for room in floor_data["rooms"]:
+                                    if room["room_id"]==existing_room_id:
+                                        if opposite_dir[from_direction]in _get_room_attachments(room):
+                                            _connect_rooms(from_room_id, existing_room_id, from_direction)
+                                        break
+                                continue
+
+                            needed_attachment = opposite_dir[from_direction]
+
+                            single_att_rooms =[r for r in regular_rooms if len(_get_room_attachments(r))==1]
+                            terminal_template = _find_fitting_room(needed_attachment, single_att_rooms, target_x, target_y)
+
+                            if not terminal_template:
+                                terminal_template = _find_fitting_room(needed_attachment, regular_rooms +hallway_rooms, target_x, target_y)
+
+                            if terminal_template:
+                                new_room = _prepare_room(terminal_template, room_id, target_x, target_y)
+                                _spawn_enemies(new_room)
+                                _place_room(new_room, target_x, target_y)
+                                _connect_rooms(from_room_id, room_id, from_direction)
+                                room_id +=1
+
+                        if need_transport and transport_rooms:
+                            placed_transport = False
+
+                            for i, (from_room_id, from_direction, target_x, target_y)in enumerate(list(open_attachments)):
+                                if grid[target_y][target_x]is not None:
+                                    continue
+                                needed_attachment = opposite_dir[from_direction]
+                                transport_template = _find_fitting_room(needed_attachment, transport_rooms, target_x, target_y)
+                                if transport_template:
+                                    transport = _prepare_room(transport_template, room_id, target_x, target_y)
+                                    transport["leads_to_floor"]= floor_idx +2  # Goes DOWN to next floor (1-indexed)
+                                    transport["is_exit_transport"] = True  # Mark as exit (going down)
+                                    _place_room(transport, target_x, target_y)
+                                    _connect_rooms(from_room_id, room_id, from_direction)
+                                    open_attachments.pop(i)
+                                    room_id +=1
+                                    placed_transport = True
+                                    break
+
+                            if not placed_transport:
+                                for room in floor_data["rooms"]:
+                                    rx, ry = room["position"]["x"], room["position"]["y"]
+                                    for att in _get_room_attachments(room):
+                                        dx, dy = dir_offset[att]
+                                        nx, ny = rx +dx, ry +dy
+                                        if 0 <=nx <x_size and 0 <=ny <y_size and grid[ny][nx]is None:
+                                            needed_attachment = opposite_dir[att]
+                                            transport_template = _find_fitting_room(needed_attachment, transport_rooms, nx, ny)
+                                            if transport_template:
+                                                transport = _prepare_room(transport_template, room_id, nx, ny)
+                                                transport["leads_to_floor"]= floor_idx +2  # Goes DOWN (1-indexed)
+                                                transport["is_exit_transport"] = True
+                                                _place_room(transport, nx, ny)
+                                                _connect_rooms(room["room_id"], room_id, att)
+                                                room_id +=1
+                                                placed_transport = True
+                                                break
+                                    if placed_transport:
+                                        break
+
+                        final_pass = 0
+                        max_final = 100
+                        while open_attachments and final_pass <max_final:
+                            final_pass +=1
+                            from_room_id, from_direction, target_x, target_y = open_attachments.pop(0)
+
+                            if grid[target_y][target_x]is not None:
+                                existing_room_id = grid[target_y][target_x]
+                                for room in floor_data["rooms"]:
+                                    if room["room_id"]==existing_room_id:
+                                        if opposite_dir[from_direction]in _get_room_attachments(room):
+                                            _connect_rooms(from_room_id, existing_room_id, from_direction)
+                                        break
+                                continue
+
+                            needed_attachment = opposite_dir[from_direction]
+
+                            single_att_rooms =[r for r in regular_rooms if len(_get_room_attachments(r))==1]
+                            template = _find_fitting_room(needed_attachment, single_att_rooms, target_x, target_y)
+
+                            if not template:
+                                template = _find_fitting_room(needed_attachment, regular_rooms +hallway_rooms, target_x, target_y)
+
+                            if not template:
+                                continue
+
+                            new_room = _prepare_room(template, room_id, target_x, target_y)
+                            _spawn_enemies(new_room)
+                            grid[target_y][target_x]= room_id
+                            floor_data["rooms"].append(new_room)
+                            _connect_rooms(from_room_id, room_id, from_direction)
+
+                            for att in _get_room_attachments(new_room):
+                                if att ==needed_attachment:
+                                    continue
+                                dx, dy = dir_offset[att]
+                                nx, ny = target_x +dx, target_y +dy
+                                if 0 <=nx <x_size and 0 <=ny <y_size and grid[ny][nx]is None:
+                                    open_attachments.append((room_id, att, nx, ny))
+
+                            room_id +=1
+
+                        # Check if transport was placed when needed (after all room generation)
+                        # need_transport_down was calculated earlier based on floor position and entrance mode
+                        has_exit_transport = any(r.get("is_exit_transport") for r in floor_data["rooms"])
+                        
+                        if need_transport_down and not has_exit_transport:
+                            # Transport DOWN needed but not placed - retry this floor
+                            logging.warning(f"Floor {floor_idx + 1} missing exit transport, regenerating floor...")
+                            continue  # Continue the while loop to retry floor generation
+                        
+                        # Floor is valid, add it
+                        floor_generated = True
+                        dungeon["floors"].append(floor_data)
+
+                    self._dg_state['generated_dungeon']= dungeon
+                    self._dg_state['current_floor']= 0
+                    self._dg_state['current_room_id']= 0 if dungeon["floors"][0]["rooms"]else None
+                    self._dg_state['pending_door']= None
+
+                    _update_display()
+                    self._popup_show_info("Dungeon Generator", f"Generated dungeon with {num_floors} floor(s)!")
+                    logging.info(f"Generated dungeon: {num_floors} floors")
+
+                    if background_combat_timer[0]:
+                        try:
+                            dg.after_cancel(background_combat_timer[0])
+                        except Exception:
+                            pass
+
+                    background_combat_timer[0]= dg.after(3000, _process_background_combat)# type: ignore
+
+                except Exception as e:
+                    logging.exception("Failed to generate dungeon")
+                    self._popup_show_info("Error", f"Failed to generate dungeon: {e}", sound = "error")
+
+            def _get_current_room():
+
+                try:
+                    dungeon = self._dg_state.get('generated_dungeon')
+                    if not dungeon:
+                        return None
+                    floor_idx = self._dg_state.get('current_floor', 0)
+                    room_id = self._dg_state.get('current_room_id')
+                    if floor_idx >=len(dungeon["floors"])or room_id is None:
+                        return None
+                    floor = dungeon["floors"][floor_idx]
+                    for room in floor["rooms"]:
+                        if room["room_id"]==room_id:
+                            return room
+                    return None
+                except Exception:
+                    return None
+
+            def _get_available_exits():
+
+                try:
+                    dungeon = self._dg_state.get('generated_dungeon')
+                    if not dungeon:
+                        return[]
+                    floor_idx = self._dg_state.get('current_floor', 0)
+                    room_id = self._dg_state.get('current_room_id')
+                    if floor_idx >=len(dungeon["floors"])or room_id is None:
+                        return[]
+                    floor = dungeon["floors"][floor_idx]
+                    exits =[]
+                    for conn in floor["connections"]:
+                        if conn["from_room"]==room_id:
+                            exits.append({"direction":conn["direction"], "to_room":conn["to_room"], "type":"connection"})
+                        elif conn["to_room"]==room_id:
+                            opposite = {"top":"bottom", "bottom":"top", "left":"right", "right":"left"}
+                            exits.append({"direction":opposite.get(conn["direction"], conn["direction"]), "to_room":conn["from_room"], "type":"connection"})
+
+                    current_room = _get_current_room()
+                    if current_room and current_room.get("type")=="transport":
+                        # Handle entry transport (goes UP to floor above)
+                        if current_room.get("is_entry_transport") and current_room.get("leads_to_floor"):
+                            exits.append({"direction":"up", "to_floor":current_room["leads_to_floor"]-1, "type":"transport", "label": f"↑ Floor {current_room['leads_to_floor']}"})
+                        # Handle exit transport (goes DOWN to floor below)
+                        if current_room.get("is_exit_transport") and current_room.get("leads_to_floor"):
+                            exits.append({"direction":"down", "to_floor":current_room["leads_to_floor"]-1, "type":"transport", "label": f"↓ Floor {current_room['leads_to_floor']}"})
+                        # Handle single-entrance bidirectional transport (also goes DOWN)
+                        if current_room.get("also_leads_to_floor"):
+                            exits.append({"direction":"down", "to_floor":current_room["also_leads_to_floor"]-1, "type":"transport", "label": f"↓ Floor {current_room['also_leads_to_floor']}"})
+
+                    return exits
+                except Exception:
+                    return[]
+
+            def _check_door_locked(direction):
+
+                try:
+                    room = _get_current_room()
+                    if not room:
+                        return False
+                    doors_state = room.get("doors_state", {})
+                    door_info = doors_state.get(direction, {})
+                    return door_info.get("locked", False)and not door_info.get("picked", False)
+                except Exception:
+                    return False
+
+            def _move_to_room(exit_info):
+
+                try:
+                    direction = exit_info.get("direction")
+
+                    if _check_door_locked(direction):
+                        self._dg_state['pending_door']= exit_info
+                        _update_display()
+                        return
+
+                    if exit_info.get("type")=="transport":
+
+                        next_floor = exit_info.get("to_floor", 0)
+                        direction = exit_info.get("direction")  # "up" or "down"
+                        dungeon = self._dg_state.get('generated_dungeon')
+                        current_floor = self._dg_state.get('current_floor', 0)
+                        if dungeon and next_floor <len(dungeon["floors"]):
+                            self._dg_state['current_floor']= next_floor
+
+                            # Find the appropriate transport room on the destination floor
+                            dest_room_id = None
+                            
+                            if next_floor == 0:
+                                # Going to top floor: find entrance
+                                for room in dungeon["floors"][next_floor]["rooms"]:
+                                    if room.get("type")=="entrance":
+                                        dest_room_id = room["room_id"]
+                                        break
+                            elif direction == "up":
+                                # Going UP: find the exit transport (that leads down to current floor)
+                                for room in dungeon["floors"][next_floor]["rooms"]:
+                                    if room.get("is_exit_transport") and room.get("leads_to_floor") == current_floor + 1:
+                                        dest_room_id = room["room_id"]
+                                        break
+                                    # Also check bidirectional transports
+                                    if room.get("also_leads_to_floor") == current_floor + 1:
+                                        dest_room_id = room["room_id"]
+                                        break
+                            else:
+                                # Going DOWN: find the entry transport (that leads up to current floor)
+                                for room in dungeon["floors"][next_floor]["rooms"]:
+                                    if room.get("is_entry_transport") and room.get("leads_to_floor") == current_floor + 1:
+                                        dest_room_id = room["room_id"]
+                                        break
+                            
+                            # Fallback to first room if no matching transport found
+                            if dest_room_id is None:
+                                dest_room_id = dungeon["floors"][next_floor]["rooms"][0]["room_id"] if dungeon["floors"][next_floor]["rooms"] else 0
+                            
+                            self._dg_state['current_room_id']= dest_room_id
+                    else:
+
+                        self._dg_state['current_room_id']= exit_info.get("to_room")
+
+                    room = _get_current_room()
+                    if room:
+                        room["visited"]= True
+
+                    self._dg_state['pending_door']= None
+
+                    _move_npcs_once()
+
+                    _update_display()
+
+                except Exception as e:
+                    logging.exception("Failed to move to room")
+
+            def _pick_door_success():
+
+                try:
+                    pending = self._dg_state.get('pending_door')
+                    if not pending:
+                        return
+                    room = _get_current_room()
+                    if room:
+                        direction = pending.get("direction")
+
+                        if direction in room.get("doors_state", {}):
+                            room["doors_state"][direction]["picked"]= True
+
+                        opposite = {"top":"bottom", "bottom":"top", "left":"right", "right":"left"}
+                        dest_room_id = pending.get("to_room")
+                        if dest_room_id is not None:
+                            dungeon = self._dg_state.get('generated_dungeon')
+                            floor_idx = self._dg_state.get('current_floor', 0)
+                            if dungeon and floor_idx <len(dungeon["floors"]):
+                                for dest_room in dungeon["floors"][floor_idx]["rooms"]:
+                                    if dest_room.get("room_id")==dest_room_id:
+                                        opp_dir = opposite.get(direction)
+                                        if opp_dir and opp_dir in dest_room.get("doors_state", {}):
+                                            dest_room["doors_state"][opp_dir]["picked"]= True
+                                        break
+                    self._dg_state['pending_door']= None
+                    _move_to_room(pending)
+                except Exception as e:
+                    logging.exception("Failed to pick door")
+
+            def _update_display():
+
+                try:
+                    dungeon = self._dg_state.get('generated_dungeon')
+                    if not dungeon:
+                        location_label.configure(text = "No dungeon generated")
+                        room_info_label.configure(text = "Click 'Generate Dungeon' to create a new dungeon.")
+                        door_status_label.configure(text = "")
+                        pick_door_btn.configure(state = "disabled")
+                        for w in nav_frame.winfo_children():
+                            w.destroy()
+                        if grid_canvas[0]:
+                            grid_canvas[0].delete("all")
+                        return
+
+                    floor_idx = self._dg_state.get('current_floor', 0)
+                    room = _get_current_room()
+
+                    if not room:
+                        location_label.configure(text = f"Floor {floor_idx +1} - No room")
+                        room_info_label.configure(text = "")
+                        return
+
+                    location_label.configure(text = f"Floor {floor_idx +1} - {room.get('name', 'Unknown Room')}")
+
+                    info_parts =[]
+                    info_parts.append(f"Type: {room.get('type', 'unknown')}")
+                    if room.get("visited"):
+                        info_parts.append("(Visited)")
+                    else:
+                        info_parts.append("(New)")
+
+                    enemies =[e for e in room.get("enemies", [])if e.get("alive", True)]
+                    if enemies:
+                        enemy_names =[e.get("name", "Unknown")for e in enemies]
+                        info_parts.append(f"⚔ Enemies({len(enemies)}): {', '.join(enemy_names)}")
+                    else:
+                        info_parts.append("Enemies: None")
+
+                    friendlies =[f for f in room.get("friendlies", [])if f.get("alive", True)]
+                    if friendlies:
+                        friendly_names =[f.get("name", "Unknown")for f in friendlies]
+                        info_parts.append(f"🛡 Friendlies({len(friendlies)}): {', '.join(friendly_names)}")
+
+                    pending_loot = room.get("pending_loot", [])
+                    if pending_loot:
+                        info_parts.append(f"💀 Loot available from {len(pending_loot)} defeated enemy(s)")
+
+                    loot_spawn = room.get("loot_spawn", [])
+                    if loot_spawn:
+                        info_parts.append(f"Loot: {len(loot_spawn)} spawn point(s)")
+
+                    if room.get("type")=="transport":
+                        transport_info = []
+                        if room.get("is_entry_transport") and room.get("leads_to_floor"):
+                            transport_info.append(f"↑ Floor {room.get('leads_to_floor')}")
+                        if room.get("is_exit_transport") and room.get("leads_to_floor"):
+                            transport_info.append(f"↓ Floor {room.get('leads_to_floor')}")
+                        if room.get("also_leads_to_floor"):
+                            transport_info.append(f"↓ Floor {room.get('also_leads_to_floor')}")
+                        if transport_info:
+                            info_parts.append("Transport: " + ", ".join(transport_info))
+                        else:
+                            info_parts.append(f"Transport to Floor {room.get('leads_to_floor', '?')}")
+
+                    room_info_label.configure(text = "\n".join(info_parts))
+
+                    _draw_grid()
+
+                    for w in nav_frame.winfo_children():
+                        w.destroy()
+
+                    exits = _get_available_exits()
+                    direction_labels = {"top":"↑ North(↑/W)", "bottom":"↓ South(↓/S)", "left":"← West(←/A)", "right":"→ East(→/D)", "up":"⬆ Ascend"}
+                    key_hints = {"top":"↑", "bottom":"↓", "left":"←", "right":"→"}
+
+                    if exits:
+
+                        exits_text = "Exits: "
+                        exit_parts =[]
+                        for exit_info in exits:
+                            direction = exit_info.get("direction")
+                            is_locked = _check_door_locked(direction)
+                            dir_label = direction_labels.get(direction, direction.title())
+                            if is_locked:
+                                dir_label +=" 🔒"# type: ignore
+                            exit_parts.append(dir_label)
+                        exits_text +=" | ".join(exit_parts)
+                        nav_label = customtkinter.CTkLabel(nav_frame, text = exits_text, font = customtkinter.CTkFont(size = 11))
+                        nav_label.pack(side = 'left', padx = 4)
+
+                    pending = self._dg_state.get('pending_door')
+                    if pending:
+                        direction = pending.get("direction")
+                        door_status_label.configure(text = f"Door to {direction} is LOCKED! Pick the lock to proceed.")
+                        pick_door_btn.configure(state = "normal", command = _pick_door_success)
+                    else:
+                        door_status_label.configure(text = "")
+                        pick_door_btn.configure(state = "disabled")
+
+                    if enemies:
+
+                        kill_enemy_btn.configure(state = "normal", command = _kill_enemies_in_room)
+                        collect_loot_btn.configure(state = "disabled")
+
+                        for w in nav_frame.winfo_children():
+                            if isinstance(w, customtkinter.CTkLabel):
+                                w.configure(text = "⚔ Movement blocked - enemies present!")
+                    else:
+                        kill_enemy_btn.configure(state = "disabled")
+
+                        if pending_loot:
+                            collect_loot_btn.configure(state = "normal", command = _collect_loot_from_room)
+                        else:
+                            collect_loot_btn.configure(state = "disabled")
+
+                except Exception as e:
+                    logging.exception("Failed to update dungeon display")
+
+            def _handle_arrow_key(event):
+
+                try:
+
+                    key_to_direction = {
+                    "Up":"top",
+                    "Down":"bottom",
+                    "Left":"left",
+                    "Right":"right"
+                    }
+
+                    direction = key_to_direction.get(event.keysym)
+                    if not direction:
+                        return
+
+                    room = _get_current_room()
+                    if room:
+                        enemies =[e for e in room.get("enemies", [])if e.get("alive", True)]
+                        if enemies:
+                            return
+
+                    exits = _get_available_exits()
+                    for exit_info in exits:
+                        if exit_info.get("direction")==direction:
+                            _move_to_room(exit_info)
+                            return
+
+                except Exception as e:
+                    logging.debug(f"Arrow key handling error: {e}")
+
+            def _handle_floor_transport(event):
+                """Handle Shift+Up/Down for floor transport at transport tiles"""
+                try:
+                    room = _get_current_room()
+                    if not room or room.get("type") != "transport":
+                        return
+                    
+                    # Check for enemies blocking movement
+                    enemies = [e for e in room.get("enemies", []) if e.get("alive", True)]
+                    if enemies:
+                        return
+                    
+                    # Determine direction based on key
+                    transport_direction = None
+                    if event.keysym == "Up":
+                        transport_direction = "up"
+                    elif event.keysym == "Down":
+                        transport_direction = "down"
+                    
+                    if not transport_direction:
+                        return
+                    
+                    # Find matching transport exit
+                    exits = _get_available_exits()
+                    for exit_info in exits:
+                        if exit_info.get("type") == "transport" and exit_info.get("direction") == transport_direction:
+                            _move_to_room(exit_info)
+                            return
+                
+                except Exception as e:
+                    logging.debug(f"Floor transport handling error: {e}")
+
+            dg.bind("<Up>", _handle_arrow_key)
+            dg.bind("<Down>", _handle_arrow_key)
+            dg.bind("<Left>", _handle_arrow_key)
+            dg.bind("<Right>", _handle_arrow_key)
+
+            dg.bind("<w>", lambda e:_handle_arrow_key(type('Event', (), {'keysym':'Up'})()))
+            dg.bind("<s>", lambda e:_handle_arrow_key(type('Event', (), {'keysym':'Down'})()))
+            dg.bind("<a>", lambda e:_handle_arrow_key(type('Event', (), {'keysym':'Left'})()))
+            dg.bind("<d>", lambda e:_handle_arrow_key(type('Event', (), {'keysym':'Right'})()))
+            dg.bind("<W>", lambda e:_handle_arrow_key(type('Event', (), {'keysym':'Up'})()))
+            dg.bind("<S>", lambda e:_handle_arrow_key(type('Event', (), {'keysym':'Down'})()))
+            dg.bind("<A>", lambda e:_handle_arrow_key(type('Event', (), {'keysym':'Left'})()))
+            dg.bind("<D>", lambda e:_handle_arrow_key(type('Event', (), {'keysym':'Right'})()))
+
+            # Shift+Up/Down for floor transport
+            dg.bind("<Shift-Up>", lambda e:_handle_floor_transport(type('Event', (), {'keysym':'Up'})()))
+            dg.bind("<Shift-Down>", lambda e:_handle_floor_transport(type('Event', (), {'keysym':'Down'})()))
+            dg.bind("<Shift-w>", lambda e:_handle_floor_transport(type('Event', (), {'keysym':'Up'})()))
+            dg.bind("<Shift-s>", lambda e:_handle_floor_transport(type('Event', (), {'keysym':'Down'})()))
+            dg.bind("<Shift-W>", lambda e:_handle_floor_transport(type('Event', (), {'keysym':'Up'})()))
+            dg.bind("<Shift-S>", lambda e:_handle_floor_transport(type('Event', (), {'keysym':'Down'})()))
+
+            def _save_dungeon():
+
+                try:
+                    dungeon = self._dg_state.get('generated_dungeon')
+                    if not dungeon:
+                        self._popup_show_info("Error", "No dungeon to save.", sound = "error")
+                        return
+
+                    dungeons_dir = os.path.join(saves_folder or "saves", "dungeons")
+                    os.makedirs(dungeons_dir, exist_ok = True)
+
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    filename = f"dungeon_{timestamp}.slddng"
+                    filepath = os.path.join(dungeons_dir, filename)
+
+                    save_data = {
+                    "dungeon":dungeon,
+                    "current_floor":self._dg_state.get('current_floor', 0),
+                    "current_room_id":self._dg_state.get('current_room_id'),
+                    "saved_at":datetime.now().isoformat()
+                    }
+
+                    with open(filepath, 'w', encoding = 'utf-8')as f:
+                        json.dump(save_data, f, indent = 2)
+
+                    self._popup_show_info("Dungeon Saved", f"Saved to: {filename}")
+                    logging.info(f"Saved dungeon to {filepath}")
+
+                except Exception as e:
+                    logging.exception("Failed to save dungeon")
+                    self._popup_show_info("Error", f"Failed to save: {e}", sound = "error")
+
+            def _load_dungeon():
+
+                try:
+                    dungeons_dir = os.path.join(saves_folder or "saves", "dungeons")
+                    if not os.path.isdir(dungeons_dir):
+                        self._popup_show_info("Error", "No saved dungeons found.", sound = "error")
+                        return
+
+                    dungeon_files = sorted(glob.glob(os.path.join(dungeons_dir, "*.slddng")), reverse = True)
+                    if not dungeon_files:
+                        self._popup_show_info("Error", "No saved dungeons found.", sound = "error")
+                        return
+
+                    options =[os.path.basename(f)for f in dungeon_files[:10]]
+                    selected = self._popup_select_option("Load Dungeon", "Select a dungeon to load:", options)
+                    if not selected:
+                        return
+
+                    filepath = os.path.join(dungeons_dir, selected)
+                    with open(filepath, 'r', encoding = 'utf-8')as f:
+                        save_data = json.load(f)
+
+                    self._dg_state['generated_dungeon']= save_data.get("dungeon")
+                    self._dg_state['current_floor']= save_data.get("current_floor", 0)
+                    self._dg_state['current_room_id']= save_data.get("current_room_id", 0)
+                    self._dg_state['pending_door']= None
+
+                    _update_display()
+                    self._popup_show_info("Dungeon Loaded", f"Loaded: {selected}")
+                    logging.info(f"Loaded dungeon from {filepath}")
+
+                except Exception as e:
+                    logging.exception("Failed to load dungeon")
+                    self._popup_show_info("Error", f"Failed to load: {e}", sound = "error")
+
+            action_frame = customtkinter.CTkFrame(frm)
+            action_frame.pack(fill = 'x', pady = 8)
+
+            generate_btn = customtkinter.CTkButton(action_frame, text = "Generate Dungeon", width = 140, command = _generate_dungeon)
+            generate_btn.pack(side = 'left', padx = 4)
+
+            save_btn = customtkinter.CTkButton(action_frame, text = "Save Layout", width = 100, command = _save_dungeon)
+            save_btn.pack(side = 'left', padx = 4)
+
+            load_btn = customtkinter.CTkButton(action_frame, text = "Load Layout", width = 100, command = _load_dungeon)
+            load_btn.pack(side = 'left', padx = 4)
+
+            _update_display()
 
             btn_close = customtkinter.CTkButton(frm, text = "Close", command = _confirm_close)
             btn_close.pack(pady = 8)
@@ -26109,6 +27990,92 @@ class App:
         except Exception as e:
             logging.error(f"Failed to save enemy loot transfer: {e}")
             self._popup_show_info("Error", f"Failed to save: {e}", sound = "error")
+
+    def _save_enemy_loot_transfer_silent(self, enemy_name, loot_items):
+
+        try:
+            transfer_data = {
+            "type":"enemyloot",
+            "enemy_name":enemy_name,
+            "items":loot_items,
+            "timestamp":datetime.now().isoformat()
+            }
+
+            safe_name = enemy_name.replace(" ", "_").lower()
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+            filename = f"enemyloot_{safe_name}_{timestamp}.sldenlt"
+            filepath = os.path.join("enemyloot", filename)
+
+            os.makedirs("enemyloot", exist_ok = True)
+
+            with open(filepath, 'wb')as f:
+                pickled = pickle.dumps(transfer_data)
+                encoded = base64.b85encode(pickled)
+                f.write(encoded)
+
+            logging.info(f"Saved enemy loot transfer: {filepath}")
+            return filename
+
+        except Exception as e:
+            logging.error(f"Failed to save enemy loot transfer: {e}")
+            return None
+
+    def _save_lootcrate_transfer_silent(self, crate_name, loot_items):
+
+        try:
+            transfer_data = {
+            "type":"lootcrate",
+            "crate_name":crate_name,
+            "items":loot_items,
+            "timestamp":datetime.now().isoformat()
+            }
+
+            safe_name = crate_name.replace(" ", "_").lower()
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+            filename = f"lootcrate_{safe_name}_{timestamp}.sldlct"
+            filepath = os.path.join("lootcrates", filename)
+
+            os.makedirs("lootcrates", exist_ok = True)
+
+            with open(filepath, 'wb')as f:
+                pickled = pickle.dumps(transfer_data)
+                encoded = base64.b85encode(pickled)
+                f.write(encoded)
+
+            logging.info(f"Saved lootcrate transfer: {filepath}")
+            return filename
+
+        except Exception as e:
+            logging.error(f"Failed to save lootcrate transfer: {e}")
+            return None
+
+    def _generate_lootcrate_contents(self, lootcrate_def, table_data):
+
+        try:
+            loot =[]
+            pulls_config = lootcrate_def.get("pulls", {"min":1, "max":3})
+            num_pulls = random.randint(pulls_config.get("min", 1), pulls_config.get("max", 3))
+
+            loot_table = lootcrate_def.get("loot_table", [])
+            if not loot_table:
+                return loot
+
+            for _ in range(num_pulls):
+
+                loot_entry = random.choice(loot_table)
+
+                item = self._resolve_loot_entry(loot_entry, table_data)
+                if item:
+                    if isinstance(item, list):
+                        loot.extend(item)
+                    else:
+                        loot.append(item)
+
+            return loot
+
+        except Exception as e:
+            logging.error(f"Failed to generate lootcrate contents: {e}")
+            return[]
 
     def _open_create_lootcrate_tool(self):
         logging.info("Create Loot Crate tool called")
@@ -28028,21 +29995,21 @@ class App:
         font = customtkinter.CTkFont(size = 16)
         )
         back_button.pack(pady = 20)
-        
-if __name__ == "__main__":
+
+if __name__ =="__main__":
     try:
         _gil = os.environ.get('PYTHON_GIL', '1')
-        if _gil != '0':
+        if _gil !='0':
             try:
                 import tkinter as _tk
                 from tkinter import messagebox as _mb
                 _root = _tk.Tk()
                 _root.withdraw()
-                _mb.showinfo("DOOM Tools", "Python GIL was detected as enabled. For best performance, please disable the GIL by setting the environment variable PYTHON_GIL=0 or using runwithoutgil.bat. Disabling the GIL will allow the program to run with more than one thread.")
+                _mb.showinfo("DOOM Tools", "Python GIL was detected as enabled.For best performance, please disable the GIL by setting the environment variable PYTHON_GIL=0 or using runwithoutgil.bat.Disabling the GIL will allow the program to run with more than one thread.")
                 _root.destroy()
             except Exception:
                 try:
-                    print('Warning: running with GIL enabled. Running with GIL disabled may improve performance.')
+                    print('Warning: running with GIL enabled.Running with GIL disabled may improve performance.')
                 except Exception:
                     pass
     except Exception:

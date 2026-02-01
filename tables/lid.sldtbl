@@ -10408,11 +10408,25 @@
             },
             {
                 "name": "Friendly Kyntarian Resistance forces",
-                "difficulty": "Friendly"
+                "difficulty": "Friendly",
+                "items": [
+                    {"type": "id", "id": [0, 184], "guaranteed": true, "multi_type": "or", "spawn_magazine": true, "magazines_to_spawn": {"min": 1, "max": 3}, "loading": "random"},
+                    {"type": "id", "id": [250, 251], "guaranteed": true, "multi_type": "or"},
+                    {"type": "table", "table": "pistols", "rarity": "Rare"},
+                    {"type": "id", "id": 321, "guaranteed": true}
+                ]
             },
             {
                 "name": "Friendly LEDF forces",
-                "difficulty": "Friendly"
+                "difficulty": "Friendly",
+                "items": [
+                    {"type": "id", "id": [64, 65, 291, 292], "guaranteed": true, "multi_type": "or", "spawn_magazine": true, "magazines_to_spawn": {"min": 2, "max": 4}, "loading": "random"},
+                    {"type": "id", "id": [250, 250, 251], "guaranteed": true, "multi_type": "and"},
+                    {"type": "table", "table": "pistols", "rarity": "Legendary"},
+                    {"type": "id", "id": 320, "guaranteed": true},
+                    {"type": "id", "id": 321, "guaranteed": true},
+                    {"type": "id", "id": 330, "guaranteed": true}
+                ]
             }
         ],
         "lootcrates": [
@@ -10421,6 +10435,7 @@
                 "description": "A standard crate, has the entire pool of items.",
                 "rarity": "Common",
                 "locked": false,
+                "id_lct": 0,
                 "pulls": {"min": 3, "max": 6},
                 "loot_table": [
                     {"type": "table", "table": "rifles", "rarity": "Rare"},
@@ -10443,6 +10458,7 @@
                 "description": "I need more boolets",
                 "rarity": "Common",
                 "locked": false,
+                "id_lct": 1,
                 "pulls": 3,
                 "loot_table": [
                     {"type": "table", "table": "ammunition", "rarity": "Common"},
@@ -10454,6 +10470,7 @@
                 "description": "I need a medic bag",
                 "rarity": "Uncommon",
                 "locked": false,
+                "id_lct": 2,
                 "pulls": 3,
                 "loot_table": [
                     {"type": "table", "table": "equipment", "rarity": "Common"}
@@ -10464,6 +10481,7 @@
                 "description": "A weapons supply crate for LEDF forces",
                 "rarity": "Uncommon",
                 "locked": false,
+                "id_lct": 3,
                 "pulls": {"min": 3, "max": 6},
                 "loot_table": [
                     {"type": "id", "id": 64, "rarity": "Common"},
@@ -10488,6 +10506,7 @@
                 "description": "A crate containing various types of ammunition for LEDF forces",
                 "rarity": "Uncommon",
                 "locked": false,
+                "id_lct": 4,
                 "pulls": {"min": 3, "max": 6},
                 "loot_table": [
                     {"type": "id", "id": 85, "rarity": "Mythic"},
@@ -10507,6 +10526,7 @@
                 "description": "A crate containing various magazines for LEDF forces",
                 "rarity": "Uncommon",
                 "locked": false,
+                "id_lct": 5,
                 "pulls": {"min": 3, "max": 6},
                 "loot_table": [
                     {"type": "id", "id": 12, "rarity": "Common"},
@@ -10522,6 +10542,7 @@
                 "description": "A crate containing various weapon attachments for LEDF forces",
                 "rarity": "Uncommon",
                 "locked": false,
+                "id_lct": 6,
                 "pulls": {"min": 3, "max": 6},
                 "loot_table": [
                     {"type": "id", "id": 5, "rarity": "Common"},
@@ -10569,6 +10590,7 @@
                 "description": "A crate containing various equipment for LEDF forces",
                 "rarity": "Uncommon",
                 "locked": false,
+                "id_lct": 7,
                 "pulls": {"min": 6, "max": 9},
                 "loot_table": [
                     {"type": "id", "id": 23, "rarity": "Common"},
@@ -10656,6 +10678,216 @@
                 "type": "entrance",
                 "attachment_points": [
                     {"attachment_point": "top"}
+                ],
+                "doors": [
+                    {"position": "top", "locked": "random"}
+                ],
+                "enemy_spawn_possible": false
+            },
+            {
+                "name": "Hallway [doors]",
+                "type": "hallway",
+                "attachment_points": [
+                    {"attachment_point": "bottom"},
+                    {"attachment_point": "top"}
+                ],
+                "doors": [
+                    {"position": "bottom", "locked": "random"},
+                    {"position": "top", "locked": "random"}
+                ],
+                "enemy_spawn_possible": true
+            },
+            {
+                "name": "Hallway [no doors]",
+                "type": "hallway",
+                "attachment_points": [
+                    {"attachment_point": "bottom"},
+                    {"attachment_point": "top"}
+                ],
+                "doors": [],
+                "enemy_spawn_possible": true
+            },
+            {
+                "name": "Hallway End",
+                "type": "hallway",
+                "attachment_points": [
+                    {"attachment_point": "bottom"}
+                ],
+                "doors": [],
+                "enemy_spawn_possible": true
+            },
+            {
+                "name": "Hallway T-Intersection [Left Doors]",
+                "type": "hallway",
+                "attachment_points": [
+                    {"attachment_point": "bottom"},
+                    {"attachment_point": "left"},
+                    {"attachment_point": "right"}
+                ],
+                "doors": [
+                    {"position": "bottom", "locked": "random"},
+                    {"position": "left", "locked": "random"},
+                    {"position": "right", "locked": "random"}
+                ],
+                "enemy_spawn_possible": true
+            },
+            {
+                "name": "Hallway T-Intersection [Right Doors]",
+                "type": "hallway",
+                "attachment_points": [
+                    {"attachment_point": "bottom"},
+                    {"attachment_point": "left"},
+                    {"attachment_point": "right"}
+                ],
+                "doors": [
+                    {"position": "bottom", "locked": "random"},
+                    {"position": "left", "locked": "random"},
+                    {"position": "right", "locked": "random"}
+                ],
+                "enemy_spawn_possible": true
+            },
+            {
+                "name": "Hallway T-Intersection [Left No Doors]",
+                "type": "hallway",
+                "attachment_points": [
+                    {"attachment_point": "bottom"},
+                    {"attachment_point": "left"},
+                    {"attachment_point": "right"}
+                ],
+                "doors": [],
+                "enemy_spawn_possible": true
+            },
+            {
+                "name": "Hallway T-Intersection [Right No Doors]",
+                "type": "hallway",
+                "attachment_points": [
+                    {"attachment_point": "bottom"},
+                    {"attachment_point": "left"},
+                    {"attachment_point": "right"}
+                ],
+                "doors": [],
+                "enemy_spawn_possible": true
+            },
+            {
+                "name": "Hallway Crossroads [Doors]",
+                "type": "hallway",
+                "attachment_points": [
+                    {"attachment_point": "top"},
+                    {"attachment_point": "bottom"},
+                    {"attachment_point": "left"},
+                    {"attachment_point": "right"}
+                ],
+                "doors": [
+                    {"position": "top", "locked": "random"},
+                    {"position": "bottom", "locked": "random"},
+                    {"position": "left", "locked": "random"},
+                    {"position": "right", "locked": "random"}
+                ],
+                "enemy_spawn_possible": true
+            },
+            {
+                "name": "Hallway Crossroads [No Doors]",
+                "type": "hallway",
+                "attachment_points": [
+                    {"attachment_point": "top"},
+                    {"attachment_point": "bottom"},
+                    {"attachment_point": "left"},
+                    {"attachment_point": "right"}
+                ],
+                "doors": [],
+                "enemy_spawn_possible": true
+            },
+            {
+                "name": "Hallway Corner [Left Doors]",
+                "type": "hallway",
+                "attachment_points": [
+                    {"attachment_point": "bottom"},
+                    {"attachment_point": "left"}
+                ],
+                "doors": [
+                    {"position": "bottom", "locked": "random"},
+                    {"position": "left", "locked": "random"}
+                ],
+                "enemy_spawn_possible": true
+            },
+            {
+                "name": "Hallway Corner [Right Doors]",
+                "type": "hallway",
+                "attachment_points": [
+                    {"attachment_point": "bottom"},
+                    {"attachment_point": "right"}
+                ],
+                "doors": [
+                    {"position": "bottom", "locked": "random"},
+                    {"position": "right", "locked": "random"}
+                ],
+                "enemy_spawn_possible": true
+            },
+            {
+                "name": "Hallway Corner [Left No Doors]",
+                "type": "hallway",
+                "attachment_points": [
+                    {"attachment_point": "bottom"},
+                    {"attachment_point": "left"}
+                ],
+                "doors": [],
+                "enemy_spawn_possible": true
+            },
+            {
+                "name": "Hallway Corner [Right No Doors]",
+                "type": "hallway",
+                "attachment_points": [
+                    {"attachment_point": "bottom"},
+                    {"attachment_point": "right"}
+                ],
+                "doors": [],
+                "enemy_spawn_possible": true
+            },
+            {
+                "name": "Empty Room",
+                "type": "room",
+                "attachment_points": [
+                    {"attachment_point": "bottom"}
+                ],
+                "doors": [
+                    {"position": "bottom", "locked": "random"}
+                ],
+                "enemy_spawn_possible": true
+            },
+            {
+                "name": "Storage Room",
+                "type": "room",
+                "attachment_points": [
+                    {"attachment_point": "bottom"}
+                ],
+                "doors": [
+                    {"position": "bottom", "locked": "random"}
+                ],
+                "enemy_spawn_possible": true,
+                "loot_spawn": [
+                    {"type": "lootcrate", "id": 1, "to_spawn": {"min": 0, "max": 3}}
+                ]
+            },
+            {
+                "name": "Stairs",
+                "type": "transport",
+                "subtype": "stairs",
+                "attachment_points": [
+                    {"attachment_point": "bottom"}
+                ],
+                "doors": [
+                    {"position": "bottom", "locked": "random"}
+                ]
+            },
+            {
+                "name": "Elevator",
+                "type": "transport",
+                "subtype": "elevator",
+                "attachment_points": [
+                    {"attachment_point": "bottom"}
+                ],
+                "doors": [
+                    {"position": "bottom", "locked": "random"}
                 ]
             }
         ]
