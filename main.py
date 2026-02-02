@@ -25640,15 +25640,15 @@ class App:
                                 info_lines.append(f"Doors: {', '.join(door_info)}")
 
                             if room.get("type")=="transport":
-                                transport_info = []
-                                if room.get("is_entry_transport") and room.get("leads_to_floor"):
+                                transport_info =[]
+                                if room.get("is_entry_transport")and room.get("leads_to_floor"):
                                     transport_info.append(f"↑ Floor {room.get('leads_to_floor')}")
-                                if room.get("is_exit_transport") and room.get("leads_to_floor"):
+                                if room.get("is_exit_transport")and room.get("leads_to_floor"):
                                     transport_info.append(f"↓ Floor {room.get('leads_to_floor')}")
                                 if room.get("also_leads_to_floor"):
                                     transport_info.append(f"↓ Floor {room.get('also_leads_to_floor')}")
                                 if transport_info:
-                                    info_lines.append("Transport: " + ", ".join(transport_info))
+                                    info_lines.append("Transport: "+", ".join(transport_info))
                                 else:
                                     info_lines.append(f"→ Floor {room.get('leads_to_floor', '?')}")
 
@@ -25703,6 +25703,28 @@ class App:
                 canvas.bind("<Motion>", _on_tile_hover)
                 canvas.bind("<Leave>", _on_tile_leave)
                 canvas.bind("<Button-1>", _on_tile_click)
+
+                map_win.bind("<Up>", _handle_arrow_key)
+                map_win.bind("<Down>", _handle_arrow_key)
+                map_win.bind("<Left>", _handle_arrow_key)
+                map_win.bind("<Right>", _handle_arrow_key)
+                map_win.bind("<w>", lambda e:_handle_arrow_key(type('Event', (), {'keysym':'Up'})()))
+                map_win.bind("<s>", lambda e:_handle_arrow_key(type('Event', (), {'keysym':'Down'})()))
+                map_win.bind("<a>", lambda e:_handle_arrow_key(type('Event', (), {'keysym':'Left'})()))
+                map_win.bind("<d>", lambda e:_handle_arrow_key(type('Event', (), {'keysym':'Right'})()))
+                map_win.bind("<W>", lambda e:_handle_arrow_key(type('Event', (), {'keysym':'Up'})()))
+                map_win.bind("<S>", lambda e:_handle_arrow_key(type('Event', (), {'keysym':'Down'})()))
+                map_win.bind("<A>", lambda e:_handle_arrow_key(type('Event', (), {'keysym':'Left'})()))
+                map_win.bind("<D>", lambda e:_handle_arrow_key(type('Event', (), {'keysym':'Right'})()))
+
+                map_win.bind("<Shift-Up>", lambda e:_handle_floor_transport(type('Event', (), {'keysym':'Up'})()))
+                map_win.bind("<Shift-Down>", lambda e:_handle_floor_transport(type('Event', (), {'keysym':'Down'})()))
+                map_win.bind("<Shift-w>", lambda e:_handle_floor_transport(type('Event', (), {'keysym':'Up'})()))
+                map_win.bind("<Shift-s>", lambda e:_handle_floor_transport(type('Event', (), {'keysym':'Down'})()))
+                map_win.bind("<Shift-W>", lambda e:_handle_floor_transport(type('Event', (), {'keysym':'Up'})()))
+                map_win.bind("<Shift-S>", lambda e:_handle_floor_transport(type('Event', (), {'keysym':'Down'})()))
+
+                map_win.focus_force()
 
                 _draw_grid()
 
@@ -25765,8 +25787,8 @@ class App:
                             fill_color = "#33cc33"
                         elif loot_spawn:
                             fill_color = "#33cc33"
-                        elif room.get("type") == "transport":
-                            fill_color = "#3399ff"  # Blue for transport to next floor
+                        elif room.get("type")=="transport":
+                            fill_color = "#3399ff"
                         elif room.get("visited"):
                             fill_color = "#808080"
                         else:
@@ -25775,8 +25797,7 @@ class App:
                         outline_color = "#333333"
                         outline_width = 1
 
-                        # Transport rooms get cyan outline to stand out
-                        if room.get("type") == "transport":
+                        if room.get("type")=="transport":
                             outline_color = "#00ffff"
                             outline_width = 2
 
@@ -25965,6 +25986,207 @@ class App:
                     logging.debug(f"Failed to get weapon sound: {e}")
                 return None
 
+            def _get_npc_weapon_info(npc):
+
+                try:
+                    items = npc.get("items", [])
+                    for item in items:
+                        if isinstance(item, dict)and item.get("firearm"):
+                            return item
+                        elif isinstance(item, (int, float)):
+
+                            for category in["rifles", "smgs", "pistols", "shotguns", "machineguns", "snipers"]:
+                                weapons = table_data.get("tables", {}).get(category, [])
+                                for weapon in weapons:
+                                    if weapon.get("id")==item:
+                                        return weapon
+                except Exception as e:
+                    logging.debug(f"Failed to get NPC weapon info: {e}")
+                return None
+
+            def _is_manual_action(weapon):
+
+                if not weapon:
+                    return False
+                actions = weapon.get("action", [])
+                manual_actions =["Bolt", "Pump", "Lever", "Single", "Break"]
+
+                if actions and all(a in manual_actions for a in actions):
+                    return True
+                return False
+
+            def _get_weapon_firemode(weapon):
+
+                if not weapon:
+                    return "Semi"
+                actions = weapon.get("action", ["Semi"])
+                if not actions:
+                    return "Semi"
+                return random.choice(actions)
+
+            def _get_shots_for_firemode(firemode, weapon):
+
+                if firemode in["Bolt", "Pump", "Lever", "Single", "Break"]:
+                    return 1
+                elif firemode =="Semi":
+                    return random.randint(1, 4)
+                elif firemode =="Burst":
+                    burst_count = weapon.get("burst_count", 3)if weapon else 3
+                    return burst_count
+                elif firemode =="Auto":
+                    return random.randint(3, 10)
+                else:
+                    return random.randint(1, 3)
+
+            def _get_weapon_caliber_folder(weapon):
+
+                if not weapon:
+                    return "556"
+                calibers = weapon.get("caliber", [])
+                if not calibers:
+                    return "556"
+                caliber = calibers[0].lower()if calibers else ""
+
+                caliber_map = {
+                "5.56x45mm":"556", "5.56":"556", "5.56x45mm nato":"556",
+                "7.62x39mm":"762_39", "7.62x39":"762_39",
+                "7.62x51mm":"762_51", "7.62x51mm nato":"762_51", ".308":"308", "308 winchester":"308",
+                "7.62x54mmr":"762_54", "7.62x54r":"762_54",
+                "9x19mm":"9x19", "9mm":"9x19", "9x19mm parabellum":"9x19",
+                "9x18mm":"9x18", "9x18mm makarov":"9x18",
+                ".45 acp":"45acp", "45 acp":"45acp", ".45acp":"45acp",
+                "12 gauge":"12gauge", "12gauge":"12gauge",
+                "20 gauge":"20gauge", "20gauge":"20gauge",
+                ".223":"223", "223 remington":"223", ".223 remington":"223",
+                ".50 bmg":"50ae", "50 bmg":"50ae",
+                ".338":"338", "338 lapua":"338", ".338 lapua":"338",
+                "5.45x39mm":"545_39", "5.45x39":"545_39",
+                ".357 magnum":"357mag", "357 magnum":"357mag",
+                ".44 magnum":"44mag", "44 magnum":"44mag",
+                ".380 acp":"380acp", "380 acp":"380acp",
+                ".38 special":"38special", "38 special":"38special",
+                ".30-06":"30_06", "30-06":"30_06",
+                ".30-30":"30_30", "30-30":"30_30",
+                ".300":"300", "300 win mag":"300",
+                ".303":"303", "303 british":"303",
+                }
+
+                for key, folder in caliber_map.items():
+                    if key in caliber:
+                        return folder
+                return "556"
+
+            def _get_weapon_platform_folder(weapon):
+
+                if not weapon:
+                    return None
+                platform = weapon.get("platform", "").lower().replace(" ", "-").replace("_", "-")
+                name = weapon.get("name", "").lower()
+
+                platform_map = {
+                "ar-15":"ar-15", "ar15":"ar-15", "m4":"ar-15", "m16":"ar-15",
+                "ak-47":"ak-47", "ak47":"ak-47", "akm":"ak-47",
+                "ak-74":"ak-74", "ak74":"ak-74",
+                "g3":"g3", "hk g3":"g3",
+                "fal":"fal", "fn fal":"fal",
+                "scar":"scar", "fn scar":"scar",
+                "mp5":"mp5", "hk mp5":"mp5",
+                "glock":"glock",
+                "1911":"1911", "m1911":"1911",
+                "92fs":"92fs", "beretta 92":"92fs", "m9":"92fs",
+                "intervention":"intervention", "cheytac":"intervention",
+                "awp":"awp", "aw":"aw", "accuracy international":"aw",
+                "r700":"r700", "remington 700":"r700",
+                "m500":"m500", "mossberg 500":"m500",
+                "m590":"m590", "mossberg 590":"m590",
+                }
+
+                for key, folder in platform_map.items():
+                    if key in platform:
+                        sound_dir = os.path.join("sounds", "firearms", "weaponsounds", folder)
+                        if os.path.isdir(sound_dir):
+                            return folder
+
+                for key, folder in platform_map.items():
+                    if key in name:
+                        sound_dir = os.path.join("sounds", "firearms", "weaponsounds", folder)
+                        if os.path.isdir(sound_dir):
+                            return folder
+
+                return None
+
+            def _play_action_sound(weapon, volume = 0.1, delay = 0):
+
+                def _play():
+                    try:
+                        platform_folder = _get_weapon_platform_folder(weapon)
+                        if platform_folder:
+                            sound_dir = os.path.join("sounds", "firearms", "weaponsounds", platform_folder)
+
+                            bolt_back = os.path.join(sound_dir, "boltback.ogg")
+                            bolt_forward = os.path.join(sound_dir, "boltforward.ogg")
+
+                            if os.path.isfile(bolt_back):
+                                _play_distant_combat_sound(bolt_back, volume = volume)
+                            if os.path.isfile(bolt_forward):
+
+                                dg.after(300, lambda:_play_distant_combat_sound(bolt_forward, volume = volume))
+                    except Exception as e:
+                        logging.debug(f"Failed to play action sound: {e}")
+
+                if delay >0:
+                    dg.after(delay, _play)
+                else:
+                    _play()
+
+            def _get_cyclic_delay(weapon, firemode):
+
+                if not weapon:
+                    return 100
+
+                if firemode in["Bolt", "Pump", "Lever", "Single", "Break"]:
+                    return 1500
+
+                if firemode =="Burst":
+                    burst_cyclic = weapon.get("burst_cyclic", weapon.get("cyclic", 600))
+                    return max(50, int(60000 /burst_cyclic))
+
+                cyclic = weapon.get("cyclic", 600)
+
+                return max(50, int(60000 /cyclic))
+
+            def _schedule_combat_sounds(sound_dir, weapon, firemode, shots, volume, start_delay, callback = None):
+
+                cyclic_delay = _get_cyclic_delay(weapon, firemode)
+                is_manual = _is_manual_action(weapon)
+
+                def play_shot(shot_num):
+                    try:
+                        if os.path.isdir(sound_dir):
+                            sounds = glob.glob(os.path.join(sound_dir, "*.wav"))+glob.glob(os.path.join(sound_dir, "*.ogg"))
+                            if sounds:
+                                sound_path = random.choice(sounds)
+                                _play_distant_combat_sound(sound_path, volume = volume)
+                    except Exception:
+                        pass
+
+                for i in range(shots):
+                    shot_delay = start_delay +(i *cyclic_delay)
+                    dg.after(shot_delay, lambda num = i:play_shot(num))
+
+                if is_manual and shots >0:
+                    action_delay = start_delay +(shots *cyclic_delay)+100
+                    _play_action_sound(weapon, volume = volume *0.7, delay = action_delay)
+
+                total_duration = start_delay +(shots *cyclic_delay)
+                if is_manual:
+                    total_duration +=800
+
+                if callback:
+                    dg.after(total_duration +100, callback)
+
+                return total_duration
+
             def _process_background_combat():
 
                 try:
@@ -25979,6 +26201,10 @@ class App:
                     floor = dungeon["floors"][floor_idx]
                     player_room_id = self._dg_state.get('current_room_id')
                     combat_occurred = False
+
+                    combat_actions =[]
+                    current_delay = 0
+                    TURN_PAUSE = 1500
 
                     for room in floor["rooms"]:
 
@@ -25995,44 +26221,132 @@ class App:
                             room_loc = f"({room_pos.get('x', '?')}, {room_pos.get('y', '?')})"
 
                             for enemy in enemies:
-                                if random.random()<0.3:
-                                    target = random.choice(friendlies)
-                                    damage = random.randint(10, 30)
-                                    target["health"]= target.get("health", 100)-damage
+                                if random.random()<0.5:
+                                    alive_friendlies =[f for f in friendlies if f.get("alive", True)]
+                                    if not alive_friendlies:
+                                        break
+
+                                    target = random.choice(alive_friendlies)
+                                    weapon = _get_npc_weapon_info(enemy)
+                                    is_manual = _is_manual_action(weapon)
+                                    firemode = _get_weapon_firemode(weapon)
+                                    shots = 1 if is_manual else _get_shots_for_firemode(firemode, weapon)
+
                                     enemy_name = enemy.get("name", "Enemy")
                                     target_name = target.get("name", "Friendly")
-                                    if target["health"]<=0:
-                                        target["alive"]= False
-                                        _add_combat_log(f"{room_loc} {enemy_name} killed {target_name}!")
-                                    else:
-                                        _add_combat_log(f"{room_loc} {enemy_name} hit {target_name} for {damage} dmg")
 
-                                    sound_path = _get_weapon_sound_for_npc(enemy)
-                                    if sound_path:
-                                        _play_distant_combat_sound(sound_path, volume = 0.12)
+                                    caliber_folder = _get_weapon_caliber_folder(weapon)
+                                    sound_dir = os.path.join("sounds", "firearms", caliber_folder)
+
+                                    hits = 0
+                                    total_damage = 0
+
+                                    for shot_num in range(shots):
+                                        if not target.get("alive", True):
+                                            alive_friendlies =[f for f in friendlies if f.get("alive", True)]
+                                            if alive_friendlies:
+                                                target = random.choice(alive_friendlies)
+                                                target_name = target.get("name", "Friendly")
+                                            else:
+                                                break
+
+                                        if random.random()<0.4:
+                                            damage = random.randint(8, 25)
+                                            target["health"]= target.get("health", 100)-damage
+                                            hits +=1
+                                            total_damage +=damage
+
+                                            if target["health"]<=0:
+                                                target["alive"]= False
+
+                                    cyclic_delay = _get_cyclic_delay(weapon, firemode)
+                                    shot_duration = shots *cyclic_delay
+
+                                    _schedule_combat_sounds(sound_dir, weapon, firemode, shots, 0.12, current_delay)
+
+                                    log_delay = current_delay
+                                    if hits >0:
+                                        if not target.get("alive", True):
+                                            dg.after(log_delay, lambda rl = room_loc, en = enemy_name, s = shots, fm = firemode, tn = target_name:
+                                            _add_combat_log(f"{rl} {en} fired {s}x({fm}), killed {tn}!"))
+                                        else:
+                                            dg.after(log_delay, lambda rl = room_loc, en = enemy_name, s = shots, fm = firemode, h = hits, td = total_damage:
+                                            _add_combat_log(f"{rl} {en} fired {s}x({fm}), hit {h}x for {td} dmg"))
+                                    else:
+                                        dg.after(log_delay, lambda rl = room_loc, en = enemy_name, s = shots, fm = firemode:
+                                        _add_combat_log(f"{rl} {en} fired {s}x({fm}), missed"))
+
+                                    current_delay +=shot_duration +(800 if is_manual else 200)
+
+                            current_delay +=TURN_PAUSE
 
                             alive_friendlies =[f for f in friendlies if f.get("alive", True)]
                             for friendly in alive_friendlies:
-                                if random.random()<0.35:
+                                if random.random()<0.5:
                                     alive_enemies =[e for e in enemies if e.get("alive", True)]
-                                    if alive_enemies:
-                                        target = random.choice(alive_enemies)
+                                    if not alive_enemies:
+                                        break
 
-                                        target["alive"]= False
-                                        friendly_name = friendly.get("name", "Friendly")
-                                        target_name = target.get("name", "Enemy")
-                                        _add_combat_log(f"{room_loc} {friendly_name} killed {target_name}!")
+                                    target = random.choice(alive_enemies)
+                                    weapon = _get_npc_weapon_info(friendly)
+                                    is_manual = _is_manual_action(weapon)
+                                    firemode = _get_weapon_firemode(weapon)
+                                    shots = 1 if is_manual else _get_shots_for_firemode(firemode, weapon)
 
-                                        if "pending_loot"not in room:
-                                            room["pending_loot"]=[]
-                                        room["pending_loot"].append(target.copy())
+                                    friendly_name = friendly.get("name", "Friendly")
+                                    target_name = target.get("name", "Enemy")
 
-                                        sound_path = _get_weapon_sound_for_npc(friendly)
-                                        if sound_path:
-                                            _play_distant_combat_sound(sound_path, volume = 0.12)
+                                    caliber_folder = _get_weapon_caliber_folder(weapon)
+                                    sound_dir = os.path.join("sounds", "firearms", caliber_folder)
+
+                                    hits = 0
+                                    total_damage = 0
+
+                                    for shot_num in range(shots):
+                                        if not target.get("alive", True):
+                                            alive_enemies =[e for e in enemies if e.get("alive", True)]
+                                            if alive_enemies:
+                                                target = random.choice(alive_enemies)
+                                                target_name = target.get("name", "Enemy")
+                                            else:
+                                                break
+
+                                        if random.random()<0.45:
+                                            damage = random.randint(10, 30)
+                                            target["health"]= target.get("health", 100)-damage
+                                            hits +=1
+                                            total_damage +=damage
+
+                                            if target["health"]<=0:
+                                                target["alive"]= False
+                                                if "pending_loot"not in room:
+                                                    room["pending_loot"]=[]
+                                                room["pending_loot"].append(target.copy())
+
+                                    cyclic_delay = _get_cyclic_delay(weapon, firemode)
+                                    shot_duration = shots *cyclic_delay
+
+                                    _schedule_combat_sounds(sound_dir, weapon, firemode, shots, 0.12, current_delay)
+
+                                    log_delay = current_delay
+                                    if hits >0:
+                                        if not target.get("alive", True):
+                                            dg.after(log_delay, lambda rl = room_loc, fn = friendly_name, s = shots, fm = firemode, tn = target_name:
+                                            _add_combat_log(f"{rl} {fn} fired {s}x({fm}), killed {tn}!"))
+                                        else:
+                                            dg.after(log_delay, lambda rl = room_loc, fn = friendly_name, s = shots, fm = firemode, h = hits, td = total_damage:
+                                            _add_combat_log(f"{rl} {fn} fired {s}x({fm}), hit {h}x for {td} dmg"))
+                                    else:
+                                        dg.after(log_delay, lambda rl = room_loc, fn = friendly_name, s = shots, fm = firemode:
+                                        _add_combat_log(f"{rl} {fn} fired {s}x({fm}), missed"))
+
+                                    current_delay +=shot_duration +(800 if is_manual else 200)
+
+                            current_delay +=TURN_PAUSE
 
                     if combat_occurred:
-                        _draw_grid()
+
+                        dg.after(current_delay +500, _draw_grid)
 
                 except Exception as e:
                     logging.debug(f"Background combat error: {e}")
@@ -26040,8 +26354,9 @@ class App:
 
                     try:
                         if dg.winfo_exists():
-                            delay = random.randint(3000, 5000)
-                            background_combat_timer[0]= dg.after(delay, _process_background_combat)# type: ignore
+
+                            next_delay = max(5000, current_delay +3000)if combat_occurred else random.randint(4000, 7000)
+                            background_combat_timer[0]= dg.after(next_delay, _process_background_combat)# type: ignore
                     except Exception:
                         pass
 
@@ -26316,46 +26631,47 @@ class App:
                     dungeon = {"floors":[], "metadata":{"generated_at":datetime.now().isoformat()}}
 
                     for floor_idx, floor_cfg in enumerate(floors_config):
-                        floor_generated = False
-                        
-                        while not floor_generated:
-                            
-                            try:
-                                enemy_count = floor_cfg.get('enemy_count')
-                                enemy_count = enemy_count.get()if hasattr(enemy_count, 'get')else(enemy_count or 10)
-                                max_diff_idx = floor_cfg.get('difficulty')
-                                max_diff_idx = max_diff_idx.get()if hasattr(max_diff_idx, 'get')else(max_diff_idx or 4)
-                                x_size = floor_cfg.get('x_size')
-                                x_size = x_size.get()if hasattr(x_size, 'get')else(x_size or 20)
-                                y_size = floor_cfg.get('y_size')
-                                y_size = y_size.get()if hasattr(y_size, 'get')else(y_size or 20)
-                                transport_type = floor_cfg.get('transport')
-                                transport_type = transport_type.get()if hasattr(transport_type, 'get')else transport_type
-                            except Exception:
-                                enemy_count, max_diff_idx, x_size, y_size, transport_type = 10, 4, 20, 20, None
 
-                            max_diff = diff_map.get(max_diff_idx, "Miniboss")
+                        try:
+                            enemy_count = floor_cfg.get('enemy_count')
+                            enemy_count = enemy_count.get()if hasattr(enemy_count, 'get')else(enemy_count or 10)
+                            max_diff_idx = floor_cfg.get('difficulty')
+                            max_diff_idx = max_diff_idx.get()if hasattr(max_diff_idx, 'get')else(max_diff_idx or 4)
+                            x_size = floor_cfg.get('x_size')
+                            x_size = x_size.get()if hasattr(x_size, 'get')else(x_size or 20)
+                            y_size = floor_cfg.get('y_size')
+                            y_size = y_size.get()if hasattr(y_size, 'get')else(y_size or 20)
+                            transport_type = floor_cfg.get('transport')
+                            transport_type = transport_type.get()if hasattr(transport_type, 'get')else transport_type
+                        except Exception:
+                            enemy_count, max_diff_idx, x_size, y_size, transport_type = 10, 4, 20, 20, None
 
-                            entrance_rooms =[r for r in rooms_table if r.get("type")=="entrance"]
-                            hallway_rooms =[r for r in rooms_table if r.get("type")=="hallway"]
-                            regular_rooms =[r for r in rooms_table if r.get("type")=="room"]
-                            transport_rooms =[r for r in rooms_table if r.get("type")=="transport"and r.get("subtype", "").lower()==(transport_type or "stairs").lower()]
+                        max_diff = diff_map.get(max_diff_idx, "Miniboss")
 
-                            logging.info(f"Loaded rooms: {len(entrance_rooms)} entrances, {len(hallway_rooms)} hallways, {len(regular_rooms)} rooms, {len(transport_rooms)} transports")
+                        entrance_rooms =[r for r in rooms_table if r.get("type")=="entrance"]
+                        hallway_rooms =[r for r in rooms_table if r.get("type")=="hallway"]
+                        regular_rooms =[r for r in rooms_table if r.get("type")=="room"]
+                        transport_rooms =[r for r in rooms_table if r.get("type")=="transport"and r.get("subtype", "").lower()==(transport_type or "stairs").lower()]
 
-                            max_diff_order = diff_order.index(max_diff)if max_diff in diff_order else len(diff_order)
-                            eligible_enemies =[e for e in enemies_table if diff_order.index(e.get("difficulty", "Medium"))<=max_diff_order if e.get("difficulty", "Medium")in diff_order]
+                        if not transport_rooms:
+                            transport_rooms =[r for r in rooms_table if r.get("type")=="transport"]
+                            logging.warning(f"No transport rooms found for subtype '{transport_type or 'stairs'}', using all transports: {len(transport_rooms)} found")
 
-                            floor_data = {
-                            "floor_number":floor_idx +1,
-                            "x_size":x_size,
-                            "y_size":y_size,
-                            "rooms":[],
-                            "connections":[],
-                            "enemies_remaining":enemy_count
-                            }
+                        logging.info(f"Loaded rooms: {len(entrance_rooms)} entrances, {len(hallway_rooms)} hallways, {len(regular_rooms)} rooms, {len(transport_rooms)} transports(subtype: {transport_type or 'stairs'})")
 
-                            grid =[[None for _ in range(x_size)]for _ in range(y_size)]
+                        max_diff_order = diff_order.index(max_diff)if max_diff in diff_order else len(diff_order)
+                        eligible_enemies =[e for e in enemies_table if diff_order.index(e.get("difficulty", "Medium"))<=max_diff_order if e.get("difficulty", "Medium")in diff_order]
+
+                        floor_data = {
+                        "floor_number":floor_idx +1,
+                        "x_size":x_size,
+                        "y_size":y_size,
+                        "rooms":[],
+                        "connections":[],
+                        "enemies_remaining":enemy_count
+                        }
+
+                        grid =[[None for _ in range(x_size)]for _ in range(y_size)]
 
                         open_attachments =[]
                         room_id = 0
@@ -26611,20 +26927,19 @@ class App:
                                     if opp_direction in to_room.get("doors_state", {}):
                                         to_room["doors_state"][opp_direction]= {"locked":is_locked, "picked":is_picked}
 
-                        # Get transport mode (Multiple/Single entrance)
                         transport_mode_var = self._dg_state.get('transport_mode')
-                        transport_mode = transport_mode_var.get() if hasattr(transport_mode_var, 'get') else 'Multiple'
-                        is_multi_entrance = transport_mode == 'Multiple'
-                        
-                        is_top_floor = floor_idx == 0
-                        is_bottom_floor = floor_idx == num_floors - 1
+                        transport_mode = transport_mode_var.get()if hasattr(transport_mode_var, 'get')else 'Multiple'
+                        is_multi_entrance = transport_mode =='Multiple'
+
+                        is_top_floor = floor_idx ==0
+                        is_bottom_floor = floor_idx ==num_floors -1
                         is_middle_floor = not is_top_floor and not is_bottom_floor
-                        
+
                         start_x = random.randint(1, x_size -2)
                         start_y = random.randint(1, y_size -2)
-                        
+
                         if is_top_floor and entrance_rooms:
-                            # Top floor: place dungeon entrance
+
                             entrance_template = random.choice(entrance_rooms)
                             rotation = random.randint(0, 3)
                             rotated_entrance = _rotate_room_template(entrance_template, rotation)
@@ -26632,22 +26947,21 @@ class App:
                             _place_room(entrance, start_x, start_y)
                             room_id +=1
                         elif transport_rooms:
-                            # Non-top floors: place transport room as entry point (from floor above)
+
                             entry_transport_template = random.choice(transport_rooms)
                             rotation = random.randint(0, 3)
                             rotated_transport = _rotate_room_template(entry_transport_template, rotation)
                             entry_transport = _prepare_room(rotated_transport, room_id, start_x, start_y)
-                            entry_transport["leads_to_floor"] = floor_idx  # Goes UP to floor above (1-indexed)
-                            entry_transport["is_entry_transport"] = True
+                            entry_transport["leads_to_floor"]= floor_idx
+                            entry_transport["is_entry_transport"]= True
                             _place_room(entry_transport, start_x, start_y)
                             room_id +=1
-                            
-                            # For middle floors with single entrance mode, this transport goes both ways
+
                             if is_middle_floor and not is_multi_entrance:
-                                entry_transport["leads_to_floor"] = floor_idx  # UP
-                                entry_transport["also_leads_to_floor"] = floor_idx + 2  # DOWN (1-indexed)
+                                entry_transport["leads_to_floor"]= floor_idx
+                                entry_transport["also_leads_to_floor"]= floor_idx +2
                         else:
-                            # Fallback to hallway if no transport rooms available
+
                             if hallway_rooms:
                                 entry_hallway = _find_fitting_room("bottom", hallway_rooms, start_x, start_y)
                                 if entry_hallway:
@@ -26657,20 +26971,16 @@ class App:
                                     room_id +=1
 
                         target_rooms = max(15, (x_size *y_size)//6)
-                        # Need transport DOWN if:
-                        # - Top floor: always needs one DOWN
-                        # - Middle floor with multi-entrance: needs separate transport DOWN
-                        # - Middle floor with single-entrance: entry transport already handles both directions
-                        # - Bottom floor: never needs transport DOWN
+
                         need_transport_down = False
                         if is_top_floor and not is_bottom_floor:
-                            need_transport_down = True  # Top floor needs transport to floor below
+                            need_transport_down = True
                         elif is_middle_floor and is_multi_entrance:
-                            need_transport_down = True  # Multi-entrance middle floors need separate down transport
-                        # Single entrance middle floors don't need separate down transport (entry handles both)
-                        # Bottom floor never needs down transport
-                        
-                        need_transport = need_transport_down  # Legacy variable for compatibility
+                            need_transport_down = True
+
+                        logging.info(f"Floor {floor_idx +1}: is_top={is_top_floor}, is_bottom={is_bottom_floor}, is_middle={is_middle_floor}, need_transport_down={need_transport_down}, transport_rooms={len(transport_rooms)}")
+
+                        need_transport = need_transport_down
                         max_iterations = target_rooms *20
                         iterations = 0
 
@@ -26805,6 +27115,27 @@ class App:
                             _connect_rooms(from_room_id, room_id, from_direction)
                             room_id +=1
 
+                        transport_placed_early = False
+                        if need_transport and transport_rooms and open_attachments:
+                            logging.info(f"Floor {floor_idx +1}: Attempting early transport placement, {len(open_attachments)} open attachments")
+
+                            for i, (from_room_id, from_direction, target_x, target_y)in enumerate(list(open_attachments)):
+                                if grid[target_y][target_x]is not None:
+                                    continue
+                                needed_attachment = opposite_dir[from_direction]
+                                transport_template = _find_fitting_room(needed_attachment, transport_rooms, target_x, target_y)
+                                if transport_template:
+                                    transport = _prepare_room(transport_template, room_id, target_x, target_y)
+                                    transport["leads_to_floor"]= floor_idx +2
+                                    transport["is_exit_transport"]= True
+                                    _place_room(transport, target_x, target_y)
+                                    _connect_rooms(from_room_id, room_id, from_direction)
+                                    open_attachments.pop(i)
+                                    room_id +=1
+                                    transport_placed_early = True
+                                    logging.info(f"Placed exit transport(early) on floor {floor_idx +1} at({target_x}, {target_y})")
+                                    break
+
                         fill_iterations = 0
                         max_fill = len(open_attachments)*2
                         while open_attachments and fill_iterations <max_fill:
@@ -26836,27 +27167,34 @@ class App:
                                 _connect_rooms(from_room_id, room_id, from_direction)
                                 room_id +=1
 
-                        if need_transport and transport_rooms:
+                        if need_transport and transport_rooms and not transport_placed_early:
                             placed_transport = False
 
                             for i, (from_room_id, from_direction, target_x, target_y)in enumerate(list(open_attachments)):
                                 if grid[target_y][target_x]is not None:
                                     continue
                                 needed_attachment = opposite_dir[from_direction]
+
                                 transport_template = _find_fitting_room(needed_attachment, transport_rooms, target_x, target_y)
                                 if transport_template:
                                     transport = _prepare_room(transport_template, room_id, target_x, target_y)
-                                    transport["leads_to_floor"]= floor_idx +2  # Goes DOWN to next floor (1-indexed)
-                                    transport["is_exit_transport"] = True  # Mark as exit (going down)
+                                    transport["leads_to_floor"]= floor_idx +2
+                                    transport["is_exit_transport"]= True
                                     _place_room(transport, target_x, target_y)
                                     _connect_rooms(from_room_id, room_id, from_direction)
                                     open_attachments.pop(i)
                                     room_id +=1
                                     placed_transport = True
+                                    logging.info(f"Placed exit transport on floor {floor_idx +1} at({target_x}, {target_y})")
                                     break
 
                             if not placed_transport:
+
                                 for room in floor_data["rooms"]:
+                                    if placed_transport:
+                                        break
+                                    if room.get("type")=="transport":
+                                        continue
                                     rx, ry = room["position"]["x"], room["position"]["y"]
                                     for att in _get_room_attachments(room):
                                         dx, dy = dir_offset[att]
@@ -26866,15 +27204,14 @@ class App:
                                             transport_template = _find_fitting_room(needed_attachment, transport_rooms, nx, ny)
                                             if transport_template:
                                                 transport = _prepare_room(transport_template, room_id, nx, ny)
-                                                transport["leads_to_floor"]= floor_idx +2  # Goes DOWN (1-indexed)
-                                                transport["is_exit_transport"] = True
+                                                transport["leads_to_floor"]= floor_idx +2
+                                                transport["is_exit_transport"]= True
                                                 _place_room(transport, nx, ny)
                                                 _connect_rooms(room["room_id"], room_id, att)
                                                 room_id +=1
                                                 placed_transport = True
+                                                logging.info(f"Placed exit transport on floor {floor_idx +1} at({nx}, {ny}) via room search")
                                                 break
-                                    if placed_transport:
-                                        break
 
                         final_pass = 0
                         max_final = 100
@@ -26918,17 +27255,114 @@ class App:
 
                             room_id +=1
 
-                        # Check if transport was placed when needed (after all room generation)
-                        # need_transport_down was calculated earlier based on floor position and entrance mode
-                        has_exit_transport = any(r.get("is_exit_transport") for r in floor_data["rooms"])
-                        
-                        if need_transport_down and not has_exit_transport:
-                            # Transport DOWN needed but not placed - retry this floor
-                            logging.warning(f"Floor {floor_idx + 1} missing exit transport, regenerating floor...")
-                            continue  # Continue the while loop to retry floor generation
-                        
-                        # Floor is valid, add it
-                        floor_generated = True
+                        has_exit_transport = any(r.get("is_exit_transport")for r in floor_data["rooms"])
+
+                        if need_transport_down and not has_exit_transport and transport_rooms:
+
+                            logging.warning(f"Floor {floor_idx +1} missing exit transport, forcing placement...")
+
+                            transport_placed = False
+                            for room in floor_data["rooms"]:
+                                if transport_placed:
+                                    break
+                                if room.get("type")=="transport":
+                                    continue
+                                rx, ry = room["position"]["x"], room["position"]["y"]
+                                for att in _get_room_attachments(room):
+                                    dx, dy = dir_offset[att]
+                                    nx, ny = rx +dx, ry +dy
+                                    if 0 <=nx <x_size and 0 <=ny <y_size and grid[ny][nx]is None:
+                                        needed_attachment = opposite_dir[att]
+
+                                        transport_template = _find_fitting_room(needed_attachment, transport_rooms, nx, ny)
+                                        if transport_template:
+                                            transport = _prepare_room(transport_template, room_id, nx, ny)
+                                            transport["leads_to_floor"]= floor_idx +2
+                                            transport["is_exit_transport"]= True
+                                            grid[ny][nx]= room_id
+                                            floor_data["rooms"].append(transport)
+                                            _connect_rooms(room["room_id"], room_id, att)
+                                            room_id +=1
+                                            transport_placed = True
+                                            logging.info(f"Forced transport placement on floor {floor_idx +1} at({nx}, {ny})")
+                                            break
+
+                            if not transport_placed:
+                                logging.warning(f"Floor {floor_idx +1} - forcing transport with manual rotation...")
+                                for room in floor_data["rooms"]:
+                                    if transport_placed:
+                                        break
+                                    if room.get("type")=="transport":
+                                        continue
+                                    rx, ry = room["position"]["x"], room["position"]["y"]
+                                    for att in _get_room_attachments(room):
+                                        dx, dy = dir_offset[att]
+                                        nx, ny = rx +dx, ry +dy
+                                        if 0 <=nx <x_size and 0 <=ny <y_size and grid[ny][nx]is None:
+                                            needed_attachment = opposite_dir[att]
+
+                                            for transport_template in transport_rooms:
+                                                if transport_placed:
+                                                    break
+                                                for rot in range(4):
+                                                    rotated = _rotate_room_template(transport_template, rot)
+                                                    if needed_attachment in _get_room_attachments(rotated):
+                                                        transport = _prepare_room(rotated, room_id, nx, ny)
+                                                        transport["leads_to_floor"]= floor_idx +2
+                                                        transport["is_exit_transport"]= True
+                                                        grid[ny][nx]= room_id
+                                                        floor_data["rooms"].append(transport)
+                                                        _connect_rooms(room["room_id"], room_id, att)
+                                                        room_id +=1
+                                                        transport_placed = True
+                                                        logging.info(f"Forced rotated transport on floor {floor_idx +1} at({nx}, {ny})")
+                                                        break
+                                            if transport_placed:
+                                                break
+
+                            if not transport_placed:
+                                logging.warning(f"Floor {floor_idx +1} - last resort transport placement...")
+                                for room in floor_data["rooms"]:
+                                    if transport_placed:
+                                        break
+                                    if room.get("type")=="transport":
+                                        continue
+                                    rx, ry = room["position"]["x"], room["position"]["y"]
+
+                                    for direction in["top", "bottom", "left", "right"]:
+                                        dx, dy = dir_offset[direction]
+                                        nx, ny = rx +dx, ry +dy
+                                        if 0 <=nx <x_size and 0 <=ny <y_size and grid[ny][nx]is None:
+                                            needed_attachment = opposite_dir[direction]
+
+                                            for transport_template in transport_rooms:
+                                                if transport_placed:
+                                                    break
+                                                for rot in range(4):
+                                                    rotated = _rotate_room_template(transport_template, rot)
+                                                    if needed_attachment in _get_room_attachments(rotated):
+                                                        transport = _prepare_room(rotated, room_id, nx, ny)
+                                                        transport["leads_to_floor"]= floor_idx +2
+                                                        transport["is_exit_transport"]= True
+                                                        grid[ny][nx]= room_id
+                                                        floor_data["rooms"].append(transport)
+
+                                                        floor_data["connections"].append({
+                                                        "from_room":room["room_id"],
+                                                        "to_room":room_id,
+                                                        "direction":direction,
+                                                        "forced":True
+                                                        })
+                                                        room_id +=1
+                                                        transport_placed = True
+                                                        logging.info(f"Last resort transport on floor {floor_idx +1} at({nx}, {ny})")
+                                                        break
+                                            if transport_placed:
+                                                break
+
+                            if not transport_placed:
+                                logging.error(f"Floor {floor_idx +1} - FAILED to place exit transport!")
+
                         dungeon["floors"].append(floor_data)
 
                     self._dg_state['generated_dungeon']= dungeon
@@ -26991,15 +27425,15 @@ class App:
 
                     current_room = _get_current_room()
                     if current_room and current_room.get("type")=="transport":
-                        # Handle entry transport (goes UP to floor above)
-                        if current_room.get("is_entry_transport") and current_room.get("leads_to_floor"):
-                            exits.append({"direction":"up", "to_floor":current_room["leads_to_floor"]-1, "type":"transport", "label": f"↑ Floor {current_room['leads_to_floor']}"})
-                        # Handle exit transport (goes DOWN to floor below)
-                        if current_room.get("is_exit_transport") and current_room.get("leads_to_floor"):
-                            exits.append({"direction":"down", "to_floor":current_room["leads_to_floor"]-1, "type":"transport", "label": f"↓ Floor {current_room['leads_to_floor']}"})
-                        # Handle single-entrance bidirectional transport (also goes DOWN)
+
+                        if current_room.get("is_entry_transport")and current_room.get("leads_to_floor"):
+                            exits.append({"direction":"up", "to_floor":current_room["leads_to_floor"]-1, "type":"transport", "label":f"↑ Floor {current_room['leads_to_floor']}"})
+
+                        if current_room.get("is_exit_transport")and current_room.get("leads_to_floor"):
+                            exits.append({"direction":"down", "to_floor":current_room["leads_to_floor"]-1, "type":"transport", "label":f"↓ Floor {current_room['leads_to_floor']}"})
+
                         if current_room.get("also_leads_to_floor"):
-                            exits.append({"direction":"down", "to_floor":current_room["also_leads_to_floor"]-1, "type":"transport", "label": f"↓ Floor {current_room['also_leads_to_floor']}"})
+                            exits.append({"direction":"down", "to_floor":current_room["also_leads_to_floor"]-1, "type":"transport", "label":f"↓ Floor {current_room['also_leads_to_floor']}"})
 
                     return exits
                 except Exception:
@@ -27030,42 +27464,40 @@ class App:
                     if exit_info.get("type")=="transport":
 
                         next_floor = exit_info.get("to_floor", 0)
-                        direction = exit_info.get("direction")  # "up" or "down"
+                        direction = exit_info.get("direction")
                         dungeon = self._dg_state.get('generated_dungeon')
                         current_floor = self._dg_state.get('current_floor', 0)
                         if dungeon and next_floor <len(dungeon["floors"]):
                             self._dg_state['current_floor']= next_floor
 
-                            # Find the appropriate transport room on the destination floor
                             dest_room_id = None
-                            
-                            if next_floor == 0:
-                                # Going to top floor: find entrance
+
+                            if next_floor ==0:
+
                                 for room in dungeon["floors"][next_floor]["rooms"]:
                                     if room.get("type")=="entrance":
                                         dest_room_id = room["room_id"]
                                         break
-                            elif direction == "up":
-                                # Going UP: find the exit transport (that leads down to current floor)
+                            elif direction =="up":
+
                                 for room in dungeon["floors"][next_floor]["rooms"]:
-                                    if room.get("is_exit_transport") and room.get("leads_to_floor") == current_floor + 1:
+                                    if room.get("is_exit_transport")and room.get("leads_to_floor")==current_floor +1:
                                         dest_room_id = room["room_id"]
                                         break
-                                    # Also check bidirectional transports
-                                    if room.get("also_leads_to_floor") == current_floor + 1:
+
+                                    if room.get("also_leads_to_floor")==current_floor +1:
                                         dest_room_id = room["room_id"]
                                         break
                             else:
-                                # Going DOWN: find the entry transport (that leads up to current floor)
+
                                 for room in dungeon["floors"][next_floor]["rooms"]:
-                                    if room.get("is_entry_transport") and room.get("leads_to_floor") == current_floor + 1:
+                                    if room.get("is_entry_transport")and room.get("leads_to_floor")==current_floor +1:
                                         dest_room_id = room["room_id"]
                                         break
-                            
-                            # Fallback to first room if no matching transport found
+
                             if dest_room_id is None:
-                                dest_room_id = dungeon["floors"][next_floor]["rooms"][0]["room_id"] if dungeon["floors"][next_floor]["rooms"] else 0
-                            
+                                dest_room_id = dungeon["floors"][next_floor]["rooms"][0]["room_id"]if dungeon["floors"][next_floor]["rooms"]else 0
+
                             self._dg_state['current_room_id']= dest_room_id
                     else:
 
@@ -27167,15 +27599,15 @@ class App:
                         info_parts.append(f"Loot: {len(loot_spawn)} spawn point(s)")
 
                     if room.get("type")=="transport":
-                        transport_info = []
-                        if room.get("is_entry_transport") and room.get("leads_to_floor"):
+                        transport_info =[]
+                        if room.get("is_entry_transport")and room.get("leads_to_floor"):
                             transport_info.append(f"↑ Floor {room.get('leads_to_floor')}")
-                        if room.get("is_exit_transport") and room.get("leads_to_floor"):
+                        if room.get("is_exit_transport")and room.get("leads_to_floor"):
                             transport_info.append(f"↓ Floor {room.get('leads_to_floor')}")
                         if room.get("also_leads_to_floor"):
                             transport_info.append(f"↓ Floor {room.get('also_leads_to_floor')}")
                         if transport_info:
-                            info_parts.append("Transport: " + ", ".join(transport_info))
+                            info_parts.append("Transport: "+", ".join(transport_info))
                         else:
                             info_parts.append(f"Transport to Floor {room.get('leads_to_floor', '?')}")
 
@@ -27264,34 +27696,31 @@ class App:
                     logging.debug(f"Arrow key handling error: {e}")
 
             def _handle_floor_transport(event):
-                """Handle Shift+Up/Down for floor transport at transport tiles"""
+
                 try:
                     room = _get_current_room()
-                    if not room or room.get("type") != "transport":
+                    if not room or room.get("type")!="transport":
                         return
-                    
-                    # Check for enemies blocking movement
-                    enemies = [e for e in room.get("enemies", []) if e.get("alive", True)]
+
+                    enemies =[e for e in room.get("enemies", [])if e.get("alive", True)]
                     if enemies:
                         return
-                    
-                    # Determine direction based on key
+
                     transport_direction = None
-                    if event.keysym == "Up":
+                    if event.keysym =="Up":
                         transport_direction = "up"
-                    elif event.keysym == "Down":
+                    elif event.keysym =="Down":
                         transport_direction = "down"
-                    
+
                     if not transport_direction:
                         return
-                    
-                    # Find matching transport exit
+
                     exits = _get_available_exits()
                     for exit_info in exits:
-                        if exit_info.get("type") == "transport" and exit_info.get("direction") == transport_direction:
+                        if exit_info.get("type")=="transport"and exit_info.get("direction")==transport_direction:
                             _move_to_room(exit_info)
                             return
-                
+
                 except Exception as e:
                     logging.debug(f"Floor transport handling error: {e}")
 
@@ -27309,7 +27738,6 @@ class App:
             dg.bind("<A>", lambda e:_handle_arrow_key(type('Event', (), {'keysym':'Left'})()))
             dg.bind("<D>", lambda e:_handle_arrow_key(type('Event', (), {'keysym':'Right'})()))
 
-            # Shift+Up/Down for floor transport
             dg.bind("<Shift-Up>", lambda e:_handle_floor_transport(type('Event', (), {'keysym':'Up'})()))
             dg.bind("<Shift-Down>", lambda e:_handle_floor_transport(type('Event', (), {'keysym':'Down'})()))
             dg.bind("<Shift-w>", lambda e:_handle_floor_transport(type('Event', (), {'keysym':'Up'})()))
