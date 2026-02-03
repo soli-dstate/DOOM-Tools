@@ -7808,6 +7808,19 @@
                 "id": 329,
                 "melee": true,
                 "type": "two handed"
+            },
+            {
+                "name": "Halligan Bar",
+                "value": 110,
+                "description": "A multipurpose tool used by firefighters and law enforcement. Can be used for breaching doors and as a melee weapon.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 2.0,
+                "id": 455,
+                "melee": true,
+                "type": "two handed",
+                "in_armory": true,
+                "armory_category": "Melee Weapons"
             }
         ],
         "throwables": [
@@ -8854,7 +8867,7 @@
             {
                 "name": "CheyTac M200 Intervention",
                 "value": 15000,
-                "description": "A high-end sniper rifle designed for extreme long-range precision, chambered in .50 BMG.",
+                "description": "A ",
                 "rarity": "Legendary",
                 "random_quantity": false,
                 "weight": 14,

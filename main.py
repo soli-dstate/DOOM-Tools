@@ -1,4 +1,4 @@
-version = "1.0.7"
+version = "1.0.8"
 
 import os
 import logging
@@ -25312,7 +25312,8 @@ class App:
 
             dg.title("Dungeon Generator")
             dg.transient(self.root)
-            dg.geometry("700x650")
+            dg.geometry("900x700")
+            dg.minsize(700, 550)
 
             self._dg_map_window = None
 
@@ -25325,6 +25326,17 @@ class App:
                         except Exception:
                             pass
                         background_combat_timer[0]= None
+                except Exception:
+                    pass
+                try:
+
+                    continuous_gen_active[0]= False
+                    if continuous_gen_timer[0]:
+                        try:
+                            dg.after_cancel(continuous_gen_timer[0])
+                        except Exception:
+                            pass
+                        continuous_gen_timer[0]= None
                 except Exception:
                     pass
                 try:
@@ -25622,10 +25634,23 @@ class App:
                             info_lines.append(f"Room: {room.get('name', 'Unknown')}")
                             info_lines.append(f"Type: {room.get('type', 'unknown')}")
 
-                            enemies = room.get("enemies", [])
+                            enemies =[e for e in room.get("enemies", [])if e.get("alive", True)]
                             if enemies:
-                                enemy_names =[e.get("name", "Unknown")for e in enemies]
-                                info_lines.append(f"Enemies: {', '.join(enemy_names)}")
+                                enemy_info =[]
+                                for e in enemies:
+                                    name = e.get("name", "Unknown")
+                                    health = e.get("health", 100)
+                                    enemy_info.append(f"{name}({health}HP)")
+                                info_lines.append(f"Enemies: {', '.join(enemy_info)}")
+
+                            friendlies =[f for f in room.get("friendlies", [])if f.get("alive", True)]
+                            if friendlies:
+                                friendly_info =[]
+                                for f in friendlies:
+                                    name = f.get("name", "Unknown")
+                                    health = f.get("health", 100)
+                                    friendly_info.append(f"{name}({health}HP)")
+                                info_lines.append(f"Friendlies: {', '.join(friendly_info)}")
 
                             loot_spawn = room.get("loot_spawn", [])
                             if loot_spawn:
@@ -25728,6 +25753,37 @@ class App:
 
                 _draw_grid()
 
+            def _flash_muzzle(rx, ry, original_color):
+
+                try:
+                    if not grid_canvas[0]or not grid_canvas[0].winfo_exists():
+                        return
+                    if(rx, ry)not in grid_tiles:
+                        return
+
+                    tile_id = grid_tiles[(rx, ry)]
+
+                    grid_canvas[0].itemconfigure(tile_id, fill = "#ffff00")
+
+                    def restore():
+                        try:
+                            if grid_canvas[0]and grid_canvas[0].winfo_exists()and(rx, ry)in grid_tiles:
+                                grid_canvas[0].itemconfigure(grid_tiles[(rx, ry)], fill = original_color)
+                        except Exception:
+                            pass
+
+                    dg.after(80, restore)
+                except Exception:
+                    pass
+
+            def _schedule_muzzle_flashes(rx, ry, shots, cyclic_delay, start_delay):
+
+                combat_color = "#cc6633"
+
+                for i in range(shots):
+                    shot_delay = start_delay +(i *cyclic_delay)
+                    dg.after(shot_delay, lambda x = rx, y = ry, c = combat_color:_flash_muzzle(x, y, c))
+
             def _draw_grid():
 
                 try:
@@ -25782,7 +25838,7 @@ class App:
                         elif enemies:
                             fill_color = "#cc3333"
                         elif friendlies:
-                            fill_color = "#cc3333"
+                            fill_color = "#3366cc"
                         elif has_pending_loot:
                             fill_color = "#33cc33"
                         elif loot_spawn:
@@ -25835,7 +25891,7 @@ class App:
                             indicator = "R"
 
                         if indicator:
-                            text_color = "#000000"if fill_color in["#e0e0e0", "#33cc33", "#808080", "#3399ff"]else "#ffffff"
+                            text_color = "#000000"if fill_color in["#e0e0e0", "#33cc33", "#808080", "#3399ff", "#3366cc"]else "#ffffff"
                             grid_canvas[0].create_text(x1 +TILE_SIZE //2, y1 +TILE_SIZE //2, text = indicator, fill = text_color, font =("Arial", 8, "bold"))
 
                     for conn in floor.get("connections", []):
@@ -25906,16 +25962,344 @@ class App:
                     pass
 
             background_combat_timer =[None]
+            continuous_gen_active =[False]
+            continuous_gen_timer =[None]
+            map_editor_window =[None]
+
+            def _open_map_editor():
+
+                try:
+                    if map_editor_window[0]and map_editor_window[0].winfo_exists():
+                        map_editor_window[0].focus_force()
+                        map_editor_window[0].lift()
+                        return
+                except Exception:
+                    pass
+
+                try:
+                    theme = customtkinter.ThemeManager.theme
+                    toplevel_fg = theme.get('CTkToplevel', {}).get('fg_color')
+                except Exception:
+                    toplevel_fg = None
+
+                if toplevel_fg:
+                    editor_win = customtkinter.CTkToplevel(dg, fg_color = toplevel_fg)
+                else:
+                    editor_win = customtkinter.CTkToplevel(dg)
+
+                editor_win.title("Map Editor")
+                editor_win.transient(dg)
+                editor_win.geometry("800x600")
+                editor_win.minsize(600, 400)
+                map_editor_window[0]= editor_win # type: ignore
+
+                editor_state = {
+                'current_tool':'select',
+                'selected_room':None,
+                'grid_size_x':20,
+                'grid_size_y':20,
+                }
+
+                def _on_editor_close():
+                    try:
+                        map_editor_window[0]= None
+                        editor_win.destroy()
+                    except Exception:
+                        pass
+
+                editor_win.protocol("WM_DELETE_WINDOW", _on_editor_close)
+
+                editor_frame = customtkinter.CTkFrame(editor_win)
+                editor_frame.pack(fill = "both", expand = True, padx = 8, pady = 8)
+
+                toolbar = customtkinter.CTkFrame(editor_frame)
+                toolbar.pack(fill = "x", pady = 4)
+
+                tool_label = customtkinter.CTkLabel(toolbar, text = "Tool:")
+                tool_label.pack(side = "left", padx = 4)
+
+                tool_buttons = {}
+
+                def _set_tool(tool_name):
+                    editor_state['current_tool']= tool_name
+                    for name, btn in tool_buttons.items():
+                        if name ==tool_name:
+                            btn.configure(fg_color =("#3B8ED0", "#1F6AA5"))
+                        else:
+                            btn.configure(fg_color =("gray70", "gray30"))
+
+                for tool in['select', 'room', 'hallway', 'transport', 'entrance', 'delete']:
+                    btn = customtkinter.CTkButton(toolbar, text = tool.capitalize(), width = 70,
+                    command = lambda t = tool:_set_tool(t),
+                    fg_color =("gray70", "gray30"))
+                    btn.pack(side = "left", padx = 2)
+                    tool_buttons[tool]= btn
+
+                tool_buttons['select'].configure(fg_color =("#3B8ED0", "#1F6AA5"))
+
+                size_frame = customtkinter.CTkFrame(toolbar)
+                size_frame.pack(side = "right", padx = 8)
+
+                def _update_grid_size():
+                    try:
+                        editor_state['grid_size_x']= int(x_size_entry.get())
+                        editor_state['grid_size_y']= int(y_size_entry.get())
+                        _redraw_editor_grid()
+                    except ValueError:
+                        pass
+
+                customtkinter.CTkLabel(size_frame, text = "X:").pack(side = "left")
+                x_size_entry = customtkinter.CTkEntry(size_frame, width = 40)
+                x_size_entry.insert(0, "20")
+                x_size_entry.pack(side = "left", padx = 2)
+
+                customtkinter.CTkLabel(size_frame, text = "Y:").pack(side = "left")
+                y_size_entry = customtkinter.CTkEntry(size_frame, width = 40)
+                y_size_entry.insert(0, "20")
+                y_size_entry.pack(side = "left", padx = 2)
+
+                resize_btn = customtkinter.CTkButton(size_frame, text = "Resize", width = 60, command = _update_grid_size)
+                resize_btn.pack(side = "left", padx = 4)
+
+                canvas_frame = customtkinter.CTkFrame(editor_frame)
+                canvas_frame.pack(fill = "both", expand = True, pady = 4)
+
+                editor_canvas = _tk.Canvas(canvas_frame, bg = "#1a1a1a", highlightthickness = 0)
+                editor_canvas.pack(fill = "both", expand = True)
+
+                EDITOR_TILE_SIZE = 25
+                editor_rooms = {}
+                editor_connections =[]
+                room_id_counter =[0]
+
+                def _redraw_editor_grid():
+                    editor_canvas.delete("all")
+                    x_size = editor_state['grid_size_x']
+                    y_size = editor_state['grid_size_y']
+
+                    for x in range(x_size +1):
+                        editor_canvas.create_line(x *EDITOR_TILE_SIZE, 0,
+                        x *EDITOR_TILE_SIZE, y_size *EDITOR_TILE_SIZE,
+                        fill = "#333333")
+                    for y in range(y_size +1):
+                        editor_canvas.create_line(0, y *EDITOR_TILE_SIZE,
+                        x_size *EDITOR_TILE_SIZE, y *EDITOR_TILE_SIZE,
+                        fill = "#333333")
+
+                    for(rx, ry), room in editor_rooms.items():
+                        x1 = rx *EDITOR_TILE_SIZE
+                        y1 = ry *EDITOR_TILE_SIZE
+                        x2 = x1 +EDITOR_TILE_SIZE -1
+                        y2 = y1 +EDITOR_TILE_SIZE -1
+
+                        room_type = room.get("type", "room")
+                        if room_type =="entrance":
+                            color = "#ffcc00"
+                        elif room_type =="transport":
+                            color = "#3399ff"
+                        elif room_type =="hallway":
+                            color = "#666666"
+                        else:
+                            color = "#808080"
+
+                        editor_canvas.create_rectangle(x1, y1, x2, y2, fill = color, outline = "#ffffff")
+
+                        indicator = room_type[0].upper()
+                        editor_canvas.create_text(x1 +EDITOR_TILE_SIZE //2, y1 +EDITOR_TILE_SIZE //2,
+                        text = indicator, fill = "#ffffff", font =("Arial", 10, "bold"))
+
+                    for conn in editor_connections:
+                        if conn['from']in editor_rooms and conn['to']in editor_rooms:
+                            fx, fy = conn['from']
+                            tx, ty = conn['to']
+                            editor_canvas.create_line(
+                            fx *EDITOR_TILE_SIZE +EDITOR_TILE_SIZE //2,
+                            fy *EDITOR_TILE_SIZE +EDITOR_TILE_SIZE //2,
+                            tx *EDITOR_TILE_SIZE +EDITOR_TILE_SIZE //2,
+                            ty *EDITOR_TILE_SIZE +EDITOR_TILE_SIZE //2,
+                            fill = "#00ff00", width = 2
+                            )
+
+                def _on_editor_click(event):
+                    x = event.x //EDITOR_TILE_SIZE
+                    y = event.y //EDITOR_TILE_SIZE
+
+                    if x <0 or x >=editor_state['grid_size_x']or y <0 or y >=editor_state['grid_size_y']:
+                        return
+
+                    tool = editor_state['current_tool']
+
+                    if tool =='select':
+                        editor_state['selected_room']=(x, y)if(x, y)in editor_rooms else None
+                    elif tool =='delete':
+                        if(x, y)in editor_rooms:
+                            del editor_rooms[(x, y)]
+
+                            editor_connections[:]=[c for c in editor_connections
+                            if c['from']!=(x, y)and c['to']!=(x, y)]
+                    elif tool in['room', 'hallway', 'transport', 'entrance']:
+                        if(x, y)not in editor_rooms:
+                            room_id_counter[0]+=1
+                            editor_rooms[(x, y)]= {
+                            'room_id':room_id_counter[0],
+                            'type':tool,
+                            'name':f"{tool.capitalize()} {room_id_counter[0]}",
+                            'position':{'x':x, 'y':y},
+                            'attachment_points':[],
+                            'doors':[],
+                            'enemies':[],
+                            'friendlies':[],
+                            'loot_spawn':[],
+                            }
+
+                            for dx, dy, direction in[(0, -1, 'top'), (0, 1, 'bottom'), (-1, 0, 'left'), (1, 0, 'right')]:
+                                adj =(x +dx, y +dy)
+                                if adj in editor_rooms:
+                                    editor_connections.append({'from':(x, y), 'to':adj, 'direction':direction})
+
+                    _redraw_editor_grid()
+
+                editor_canvas.bind("<Button-1>", _on_editor_click)
+
+                bottom_frame = customtkinter.CTkFrame(editor_frame)
+                bottom_frame.pack(fill = "x", pady = 4)
+
+                def _apply_to_dungeon():
+
+                    if not editor_rooms:
+                        self._popup_show_info("Error", "No rooms placed!", sound = "error")
+                        return
+
+                    floor_data = {
+                    'floor_number':1,
+                    'x_size':editor_state['grid_size_x'],
+                    'y_size':editor_state['grid_size_y'],
+                    'rooms':[],
+                    'connections':[],
+                    'enemies_remaining':0
+                    }
+
+                    for(rx, ry), room in editor_rooms.items():
+                        floor_data['rooms'].append(room.copy())
+
+                    for conn in editor_connections:
+                        from_room = editor_rooms.get(conn['from'])
+                        to_room = editor_rooms.get(conn['to'])
+                        if from_room and to_room:
+                            floor_data['connections'].append({
+                            'from_room':from_room['room_id'],
+                            'to_room':to_room['room_id'],
+                            'direction':conn.get('direction', 'bottom')
+                            })
+
+                    dungeon = {
+                    'floors':[floor_data],
+                    'metadata':{'generated_at':datetime.now().isoformat(), 'manual_edit':True}
+                    }
+
+                    self._dg_state['generated_dungeon']= dungeon
+                    self._dg_state['current_floor']= 0
+
+                    start_room = None
+                    for room in floor_data['rooms']:
+                        if room.get('type')=='entrance':
+                            start_room = room['room_id']
+                            break
+                    if start_room is None and floor_data['rooms']:
+                        start_room = floor_data['rooms'][0]['room_id']
+                    self._dg_state['current_room_id']= start_room
+
+                    _update_display()
+                    _draw_grid()
+                    self._popup_show_info("Map Editor", f"Applied layout with {len(floor_data['rooms'])} rooms!")
+
+                def _clear_editor():
+                    editor_rooms.clear()
+                    editor_connections.clear()
+                    room_id_counter[0]= 0
+                    _redraw_editor_grid()
+
+                def _load_current_floor():
+
+                    dungeon = self._dg_state.get('generated_dungeon')
+                    if not dungeon or not dungeon.get('floors'):
+                        self._popup_show_info("Error", "No dungeon to load!", sound = "error")
+                        return
+
+                    floor_idx = self._dg_state.get('current_floor', 0)
+                    floor = dungeon['floors'][floor_idx]
+
+                    editor_rooms.clear()
+                    editor_connections.clear()
+
+                    editor_state['grid_size_x']= floor.get('x_size', 20)
+                    editor_state['grid_size_y']= floor.get('y_size', 20)
+                    x_size_entry.delete(0, 'end')
+                    x_size_entry.insert(0, str(editor_state['grid_size_x']))
+                    y_size_entry.delete(0, 'end')
+                    y_size_entry.insert(0, str(editor_state['grid_size_y']))
+
+                    max_id = 0
+                    for room in floor.get('rooms', []):
+                        pos = room.get('position', {})
+                        rx, ry = pos.get('x', 0), pos.get('y', 0)
+                        editor_rooms[(rx, ry)]= room.copy()
+                        max_id = max(max_id, room.get('room_id', 0))
+
+                    room_id_counter[0]= max_id
+
+                    for conn in floor.get('connections', []):
+                        from_id = conn.get('from_room')
+                        to_id = conn.get('to_room')
+                        from_pos = None
+                        to_pos = None
+                        for(pos, room)in editor_rooms.items():
+                            if room.get('room_id')==from_id:
+                                from_pos = pos
+                            if room.get('room_id')==to_id:
+                                to_pos = pos
+                        if from_pos and to_pos:
+                            editor_connections.append({
+                            'from':from_pos,
+                            'to':to_pos,
+                            'direction':conn.get('direction')
+                            })
+
+                    _redraw_editor_grid()
+                    self._popup_show_info("Map Editor", f"Loaded floor {floor_idx +1} with {len(editor_rooms)} rooms")
+
+                apply_btn = customtkinter.CTkButton(bottom_frame, text = "Apply to Dungeon", width = 120, command = _apply_to_dungeon)
+                apply_btn.pack(side = "left", padx = 4)
+
+                load_btn = customtkinter.CTkButton(bottom_frame, text = "Load Current Floor", width = 120, command = _load_current_floor)
+                load_btn.pack(side = "left", padx = 4)
+
+                clear_btn = customtkinter.CTkButton(bottom_frame, text = "Clear", width = 80, command = _clear_editor)
+                clear_btn.pack(side = "left", padx = 4)
+
+                close_btn = customtkinter.CTkButton(bottom_frame, text = "Close", width = 80, command = _on_editor_close)
+                close_btn.pack(side = "right", padx = 4)
+
+                info_label = customtkinter.CTkLabel(editor_frame,
+                text = "Click to place rooms.Select tool to view, Delete to remove.Rooms auto-connect to neighbors.",
+                font = customtkinter.CTkFont(size = 10))
+                info_label.pack(pady = 2)
+
+                _redraw_editor_grid()
 
             map_btn_frame = customtkinter.CTkFrame(dungeon_display_frame)
             map_btn_frame.pack(fill = 'x', pady = 4)
             open_map_btn = customtkinter.CTkButton(map_btn_frame, text = "Open Map", width = 120, command = lambda:_open_map_window())
             open_map_btn.pack(side = 'left', padx = 6)
 
+            edit_map_btn = customtkinter.CTkButton(map_btn_frame, text = "Map Editor", width = 100, command = _open_map_editor)
+            edit_map_btn.pack(side = 'left', padx = 6)
+
             self._dg_state.setdefault('generated_dungeon', None)
             self._dg_state.setdefault('current_floor', 0)
             self._dg_state.setdefault('current_room_id', None)
             self._dg_state.setdefault('pending_door', None)
+            self._dg_state.setdefault('movement_locked', False)
 
             def _load_rooms_table():
 
@@ -25955,6 +26339,40 @@ class App:
                         channel.play(sound)
                 except Exception as e:
                     logging.debug(f"Failed to play distant combat sound: {e}")
+
+            def _play_dungeon_sound(sound_name, volume = 0.3):
+
+                try:
+                    sound_paths = {
+                    "step":[
+                    os.path.join("sounds", "misc", "dungeon", f"step{i}.ogg")
+                    for i in range(4)
+                    ],
+                    "locked":os.path.join("sounds", "misc", "dungeon", "locked.ogg"),
+                    "door":os.path.join("sounds", "misc", "dungeon", "door.ogg"),
+                    "elevator":os.path.join("sounds", "misc", "dungeon", "elevator.wav"),
+                    "unlock":os.path.join("sounds", "misc", "lockpicking", "unlock.ogg"),
+                    }
+
+                    if sound_name =="step":
+
+                        available_steps =[p for p in sound_paths["step"]if os.path.exists(p)]
+                        if available_steps:
+                            sound_path = random.choice(available_steps)
+                        else:
+                            return
+                    else:
+                        sound_path = sound_paths.get(sound_name)
+                        if not sound_path or not os.path.exists(sound_path):
+                            return
+
+                    sound = pygame.mixer.Sound(sound_path)
+                    sound.set_volume(volume)
+                    channel = pygame.mixer.find_channel()
+                    if channel:
+                        channel.play(sound)
+                except Exception as e:
+                    logging.debug(f"Failed to play dungeon sound '{sound_name}': {e}")
 
             def _get_weapon_sound_for_npc(npc):
 
@@ -26076,43 +26494,42 @@ class App:
                         return folder
                 return "556"
 
+            def _is_weapon_suppressed(weapon):
+
+                if not weapon:
+                    return False
+
+                if weapon.get("integrally_suppressed", False):
+                    return True
+
+                attachments = weapon.get("attachments", [])
+                for attachment in attachments:
+                    if isinstance(attachment, dict):
+
+                        if attachment.get("suppressor", False):
+                            return True
+
+                        current = attachment.get("current")
+                        if isinstance(current, dict)and current.get("suppressor", False):
+                            return True
+
+                return False
+
+            def _get_magazine_capacity(weapon):
+
+                if not weapon:
+                    return 30
+                return weapon.get("magazine_capacity", weapon.get("capacity", 30))
+
             def _get_weapon_platform_folder(weapon):
 
                 if not weapon:
                     return None
                 platform = weapon.get("platform", "").lower().replace(" ", "-").replace("_", "-")
-                name = weapon.get("name", "").lower()
-
-                platform_map = {
-                "ar-15":"ar-15", "ar15":"ar-15", "m4":"ar-15", "m16":"ar-15",
-                "ak-47":"ak-47", "ak47":"ak-47", "akm":"ak-47",
-                "ak-74":"ak-74", "ak74":"ak-74",
-                "g3":"g3", "hk g3":"g3",
-                "fal":"fal", "fn fal":"fal",
-                "scar":"scar", "fn scar":"scar",
-                "mp5":"mp5", "hk mp5":"mp5",
-                "glock":"glock",
-                "1911":"1911", "m1911":"1911",
-                "92fs":"92fs", "beretta 92":"92fs", "m9":"92fs",
-                "intervention":"intervention", "cheytac":"intervention",
-                "awp":"awp", "aw":"aw", "accuracy international":"aw",
-                "r700":"r700", "remington 700":"r700",
-                "m500":"m500", "mossberg 500":"m500",
-                "m590":"m590", "mossberg 590":"m590",
-                }
-
-                for key, folder in platform_map.items():
-                    if key in platform:
-                        sound_dir = os.path.join("sounds", "firearms", "weaponsounds", folder)
-                        if os.path.isdir(sound_dir):
-                            return folder
-
-                for key, folder in platform_map.items():
-                    if key in name:
-                        sound_dir = os.path.join("sounds", "firearms", "weaponsounds", folder)
-                        if os.path.isdir(sound_dir):
-                            return folder
-
+                if platform:
+                    sound_dir = os.path.join("sounds", "firearms", "weaponsounds", platform)
+                    if os.path.isdir(sound_dir):
+                        return platform
                 return None
 
             def _play_action_sound(weapon, volume = 0.1, delay = 0):
@@ -26155,7 +26572,7 @@ class App:
 
                 return max(50, int(60000 /cyclic))
 
-            def _schedule_combat_sounds(sound_dir, weapon, firemode, shots, volume, start_delay, callback = None):
+            def _schedule_combat_sounds(sound_dir, weapon, firemode, shots, volume, start_delay, is_suppressed = False, callback = None):
 
                 cyclic_delay = _get_cyclic_delay(weapon, firemode)
                 is_manual = _is_manual_action(weapon)
@@ -26163,10 +26580,23 @@ class App:
                 def play_shot(shot_num):
                     try:
                         if os.path.isdir(sound_dir):
-                            sounds = glob.glob(os.path.join(sound_dir, "*.wav"))+glob.glob(os.path.join(sound_dir, "*.ogg"))
+
+                            all_sounds = glob.glob(os.path.join(sound_dir, "*.wav"))+glob.glob(os.path.join(sound_dir, "*.ogg"))
+
+                            if is_suppressed:
+
+                                suppressed_sounds =[s for s in all_sounds if "_suppressed"in s.lower()]
+                                sounds = suppressed_sounds if suppressed_sounds else all_sounds
+
+                                actual_volume = volume *0.5
+                            else:
+
+                                sounds =[s for s in all_sounds if "_suppressed"not in s.lower()]
+                                actual_volume = volume
+
                             if sounds:
                                 sound_path = random.choice(sounds)
-                                _play_distant_combat_sound(sound_path, volume = volume)
+                                _play_distant_combat_sound(sound_path, volume = actual_volume)
                     except Exception:
                         pass
 
@@ -26180,7 +26610,7 @@ class App:
 
                 total_duration = start_delay +(shots *cyclic_delay)
                 if is_manual:
-                    total_duration +=800
+                    total_duration +=500
 
                 if callback:
                     dg.after(total_duration +100, callback)
@@ -26201,36 +26631,66 @@ class App:
                     floor = dungeon["floors"][floor_idx]
                     player_room_id = self._dg_state.get('current_room_id')
                     combat_occurred = False
+                    player_room_combat = False
+
+                    player_room = None
+                    for room in floor["rooms"]:
+                        if room.get("room_id")==player_room_id:
+                            player_room = room
+                            break
+
+                    if player_room:
+                        player_enemies =[e for e in player_room.get("enemies", [])if e.get("alive", True)]
+                        player_friendlies =[f for f in player_room.get("friendlies", [])if f.get("alive", True)]
+
+                        if not(player_enemies and player_friendlies):
+                            self._dg_state['movement_locked']= False
 
                     combat_actions =[]
                     current_delay = 0
-                    TURN_PAUSE = 1500
+                    TURN_PAUSE = 800
+                    RELOAD_TIME = 1500
+
+                    npc_shots_fired = {}
 
                     for room in floor["rooms"]:
 
-                        if room.get("room_id")==player_room_id:
-                            continue
+                        is_player_room = room.get("room_id")==player_room_id
 
                         enemies =[e for e in room.get("enemies", [])if e.get("alive", True)]
                         friendlies =[f for f in room.get("friendlies", [])if f.get("alive", True)]
 
-                        if enemies and friendlies:
+                        armed_enemies =[e for e in enemies if _get_npc_weapon_info(e)is not None]
+                        armed_friendlies =[f for f in friendlies if _get_npc_weapon_info(f)is not None]
+
+                        if armed_enemies and armed_friendlies:
                             combat_occurred = True
+                            if is_player_room:
+                                player_room_combat = True
+
+                                self._dg_state['movement_locked']= True
+
+                            combat_volume = 0.35 if is_player_room else 0.12
+
                             room_name = room.get("name", f"Room {room.get('room_id', '?')}")
                             room_pos = room.get("position", {})
                             room_loc = f"({room_pos.get('x', '?')}, {room_pos.get('y', '?')})"
 
-                            for enemy in enemies:
-                                if random.random()<0.5:
-                                    alive_friendlies =[f for f in friendlies if f.get("alive", True)]
+                            for enemy in armed_enemies:
+                                if random.random()<0.6:
+                                    alive_friendlies =[f for f in armed_friendlies if f.get("alive", True)]
                                     if not alive_friendlies:
                                         break
 
                                     target = random.choice(alive_friendlies)
                                     weapon = _get_npc_weapon_info(enemy)
+                                    if not weapon:
+                                        continue
+
                                     is_manual = _is_manual_action(weapon)
                                     firemode = _get_weapon_firemode(weapon)
                                     shots = 1 if is_manual else _get_shots_for_firemode(firemode, weapon)
+                                    is_suppressed = _is_weapon_suppressed(weapon)
 
                                     enemy_name = enemy.get("name", "Enemy")
                                     target_name = target.get("name", "Friendly")
@@ -26238,12 +26698,18 @@ class App:
                                     caliber_folder = _get_weapon_caliber_folder(weapon)
                                     sound_dir = os.path.join("sounds", "firearms", caliber_folder)
 
+                                    enemy_id = id(enemy)
+                                    npc_shots_fired[enemy_id]= npc_shots_fired.get(enemy_id, 0)+shots
+                                    mag_capacity = _get_magazine_capacity(weapon)
+
+                                    needs_reload = npc_shots_fired[enemy_id]>=mag_capacity
+
                                     hits = 0
                                     total_damage = 0
 
                                     for shot_num in range(shots):
                                         if not target.get("alive", True):
-                                            alive_friendlies =[f for f in friendlies if f.get("alive", True)]
+                                            alive_friendlies =[f for f in armed_friendlies if f.get("alive", True)]
                                             if alive_friendlies:
                                                 target = random.choice(alive_friendlies)
                                                 target_name = target.get("name", "Friendly")
@@ -26262,36 +26728,52 @@ class App:
                                     cyclic_delay = _get_cyclic_delay(weapon, firemode)
                                     shot_duration = shots *cyclic_delay
 
-                                    _schedule_combat_sounds(sound_dir, weapon, firemode, shots, 0.12, current_delay)
+                                    _schedule_combat_sounds(sound_dir, weapon, firemode, shots, combat_volume, current_delay, is_suppressed)
+
+                                    if not is_suppressed:
+                                        rx, ry = room_pos.get('x', 0), room_pos.get('y', 0)
+                                        _schedule_muzzle_flashes(rx, ry, shots, cyclic_delay, current_delay)
 
                                     log_delay = current_delay
+                                    suppressed_tag = "[suppressed]"if is_suppressed else ""
                                     if hits >0:
                                         if not target.get("alive", True):
-                                            dg.after(log_delay, lambda rl = room_loc, en = enemy_name, s = shots, fm = firemode, tn = target_name:
-                                            _add_combat_log(f"{rl} {en} fired {s}x({fm}), killed {tn}!"))
+                                            dg.after(log_delay, lambda rl = room_loc, en = enemy_name, s = shots, fm = firemode, tn = target_name, st = suppressed_tag:
+                                            _add_combat_log(f"{rl} {en} fired {s}x({fm}){st}, killed {tn}!"))
                                         else:
-                                            dg.after(log_delay, lambda rl = room_loc, en = enemy_name, s = shots, fm = firemode, h = hits, td = total_damage:
-                                            _add_combat_log(f"{rl} {en} fired {s}x({fm}), hit {h}x for {td} dmg"))
+                                            dg.after(log_delay, lambda rl = room_loc, en = enemy_name, s = shots, fm = firemode, h = hits, td = total_damage, st = suppressed_tag:
+                                            _add_combat_log(f"{rl} {en} fired {s}x({fm}){st}, hit {h}x for {td} dmg"))
                                     else:
-                                        dg.after(log_delay, lambda rl = room_loc, en = enemy_name, s = shots, fm = firemode:
-                                        _add_combat_log(f"{rl} {en} fired {s}x({fm}), missed"))
+                                        dg.after(log_delay, lambda rl = room_loc, en = enemy_name, s = shots, fm = firemode, st = suppressed_tag:
+                                        _add_combat_log(f"{rl} {en} fired {s}x({fm}){st}, missed"))
 
-                                    current_delay +=shot_duration +(800 if is_manual else 200)
+                                    current_delay +=shot_duration +(300 if is_manual else 100)
+
+                                    if needs_reload:
+                                        dg.after(current_delay, lambda en = enemy_name, rl = room_loc:
+                                        _add_combat_log(f"{rl} {en} reloading..."))
+                                        current_delay +=RELOAD_TIME
+                                        npc_shots_fired[enemy_id]= 0
 
                             current_delay +=TURN_PAUSE
 
-                            alive_friendlies =[f for f in friendlies if f.get("alive", True)]
-                            for friendly in alive_friendlies:
-                                if random.random()<0.5:
-                                    alive_enemies =[e for e in enemies if e.get("alive", True)]
+                            for friendly in armed_friendlies:
+                                if not friendly.get("alive", True):
+                                    continue
+                                if random.random()<0.6:
+                                    alive_enemies =[e for e in armed_enemies if e.get("alive", True)]
                                     if not alive_enemies:
                                         break
 
                                     target = random.choice(alive_enemies)
                                     weapon = _get_npc_weapon_info(friendly)
+                                    if not weapon:
+                                        continue
+
                                     is_manual = _is_manual_action(weapon)
                                     firemode = _get_weapon_firemode(weapon)
                                     shots = 1 if is_manual else _get_shots_for_firemode(firemode, weapon)
+                                    is_suppressed = _is_weapon_suppressed(weapon)
 
                                     friendly_name = friendly.get("name", "Friendly")
                                     target_name = target.get("name", "Enemy")
@@ -26299,12 +26781,18 @@ class App:
                                     caliber_folder = _get_weapon_caliber_folder(weapon)
                                     sound_dir = os.path.join("sounds", "firearms", caliber_folder)
 
+                                    friendly_id = id(friendly)
+                                    npc_shots_fired[friendly_id]= npc_shots_fired.get(friendly_id, 0)+shots
+                                    mag_capacity = _get_magazine_capacity(weapon)
+
+                                    needs_reload = npc_shots_fired[friendly_id]>=mag_capacity
+
                                     hits = 0
                                     total_damage = 0
 
                                     for shot_num in range(shots):
                                         if not target.get("alive", True):
-                                            alive_enemies =[e for e in enemies if e.get("alive", True)]
+                                            alive_enemies =[e for e in armed_enemies if e.get("alive", True)]
                                             if alive_enemies:
                                                 target = random.choice(alive_enemies)
                                                 target_name = target.get("name", "Enemy")
@@ -26326,27 +26814,41 @@ class App:
                                     cyclic_delay = _get_cyclic_delay(weapon, firemode)
                                     shot_duration = shots *cyclic_delay
 
-                                    _schedule_combat_sounds(sound_dir, weapon, firemode, shots, 0.12, current_delay)
+                                    _schedule_combat_sounds(sound_dir, weapon, firemode, shots, combat_volume, current_delay, is_suppressed)
+
+                                    if not is_suppressed:
+                                        rx, ry = room_pos.get('x', 0), room_pos.get('y', 0)
+                                        _schedule_muzzle_flashes(rx, ry, shots, cyclic_delay, current_delay)
 
                                     log_delay = current_delay
+                                    suppressed_tag = "[suppressed]"if is_suppressed else ""
                                     if hits >0:
                                         if not target.get("alive", True):
-                                            dg.after(log_delay, lambda rl = room_loc, fn = friendly_name, s = shots, fm = firemode, tn = target_name:
-                                            _add_combat_log(f"{rl} {fn} fired {s}x({fm}), killed {tn}!"))
+                                            dg.after(log_delay, lambda rl = room_loc, fn = friendly_name, s = shots, fm = firemode, tn = target_name, st = suppressed_tag:
+                                            _add_combat_log(f"{rl} {fn} fired {s}x({fm}){st}, killed {tn}!"))
                                         else:
-                                            dg.after(log_delay, lambda rl = room_loc, fn = friendly_name, s = shots, fm = firemode, h = hits, td = total_damage:
-                                            _add_combat_log(f"{rl} {fn} fired {s}x({fm}), hit {h}x for {td} dmg"))
+                                            dg.after(log_delay, lambda rl = room_loc, fn = friendly_name, s = shots, fm = firemode, h = hits, td = total_damage, st = suppressed_tag:
+                                            _add_combat_log(f"{rl} {fn} fired {s}x({fm}){st}, hit {h}x for {td} dmg"))
                                     else:
-                                        dg.after(log_delay, lambda rl = room_loc, fn = friendly_name, s = shots, fm = firemode:
-                                        _add_combat_log(f"{rl} {fn} fired {s}x({fm}), missed"))
+                                        dg.after(log_delay, lambda rl = room_loc, fn = friendly_name, s = shots, fm = firemode, st = suppressed_tag:
+                                        _add_combat_log(f"{rl} {fn} fired {s}x({fm}){st}, missed"))
 
-                                    current_delay +=shot_duration +(800 if is_manual else 200)
+                                    current_delay +=shot_duration +(300 if is_manual else 100)
+
+                                    if needs_reload:
+                                        dg.after(current_delay, lambda fn = friendly_name, rl = room_loc:
+                                        _add_combat_log(f"{rl} {fn} reloading..."))
+                                        current_delay +=RELOAD_TIME
+                                        npc_shots_fired[friendly_id]= 0
 
                             current_delay +=TURN_PAUSE
 
                     if combat_occurred:
 
                         dg.after(current_delay +500, _draw_grid)
+
+                        if player_room_combat:
+                            dg.after(current_delay +500, lambda:self._dg_state.update({'movement_locked':False}))
 
                 except Exception as e:
                     logging.debug(f"Background combat error: {e}")
@@ -26355,7 +26857,7 @@ class App:
                     try:
                         if dg.winfo_exists():
 
-                            next_delay = max(5000, current_delay +3000)if combat_occurred else random.randint(4000, 7000)
+                            next_delay = max(3000, current_delay +2000)if combat_occurred else random.randint(3000, 5000)
                             background_combat_timer[0]= dg.after(next_delay, _process_background_combat)# type: ignore
                     except Exception:
                         pass
@@ -26374,6 +26876,247 @@ class App:
                     elif conn.get("to_room")==room_id:
                         adjacent.append(conn.get("from_room"))
                 return adjacent
+
+            def _find_path_bfs(start_room_id, target_room_id, floor):
+
+                if start_room_id ==target_room_id:
+                    return[start_room_id]
+
+                from collections import deque
+
+                adj_map = {}
+                for room in floor.get("rooms", []):
+                    rid = room.get("room_id")
+                    adj_map[rid]= _get_adjacent_rooms(room, floor)
+
+                queue = deque([(start_room_id, [start_room_id])])
+                visited = {start_room_id}
+
+                while queue:
+                    current_id, path = queue.popleft()
+
+                    for neighbor_id in adj_map.get(current_id, []):
+                        if neighbor_id ==target_room_id:
+                            return path +[neighbor_id]
+
+                        if neighbor_id not in visited:
+                            visited.add(neighbor_id)
+                            queue.append((neighbor_id, path +[neighbor_id]))
+
+                return None
+
+            def _get_path_distance(start_room_id, target_room_id, floor):
+
+                path = _find_path_bfs(start_room_id, target_room_id, floor)
+                if path:
+                    return len(path)-1
+                return float('inf')
+
+            def _get_next_room_on_path(start_room_id, target_room_id, floor):
+
+                path = _find_path_bfs(start_room_id, target_room_id, floor)
+                if path and len(path)>1:
+
+                    next_room_id = path[1]
+                    for room in floor.get("rooms", []):
+                        if room.get("room_id")==next_room_id:
+                            return room
+                return None
+
+            npc_movement_timer =[None]
+
+            def _find_combat_rooms(floor):
+
+                combat_rooms =[]
+                for room in floor.get("rooms", []):
+                    enemies =[e for e in room.get("enemies", [])if e.get("alive", True)]
+                    friendlies =[f for f in room.get("friendlies", [])if f.get("alive", True)]
+                    if enemies and friendlies:
+                        combat_rooms.append(room)
+                return combat_rooms
+
+            def _move_npc_towards(npc, npc_list, room, target_room_id, floor, npc_type = "enemies"):
+
+                room_id = room.get("room_id")
+
+                if room_id ==target_room_id:
+                    return None
+
+                next_room = _get_next_room_on_path(room_id, target_room_id, floor)
+
+                if next_room:
+                    npc_list.remove(npc)
+                    next_room.setdefault(npc_type, []).append(npc)
+                    return next_room
+                return None
+
+            def _move_npcs_support():
+
+                try:
+                    dungeon = self._dg_state.get('generated_dungeon')
+                    if not dungeon:
+                        return
+
+                    floor_idx = self._dg_state.get('current_floor', 0)
+                    if floor_idx >=len(dungeon["floors"]):
+                        return
+
+                    floor = dungeon["floors"][floor_idx]
+                    player_room_id = self._dg_state.get('current_room_id')
+
+                    player_room = None
+                    for r in floor["rooms"]:
+                        if r.get("room_id")==player_room_id:
+                            player_room = r
+                            break
+
+                    combat_rooms = _find_combat_rooms(floor)
+
+                    npcs_moved = False
+                    backup_arrived =[]
+                    enemies_arrived =[]
+
+                    for room in floor["rooms"]:
+                        room_pos = room.get("position", {})
+                        room_id = room.get("room_id")
+
+                        if room in combat_rooms:
+                            continue
+
+                        adjacent_room_ids = _get_adjacent_rooms(room, floor)
+                        if not adjacent_room_ids:
+                            continue
+
+                        for enemy in list(room.get("enemies", [])):
+                            if not enemy.get("alive", True):
+                                continue
+
+                            enemy_name = enemy.get("name", "Unknown")
+                            enemy_health = enemy.get("health", 100)
+
+                            nearest_combat = None
+                            nearest_dist = float('inf')
+                            for combat_room in combat_rooms:
+                                combat_room_id = combat_room.get("room_id")
+                                dist = _get_path_distance(room_id, combat_room_id, floor)
+                                if dist <=10 and dist <nearest_dist:
+                                    nearest_dist = dist
+                                    nearest_combat = combat_room
+
+                            if nearest_combat:
+                                combat_room_id = nearest_combat.get("room_id")
+                                dest_room = _move_npc_towards(enemy, room["enemies"], room, combat_room_id, floor, "enemies")
+                                if dest_room:
+                                    npcs_moved = True
+
+                                    if dest_room.get("room_id")==player_room_id:
+                                        enemies_arrived.append({
+                                        "name":enemy_name,
+                                        "health":enemy_health,
+                                        "reason":"combat support"
+                                        })
+
+                            elif room_id !=player_room_id and player_room:
+                                dist_to_player = _get_path_distance(room_id, player_room_id, floor)
+                                if dist_to_player <=10 and random.random()<0.4:
+                                    dest_room = _move_npc_towards(enemy, room["enemies"], room, player_room_id, floor, "enemies")
+                                    if dest_room:
+                                        npcs_moved = True
+
+                                        if dest_room.get("room_id")==player_room_id:
+                                            enemies_arrived.append({
+                                            "name":enemy_name,
+                                            "health":enemy_health,
+                                            "reason":"hunting"
+                                            })
+
+                        for friendly in list(room.get("friendlies", [])):
+                            if not friendly.get("alive", True):
+                                continue
+
+                            friendly_name = friendly.get("name", "Unknown")
+                            friendly_health = friendly.get("health", 100)
+
+                            nearest_combat = None
+                            nearest_dist = float('inf')
+                            for combat_room in combat_rooms:
+                                combat_room_id = combat_room.get("room_id")
+                                dist = _get_path_distance(room_id, combat_room_id, floor)
+                                if dist <=10 and dist <nearest_dist:
+                                    nearest_dist = dist
+                                    nearest_combat = combat_room
+
+                            if nearest_combat:
+                                combat_room_id = nearest_combat.get("room_id")
+                                dest_room = _move_npc_towards(friendly, room["friendlies"], room, combat_room_id, floor, "friendlies")
+                                if dest_room:
+                                    npcs_moved = True
+
+                                    if dest_room.get("room_id")==player_room_id:
+                                        backup_arrived.append({
+                                        "name":friendly_name,
+                                        "health":friendly_health,
+                                        "reason":"combat support"
+                                        })
+
+                            elif room_id !=player_room_id and player_room:
+                                dist_to_player = _get_path_distance(room_id, player_room_id, floor)
+                                if dist_to_player <=10 and random.random()<0.5:
+                                    dest_room = _move_npc_towards(friendly, room["friendlies"], room, player_room_id, floor, "friendlies")
+                                    if dest_room:
+                                        npcs_moved = True
+
+                                        if dest_room.get("room_id")==player_room_id:
+                                            backup_arrived.append({
+                                            "name":friendly_name,
+                                            "health":friendly_health,
+                                            "reason":"patrol"
+                                            })
+
+                    if backup_arrived:
+                        names =[f"{b['name']}({b['health']}HP)"for b in backup_arrived]
+                        title = "🛡️ Backup Arrived!"
+                        if len(backup_arrived)==1:
+                            b = backup_arrived[0]
+                            message = f"{b['name']} has arrived at your position!\nHealth: {b['health']}HP\nReason: {b['reason'].title()}"
+                        else:
+                            message = f"{len(backup_arrived)} friendlies have arrived!\n"+"\n".join(names)
+
+                        try:
+                            send_windows_notification(title, message)
+                        except Exception:
+                            pass
+
+                        _add_combat_log(f"⚔ BACKUP: {', '.join(names)} arrived!")
+
+                    if enemies_arrived:
+                        names =[f"{e['name']}({e['health']}HP)"for e in enemies_arrived]
+                        title = "⚠️ Enemy Reinforcements!"
+                        if len(enemies_arrived)==1:
+                            e = enemies_arrived[0]
+                            message = f"{e['name']} has found your position!\nHealth: {e['health']}HP\nReason: {e['reason'].title()}"
+                        else:
+                            message = f"{len(enemies_arrived)} enemies have arrived!\n"+"\n".join(names)
+
+                        try:
+                            send_windows_notification(title, message)
+                        except Exception:
+                            pass
+
+                        _add_combat_log(f"⚠ ENEMIES: {', '.join(names)} arrived!")
+
+                    if npcs_moved:
+                        _draw_grid()
+
+                except Exception as e:
+                    logging.debug(f"NPC support movement error: {e}")
+                finally:
+
+                    try:
+                        if dg.winfo_exists():
+                            npc_movement_timer[0]= dg.after(10000, _move_npcs_support)# type: ignore
+                    except Exception:
+                        pass
 
             def _move_npcs_once():
 
@@ -26395,11 +27138,9 @@ class App:
                             player_room = room
                             break
 
-                    player_pos = player_room.get("position", {})if player_room else {"x":0, "y":0}
-
                     for room in floor["rooms"]:
-                        room_pos = room.get("position", {})
-                        distance_to_player = _calculate_distance(room_pos, player_pos)
+                        room_id = room.get("room_id")
+                        distance_to_player = _get_path_distance(room_id, player_room_id, floor)if player_room else float('inf')
 
                         has_enemies = any(e.get("alive", True)for e in room.get("enemies", []))
 
@@ -26416,20 +27157,10 @@ class App:
 
                             if distance_to_player <=5:
 
-                                best_room = None
-                                best_dist = distance_to_player
-                                for adj_id in adjacent_room_ids:
-                                    for r in floor["rooms"]:
-                                        if r.get("room_id")==adj_id:
-                                            d = _calculate_distance(r.get("position", {}), player_pos)
-                                            if d <best_dist:
-                                                best_dist = d
-                                                best_room = r
-                                            break
-                                if best_room:
-
+                                next_room = _get_next_room_on_path(room_id, player_room_id, floor)
+                                if next_room:
                                     room["enemies"].remove(enemy)
-                                    best_room.setdefault("enemies", []).append(enemy)
+                                    next_room.setdefault("enemies", []).append(enemy)
                             else:
 
                                 target_room_id = random.choice(adjacent_room_ids)
@@ -26450,46 +27181,27 @@ class App:
                                 nearest_enemy_room = None
                                 nearest_enemy_dist = float('inf')
                                 for other_room in floor["rooms"]:
-                                    other_pos = other_room.get("position", {})
-                                    dist_to_friendly = _calculate_distance(room_pos, other_pos)
-                                    if dist_to_friendly <=5:
-
+                                    other_room_id = other_room.get("room_id")
+                                    dist_to_room = _get_path_distance(room_id, other_room_id, floor)
+                                    if dist_to_room <=5:
                                         alive_enemies =[e for e in other_room.get("enemies", [])if e.get("alive", True)]
-                                        if alive_enemies and dist_to_friendly <nearest_enemy_dist:
-                                            nearest_enemy_dist = dist_to_friendly
+                                        if alive_enemies and dist_to_room <nearest_enemy_dist:
+                                            nearest_enemy_dist = dist_to_room
                                             nearest_enemy_room = other_room
 
                                 if nearest_enemy_room and nearest_enemy_dist >0:
 
-                                    enemy_pos = nearest_enemy_room.get("position", {})
-                                    best_room = None
-                                    best_dist = nearest_enemy_dist
-                                    for adj_id in adjacent_room_ids:
-                                        for r in floor["rooms"]:
-                                            if r.get("room_id")==adj_id:
-                                                d = _calculate_distance(r.get("position", {}), enemy_pos)
-                                                if d <best_dist:
-                                                    best_dist = d
-                                                    best_room = r
-                                                break
-                                    if best_room:
+                                    enemy_room_id = nearest_enemy_room.get("room_id")
+                                    next_room = _get_next_room_on_path(room_id, enemy_room_id, floor)
+                                    if next_room:
                                         room["friendlies"].remove(friendly)
-                                        best_room.setdefault("friendlies", []).append(friendly)
-                                else:
+                                        next_room.setdefault("friendlies", []).append(friendly)
+                                elif player_room and distance_to_player >0:
 
-                                    best_room = None
-                                    best_dist = distance_to_player
-                                    for adj_id in adjacent_room_ids:
-                                        for r in floor["rooms"]:
-                                            if r.get("room_id")==adj_id:
-                                                d = _calculate_distance(r.get("position", {}), player_pos)
-                                                if d <best_dist:
-                                                    best_dist = d
-                                                    best_room = r
-                                                break
-                                    if best_room:
+                                    next_room = _get_next_room_on_path(room_id, player_room_id, floor)
+                                    if next_room:
                                         room["friendlies"].remove(friendly)
-                                        best_room.setdefault("friendlies", []).append(friendly)
+                                        next_room.setdefault("friendlies", []).append(friendly)
 
                 except Exception as e:
                     logging.debug(f"NPC movement error: {e}")
@@ -26514,6 +27226,8 @@ class App:
                             room["pending_loot"].append(enemy.copy())
 
                     room["enemies_cleared"]= True
+
+                    self._dg_state['movement_locked']= False
 
                     if killed_count >0:
                         self._popup_show_info("Combat", f"Defeated {killed_count} enemy(s)! Loot is now available.")
@@ -26668,7 +27382,8 @@ class App:
                         "y_size":y_size,
                         "rooms":[],
                         "connections":[],
-                        "enemies_remaining":enemy_count
+                        "enemies_remaining":enemy_count,
+                        "transport_type":transport_type or "stairs"
                         }
 
                         grid =[[None for _ in range(x_size)]for _ in range(y_size)]
@@ -27382,6 +28097,13 @@ class App:
 
                     background_combat_timer[0]= dg.after(3000, _process_background_combat)# type: ignore
 
+                    if npc_movement_timer[0]:
+                        try:
+                            dg.after_cancel(npc_movement_timer[0])
+                        except Exception:
+                            pass
+                    npc_movement_timer[0]= dg.after(10000, _move_npcs_support)# type: ignore
+
                 except Exception as e:
                     logging.exception("Failed to generate dungeon")
                     self._popup_show_info("Error", f"Failed to generate dungeon: {e}", sound = "error")
@@ -27454,14 +28176,44 @@ class App:
             def _move_to_room(exit_info):
 
                 try:
+
+                    if self._dg_state.get('movement_locked', False):
+                        return
+
                     direction = exit_info.get("direction")
 
                     if _check_door_locked(direction):
+                        _play_dungeon_sound("locked", volume = 0.4)
                         self._dg_state['pending_door']= exit_info
                         _update_display()
                         return
 
+                    if exit_info.get("type")!="transport":
+                        current_room = _get_current_room()
+                        if current_room:
+                            doors_state = current_room.get("doors_state", {})
+                            if direction in doors_state:
+                                _play_dungeon_sound("door", volume = 0.3)
+                            else:
+
+                                _play_dungeon_sound("step", volume = 0.25)
+
                     if exit_info.get("type")=="transport":
+
+                        current_room = _get_current_room()
+                        transport_subtype = current_room.get("subtype", "stairs").lower()if current_room else "stairs"
+
+                        self._dg_state['movement_locked']= True
+
+                        if transport_subtype =="elevator":
+                            _play_dungeon_sound("elevator", volume = 0.35)
+                            unlock_delay = 2500
+                        else:
+
+                            _play_dungeon_sound("step", volume = 0.4)
+                            unlock_delay = 800
+
+                        dg.after(unlock_delay, lambda:self._dg_state.update({'movement_locked':False}))
 
                         next_floor = exit_info.get("to_floor", 0)
                         direction = exit_info.get("direction")
@@ -27541,6 +28293,8 @@ class App:
                                         if opp_dir and opp_dir in dest_room.get("doors_state", {}):
                                             dest_room["doors_state"][opp_dir]["picked"]= True
                                         break
+
+                    _play_dungeon_sound("unlock", volume = 0.35)
                     self._dg_state['pending_door']= None
                     _move_to_room(pending)
                 except Exception as e:
@@ -27823,6 +28577,53 @@ class App:
 
             load_btn = customtkinter.CTkButton(action_frame, text = "Load Layout", width = 100, command = _load_dungeon)
             load_btn.pack(side = 'left', padx = 4)
+
+            def _toggle_continuous_generation():
+                if continuous_gen_active[0]:
+
+                    continuous_gen_active[0]= False
+                    if continuous_gen_timer[0]:
+                        try:
+                            dg.after_cancel(continuous_gen_timer[0])
+                        except Exception:
+                            pass
+                        continuous_gen_timer[0]= None
+                    continuous_gen_btn.configure(text = "Start Continuous Gen", fg_color =("gray70", "gray30"))
+                    logging.info("Continuous dungeon generation stopped")
+                else:
+
+                    continuous_gen_active[0]= True
+                    continuous_gen_btn.configure(text = "Stop Continuous Gen", fg_color =("#D35B58", "#C77C78"))
+                    logging.info("Continuous dungeon generation started")
+                    _continuous_generate_cycle()
+
+            def _continuous_generate_cycle():
+                if not continuous_gen_active[0]:
+                    return
+                try:
+                    if not dg.winfo_exists():
+                        continuous_gen_active[0]= False
+                        return
+                    _generate_dungeon()
+
+                    continuous_gen_timer[0]= dg.after(10000, _continuous_generate_cycle)# type: ignore
+                except Exception as e:
+                    logging.error(f"Continuous generation error: {e}")
+                    continuous_gen_active[0]= False
+                    try:
+                        continuous_gen_btn.configure(text = "Start Continuous Gen", fg_color =("gray70", "gray30"))
+                    except Exception:
+                        pass
+
+            if global_variables.get("devmode", {}).get("value", False):
+                continuous_gen_btn = customtkinter.CTkButton(
+                action_frame,
+                text = "Start Continuous Gen",
+                width = 140,
+                command = _toggle_continuous_generation,
+                fg_color =("gray70", "gray30")
+                )
+                continuous_gen_btn.pack(side = 'left', padx = 4)
 
             _update_display()
 

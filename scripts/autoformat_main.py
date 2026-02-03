@@ -56,7 +56,7 @@ def docstring_line_numbers(source: str) -> Set[int]:
             return
         first = node.body[0]
         # docstring is an Expr whose value is a Constant/Str
-        if isinstance(first, ast.Expr) and isinstance(getattr(first, "value", None), (ast.Constant, ast.Str)):
+        if isinstance(first, ast.Expr) and isinstance(getattr(first, "value", None), (ast.Constant)):
             # Python 3.8+ provides end_lineno
             start = getattr(first, "lineno", None)
             end = getattr(first, "end_lineno", None)
