@@ -1,7 +1,7 @@
 {
     "prettyname": "Light in Darkness",
     "filename": "lid.sldtbl",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "additional_settings": {
         "bonus_clamp": 5,
         "stat_clamp": 4,
@@ -1766,6 +1766,39 @@
                     {"name": "MLOK Mounts (Handguard Bottom)", "slot": "mlok_bottom", "current": null},
                     {"name": "CSAD Gun Link mount", "slot": "csad_link", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_22", "current": null}
+                ],
+                "can_stack": false,
+                "in_armory": true,
+                "armory_category": "Personal Defense Weapon"
+            },
+            {
+                "name": "Colt M9L-G PDW",
+                "value": 2570,
+                "description": "Prototype personal defense weapon for taking out the big game of Thedoria. Fires .50 Action Express.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 2,
+                "id": 456,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "smg",
+                "platform": "M9L",
+                "caliber": [".50 AE"],
+                "action": ["Semi", "Auto"],
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 450,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "M9L-G",
+                "jamrate": 0.001,
+                "accessories": [
+                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": null},
+                    {"name": "Picatinny Rail (Handguard Top)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "MLOK Mounts (Handguard Left)", "slot": "mlok_rifle", "current": null},
+                    {"name": "MLOK Mounts (Handguard Right)", "slot": "mlok_rifle", "current": null},
+                    {"name": "MLOK Mounts (Handguard Bottom)", "slot": "mlok_bottom", "current": null},
+                    {"name": "CSAD Gun Link mount", "slot": "csad_link", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_50", "current": null}
                 ],
                 "can_stack": false,
                 "in_armory": true,
@@ -5433,7 +5466,7 @@
                     {
                         "name": "M855 Ball",
                         "type": "FMJ",
-                        "pen": "III",
+                        "pen": "IIIa",
                         "modifiers": null,
                         "rarity": "Common",
                         "tip": "#33852a"
@@ -5449,7 +5482,7 @@
                     {
                         "name": "M856 Tracer",
                         "type": "Tracer",
-                        "pen": "III",
+                        "pen": "IIIa",
                         "modifiers": {"stats": {"aim": 1, "stealth": -1}},
                         "rarity": "Rare",
                         "tip": "#ff4500"
@@ -5457,7 +5490,7 @@
                     {
                         "name": "M856A1 Tracer",
                         "type": "Tracer",
-                        "pen": "III",
+                        "pen": "IIIa",
                         "modifiers": {"stats": {"aim": 1, "stealth": -1}},
                         "rarity": "Rare",
                         "tip": "#ff6347"
@@ -5473,7 +5506,7 @@
                     {
                         "name": "XM996 Dim Tracer",
                         "type": "Tracer",
-                        "pen": "III",
+                        "pen": "IIIa",
                         "modifiers": {"stats": {"aim": 1}},
                         "rarity": "Mythic",
                         "tip": "#754338"
@@ -5549,28 +5582,28 @@
                 "sounds": "45acp",
                 "variants": [
                     {
-                        "name": "FMJ",
-                        "type": "FMJ",
+                        "name": "Ball",
+                        "type": "Ball",
                         "pen": "I",
                         "modifiers": null,
                         "rarity": "Common",
                         "tip": null
                     },
                     {
-                        "name": "JHP",
-                        "type": "Hollow Point",
+                        "name": "M26 Tracer",
+                        "type": "Tracer",
                         "pen": "I",
                         "modifiers": {"stats": {"aim": 1}},
                         "rarity": "Uncommon",
                         "tip": null
                     },
                     {
-                        "name": "Tracer",
-                        "type": "Tracer",
-                        "pen": "I",
-                        "modifiers": {"stats": {"aim": 1, "stealth": -1}},
+                        "name": "M12 Birdshot",
+                        "type": "Birdshot",
+                        "pen": null,
+                        "modifiers": {"stats": {"aim": -1}},
                         "rarity": "Rare",
-                        "tip": "#ff4500"
+                        "tip": null
                     }
                 ],
                 "in_armory": true,
@@ -5588,28 +5621,28 @@
                 "sounds": "9x19",
                 "variants": [
                     {
-                        "name": "FMJ",
-                        "type": "FMJ",
+                        "name": "M1152 Ball",
+                        "type": "Ball",
                         "pen": "I",
                         "modifiers": null,
                         "rarity": "Common",
                         "tip": null
                     },
                     {
-                        "name": "JHP",
+                        "name": "M1153 JHP",
                         "type": "Hollow Point",
                         "pen": "I",
-                        "modifiers": {"stats": {"aim": 1}},
+                        "modifiers": null,
                         "rarity": "Uncommon",
                         "tip": null
                     },
                     {
-                        "name": "Tracer",
-                        "type": "Tracer",
+                        "name": "MK 254 MOD 0 Frangible",
+                        "type": "JHP",
                         "pen": "I",
-                        "modifiers": {"stats": {"aim": 1, "stealth": -1}},
+                        "modifiers": null,
                         "rarity": "Rare",
-                        "tip": "#ff4500"
+                        "tip": null
                     }
                 ],
                 "in_armory": true,
@@ -5629,7 +5662,7 @@
                     {
                         "name": "M80 Ball",
                         "type": "Ball",
-                        "pen": "II",
+                        "pen": "IIIa",
                         "modifiers": null,
                         "rarity": "Common",
                         "tip": null
@@ -5653,7 +5686,7 @@
                     {
                         "name": "M62 Tracer",
                         "type": "Tracer",
-                        "pen": "II",
+                        "pen": "IIIa",
                         "modifiers": {"stats": {"aim": 1, "stealth": -1}},
                         "rarity": "Rare",
                         "tip": "#ff4500"
@@ -5691,27 +5724,27 @@
                 "variants": [
                     {
                         "name": "FMJ",
-                        "type": "Full Metal Jacket",
+                        "type": "FMJ",
                         "pen": "II",
                         "modifiers": null,
                         "rarity": "Common",
                         "tip": null
                     },
                     {
-                        "name": "JHP",
-                        "type": "Hollow Point",
-                        "pen": "II",
-                        "modifiers": {"stats": {"aim": 1}},
+                        "name": "Speer Gold Dot JHP",
+                        "type": "JHP",
+                        "pen": "I",
+                        "modifiers": null,
                         "rarity": "Uncommon",
                         "tip": null
                     },
                     {
-                        "name": "Tracer",
-                        "type": "Tracer",
-                        "pen": "II",
-                        "modifiers": {"stats": {"aim": 1, "stealth": -1}},
+                        "name": "Bear Claw JSP",
+                        "type": "JSP",
+                        "pen": "I",
+                        "modifiers": null,
                         "rarity": "Rare",
-                        "tip": "#ff4500"
+                        "tip": null
                     }
                 ],
                 "in_armory": true,
@@ -5850,7 +5883,7 @@
                     {
                         "name": "M199 Subsonic",
                         "type": "Ball",
-                        "pen": "II",
+                        "pen": "IIIa",
                         "modifiers": {"stats": {"stealth": 1}},
                         "rarity": "Uncommon",
                         "tip": null
@@ -5858,7 +5891,7 @@
                     {
                         "name": "XM187 Frangible Unarmored Target",
                         "type": "Hollow Point",
-                        "pen": "II",
+                        "pen": "IIIa",
                         "modifiers": null,
                         "rarity": "Mythic",
                         "tip": null
@@ -5920,7 +5953,7 @@
                     {
                         "name": "M1 Ball",
                         "type": "Ball",
-                        "pen": "II",
+                        "pen": "IIIa",
                         "modifiers": null,
                         "rarity": "Common",
                         "tip": null
@@ -5928,7 +5961,7 @@
                     {
                         "name": "M6 Tracer",
                         "type": "Tracer",
-                        "pen": "II",
+                        "pen": "IIIa",
                         "modifiers": {"stats": {"aim": 1, "stealth": -1}},
                         "rarity": "Uncommon",
                         "tip": null
@@ -5957,7 +5990,7 @@
                 "sounds": "45acp",
                 "variants": [
                     {
-                        "name": "FMJ",
+                        "name": "MK 309 MOD 0 Ball",
                         "type": "Full Metal Jacket",
                         "pen": "I",
                         "modifiers": null,
@@ -5965,20 +5998,12 @@
                         "tip": null
                     },
                     {                        
-                        "name": "JHP",
+                        "name": "MK 308 MOD 0 JHP",
                         "type": "Hollow Point",
                         "pen": "I",
                         "modifiers": {"stats": {"aim": 1}},
                         "rarity": "Uncommon",
                         "tip": null
-                    },
-                    {
-                        "name": "Tracer",
-                        "type": "Tracer",
-                        "pen": "I",
-                        "modifiers": {"stats": {"aim": 1, "stealth": -1}},
-                        "rarity": "Rare",
-                        "tip": "#ff4500"
                     }
                 ],
                 "in_armory": true,
@@ -5996,27 +6021,43 @@
                 "sounds": "762_39",
                 "variants": [
                     {
-                        "name": "PS Ball",
+                        "name": "57-N-231 PS Ball",
                         "type": "Ball",
-                        "pen": "II",
+                        "pen": "IIIa",
                         "modifiers": null,
                         "rarity": "Common",
                         "tip": null
                     },
                     {
-                        "name": "T-45 Tracer",
-                        "type": "Tracer",
-                        "pen": "II",
-                        "modifiers": {"stats": {"aim": 1, "stealth": -1}},
+                        "name": "7N23 BP AP",
+                        "type": "AP",
+                        "pen": "III",
+                        "modifiers": null,
                         "rarity": "Uncommon",
                         "tip": null
                     },
                     {
-                        "name": "7N23 AP",
+                        "name": "7N27 PP AP",
                         "type": "AP",
-                        "pen": "III",
+                        "pen": "IV",
                         "modifiers": null,
                         "rarity": "Rare",
+                        "tip": null
+                    },
+                    {
+                        "name": "57-N-231PM1 Tracer",
+                        "type": "Tracer",
+                        "pen": "IIIa",
+                        "modifiers": {"stats": {"aim": 1, "stealth": -1}},
+                        "rarity": "Rare",
+                        "tip": null
+                    },
+                    {
+                        "name": "US Subsonic",
+                        "type": "Subsonic",
+                        "pen": "II",
+                        "modifiers": {"stats": {"stealth": 1}},
+                        "rarity": "Mythic",
                         "tip": null
                     }
                 ],
@@ -6035,35 +6076,43 @@
                 "sounds": "545_39",
                 "variants": [
                     {
-                        "name": "7N6 Ball",
+                        "name": "7N6M Ball",
                         "type": "Ball",
-                        "pen": "II",
+                        "pen": "IIIa",
                         "modifiers": null,
                         "rarity": "Common",
                         "tip": null
                     },
                     {
-                        "name": "7N10 AP",
-                        "type": "AP",
+                        "name": "7N10 EPR",
+                        "type": "Ball",
                         "pen": "III",
                         "modifiers": null,
                         "rarity": "Uncommon",
                         "tip": null
                     },
                     {
-                        "name": "7N24 AP",
+                        "name": "7N22 AP",
                         "type": "AP",
-                        "pen": "IV",
+                        "pen": "III",
                         "modifiers": null,
                         "rarity": "Rare",
                         "tip": null
                     },
                     {
-                        "name": "T-46 Tracer",
-                        "type": "Tracer",
-                        "pen": "II",
-                        "modifiers": {"stats": {"aim": 1, "stealth": -1}},
-                        "rarity": "Rare",
+                        "name": "7N24 Super AP",
+                        "type": "AP",
+                        "pen": "IV",
+                        "modifiers": null,
+                        "rarity": "Legendary",
+                        "tip": null
+                    },
+                    {
+                        "name": "7N39 AP+",
+                        "type": "AP",
+                        "pen": "IV",
+                        "modifiers": null,
+                        "rarity": "Mythic",
                         "tip": null
                     }
                 ],
@@ -6082,27 +6131,19 @@
                 "sounds": "338",
                 "variants": [
                     {
-                        "name": "A-MAX",
-                        "type": "Match",
+                        "name": "M1162 AP",
+                        "type": "AP",
                         "pen": "IV",
                         "modifiers": null,
                         "rarity": "Common",
                         "tip": null
                     },
                     {
-                        "name": "AP",
+                        "name": "SOCOM Multi-Purpose",
                         "type": "AP",
                         "pen": "IV",
                         "modifiers": null,
                         "rarity": "Uncommon",
-                        "tip": null
-                    },
-                    {
-                        "name": "ELD-M",
-                        "type": "Match",
-                        "pen": "IV",
-                        "modifiers": {"stats": {"aim": 1}},
-                        "rarity": "Rare",
                         "tip": null
                     }
                 ],
@@ -6129,35 +6170,73 @@
                         "tip": null
                     },
                     {
-                        "name": "M8 API",
-                        "type": "API",
+                        "name": "M2 AP",
+                        "type": "AP",
                         "pen": "IV",
                         "modifiers": null,
                         "rarity": "Uncommon",
                         "tip": null
                     },
                     {
-                        "name": "M20 APIT",
-                        "type": "APIT",
+                        "name": "M8 API",
+                        "type": "API",
                         "pen": "IV",
                         "modifiers": null,
                         "rarity": "Rare",
                         "tip": null
                     },
                     {
-                        "name": "SLAP",
-                        "type": "SLAP",
+                        "name": "M20 API-T",
+                        "type": "API-T",
+                        "pen": "IV",
+                        "modifiers": {"stats": {"aim": 1, "stealth": -1}},
+                        "rarity": "Rare",
+                        "tip": null
+                    },
+                    {
+                        "name": "M17 Tracer",
+                        "type": "Tracer",
+                        "pen": "IV",
+                        "modifiers": {"stats": {"aim": 1, "stealth": -1}},
+                        "rarity": "Common",
+                        "tip": null
+                    },
+                    {
+                        "name": "MK 211 MOD 0 Raufoss",
+                        "type": "Multi-Purpose",
+                        "pen": "IV",
+                        "modifiers": null,
+                        "rarity": "Rare",
+                        "tip": null
+                    },
+                    {
+                        "name": "M903 SLAP",
+                        "type": "AP",
                         "pen": "IV",
                         "modifiers": null,
                         "rarity": "Legendary",
                         "tip": null
                     },
                     {
-                        "name": "Raufoss Mk 211",
-                        "type": "Multipurpose",
+                        "name": "M962 SLAP-T",
+                        "type": "AP",
+                        "pen": "IV",
+                        "modifiers": {"stats": {"aim": 1, "stealth": -1}},
+                        "rarity": "Legendary",
+                        "tip": null
+                    },
+                    {
+                        "name": "MK 232 Polymer Case",
+                        "type": "Ball",
                         "pen": "IV",
                         "modifiers": null,
-                        "rarity": "Mythic",
+                        "tip": null
+                    },
+                    {
+                        "name": "A-MAX",
+                        "type": "Match",
+                        "pen": "IV",
+                        "modifiers": {"stats": {"aim": 1}},
                         "tip": null
                     }
                 ],
@@ -6176,26 +6255,50 @@
                 "sounds": "224baker",
                 "variants": [
                     {
-                        "name": "AP",
+                        "name": "DM11 Ultimate Combat",
                         "type": "AP",
-                        "pen": "III",
+                        "pen": "IIIa",
                         "modifiers": null,
                         "rarity": "Common",
                         "tip": null
                     },
                     {
-                        "name": "FMJ",
-                        "type": "FMJ",
-                        "pen": "II",
+                        "name": "AP SX Lead-Free",
+                        "type": "AP",
+                        "pen": "IIIa",
                         "modifiers": null,
-                        "rarity": "Uncommon",
+                        "rarity": "Common",
                         "tip": null
                     },
                     {
-                        "name": "Tracer",
-                        "type": "Tracer",
+                        "name": "CPS Black Tip",
+                        "type": "AP",
+                        "pen": "III",
+                        "modifiers": null,
+                        "rarity": "Rare",
+                        "tip": null
+                    },
+                    {
+                        "name": "Subsonic SX",
+                        "type": "Subsonic",
                         "pen": "II",
-                        "modifiers": {"stats": {"aim": 1, "stealth": -1}},
+                        "modifiers": {"stats": {"stealth": 1}},
+                        "rarity": "Mythic",
+                        "tip": null
+                    },
+                    {
+                        "name": "Action SX Lead-Free",
+                        "type": "Ball",
+                        "pen": "II",
+                        "modifiers": null,
+                        "rarity": "Mythic",
+                        "tip": null
+                    },
+                    {
+                        "name": "Spoon-Tip Frangible",
+                        "type": "Frangible",
+                        "pen": "I",
+                        "modifiers": null,
                         "rarity": "Rare",
                         "tip": null
                     }
@@ -6638,6 +6741,54 @@
                 "in_armory": true,
                 "armory_category": "Magazines",
                 "armory_subcategory": "M9L Magazines"
+            },
+            {
+                "name": "Colt USGI 20-Round polymer .50 AE M9L-G magazine",
+                "value": 25,
+                "description": "Standard 20-round magazine for the M9L-G PDW.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 0.5,
+                "id": 457,
+                "caliber": [".50 AE"],
+                "capacity": 20,
+                "magazinesystem": "M9L-G",
+                "can_stack": false,
+                "in_armory": true,
+                "armory_category": "Magazines",
+                "armory_subcategory": "M9L-G Magazines"
+            },
+            {
+                "name": "Colt USGI 40-Round polymer .50 AE M9L-G magazine",
+                "value": 40,
+                "description": "Extended 40-round magazine for the M9L-G PDW.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 0.75,
+                "id": 458,
+                "caliber": [".50 AE"],
+                "capacity": 40,
+                "magazinesystem": "M9L-G",
+                "can_stack": false,
+                "in_armory": true,
+                "armory_category": "Magazines",
+                "armory_subcategory": "M9L-G Magazines"
+            },
+            {
+                "name": "Colt USGI 60-Round polymer .50 AE M9L-G drum magazine",
+                "value": 40,
+                "description": "Extended 60-round drum for the M9L-G PDW.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 0.75,
+                "id": 459,
+                "caliber": [".50 AE"],
+                "capacity": 60,
+                "magazinesystem": "M9L-G",
+                "can_stack": false,
+                "in_armory": true,
+                "armory_category": "Magazines",
+                "armory_subcategory": "M9L-G Magazines"
             },
             {
                 "name": "Colt USGI 20-Round polymer 5.7x28mm NATO M19 magazine",
@@ -8867,7 +9018,7 @@
             {
                 "name": "CheyTac M200 Intervention",
                 "value": 15000,
-                "description": "A ",
+                "description": "A legendary sniper rifle, world renowned for its extreme long-range accuracy, especially when you do a 360-degree turn with a jump without aiming down the scope.",
                 "rarity": "Legendary",
                 "random_quantity": false,
                 "weight": 14,
@@ -8891,7 +9042,6 @@
                     {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom", "current": null}
                 ],
                 "can_stack": false,
-                "in_armory": true,
                 "infinite_ammo": true,
                 "mag_to_load": 384
             },
@@ -10642,6 +10792,29 @@
                     {"type": "id", "id": 20, "rarity": "Legendary"},
                     {"type": "id", "id": 21, "rarity": "Legendary"}
                 ]
+            },
+            {
+                "name": "Locked crate",
+                "description": "A standard crate, has the entire pool of items.",
+                "rarity": "Common",
+                "locked": true,
+                "id_lct": 8,
+                "pulls": {"min": 3, "max": 6},
+                "loot_table": [
+                    {"type": "table", "table": "rifles", "rarity": "Rare"},
+                    {"type": "table", "table": "sniper_rifles", "rarity": "Legendary"},
+                    {"type": "table", "table": "submachine_guns", "rarity": "Rare"},
+                    {"type": "table", "table": "machine_guns", "rarity": "Mythic"},
+                    {"type": "table", "table": "shotguns", "rarity": "Uncommon"},
+                    {"type": "table", "table": "pistols", "rarity": "Uncommon"},
+                    {"type": "table", "table": "melee", "rarity": "Common"},
+                    {"type": "table", "table": "attachments", "rarity": "Uncommon"},
+                    {"type": "table", "table": "consumables", "rarity": "Common"},
+                    {"type": "table", "table": "throwables", "rarity": "Legendary"},
+                    {"type": "table", "table": "equipment", "rarity": "Common"},
+                    {"type": "table", "table": "ammunition", "rarity": "Common"},
+                    {"type": "table", "table": "magazines", "rarity": "Common"}
+                ]
             }
         ],
         "stores": [
@@ -10671,8 +10844,7 @@
                     "sell": 1.5
                 },
                 "restock_time_minutes": 30,
-                "accepts_trades": true,
-                "display_in_program": false
+                "accepts_trades": true
             },
             {
                 "name": "Example Armory",
@@ -10683,6 +10855,14 @@
                 "playlist": ["armory"],
                 "inventory_quantity": {"min": 50, "max": 75},
                 "display_in_program": false
+            },
+            {
+                "name": "Example Casino",
+                "type": "casino",
+                "shopkeeper": "Casino Dealer",
+                "music": true,
+                "playlist": ["casino"],
+                "games": ["Blackjack","Poker"]
             }
         ],
         "rooms": [
@@ -10903,6 +11083,32 @@
                     {"position": "bottom", "locked": "random"}
                 ]
             }
-        ]
+        ],
+        "npc_names": {
+            "american": {
+                "first": ["James", "John", "Robert", "Michael", "William", "David", "Richard", "Joseph", "Thomas", "Christopher", "Mary", "Patricia", "Jennifer", "Linda", "Elizabeth", "Barbara", "Susan", "Jessica", "Sarah", "Karen"],
+                "last": ["Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis", "Rodriguez", "Martinez", "Wilson", "Anderson", "Taylor", "Thomas", "Moore", "Jackson", "Martin", "Lee", "Thompson", "White"]
+            },
+            "german": {
+                "first": ["Hans", "Friedrich", "Klaus", "Wolfgang", "Heinrich", "Karl", "Otto", "Franz", "Wilhelm", "Dieter", "Ingrid", "Helga", "Ursula", "Gisela", "Renate", "Hildegard", "Erika", "Monika", "Brigitte", "Gertrud"],
+                "last": ["Muller", "Schmidt", "Schneider", "Fischer", "Weber", "Meyer", "Wagner", "Becker", "Schulz", "Hoffmann", "Schafer", "Koch", "Bauer", "Richter", "Klein", "Wolf", "Schroder", "Neumann", "Schwarz", "Braun"]
+            },
+            "italian": {
+                "first": ["Marco", "Giuseppe", "Giovanni", "Antonio", "Francesco", "Luigi", "Alessandro", "Andrea", "Lorenzo", "Matteo", "Maria", "Giulia", "Francesca", "Chiara", "Sara", "Anna", "Valentina", "Alessia", "Martina", "Giorgia"],
+                "last": ["Rossi", "Russo", "Ferrari", "Esposito", "Bianchi", "Romano", "Colombo", "Ricci", "Marino", "Greco", "Bruno", "Gallo", "Conti", "De Luca", "Mancini", "Costa", "Giordano", "Rizzo", "Lombardi", "Moretti"]
+            },
+            "english": {
+                "first": ["Oliver", "George", "Harry", "Jack", "William", "James", "Thomas", "Henry", "Charles", "Edward", "Olivia", "Emily", "Charlotte", "Amelia", "Sophie", "Grace", "Emma", "Lucy", "Alice", "Eleanor"],
+                "last": ["Taylor", "Brown", "Davies", "Evans", "Wilson", "Thomas", "Roberts", "Johnson", "Lewis", "Walker", "Robinson", "Wood", "Thompson", "White", "Watson", "Jackson", "Wright", "Green", "Harris", "Clarke"]
+            },
+            "russian": {
+                "first": ["Ivan", "Dmitri", "Alexei", "Nikolai", "Sergei", "Mikhail", "Vladimir", "Andrei", "Pavel", "Viktor", "Natasha", "Olga", "Anastasia", "Ekaterina", "Tatiana", "Maria", "Elena", "Irina", "Svetlana", "Anna"],
+                "last": ["Ivanov", "Smirnov", "Kuznetsov", "Popov", "Vasiliev", "Petrov", "Sokolov", "Mikhailov", "Novikov", "Fedorov", "Morozov", "Volkov", "Alekseev", "Lebedev", "Semenov", "Egorov", "Pavlov", "Kozlov", "Stepanov", "Nikolaev"]
+            },
+            "french": {
+                "first": ["Jean", "Pierre", "Michel", "Francois", "Jacques", "Louis", "Henri", "Philippe", "Andre", "Rene", "Marie", "Jeanne", "Francoise", "Monique", "Catherine", "Isabelle", "Sophie", "Nathalie", "Sylvie", "Christine"],
+                "last": ["Martin", "Bernard", "Dubois", "Thomas", "Robert", "Richard", "Petit", "Durand", "Leroy", "Moreau", "Simon", "Laurent", "Lefebvre", "Michel", "Garcia", "David", "Bertrand", "Roux", "Vincent", "Fournier"]
+            }
+        }
     }
 }

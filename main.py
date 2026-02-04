@@ -3015,6 +3015,180 @@ class App:
                 self._play_ui_sound("hover")
         button.bind("<Enter>", on_hover)
         return button
+    def _start_title_easter_egg(self, label):
+        try:
+            if getattr(self, '_title_easter_active', False):
+                return
+            self._title_easter_active = True
+
+            try:
+                orig_color = label.cget('text_color')
+            except Exception:
+                orig_color = None
+
+            # play the large gun sound (use direct path so _safe_sound_play will accept it)
+            try:
+                sound_path = os.path.join('sounds', 'firearms', 'universal', 'largestgunintheworld.ogg')
+                threading.Thread(target=lambda: self._safe_sound_play('', sound_path, block=False), daemon=True).start()
+            except Exception:
+                logging.exception('Failed to start easter egg sound')
+
+            colors = ['red', 'orange', 'yellow', 'green', 'cyan', 'blue', 'magenta']
+            interval = 120
+            duration_ms = 8000
+            steps = max(1, duration_ms // interval)
+
+            def _cycle(i=0, remaining=steps):
+                try:
+                    if remaining <= 0:
+                        try:
+                            if orig_color is not None:
+                                label.configure(text_color=orig_color)
+                            else:
+                                label.configure(text_color=None)
+                        except Exception:
+                            pass
+                        self._title_easter_active = False
+                        return
+                    color = colors[i % len(colors)]
+                    try:
+                        label.configure(text_color=color)
+                    except Exception:
+                        try:
+                            label.configure(fg_color=color)
+                        except Exception:
+                            pass
+                    self.root.after(interval, lambda: _cycle(i + 1, remaining - 1))
+                except Exception:
+                    self._title_easter_active = False
+
+            self.root.after(0, lambda: _cycle(0, steps))
+        except Exception:
+            logging.exception('Easter egg failed')
+
+    def _parse_version(self, v: str):
+        try:
+            parts = re.findall(r"\d+", str(v))
+            return tuple(int(p) for p in parts)
+        except Exception:
+            return ()
+
+    def _check_remote_version(self, label):
+        try:
+            raw_url = 'https://raw.githubusercontent.com/soli-dstate/DOOM-Tools/master/main.py'
+            try:
+                resp = requests.get(raw_url, timeout=5)
+                if resp.status_code != 200:
+                    return
+                text = resp.text
+            except Exception:
+                return
+
+            m = re.search(r"^version\s*=\s*[\"']([^\"']+)[\"']", text, re.MULTILINE)
+            if not m:
+                return
+            remote_ver = m.group(1)
+            local_ver = version
+
+            lp = self._parse_version(local_ver)
+            rp = self._parse_version(remote_ver)
+
+            def _pad(a, b):
+                la = list(a)
+                lb = list(b)
+                L = max(len(la), len(lb))
+                while len(la) < L:
+                    la.append(0)
+                while len(lb) < L:
+                    lb.append(0)
+                return tuple(la), tuple(lb)
+
+            lp, rp = _pad(lp, rp)
+
+            if lp > rp:
+                try:
+                    label.configure(text = f"Version: {local_ver} [PRE-RELEASE]")
+                    try:
+                        label.configure(text_color='cyan')
+                    except Exception:
+                        pass
+                except Exception:
+                    pass
+                try:
+                    logging.warning("Running pre-release version, do not report any issues to GitHub")
+                except Exception:
+                    pass
+                try:
+                    self._update_available = False
+                except Exception:
+                    pass
+            elif lp < rp:
+                try:
+                    label.configure(text = f"Version: {local_ver} [UPDATE AVAILABLE]")
+                    try:
+                        label.configure(text_color='red')
+                    except Exception:
+                        pass
+                except Exception:
+                    pass
+                try:
+                    logging.warning("A newer version of DOOM Tools is available. Please visit the GitHub page to download the latest version.")
+                except Exception:
+                    pass
+                try:
+                    self._update_available = True
+                except Exception:
+                    pass
+
+                try:
+                    self._start_version_flash(label)
+                except Exception:
+                    pass
+            else:
+                try:
+                    self._update_available = False
+                except Exception:
+                    pass
+        except Exception:
+            logging.exception('Remote version check failed')
+
+    def _start_version_flash(self, label):
+        try:
+            if getattr(self, '_version_flash_active', False):
+                return
+            self._version_flash_active = True
+            try:
+                orig = label.cget('text_color')
+            except Exception:
+                orig = None
+
+            def _step():
+                try:
+                    if not getattr(self, '_version_flash_active', False):
+                        try:
+                            if orig is not None:
+                                label.configure(text_color=orig)
+                            else:
+                                label.configure(text_color=None)
+                        except Exception:
+                            pass
+                        return
+                    try:
+                        cur = label.cget('text_color')
+                    except Exception:
+                        cur = None
+                    try:
+                        next_color = 'red' if cur != 'red' else (orig or 'black')
+                        label.configure(text_color=next_color)
+                    except Exception:
+                        pass
+                    self.root.after(400, _step)
+                except Exception:
+                    self._version_flash_active = False
+
+            self.root.after(0, _step)
+        except Exception:
+            logging.exception('Failed to start version flash')
     def _safe_sound_play(self, directory, sound_filename, block = False):
 
         if os.path.isabs(sound_filename)or sound_filename.endswith((".wav", ".ogg")):
@@ -3649,8 +3823,34 @@ class App:
         main_frame.grid(row = 0, column = 0, sticky = "nsew")
         title_label = customtkinter.CTkLabel(main_frame, text = "DOOM Tools", font = customtkinter.CTkFont(size = 24, weight = "bold"))
         title_label.pack(pady = 20)
+        try:
+            title_label.bind("<Button-1>", lambda e: self._start_title_easter_egg(title_label))
+        except Exception:
+            pass
         version_label = customtkinter.CTkLabel(main_frame, text = f"Version: {version}", font = customtkinter.CTkFont(size = 16))
         version_label.pack()
+        try:
+            import webbrowser
+            def _open_releases(ev=None):
+                try:
+                    # only open releases when an update is available
+                    if not getattr(self, '_update_available', False):
+                        return
+                    try:
+                        self._version_flash_active = False
+                    except Exception:
+                        pass
+                    webbrowser.open('https://github.com/soli-dstate/DOOM-Tools/releases')
+                except Exception:
+                    logging.exception('Failed to open releases')
+
+            version_label.bind("<Button-1>", _open_releases)
+        except Exception:
+            pass
+        try:
+            threading.Thread(target=lambda: self._check_remote_version(version_label), daemon=True).start()
+        except Exception:
+            pass
         current_character = customtkinter.CTkLabel(main_frame, text = f"Current Character: {currentsave if currentsave else 'None'}", font = customtkinter.CTkFont(size = 14))
         current_character.pack(pady = 10)
         current_table = customtkinter.CTkLabel(main_frame, text = f"Current Data Table: {global_variables.get('current_table', 'Default')}", font = customtkinter.CTkFont(size = 14))
@@ -5851,6 +6051,7 @@ class App:
 
             armories =[s for s in stores if s.get("type")=="armory"]
             regular_stores =[s for s in stores if s.get("type")=="store"]
+            casinos =[s for s in stores if s.get("type")=="casino"]
 
             if armories:
                 armory_section = customtkinter.CTkLabel(scroll_frame, text = "Armories", font = customtkinter.CTkFont(size = 18, weight = "bold"))
@@ -5904,6 +6105,29 @@ class App:
                         trades_label.pack(anchor = "w", padx = 10)
 
                     enter_button = self._create_sound_button(store_frame, "Enter Store", lambda s = store:self._open_store_interface(s, table_data), width = 200, height = 40, font = customtkinter.CTkFont(size = 12))
+                    enter_button.pack(pady = 10, padx = 10)
+
+            if casinos:
+                casino_section = customtkinter.CTkLabel(scroll_frame, text = "Casinos", font = customtkinter.CTkFont(size = 18, weight = "bold"))
+                casino_section.pack(pady =(20, 10), anchor = "w", padx = 10)
+
+                for store in casinos:
+                    store_frame = customtkinter.CTkFrame(scroll_frame)
+                    store_frame.pack(fill = "x", pady = 10, padx = 10)
+
+                    name_label = customtkinter.CTkLabel(store_frame, text = store.get("name", "Unknown Casino"), font = customtkinter.CTkFont(size = 14, weight = "bold"))
+                    name_label.pack(anchor = "w", padx = 10, pady =(10, 5))
+
+                    shopkeeper = store.get("shopkeeper", "Unknown")
+                    shopkeeper_label = customtkinter.CTkLabel(store_frame, text = f"Proprietor: {shopkeeper}", font = customtkinter.CTkFont(size = 11), text_color = "gray")
+                    shopkeeper_label.pack(anchor = "w", padx = 10)
+
+                    min_bet = store.get("min_bet", 10)
+                    max_bet = store.get("max_bet", 1000)
+                    bet_label = customtkinter.CTkLabel(store_frame, text = f"Bets: ${min_bet} - ${max_bet}", font = customtkinter.CTkFont(size = 11), text_color = "gold")
+                    bet_label.pack(anchor = "w", padx = 10)
+
+                    enter_button = self._create_sound_button(store_frame, "Enter Casino", lambda s = store:self._open_casino_interface(s, table_data), width = 200, height = 40, font = customtkinter.CTkFont(size = 12))
                     enter_button.pack(pady = 10, padx = 10)
 
             back_button = self._create_sound_button(main_frame, "Back to Main Menu", lambda:[self._clear_window(), self._build_main_menu()], width = 500, height = 50, font = customtkinter.CTkFont(size = 16))
@@ -8172,6 +8396,1054 @@ class App:
 
         back_btn = self._create_sound_button(button_frame, "Leave Store", leave_store, width = 200, height = 40, font = customtkinter.CTkFont(size = 14))
         back_btn.pack(side = "right", padx = 10)
+
+    def _play_card_sound(self, sound_name):
+        try:
+            base_dir = os.path.dirname(__file__)
+            sound_path = os.path.join(base_dir, "sounds", "misc", "cards", f"{sound_name}.ogg")
+            if os.path.exists(sound_path):
+                sound = pygame.mixer.Sound(sound_path)
+                sound.play()
+        except Exception as e:
+            logging.debug(f"Failed to play card sound {sound_name}: {e}")
+
+    def _load_card_image(self, suit, value, size=(80, 112)):
+        try:
+            if not hasattr(self, '_card_image_cache'):
+                self._card_image_cache = {}
+
+            cache_key = (suit, value, size)
+            if cache_key in self._card_image_cache:
+                return self._card_image_cache[cache_key]
+
+            base_dir = os.path.dirname(__file__)
+            if suit is None and value == "back":
+                img_path = os.path.join(base_dir, "images", "cards", "back.png")
+            else:
+                img_path = os.path.join(base_dir, "images", "cards", suit, f"{value}.png")
+
+            if os.path.exists(img_path):
+                from PIL import Image
+                img = Image.open(img_path)
+                img = img.resize(size, Image.Resampling.LANCZOS)
+                ctk_img = customtkinter.CTkImage(light_image=img, dark_image=img, size=size)
+                self._card_image_cache[cache_key] = ctk_img
+                return ctk_img
+            else:
+                logging.warning(f"Card image not found: {img_path}")
+        except Exception as e:
+            logging.warning(f"Failed to load card image {suit}/{value}: {e}")
+        return None
+
+    def _open_casino_interface(self, store, table_data):
+        logging.info(f"Opening casino: {store.get('name')}")
+
+        music_channel = None
+        if store.get("music") and store.get("playlist"):
+            music_channel = self._start_business_music(store.get("playlist"), first_play=True)
+
+        self._clear_window()
+
+        self.root.grid_rowconfigure(0, weight=1)
+        self.root.grid_columnconfigure(0, weight=1)
+
+        main_frame = customtkinter.CTkFrame(self.root)
+        main_frame.grid(row=0, column=0, sticky="nsew")
+        main_frame.grid_columnconfigure(0, weight=1)
+        main_frame.grid_rowconfigure(1, weight=1)
+
+        header_frame = customtkinter.CTkFrame(main_frame, fg_color="transparent")
+        header_frame.grid(row=0, column=0, sticky="ew", padx=20, pady=10)
+
+        title_label = customtkinter.CTkLabel(header_frame, text=store.get("name", "Casino"), font=customtkinter.CTkFont(size=24, weight="bold"))
+        title_label.pack(pady=(10, 5))
+
+        shopkeeper_label = customtkinter.CTkLabel(header_frame, text=f"Proprietor: {store.get('shopkeeper', 'Unknown')}", font=customtkinter.CTkFont(size=14), text_color="gray")
+        shopkeeper_label.pack()
+
+        save_path = os.path.join(saves_folder or "", (currentsave or "") + ".sldsv")
+        save_data = self._load_file((currentsave or "") + ".sldsv")
+        if save_data is None:
+            self._popup_show_info("Error", "Failed to load character data.", sound="error")
+            try:
+                self._stop_business_music(music_channel)
+            except Exception:
+                pass
+            return
+
+        player_money = [save_data.get("money", 0)]
+        casino_name = store.get("name", "Unknown Casino")
+
+        if "casino_stats" not in save_data:
+            save_data["casino_stats"] = {}
+        if casino_name not in save_data["casino_stats"]:
+            save_data["casino_stats"][casino_name] = {
+                "wins": 0,
+                "losses": 0,
+                "games_played": 0,
+                "net_profit": 0
+            }
+        casino_stats = [save_data["casino_stats"][casino_name]]
+
+        money_label = customtkinter.CTkLabel(header_frame, text=f"Your Money: ${player_money[0]}", font=customtkinter.CTkFont(size=16, weight="bold"), text_color="green")
+        money_label.pack(pady=5)
+
+        stats_frame = customtkinter.CTkFrame(header_frame, fg_color="transparent")
+        stats_frame.pack(pady=5)
+
+        stats = casino_stats[0]
+        net_color = "green" if stats["net_profit"] >= 0 else "red"
+        net_prefix = "+$" if stats["net_profit"] >= 0 else "-$"
+        net_display = f"{net_prefix}{abs(stats['net_profit'])}"
+
+        stats_label = customtkinter.CTkLabel(
+            stats_frame,
+            text=f"Lifetime: {stats['wins']}W / {stats['losses']}L ({stats['games_played']} games) | Net: {net_display}",
+            font=customtkinter.CTkFont(size=12),
+            text_color="gray"
+        )
+        stats_label.pack()
+
+        def update_stats_display():
+            try:
+                s = casino_stats[0]
+                nc = "green" if s["net_profit"] >= 0 else "red"
+                np = "+$" if s["net_profit"] >= 0 else "-$"
+                nd = f"{np}{abs(s['net_profit'])}"
+                stats_label.configure(text=f"Lifetime: {s['wins']}W / {s['losses']}L ({s['games_played']} games) | Net: {nd}")
+            except Exception:
+                pass
+
+        min_bet = store.get("min_bet", 10)
+        max_bet = store.get("max_bet", 1000)
+
+        def update_money_display():
+            try:
+                money_label.configure(text=f"Your Money: ${player_money[0]}")
+            except Exception:
+                pass
+
+        def save_money():
+            try:
+                save_data["money"] = player_money[0]
+                save_data["casino_stats"][casino_name] = casino_stats[0]
+                self._write_save_to_path(save_path, save_data)
+            except Exception as e:
+                logging.error(f"Failed to save money: {e}")
+
+        def record_game_result(winnings):
+            casino_stats[0]["games_played"] += 1
+            casino_stats[0]["net_profit"] += winnings
+            if winnings > 0:
+                casino_stats[0]["wins"] += 1
+            elif winnings < 0:
+                casino_stats[0]["losses"] += 1
+            update_stats_display()
+
+        content_frame = customtkinter.CTkFrame(main_frame)
+        content_frame.grid(row=1, column=0, sticky="nsew", padx=20, pady=10)
+        content_frame.grid_columnconfigure(0, weight=1)
+        content_frame.grid_rowconfigure(0, weight=1)
+
+        games_frame = customtkinter.CTkFrame(content_frame)
+        games_frame.pack(fill="both", expand=True, padx=10, pady=10)
+
+        games_label = customtkinter.CTkLabel(games_frame, text="Choose a Game", font=customtkinter.CTkFont(size=18, weight="bold"))
+        games_label.pack(pady=20)
+
+        available_games = store.get("games", ["Blackjack"])
+
+        def open_blackjack():
+            self._open_blackjack_game(store, player_money, update_money_display, save_money, min_bet, max_bet, music_channel, table_data, record_game_result, casino_stats)
+
+        def open_poker():
+            self._open_poker_game(store, player_money, update_money_display, save_money, min_bet, max_bet, music_channel, table_data, record_game_result, casino_stats)
+
+        if "Blackjack" in available_games:
+            blackjack_btn = self._create_sound_button(games_frame, "Blackjack", open_blackjack, width=300, height=50, font=customtkinter.CTkFont(size=16))
+            blackjack_btn.pack(pady=10)
+
+        if "Poker" in available_games:
+            poker_btn = self._create_sound_button(games_frame, "Poker (Five Card Draw)", open_poker, width=300, height=50, font=customtkinter.CTkFont(size=16))
+            poker_btn.pack(pady=10)
+
+        def leave_casino():
+            try:
+                self._stop_business_music(music_channel)
+            except Exception:
+                pass
+            save_money()
+            self._clear_window()
+            self._open_business_tool()
+
+        button_frame = customtkinter.CTkFrame(main_frame, fg_color="transparent")
+        button_frame.grid(row=2, column=0, sticky="ew", padx=20, pady=10)
+
+        back_btn = self._create_sound_button(button_frame, "Leave Casino", leave_casino, width=200, height=40, font=customtkinter.CTkFont(size=14))
+        back_btn.pack(pady=10)
+
+    def _open_blackjack_game(self, store, player_money, update_money_cb, save_money_cb, min_bet, max_bet, music_channel, table_data, record_game_cb=None, casino_stats=None):
+        self._clear_window()
+
+        self.root.grid_rowconfigure(0, weight=1)
+        self.root.grid_columnconfigure(0, weight=1)
+
+        main_frame = customtkinter.CTkFrame(self.root)
+        main_frame.grid(row=0, column=0, sticky="nsew")
+        main_frame.grid_columnconfigure(0, weight=1)
+        main_frame.grid_rowconfigure(1, weight=1)
+
+        header_frame = customtkinter.CTkFrame(main_frame, fg_color="transparent")
+        header_frame.grid(row=0, column=0, sticky="ew", padx=20, pady=10)
+
+        title_label = customtkinter.CTkLabel(header_frame, text="Blackjack", font=customtkinter.CTkFont(size=24, weight="bold"))
+        title_label.pack(pady=(10, 5))
+
+        money_label = customtkinter.CTkLabel(header_frame, text=f"Your Money: ${player_money[0]}", font=customtkinter.CTkFont(size=16, weight="bold"), text_color="green")
+        money_label.pack(pady=5)
+
+        bet_label = customtkinter.CTkLabel(header_frame, text=f"Bet Range: ${min_bet} - ${max_bet}", font=customtkinter.CTkFont(size=12), text_color="orange")
+        bet_label.pack()
+
+        game_frame = customtkinter.CTkFrame(main_frame)
+        game_frame.grid(row=1, column=0, sticky="nsew", padx=20, pady=10)
+        game_frame.grid_columnconfigure(0, weight=1)
+
+        suits = ["clubs", "diamonds", "hearts", "spades"]
+        values = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "jack", "queen", "king", "ace"]
+
+        deck = [{"suit": s, "value": v} for s in suits for v in values]
+        game_state = {
+            "deck": [],
+            "player_hand": [],
+            "dealer_hand": [],
+            "current_bet": 0,
+            "game_active": False,
+            "player_turn": False,
+            "result": None,
+            "ui_active": True
+        }
+
+        dealer_frame = customtkinter.CTkFrame(game_frame, fg_color="transparent")
+        dealer_frame.pack(pady=10)
+        dealer_label = customtkinter.CTkLabel(dealer_frame, text="Dealer's Hand", font=customtkinter.CTkFont(size=14, weight="bold"))
+        dealer_label.pack()
+        dealer_cards_frame = customtkinter.CTkFrame(dealer_frame, fg_color="transparent")
+        dealer_cards_frame.pack(pady=5)
+        dealer_score_label = customtkinter.CTkLabel(dealer_frame, text="", font=customtkinter.CTkFont(size=12))
+        dealer_score_label.pack()
+
+        player_frame = customtkinter.CTkFrame(game_frame, fg_color="transparent")
+        player_frame.pack(pady=10)
+        player_label = customtkinter.CTkLabel(player_frame, text="Your Hand", font=customtkinter.CTkFont(size=14, weight="bold"))
+        player_label.pack()
+        player_cards_frame = customtkinter.CTkFrame(player_frame, fg_color="transparent")
+        player_cards_frame.pack(pady=5)
+        player_score_label = customtkinter.CTkLabel(player_frame, text="", font=customtkinter.CTkFont(size=12))
+        player_score_label.pack()
+
+        result_label = customtkinter.CTkLabel(game_frame, text="", font=customtkinter.CTkFont(size=18, weight="bold"))
+        result_label.pack(pady=10)
+
+        def get_card_value(card):
+            v = card["value"]
+            if v in ["jack", "queen", "king"]:
+                return 10
+            elif v == "ace":
+                return 11
+            else:
+                return int(v)
+
+        def calculate_hand(hand):
+            total = sum(get_card_value(c) for c in hand)
+            aces = sum(1 for c in hand if c["value"] == "ace")
+            while total > 21 and aces > 0:
+                total -= 10
+                aces -= 1
+            return total
+
+        def shuffle_deck():
+            game_state["deck"] = deck.copy()
+            random.shuffle(game_state["deck"])
+            self._play_card_sound("shuffle")
+
+        def draw_card():
+            if not game_state["deck"]:
+                shuffle_deck()
+            card = game_state["deck"].pop()
+            self._play_card_sound("flip")
+            return card
+
+        def display_card(frame, card, hidden=False):
+            if hidden:
+                img = self._load_card_image(None, "back")
+            else:
+                img = self._load_card_image(card["suit"], card["value"])
+
+            if img:
+                card_label = customtkinter.CTkLabel(frame, image=img, text="")
+                card_label.image = img
+                card_label.pack(side="left", padx=2)
+            else:
+                text = "??" if hidden else f"{card['value'][0].upper()}{card['suit'][0].upper()}"
+                card_label = customtkinter.CTkLabel(frame, text=text, width=60, height=84, fg_color="white", text_color="black", corner_radius=5)
+                card_label.pack(side="left", padx=2)
+
+        def clear_cards(frame):
+            for widget in frame.winfo_children():
+                widget.destroy()
+
+        def update_display(reveal_dealer=False):
+            clear_cards(dealer_cards_frame)
+            clear_cards(player_cards_frame)
+
+            for i, card in enumerate(game_state["dealer_hand"]):
+                if i == 0 and not reveal_dealer and game_state["player_turn"]:
+                    display_card(dealer_cards_frame, card, hidden=True)
+                else:
+                    display_card(dealer_cards_frame, card)
+
+            for card in game_state["player_hand"]:
+                display_card(player_cards_frame, card)
+
+            player_total = calculate_hand(game_state["player_hand"])
+            player_score_label.configure(text=f"Score: {player_total}")
+
+            if reveal_dealer or not game_state["player_turn"]:
+                dealer_total = calculate_hand(game_state["dealer_hand"])
+                dealer_score_label.configure(text=f"Score: {dealer_total}")
+            else:
+                visible_card = game_state["dealer_hand"][1] if len(game_state["dealer_hand"]) > 1 else None
+                if visible_card:
+                    dealer_score_label.configure(text=f"Showing: {get_card_value(visible_card)}")
+                else:
+                    dealer_score_label.configure(text="")
+
+            money_label.configure(text=f"Your Money: ${player_money[0]}")
+            update_money_cb()
+
+        def end_game(result_text, winnings):
+            if not game_state.get("ui_active", False):
+                return
+            game_state["game_active"] = False
+            game_state["player_turn"] = False
+            game_state["result"] = result_text
+
+            player_money[0] += winnings
+            if record_game_cb:
+                record_game_cb(winnings)
+            save_money_cb()
+
+            try:
+                color = "green" if winnings > 0 else ("red" if winnings < 0 else "orange")
+                if winnings > 0:
+                    result_label.configure(text=f"{result_text} (+${winnings})", text_color=color)
+                elif winnings < 0:
+                    result_label.configure(text=f"{result_text} (-${abs(winnings)})", text_color=color)
+                else:
+                    result_label.configure(text=result_text, text_color=color)
+
+                update_display(reveal_dealer=True)
+                update_buttons()
+            except Exception:
+                pass
+
+        def dealer_turn():
+            if not game_state.get("ui_active", False):
+                return
+            update_display(reveal_dealer=True)
+            dealer_total = calculate_hand(game_state["dealer_hand"])
+
+            def dealer_draw():
+                nonlocal dealer_total
+                if not game_state.get("ui_active", False):
+                    return
+                if dealer_total < 17:
+                    game_state["dealer_hand"].append(draw_card())
+                    dealer_total = calculate_hand(game_state["dealer_hand"])
+                    try:
+                        update_display(reveal_dealer=True)
+                    except Exception:
+                        return
+                    self.root.after(800, dealer_draw)
+                else:
+                    player_total = calculate_hand(game_state["player_hand"])
+                    bet = game_state["current_bet"]
+
+                    if dealer_total > 21:
+                        end_game("Dealer Busts! You Win!", bet)
+                    elif dealer_total > player_total:
+                        end_game("Dealer Wins!", -bet)
+                    elif player_total > dealer_total:
+                        end_game("You Win!", bet)
+                    else:
+                        end_game("Push! It's a Tie!", 0)
+
+            self.root.after(500, dealer_draw)
+
+        def hit():
+            if not game_state["player_turn"]:
+                return
+            game_state["player_hand"].append(draw_card())
+            update_display()
+
+            if calculate_hand(game_state["player_hand"]) > 21:
+                end_game("Bust! You Lose!", -game_state["current_bet"])
+
+        def stand():
+            if not game_state["player_turn"]:
+                return
+            game_state["player_turn"] = False
+            update_buttons()
+            dealer_turn()
+
+        def double_down():
+            if not game_state["player_turn"] or len(game_state["player_hand"]) != 2:
+                return
+            if player_money[0] < game_state["current_bet"]:
+                self._popup_show_info("Insufficient Funds", "You don't have enough money to double down.", sound="error")
+                return
+
+            game_state["current_bet"] *= 2
+            game_state["player_hand"].append(draw_card())
+            update_display()
+
+            if calculate_hand(game_state["player_hand"]) > 21:
+                end_game("Bust! You Lose!", -game_state["current_bet"])
+            else:
+                game_state["player_turn"] = False
+                update_buttons()
+                dealer_turn()
+
+        def start_new_game():
+            bet_str = bet_entry.get()
+            try:
+                bet = int(bet_str)
+            except ValueError:
+                self._popup_show_info("Invalid Bet", "Please enter a valid number.", sound="error")
+                return
+
+            if bet < min_bet or bet > max_bet:
+                self._popup_show_info("Invalid Bet", f"Bet must be between ${min_bet} and ${max_bet}.", sound="error")
+                return
+
+            if bet > player_money[0]:
+                self._popup_show_info("Insufficient Funds", "You don't have enough money for that bet.", sound="error")
+                return
+
+            game_state["current_bet"] = bet
+            result_label.configure(text="")
+
+            shuffle_deck()
+            game_state["player_hand"] = []
+            game_state["dealer_hand"] = []
+
+            game_state["player_hand"].append(draw_card())
+            game_state["dealer_hand"].append(draw_card())
+            self.root.after(300, lambda: None)
+            game_state["player_hand"].append(draw_card())
+            game_state["dealer_hand"].append(draw_card())
+
+            game_state["game_active"] = True
+            game_state["player_turn"] = True
+            game_state["result"] = None
+
+            update_display()
+            update_buttons()
+
+            player_total = calculate_hand(game_state["player_hand"])
+            dealer_total = calculate_hand(game_state["dealer_hand"])
+
+            if player_total == 21 and dealer_total == 21:
+                end_game("Both Blackjack! Push!", 0)
+            elif player_total == 21:
+                end_game("Blackjack! You Win!", int(bet * 1.5))
+            elif dealer_total == 21:
+                end_game("Dealer Blackjack! You Lose!", -bet)
+
+        def update_buttons():
+            if game_state["player_turn"]:
+                hit_btn.configure(state="normal")
+                stand_btn.configure(state="normal")
+                double_btn.configure(state="normal" if len(game_state["player_hand"]) == 2 and player_money[0] >= game_state["current_bet"] else "disabled")
+                deal_btn.configure(state="disabled")
+            else:
+                hit_btn.configure(state="disabled")
+                stand_btn.configure(state="disabled")
+                double_btn.configure(state="disabled")
+                deal_btn.configure(state="normal")
+
+        controls_frame = customtkinter.CTkFrame(main_frame, fg_color="transparent")
+        controls_frame.grid(row=2, column=0, sticky="ew", padx=20, pady=10)
+
+        bet_frame = customtkinter.CTkFrame(controls_frame, fg_color="transparent")
+        bet_frame.pack(pady=5)
+
+        bet_label_entry = customtkinter.CTkLabel(bet_frame, text="Bet Amount: $", font=customtkinter.CTkFont(size=14))
+        bet_label_entry.pack(side="left")
+
+        bet_entry = customtkinter.CTkEntry(bet_frame, width=100, placeholder_text=str(min_bet))
+        bet_entry.pack(side="left", padx=5)
+        bet_entry.insert(0, str(min_bet))
+
+        action_frame = customtkinter.CTkFrame(controls_frame, fg_color="transparent")
+        action_frame.pack(pady=10)
+
+        deal_btn = self._create_sound_button(action_frame, "Deal", start_new_game, width=100, height=40, font=customtkinter.CTkFont(size=14))
+        deal_btn.pack(side="left", padx=5)
+
+        hit_btn = self._create_sound_button(action_frame, "Hit", hit, width=100, height=40, font=customtkinter.CTkFont(size=14))
+        hit_btn.pack(side="left", padx=5)
+        hit_btn.configure(state="disabled")
+
+        stand_btn = self._create_sound_button(action_frame, "Stand", stand, width=100, height=40, font=customtkinter.CTkFont(size=14))
+        stand_btn.pack(side="left", padx=5)
+        stand_btn.configure(state="disabled")
+
+        double_btn = self._create_sound_button(action_frame, "Double", double_down, width=100, height=40, font=customtkinter.CTkFont(size=14))
+        double_btn.pack(side="left", padx=5)
+        double_btn.configure(state="disabled")
+
+        def back_to_casino():
+            game_state["ui_active"] = False
+            self._open_casino_interface(store, table_data)
+
+        back_btn = self._create_sound_button(controls_frame, "Back to Casino", back_to_casino, width=200, height=40, font=customtkinter.CTkFont(size=14))
+        back_btn.pack(pady=10)
+
+    def _open_poker_game(self, store, player_money, update_money_cb, save_money_cb, min_bet, max_bet, music_channel, table_data, record_game_cb=None, casino_stats=None):
+        self._clear_window()
+
+        self.root.grid_rowconfigure(0, weight=1)
+        self.root.grid_columnconfigure(0, weight=1)
+
+        main_frame = customtkinter.CTkFrame(self.root)
+        main_frame.grid(row=0, column=0, sticky="nsew")
+        main_frame.grid_columnconfigure(0, weight=1)
+        main_frame.grid_rowconfigure(1, weight=1)
+
+        header_frame = customtkinter.CTkFrame(main_frame, fg_color="transparent")
+        header_frame.grid(row=0, column=0, sticky="ew", padx=20, pady=10)
+
+        title_label = customtkinter.CTkLabel(header_frame, text="Five Card Draw Poker", font=customtkinter.CTkFont(size=24, weight="bold"))
+        title_label.pack(pady=(10, 5))
+
+        money_label = customtkinter.CTkLabel(header_frame, text=f"Your Money: ${player_money[0]}", font=customtkinter.CTkFont(size=16, weight="bold"), text_color="green")
+        money_label.pack(pady=5)
+
+        bet_label = customtkinter.CTkLabel(header_frame, text=f"Bet Range: ${min_bet} - ${max_bet}", font=customtkinter.CTkFont(size=12), text_color="orange")
+        bet_label.pack()
+
+        game_frame = customtkinter.CTkFrame(main_frame)
+        game_frame.grid(row=1, column=0, sticky="nsew", padx=20, pady=10)
+        game_frame.grid_columnconfigure(0, weight=1)
+
+        suits = ["clubs", "diamonds", "hearts", "spades"]
+        values = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "jack", "queen", "king", "ace"]
+
+        deck = [{"suit": s, "value": v} for s in suits for v in values]
+
+        def generate_random_npc_name():
+            try:
+                tables = table_data.get("tables", {})
+                npc_names_data = tables.get("npc_names", {})
+                if not npc_names_data:
+                    return f"Player {random.randint(1, 999)}"
+
+                nationalities = list(npc_names_data.keys())
+                nationality = random.choice(nationalities)
+                name_data = npc_names_data[nationality]
+
+                first_names = name_data.get("first", ["Unknown"])
+                last_names = name_data.get("last", ["Player"])
+
+                first = random.choice(first_names)
+                last = random.choice(last_names)
+                return f"{first} {last}"
+            except Exception:
+                return f"Player {random.randint(1, 999)}"
+
+        generated_names = set()
+        npc_names = []
+        for i in range(3):
+            attempts = 0
+            while attempts < 50:
+                name = generate_random_npc_name()
+                if name not in generated_names:
+                    generated_names.add(name)
+                    npc_names.append(name)
+                    break
+                attempts += 1
+            else:
+                fallback = f"Player {i + 1}"
+                npc_names.append(fallback)
+                generated_names.add(fallback)
+
+        game_state = {
+            "deck": [],
+            "player_hand": [],
+            "npc_hands": {name: [] for name in npc_names},
+            "npc_held": {name: [False, False, False, False, False] for name in npc_names},
+            "held": [False, False, False, False, False],
+            "current_bet": 0,
+            "pot": 0,
+            "phase": "betting",
+            "card_labels": [],
+            "folded": {name: False for name in npc_names},
+            "player_folded": False
+        }
+
+        scroll_frame = customtkinter.CTkScrollableFrame(game_frame)
+        scroll_frame.pack(fill="both", expand=True, padx=5, pady=5)
+
+        npc_frames = {}
+        for npc_name in npc_names:
+            npc_frame = customtkinter.CTkFrame(scroll_frame, fg_color="transparent")
+            npc_frame.pack(pady=5, fill="x")
+            npc_label = customtkinter.CTkLabel(npc_frame, text=npc_name, font=customtkinter.CTkFont(size=12, weight="bold"))
+            npc_label.pack()
+            npc_cards_frame = customtkinter.CTkFrame(npc_frame, fg_color="transparent")
+            npc_cards_frame.pack()
+            npc_status_label = customtkinter.CTkLabel(npc_frame, text="", font=customtkinter.CTkFont(size=10))
+            npc_status_label.pack()
+            npc_frames[npc_name] = {"frame": npc_frame, "cards": npc_cards_frame, "status": npc_status_label, "label": npc_label}
+
+        separator = customtkinter.CTkLabel(scroll_frame, text="─" * 50, font=customtkinter.CTkFont(size=10))
+        separator.pack(pady=5)
+
+        player_frame = customtkinter.CTkFrame(scroll_frame, fg_color="transparent")
+        player_frame.pack(pady=10)
+        player_label = customtkinter.CTkLabel(player_frame, text="Your Hand", font=customtkinter.CTkFont(size=14, weight="bold"))
+        player_label.pack()
+        player_cards_frame = customtkinter.CTkFrame(player_frame, fg_color="transparent")
+        player_cards_frame.pack(pady=5)
+        player_score_label = customtkinter.CTkLabel(player_frame, text="", font=customtkinter.CTkFont(size=12))
+        player_score_label.pack()
+
+        pot_label = customtkinter.CTkLabel(scroll_frame, text="Pot: $0", font=customtkinter.CTkFont(size=16, weight="bold"), text_color="gold")
+        pot_label.pack(pady=5)
+
+        result_label = customtkinter.CTkLabel(scroll_frame, text="", font=customtkinter.CTkFont(size=18, weight="bold"))
+        result_label.pack(pady=10)
+
+        def get_card_value_num(card):
+            v = card["value"]
+            if v == "ace":
+                return 14
+            elif v == "king":
+                return 13
+            elif v == "queen":
+                return 12
+            elif v == "jack":
+                return 11
+            else:
+                return int(v)
+
+        def shuffle_deck():
+            game_state["deck"] = deck.copy()
+            random.shuffle(game_state["deck"])
+            self._play_card_sound("shuffle")
+
+        def draw_card():
+            if not game_state["deck"]:
+                shuffle_deck()
+            card = game_state["deck"].pop()
+            self._play_card_sound("flip")
+            return card
+
+        def evaluate_hand(hand):
+            if len(hand) != 5:
+                return ("Nothing", 0, [])
+
+            vals = sorted([get_card_value_num(c) for c in hand], reverse=True)
+            suits_list = [c["suit"] for c in hand]
+
+            is_flush = len(set(suits_list)) == 1
+            is_straight = False
+
+            sorted_vals = sorted(vals)
+            if sorted_vals == list(range(sorted_vals[0], sorted_vals[0] + 5)):
+                is_straight = True
+            if sorted_vals == [2, 3, 4, 5, 14]:
+                is_straight = True
+                vals = [5, 4, 3, 2, 1]
+
+            val_counts = {}
+            for v in vals:
+                val_counts[v] = val_counts.get(v, 0) + 1
+            counts = sorted(val_counts.values(), reverse=True)
+
+            if is_straight and is_flush:
+                if sorted(vals) == [10, 11, 12, 13, 14]:
+                    return ("Royal Flush", 10, vals)
+                return ("Straight Flush", 9, vals)
+            if counts == [4, 1]:
+                return ("Four of a Kind", 8, vals)
+            if counts == [3, 2]:
+                return ("Full House", 7, vals)
+            if is_flush:
+                return ("Flush", 6, vals)
+            if is_straight:
+                return ("Straight", 5, vals)
+            if counts == [3, 1, 1]:
+                return ("Three of a Kind", 4, vals)
+            if counts == [2, 2, 1]:
+                return ("Two Pair", 3, vals)
+            if counts == [2, 1, 1, 1]:
+                return ("Pair", 2, vals)
+            return ("High Card", 1, vals)
+
+        def npc_decide_hold(hand):
+            _, rank, _ = evaluate_hand(hand)
+            held = [False, False, False, False, False]
+
+            vals = [get_card_value_num(c) for c in hand]
+            val_counts = {}
+            for i, v in enumerate(vals):
+                if v not in val_counts:
+                    val_counts[v] = []
+                val_counts[v].append(i)
+
+            if rank >= 4:
+                return [True, True, True, True, True]
+
+            for v, indices in val_counts.items():
+                if len(indices) >= 2:
+                    for idx in indices:
+                        held[idx] = True
+
+            if rank >= 2:
+                return held
+
+            high_cards = sorted(enumerate(vals), key=lambda x: x[1], reverse=True)[:2]
+            for idx, _ in high_cards:
+                held[idx] = True
+
+            return held
+
+        def npc_decide_fold(hand, bet):
+            _, rank, _ = evaluate_hand(hand)
+            if rank >= 3:
+                return False
+            if rank == 2:
+                return random.random() < 0.2
+            if rank == 1:
+                return random.random() < 0.5
+            return random.random() < 0.3
+
+        def display_npc_hand(npc_name, reveal=False):
+            frame_info = npc_frames[npc_name]
+            cards_frame = frame_info["cards"]
+            status_label = frame_info["status"]
+
+            for widget in cards_frame.winfo_children():
+                widget.destroy()
+
+            if game_state["folded"][npc_name]:
+                status_label.configure(text="FOLDED", text_color="red")
+                return
+
+            hand = game_state["npc_hands"][npc_name]
+            for card in hand:
+                if reveal:
+                    img = self._load_card_image(card["suit"], card["value"], size=(50, 70))
+                else:
+                    img = self._load_card_image(None, "back", size=(50, 70))
+
+                if img:
+                    card_label = customtkinter.CTkLabel(cards_frame, image=img, text="")
+                    card_label.image = img
+                else:
+                    text = f"{card['value'][0].upper()}{card['suit'][0].upper()}" if reveal else "??"
+                    card_label = customtkinter.CTkLabel(cards_frame, text=text, width=40, height=56, fg_color="white", text_color="black", corner_radius=3)
+                card_label.pack(side="left", padx=1)
+
+            if reveal:
+                hand_name, _, _ = evaluate_hand(hand)
+                status_label.configure(text=hand_name, text_color="cyan")
+            else:
+                status_label.configure(text="In Game", text_color="green")
+
+        def display_player_hand():
+            for widget in player_cards_frame.winfo_children():
+                widget.destroy()
+
+            game_state["card_labels"] = []
+
+            for i, card in enumerate(game_state["player_hand"]):
+                card_container = customtkinter.CTkFrame(player_cards_frame, fg_color="transparent")
+                card_container.pack(side="left", padx=3)
+
+                img = self._load_card_image(card["suit"], card["value"])
+                if img:
+                    card_label = customtkinter.CTkLabel(card_container, image=img, text="")
+                    card_label.image = img
+                else:
+                    text = f"{card['value'][0].upper()}{card['suit'][0].upper()}"
+                    card_label = customtkinter.CTkLabel(card_container, text=text, width=60, height=84, fg_color="white", text_color="black", corner_radius=5)
+                card_label.pack()
+                game_state["card_labels"].append(card_label)
+
+                held_text = "HELD" if game_state["held"][i] else ""
+                hold_label = customtkinter.CTkLabel(card_container, text=held_text, font=customtkinter.CTkFont(size=10, weight="bold"), text_color="yellow")
+                hold_label.pack()
+
+                def toggle_hold(idx=i, lbl=hold_label):
+                    if game_state["phase"] != "draw":
+                        return
+                    game_state["held"][idx] = not game_state["held"][idx]
+                    lbl.configure(text="HELD" if game_state["held"][idx] else "")
+                    self._play_card_sound("place")
+
+                card_label.bind("<Button-1>", lambda e, idx=i, lbl=hold_label: toggle_hold(idx, lbl))
+
+            hand_name, _, _ = evaluate_hand(game_state["player_hand"])
+            player_score_label.configure(text=f"Current: {hand_name}")
+
+            money_label.configure(text=f"Your Money: ${player_money[0]}")
+            pot_label.configure(text=f"Pot: ${game_state['pot']}")
+            update_money_cb()
+
+        def deal_new_hand():
+            bet_str = bet_entry.get()
+            try:
+                bet = int(bet_str)
+            except ValueError:
+                self._popup_show_info("Invalid Bet", "Please enter a valid number.", sound="error")
+                return
+
+            if bet < min_bet or bet > max_bet:
+                self._popup_show_info("Invalid Bet", f"Bet must be between ${min_bet} and ${max_bet}.", sound="error")
+                return
+
+            if bet > player_money[0]:
+                self._popup_show_info("Insufficient Funds", "You don't have enough money for that bet.", sound="error")
+                return
+
+            game_state["current_bet"] = bet
+            game_state["held"] = [False, False, False, False, False]
+            game_state["player_folded"] = False
+            for name in npc_names:
+                game_state["folded"][name] = False
+                game_state["npc_held"][name] = [False, False, False, False, False]
+            result_label.configure(text="")
+
+            shuffle_deck()
+
+            game_state["player_hand"] = [draw_card() for _ in range(5)]
+            for npc_name in npc_names:
+                game_state["npc_hands"][npc_name] = [draw_card() for _ in range(5)]
+
+            active_players = 1 + len(npc_names)
+            game_state["pot"] = bet * active_players
+
+            for npc_name in npc_names:
+                if npc_decide_fold(game_state["npc_hands"][npc_name], bet):
+                    game_state["folded"][npc_name] = True
+                    game_state["pot"] -= bet
+
+            game_state["phase"] = "draw"
+
+            for npc_name in npc_names:
+                display_npc_hand(npc_name, reveal=False)
+            display_player_hand()
+
+            update_buttons()
+            result_label.configure(text="Click cards to hold, then Draw", text_color="white")
+
+        def draw_new_cards():
+            if game_state["phase"] != "draw":
+                return
+
+            for i in range(5):
+                if not game_state["held"][i]:
+                    game_state["player_hand"][i] = draw_card()
+
+            for npc_name in npc_names:
+                if not game_state["folded"][npc_name]:
+                    npc_held = npc_decide_hold(game_state["npc_hands"][npc_name])
+                    for i in range(5):
+                        if not npc_held[i]:
+                            game_state["npc_hands"][npc_name][i] = draw_card()
+
+            game_state["phase"] = "showdown"
+            display_player_hand()
+
+            for npc_name in npc_names:
+                display_npc_hand(npc_name, reveal=True)
+
+            determine_winner()
+            update_buttons()
+
+        def fold_hand():
+            if game_state["phase"] != "draw":
+                return
+            game_state["player_folded"] = True
+            game_state["phase"] = "complete"
+
+            loss = -game_state["current_bet"]
+            if record_game_cb:
+                record_game_cb(loss)
+            save_money_cb()
+
+            active_npcs = [n for n in npc_names if not game_state["folded"][n]]
+            if active_npcs:
+                for npc_name in npc_names:
+                    display_npc_hand(npc_name, reveal=True)
+                result_label.configure(text=f"You folded. {active_npcs[0]} wins the pot!", text_color="red")
+            else:
+                result_label.configure(text="Everyone folded!", text_color="orange")
+
+            update_buttons()
+            money_label.configure(text=f"Your Money: ${player_money[0]}")
+            update_money_cb()
+
+        def determine_winner():
+            player_eval = evaluate_hand(game_state["player_hand"])
+            best_hand = ("You", player_eval)
+
+            for npc_name in npc_names:
+                if not game_state["folded"][npc_name]:
+                    npc_eval = evaluate_hand(game_state["npc_hands"][npc_name])
+                    if npc_eval[1] > best_hand[1][1]:
+                        best_hand = (npc_name, npc_eval)
+                    elif npc_eval[1] == best_hand[1][1]:
+                        if npc_eval[2] > best_hand[1][2]:
+                            best_hand = (npc_name, npc_eval)
+
+            winner_name = best_hand[0]
+            winner_hand = best_hand[1][0]
+            pot = game_state["pot"]
+
+            if winner_name == "You":
+                winnings = pot - game_state["current_bet"]
+                player_money[0] += winnings
+                if record_game_cb:
+                    record_game_cb(winnings)
+                result_label.configure(text=f"You win with {winner_hand}! +${winnings}", text_color="green")
+            else:
+                loss = -game_state["current_bet"]
+                player_money[0] -= game_state["current_bet"]
+                if record_game_cb:
+                    record_game_cb(loss)
+                result_label.configure(text=f"{winner_name} wins with {winner_hand}! -${game_state['current_bet']}", text_color="red")
+
+            save_money_cb()
+            game_state["phase"] = "complete"
+            money_label.configure(text=f"Your Money: ${player_money[0]}")
+            update_money_cb()
+
+        def update_buttons():
+            if game_state["phase"] == "betting":
+                deal_btn.configure(state="normal")
+                draw_btn.configure(state="disabled")
+                fold_btn.configure(state="disabled")
+            elif game_state["phase"] == "draw":
+                deal_btn.configure(state="disabled")
+                draw_btn.configure(state="normal")
+                fold_btn.configure(state="normal")
+            else:
+                deal_btn.configure(state="normal")
+                draw_btn.configure(state="disabled")
+                fold_btn.configure(state="disabled")
+
+        def show_hand_rankings():
+            popup = customtkinter.CTkToplevel(self.root)
+            popup.title("Poker Hand Rankings")
+            popup.transient(self.root)
+            popup.grab_set()
+
+            popup.withdraw()
+
+            scroll_frame = customtkinter.CTkScrollableFrame(popup, width=500, height=500)
+            scroll_frame.pack(fill="both", expand=True, padx=10, pady=10)
+
+            title_lbl = customtkinter.CTkLabel(scroll_frame, text="Poker Hand Rankings", font=customtkinter.CTkFont(size=18, weight="bold"))
+            title_lbl.pack(pady=(5, 15))
+
+            example_hands = [
+                ("1. Royal Flush", "A, K, Q, J, 10 all same suit", [("hearts", "ace"), ("hearts", "king"), ("hearts", "queen"), ("hearts", "jack"), ("hearts", "10")]),
+                ("2. Straight Flush", "Five sequential cards, same suit", [("spades", "9"), ("spades", "8"), ("spades", "7"), ("spades", "6"), ("spades", "5")]),
+                ("3. Four of a Kind", "Four cards of same rank", [("hearts", "king"), ("diamonds", "king"), ("clubs", "king"), ("spades", "king"), ("hearts", "3")]),
+                ("4. Full House", "Three of a kind + a pair", [("hearts", "queen"), ("diamonds", "queen"), ("clubs", "queen"), ("spades", "7"), ("hearts", "7")]),
+                ("5. Flush", "Five cards of same suit", [("diamonds", "ace"), ("diamonds", "jack"), ("diamonds", "8"), ("diamonds", "5"), ("diamonds", "2")]),
+                ("6. Straight", "Five sequential cards, any suit", [("hearts", "10"), ("diamonds", "9"), ("clubs", "8"), ("spades", "7"), ("hearts", "6")]),
+                ("7. Three of a Kind", "Three cards of same rank", [("hearts", "8"), ("diamonds", "8"), ("clubs", "8"), ("spades", "king"), ("hearts", "4")]),
+                ("8. Two Pair", "Two different pairs", [("hearts", "jack"), ("diamonds", "jack"), ("clubs", "5"), ("spades", "5"), ("hearts", "2")]),
+                ("9. Pair", "Two cards of same rank", [("hearts", "ace"), ("diamonds", "ace"), ("clubs", "9"), ("spades", "6"), ("hearts", "3")]),
+                ("10. High Card", "Highest card wins", [("hearts", "ace"), ("diamonds", "king"), ("clubs", "9"), ("spades", "5"), ("hearts", "2")]),
+            ]
+
+            for hand_name, description, cards in example_hands:
+                hand_frame = customtkinter.CTkFrame(scroll_frame, fg_color="transparent")
+                hand_frame.pack(pady=8, fill="x")
+
+                name_lbl = customtkinter.CTkLabel(hand_frame, text=hand_name, font=customtkinter.CTkFont(size=14, weight="bold"))
+                name_lbl.pack(anchor="w")
+
+                desc_lbl = customtkinter.CTkLabel(hand_frame, text=description, font=customtkinter.CTkFont(size=11), text_color="gray")
+                desc_lbl.pack(anchor="w")
+
+                cards_row = customtkinter.CTkFrame(hand_frame, fg_color="transparent")
+                cards_row.pack(anchor="w", pady=3)
+
+                for suit, value in cards:
+                    img = self._load_card_image(suit, value, size=(45, 63))
+                    if img:
+                        card_lbl = customtkinter.CTkLabel(cards_row, image=img, text="")
+                        card_lbl.image = img
+                    else:
+                        card_lbl = customtkinter.CTkLabel(cards_row, text=f"{value[0].upper()}{suit[0].upper()}", width=35, height=49, fg_color="white", text_color="black", corner_radius=3)
+                    card_lbl.pack(side="left", padx=1)
+
+            close_btn = customtkinter.CTkButton(scroll_frame, text="Close", command=popup.destroy, width=100)
+            close_btn.pack(pady=15)
+
+            self._play_ui_sound("click")
+
+            popup.update_idletasks()
+            w = 540
+            h = 600
+            x = self.root.winfo_x() + (self.root.winfo_width() // 2) - (w // 2)
+            y = self.root.winfo_y() + (self.root.winfo_height() // 2) - (h // 2)
+            popup.geometry(f"{w}x{h}+{x}+{y}")
+            popup.deiconify()
+
+        controls_frame = customtkinter.CTkFrame(main_frame, fg_color="transparent")
+        controls_frame.grid(row=2, column=0, sticky="ew", padx=20, pady=10)
+
+        bet_frame = customtkinter.CTkFrame(controls_frame, fg_color="transparent")
+        bet_frame.pack(pady=5)
+
+        bet_label_entry = customtkinter.CTkLabel(bet_frame, text="Bet Amount: $", font=customtkinter.CTkFont(size=14))
+        bet_label_entry.pack(side="left")
+
+        bet_entry = customtkinter.CTkEntry(bet_frame, width=100, placeholder_text=str(min_bet))
+        bet_entry.pack(side="left", padx=5)
+        bet_entry.insert(0, str(min_bet))
+
+        action_frame = customtkinter.CTkFrame(controls_frame, fg_color="transparent")
+        action_frame.pack(pady=10)
+
+        deal_btn = self._create_sound_button(action_frame, "Deal", deal_new_hand, width=100, height=40, font=customtkinter.CTkFont(size=14))
+        deal_btn.pack(side="left", padx=5)
+
+        draw_btn = self._create_sound_button(action_frame, "Draw", draw_new_cards, width=100, height=40, font=customtkinter.CTkFont(size=14))
+        draw_btn.pack(side="left", padx=5)
+        draw_btn.configure(state="disabled")
+
+        fold_btn = self._create_sound_button(action_frame, "Fold", fold_hand, width=100, height=40, font=customtkinter.CTkFont(size=14))
+        fold_btn.pack(side="left", padx=5)
+        fold_btn.configure(state="disabled")
+
+        hands_btn = self._create_sound_button(action_frame, "Hand Rankings", show_hand_rankings, width=120, height=40, font=customtkinter.CTkFont(size=12))
+        hands_btn.pack(side="left", padx=5)
+
+        def back_to_casino():
+            self._open_casino_interface(store, table_data)
+
+        back_btn = self._create_sound_button(controls_frame, "Back to Casino", back_to_casino, width=200, height=40, font=customtkinter.CTkFont(size=14))
+        back_btn.pack(pady=10)
 
     def _open_inventory_manager_tool(self):
         logging.info("Inventory Manager definition called")
