@@ -74,3 +74,6 @@ Thumbs.db
 /lootcrates/
 /enemyloot/
 /themes/
+
+# Downloaded tools (ffmpeg, etc.)
+/scripts/tools/

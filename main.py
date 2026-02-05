@@ -509,12 +509,23 @@ global_variables = {
 "enemyloot_extension":".sldenlt",
 }
 
+def get_current_table_path():
+
+    current_tbl = global_variables.get('current_table')
+    if current_tbl:
+        return os.path.join("tables", current_tbl)
+    table_files = sorted(glob.glob(os.path.join("tables", f"*{global_variables.get('table_extension', '.sldtbl')}")))
+    if table_files:
+        return table_files[0]
+    return None
+
 try:
     tfiles = sorted(glob.glob(os.path.join(os.getcwd(), 'tables', f"*{global_variables.get('table_extension', '.sldtbl')}")))
     if tfiles:
         with open(tfiles[0], 'r', encoding = 'utf-8')as _tf:
             _td = json.load(_tf)
         globals()['table_data']= _td
+        global_variables['current_table']= os.path.basename(tfiles[0])
         logging.info(f"Loaded global table_data from {os.path.basename(tfiles[0])}")
 except Exception:
 
@@ -560,6 +571,81 @@ def show_error_dialog(title, message):
     except Exception:
         logging.error("Unable to display GUI error dialog: %s - %s", title, message)
         logging.info(f"Linux distribution: {distribution_info}")
+
+def show_table_selection_dialog():
+
+    try:
+        tfiles = sorted(glob.glob(os.path.join(os.getcwd(), 'tables', f"*{global_variables.get('table_extension', '.sldtbl')}")))
+        if len(tfiles)<=1:
+            return None
+
+        table_info =[]
+        for tpath in tfiles:
+            try:
+                with open(tpath, 'r', encoding = 'utf-8')as f:
+                    tdata = json.load(f)
+                prettyname = tdata.get('prettyname', os.path.basename(tpath))
+                table_info.append({'path':tpath, 'filename':os.path.basename(tpath), 'prettyname':prettyname})
+            except Exception:
+                table_info.append({'path':tpath, 'filename':os.path.basename(tpath), 'prettyname':os.path.basename(tpath)})
+
+        selected_table =[None]
+
+        root = customtkinter.CTk()
+        root.title("Select Data Table")
+        root.geometry("500x400")
+        root.resizable(False, False)
+
+        try:
+            root.attributes('-topmost', True)
+        except Exception:
+            pass
+
+        title = customtkinter.CTkLabel(root, text = "Select Data Table", font = customtkinter.CTkFont(size = 20, weight = "bold"))
+        title.pack(pady = 20)
+
+        subtitle = customtkinter.CTkLabel(root, text = "Multiple data tables detected.Please select which table to use:", font = customtkinter.CTkFont(size = 12))
+        subtitle.pack(pady =(0, 15))
+
+        scroll_frame = customtkinter.CTkScrollableFrame(root, width = 450, height = 200)
+        scroll_frame.pack(pady = 10, padx = 20)
+
+        def select_table(info):
+            selected_table[0]= info
+            root.quit()
+            root.destroy()
+
+        for info in table_info:
+            btn_frame = customtkinter.CTkFrame(scroll_frame, fg_color = "transparent")
+            btn_frame.pack(fill = "x", pady = 5)
+
+            btn = customtkinter.CTkButton(
+            btn_frame,
+            text = f"{info['prettyname']}\n({info['filename']})",
+            command = lambda i = info:select_table(i),
+            width = 420,
+            height = 50,
+            font = customtkinter.CTkFont(size = 14)
+            )
+            btn.pack()
+
+        cancel_btn = customtkinter.CTkButton(root, text = "Exit", command = lambda:sys.exit(0), width = 150, height = 40, fg_color = "#666666")
+        cancel_btn.pack(pady = 20)
+
+        root.mainloop()
+
+        if selected_table[0]:
+            try:
+                with open(selected_table[0]['path'], 'r', encoding = 'utf-8')as f:
+                    globals()['table_data']= json.load(f)
+                global_variables['current_table']= selected_table[0]['filename']
+                logging.info(f"User selected table: {selected_table[0]['filename']}")
+            except Exception as e:
+                logging.error(f"Failed to load selected table: {e}")
+        return selected_table[0]
+    except Exception as e:
+        logging.exception(f"Table selection dialog failed: {e}")
+        return None
 
 possible_flags =["--dev", "--dm", "--debug", "--force", "-debug"]
 
@@ -1403,7 +1489,14 @@ def validate_table_ids():
     except Exception:
         pass
 
-    duplicates = {i:locs for i, locs in global_id_map.items()if len(locs)>1}
+    duplicates = {}
+    for item_id, locations in global_id_map.items():
+        by_file = {}
+        for f, sub, name in locations:
+            by_file.setdefault(f, []).append((f, sub, name))
+        for file_locs in by_file.values():
+            if len(file_locs)>1:
+                duplicates.setdefault(item_id, []).extend(file_locs)
     duplicate_errors =[]
 
     duplicate_suggestions =[]
@@ -1631,11 +1724,11 @@ emptysave = {
 def populate_equipment_with_subslots(save_data):
 
     try:
-        table_files = glob.glob(os.path.join("tables", "*.sldtbl"))
-        if not table_files:
+        tbl_path = get_current_table_path()
+        if not tbl_path or not os.path.exists(tbl_path):
             return save_data
 
-        with open(table_files[0], 'r')as f:
+        with open(tbl_path, 'r')as f:
             table_data = json.load(f)
 
         equipment_items = table_data.get("tables", {}).get("equipment", [])
@@ -2628,6 +2721,15 @@ class App:
                 if isinstance(data, dict):
                     table_from_save = data.get('_table')or data.get('table')
 
+                current_table = global_variables.get('current_table')
+
+                if table_from_save and current_table:
+                    current_table_base = os.path.splitext(current_table)[0]
+                    save_table_base = os.path.splitext(table_from_save)[0]
+                    if current_table_base !=save_table_base and current_table !=table_from_save:
+                        logging.error(f"Save '{save_path}' was created with table '{table_from_save}' but current table is '{current_table}'.Load aborted.")
+                        return None
+
                 if table_from_save:
 
                     matches = sorted(glob.glob(os.path.join('tables', f"*{global_variables.get('table_extension', '.sldtbl')}")))
@@ -2650,15 +2752,6 @@ class App:
                             continue
                     if not found:
                         logging.error(f"Save '{save_path}' requires table '{table_from_save}' which is not present locally.Load aborted.")
-                        return None
-
-                    try:
-                        global_variables['current_table']= os.path.basename(found)
-                        with open(found, 'r', encoding = 'utf-8')as tf:
-                            globals()['table_data']= json.load(tf)
-                        logging.info(f"Loaded table {os.path.basename(found)} from save metadata")
-                    except Exception as e:
-                        logging.error(f"Failed to load table file {found} specified by save: {e}")
                         return None
                 else:
 
@@ -2707,9 +2800,9 @@ class App:
 
     def _get_ammo_table_data(self):
         try:
-            table_files = glob.glob(os.path.join("tables", "*.sldtbl"))
-            if table_files:
-                with open(table_files[0], 'r')as f:
+            tbl_path = get_current_table_path()
+            if tbl_path and os.path.exists(tbl_path):
+                with open(tbl_path, 'r')as f:
                     table_data = json.load(f)
                 return table_data.get("tables", {}).get("ammunition", [])
         except Exception:
@@ -2933,6 +3026,14 @@ class App:
         self.root.geometry(appearance_settings["resolution"])
         self.root.resizable(False, False)
 
+        _original_report = self.root.report_callback_exception
+        def _suppress_after_errors(exc_type, exc_value, exc_tb):
+            msg = str(exc_value)
+            if "invalid command name"in msg and any(x in msg for x in["check_dpi_scaling", "_click_animation", "after#"]):
+                return
+            _original_report(exc_type, exc_value, exc_tb)
+        self.root.report_callback_exception = _suppress_after_errors
+
         try:
             self.root.protocol("WM_DELETE_WINDOW", self._on_window_close)
         except Exception:
@@ -2966,18 +3067,29 @@ class App:
                 save_filename = f"{last_save_name}_{last_save_uuid}.sldsv"
                 loaded_data = self._load_file(save_filename)
                 if loaded_data:
+                    current_table = global_variables.get('current_table')
+                    save_table = loaded_data.get('_table')or loaded_data.get('table')
 
-                    try:
-                        globals()['save_data']= loaded_data
-                    except Exception:
-                        pass
-                    try:
-                        self._current_save_data = loaded_data
-                    except Exception:
-                        pass
-                    global currentsave
-                    currentsave = save_filename.replace(".sldsv", "")
-                    logging.info(f"Automatically loaded last save: {save_filename}")
+                    table_compatible = True
+                    if current_table and save_table:
+                        current_table_base = os.path.splitext(current_table)[0]
+                        save_table_base = os.path.splitext(save_table)[0]
+                        if current_table_base !=save_table_base and current_table !=save_table:
+                            table_compatible = False
+                            logging.warning(f"Last save '{save_filename}' uses table '{save_table}' but current table is '{current_table}'.Not auto-loading.")
+
+                    if table_compatible:
+                        try:
+                            globals()['save_data']= loaded_data
+                        except Exception:
+                            pass
+                        try:
+                            self._current_save_data = loaded_data
+                        except Exception:
+                            pass
+                        global currentsave
+                        currentsave = save_filename.replace(".sldsv", "")
+                        logging.info(f"Automatically loaded last save: {save_filename}")
                 else:
                     logging.warning(f"Failed to load last save: {save_filename}")
         self._build_main_menu()
@@ -3026,59 +3138,58 @@ class App:
             except Exception:
                 orig_color = None
 
-            # play the large gun sound (use direct path so _safe_sound_play will accept it)
             try:
                 sound_path = os.path.join('sounds', 'firearms', 'universal', 'largestgunintheworld.ogg')
-                threading.Thread(target=lambda: self._safe_sound_play('', sound_path, block=False), daemon=True).start()
+                threading.Thread(target = lambda:self._safe_sound_play('', sound_path, block = False), daemon = True).start()
             except Exception:
                 logging.exception('Failed to start easter egg sound')
 
-            colors = ['red', 'orange', 'yellow', 'green', 'cyan', 'blue', 'magenta']
+            colors =['red', 'orange', 'yellow', 'green', 'cyan', 'blue', 'magenta']
             interval = 120
             duration_ms = 8000
-            steps = max(1, duration_ms // interval)
+            steps = max(1, duration_ms //interval)
 
-            def _cycle(i=0, remaining=steps):
+            def _cycle(i = 0, remaining = steps):
                 try:
-                    if remaining <= 0:
+                    if remaining <=0:
                         try:
                             if orig_color is not None:
-                                label.configure(text_color=orig_color)
+                                label.configure(text_color = orig_color)
                             else:
-                                label.configure(text_color=None)
+                                label.configure(text_color = None)
                         except Exception:
                             pass
                         self._title_easter_active = False
                         return
-                    color = colors[i % len(colors)]
+                    color = colors[i %len(colors)]
                     try:
-                        label.configure(text_color=color)
+                        label.configure(text_color = color)
                     except Exception:
                         try:
-                            label.configure(fg_color=color)
+                            label.configure(fg_color = color)
                         except Exception:
                             pass
-                    self.root.after(interval, lambda: _cycle(i + 1, remaining - 1))
+                    self.root.after(interval, lambda:_cycle(i +1, remaining -1))
                 except Exception:
                     self._title_easter_active = False
 
-            self.root.after(0, lambda: _cycle(0, steps))
+            self.root.after(0, lambda:_cycle(0, steps))
         except Exception:
             logging.exception('Easter egg failed')
 
-    def _parse_version(self, v: str):
+    def _parse_version(self, v:str):
         try:
             parts = re.findall(r"\d+", str(v))
-            return tuple(int(p) for p in parts)
+            return tuple(int(p)for p in parts)
         except Exception:
-            return ()
+            return()
 
     def _check_remote_version(self, label):
         try:
             raw_url = 'https://raw.githubusercontent.com/soli-dstate/DOOM-Tools/master/main.py'
             try:
-                resp = requests.get(raw_url, timeout=5)
-                if resp.status_code != 200:
+                resp = requests.get(raw_url, timeout = 5)
+                if resp.status_code !=200:
                     return
                 text = resp.text
             except Exception:
@@ -3097,19 +3208,19 @@ class App:
                 la = list(a)
                 lb = list(b)
                 L = max(len(la), len(lb))
-                while len(la) < L:
+                while len(la)<L:
                     la.append(0)
-                while len(lb) < L:
+                while len(lb)<L:
                     lb.append(0)
                 return tuple(la), tuple(lb)
 
             lp, rp = _pad(lp, rp)
 
-            if lp > rp:
+            if lp >rp:
                 try:
-                    label.configure(text = f"Version: {local_ver} [PRE-RELEASE]")
+                    label.configure(text = f"Version: {local_ver}[PRE-RELEASE]")
                     try:
-                        label.configure(text_color='cyan')
+                        label.configure(text_color = 'cyan')
                     except Exception:
                         pass
                 except Exception:
@@ -3122,17 +3233,17 @@ class App:
                     self._update_available = False
                 except Exception:
                     pass
-            elif lp < rp:
+            elif lp <rp:
                 try:
-                    label.configure(text = f"Version: {local_ver} [UPDATE AVAILABLE]")
+                    label.configure(text = f"Version: {local_ver}[UPDATE AVAILABLE]")
                     try:
-                        label.configure(text_color='red')
+                        label.configure(text_color = 'red')
                     except Exception:
                         pass
                 except Exception:
                     pass
                 try:
-                    logging.warning("A newer version of DOOM Tools is available. Please visit the GitHub page to download the latest version.")
+                    logging.warning("A newer version of DOOM Tools is available.Please visit the GitHub page to download the latest version.")
                 except Exception:
                     pass
                 try:
@@ -3167,9 +3278,9 @@ class App:
                     if not getattr(self, '_version_flash_active', False):
                         try:
                             if orig is not None:
-                                label.configure(text_color=orig)
+                                label.configure(text_color = orig)
                             else:
-                                label.configure(text_color=None)
+                                label.configure(text_color = None)
                         except Exception:
                             pass
                         return
@@ -3178,8 +3289,8 @@ class App:
                     except Exception:
                         cur = None
                     try:
-                        next_color = 'red' if cur != 'red' else (orig or 'black')
-                        label.configure(text_color=next_color)
+                        next_color = 'red'if cur !='red'else(orig or 'black')
+                        label.configure(text_color = next_color)
                     except Exception:
                         pass
                     self.root.after(400, _step)
@@ -3824,16 +3935,16 @@ class App:
         title_label = customtkinter.CTkLabel(main_frame, text = "DOOM Tools", font = customtkinter.CTkFont(size = 24, weight = "bold"))
         title_label.pack(pady = 20)
         try:
-            title_label.bind("<Button-1>", lambda e: self._start_title_easter_egg(title_label))
+            title_label.bind("<Button-1>", lambda e:self._start_title_easter_egg(title_label))
         except Exception:
             pass
         version_label = customtkinter.CTkLabel(main_frame, text = f"Version: {version}", font = customtkinter.CTkFont(size = 16))
         version_label.pack()
         try:
             import webbrowser
-            def _open_releases(ev=None):
+            def _open_releases(ev = None):
                 try:
-                    # only open releases when an update is available
+
                     if not getattr(self, '_update_available', False):
                         return
                     try:
@@ -3848,7 +3959,7 @@ class App:
         except Exception:
             pass
         try:
-            threading.Thread(target=lambda: self._check_remote_version(version_label), daemon=True).start()
+            threading.Thread(target = lambda:self._check_remote_version(version_label), daemon = True).start()
         except Exception:
             pass
         current_character = customtkinter.CTkLabel(main_frame, text = f"Current Character: {currentsave if currentsave else 'None'}", font = customtkinter.CTkFont(size = 14))
@@ -4744,12 +4855,12 @@ class App:
         title_label.pack(pady = 20)
 
         try:
-            table_files = glob.glob(os.path.join("tables", "*.sldtbl"))
-            if not table_files:
+            tbl_path = get_current_table_path()
+            if not tbl_path or not os.path.exists(tbl_path):
                 self._popup_show_info("Error", "No table files found.", sound = "error")
                 return
 
-            with open(table_files[0], 'r')as f:
+            with open(tbl_path, 'r')as f:
                 table_data = json.load(f)
 
             lootcrates = table_data.get("lootcrates", [])
@@ -6027,12 +6138,21 @@ class App:
         title_label.pack(pady = 20)
 
         try:
-            table_files = glob.glob(os.path.join("tables", "*.sldtbl"))
-            if not table_files:
-                self._popup_show_info("Error", "No table files found.", sound = "error")
+            current_tbl = global_variables.get('current_table')
+            if current_tbl:
+                tbl_path = os.path.join("tables", current_tbl)
+            else:
+                table_files = sorted(glob.glob(os.path.join("tables", "*.sldtbl")))
+                if not table_files:
+                    self._popup_show_info("Error", "No table files found.", sound = "error")
+                    return
+                tbl_path = table_files[0]
+
+            if not os.path.exists(tbl_path):
+                self._popup_show_info("Error", "Table file not found.", sound = "error")
                 return
 
-            with open(table_files[0], 'r')as f:
+            with open(tbl_path, 'r')as f:
                 table_data = json.load(f)
 
             stores = table_data.get("tables", {}).get("stores", [])
@@ -6196,7 +6316,13 @@ class App:
                 music_folder = os.path.join("sounds", "music", playlist)
                 if os.path.exists(music_folder):
                     tracks = glob.glob(os.path.join(music_folder, "track*.ogg"))
+
+                    tracks =[t for t in tracks if os.path.getsize(t)>0]
                     all_tracks.extend(tracks)
+
+            failed_tracks = getattr(self, "_failed_music_tracks", set())
+
+            all_tracks =[t for t in all_tracks if t not in failed_tracks]
 
             if all_tracks:
                 prev = getattr(self, "_last_business_music_track", None)
@@ -6206,6 +6332,16 @@ class App:
                     track = random.choice(choices)if choices else random.choice(all_tracks)
                 else:
                     track = random.choice(all_tracks)
+
+                try:
+                    pygame.mixer.music.load(track)
+                except Exception as load_err:
+                    logging.warning(f"Cannot load track {os.path.basename(track)}: {load_err}")
+                    failed_tracks.add(track)
+                    self._failed_music_tracks = failed_tracks
+
+                    return self._start_business_music(playlists, first_play)
+
                 try:
                     self._last_business_music_track = track
                 except Exception:
@@ -6224,7 +6360,6 @@ class App:
                     except Exception:
                         random_start = 0.0
 
-                pygame.mixer.music.load(track)
                 pygame.mixer.music.set_volume(0.3)
 
                 pygame.mixer.music.play(loops = 0, start = random_start)
@@ -6773,12 +6908,12 @@ class App:
 
         cart =[]
         cart_points =[0]
-        lead_free_only = [False]
+        lead_free_only =[False]
 
         subcat_scroll = None
 
         items_scroll = None
-        lead_free_checkbox = [None]
+        lead_free_checkbox =[None]
 
         def update_cart_display():
             if max_points !="disabled":
@@ -6888,11 +7023,11 @@ class App:
                 if parent is None:
                     parent = items_scroll if items_scroll is not None else items_frame
                 for item in items_list:
-                    is_ammo = item.get("_table_category") == "ammunition"
-                    variants = item.get("variants", []) if is_ammo else []
+                    is_ammo = item.get("_table_category")=="ammunition"
+                    variants = item.get("variants", [])if is_ammo else[]
 
                     if is_ammo and lead_free_only[0]:
-                        has_lead_free = any(v.get("lead_free", False) for v in variants)
+                        has_lead_free = any(v.get("lead_free", False)for v in variants)
                         if not has_lead_free:
                             continue
 
@@ -6962,16 +7097,16 @@ class App:
                         info_label.pack(anchor = "w", padx = 10, pady =(0, 5))
 
                     if is_ammo and variants:
-                        variant_info_parts = []
+                        variant_info_parts =[]
                         for v in variants:
                             pen = v.get("pen", "?")
                             lf = v.get("lead_free", False)
-                            lf_indicator = " 🌿" if lf else ""
-                            if lead_free_only[0] and not lf:
+                            lf_indicator = " 🌿"if lf else ""
+                            if lead_free_only[0]and not lf:
                                 continue
-                            variant_info_parts.append(f"{v.get('name', 'Unknown')} (Pen: {pen}{lf_indicator})")
+                            variant_info_parts.append(f"{v.get('name', 'Unknown')}(Pen: {pen}{lf_indicator})")
                         if variant_info_parts:
-                            variants_text = "Variants: " + ", ".join(variant_info_parts)
+                            variants_text = "Variants: "+", ".join(variant_info_parts)
                             variants_label = customtkinter.CTkLabel(item_frame, text = variants_text, font = customtkinter.CTkFont(size = 9), text_color = "#88aaff", wraplength = 500, justify = "left", anchor = "w")
                             variants_label.pack(anchor = "w", padx = 10, pady =(0, 5))
 
@@ -7133,20 +7268,20 @@ class App:
                             sel_var = None
                             if variants:
                                 if lead_free_only[0]:
-                                    variants = [v for v in variants if v.get("lead_free", False)]
+                                    variants =[v for v in variants if v.get("lead_free", False)]
                                 if not variants:
-                                    self._popup_show_info("No Lead-Free Variants", "No lead-free variants available for this ammunition.", sound="error")
+                                    self._popup_show_info("No Lead-Free Variants", "No lead-free variants available for this ammunition.", sound = "error")
                                     return
-                                opts = []
+                                opts =[]
                                 for v in variants:
                                     pen = v.get("pen", "?")
                                     lf = v.get("lead_free", False)
-                                    lf_indicator = " 🌿" if lf else ""
-                                    opts.append(f"{v.get('name')} (Pen: {pen}{lf_indicator})")
+                                    lf_indicator = " 🌿"if lf else ""
+                                    opts.append(f"{v.get('name')}(Pen: {pen}{lf_indicator})")
                                 sel_var = self._popup_select_option("Ammo Variant", "Choose ammo variant:", opts)
                                 if sel_var is None:
                                     return
-                                sel_name = sel_var.split(" (Pen:")[0]
+                                sel_name = sel_var.split("(Pen:")[0]
                                 chosen = next((v for v in variants if v.get("name")==sel_name), None)
                             else:
                                 chosen = None
@@ -7318,31 +7453,31 @@ class App:
                 except Exception:
                     items_scroll = None
 
-                is_ammo_category = "ammunition" in category_name.lower() or "ammo" in category_name.lower()
+                is_ammo_category = "ammunition"in category_name.lower()or "ammo"in category_name.lower()
 
                 if items_scroll is not None:
                     header_frame_cat = customtkinter.CTkFrame(items_scroll, fg_color = "transparent")
-                    header_frame_cat.pack(fill = "x", pady = (10, 6), padx = 10)
+                    header_frame_cat.pack(fill = "x", pady =(10, 6), padx = 10)
 
                     cat_title = customtkinter.CTkLabel(header_frame_cat, text = category_name, font = customtkinter.CTkFont(size = 18, weight = "bold"))
                     cat_title.pack(side = "left")
 
                     if is_ammo_category:
                         def toggle_lead_free():
-                            lead_free_only[0] = not lead_free_only[0]
+                            lead_free_only[0]= not lead_free_only[0]
                             show_category_items(category_name)
 
                         lf_check_var = customtkinter.BooleanVar(value = lead_free_only[0])
                         lf_checkbox = customtkinter.CTkCheckBox(
-                            header_frame_cat,
-                            text = "Lead-Free Only 🌿",
-                            variable = lf_check_var,
-                            command = toggle_lead_free,
-                            font = customtkinter.CTkFont(size = 11),
-                            text_color = "#7CFC00"
+                        header_frame_cat,
+                        text = "Lead-Free Only 🌿",
+                        variable = lf_check_var,
+                        command = toggle_lead_free,
+                        font = customtkinter.CTkFont(size = 11),
+                        text_color = "#7CFC00"
                         )
                         lf_checkbox.pack(side = "right", padx = 10)
-                        lead_free_checkbox[0] = lf_checkbox # type: ignore
+                        lead_free_checkbox[0]= lf_checkbox # type: ignore
 
                     render_item_list(cat_items, parent = items_scroll)
                 else:
@@ -8466,17 +8601,17 @@ class App:
         except Exception as e:
             logging.debug(f"Failed to play card sound {sound_name}: {e}")
 
-    def _load_card_image(self, suit, value, size=(80, 112)):
+    def _load_card_image(self, suit, value, size =(80, 112)):
         try:
             if not hasattr(self, '_card_image_cache'):
                 self._card_image_cache = {}
 
-            cache_key = (suit, value, size)
+            cache_key =(suit, value, size)
             if cache_key in self._card_image_cache:
                 return self._card_image_cache[cache_key]
 
             base_dir = os.path.dirname(__file__)
-            if suit is None and value == "back":
+            if suit is None and value =="back":
                 img_path = os.path.join(base_dir, "images", "cards", "back.png")
             else:
                 img_path = os.path.join(base_dir, "images", "cards", suit, f"{value}.png")
@@ -8485,8 +8620,8 @@ class App:
                 from PIL import Image
                 img = Image.open(img_path)
                 img = img.resize(size, Image.Resampling.LANCZOS)
-                ctk_img = customtkinter.CTkImage(light_image=img, dark_image=img, size=size)
-                self._card_image_cache[cache_key] = ctk_img
+                ctk_img = customtkinter.CTkImage(light_image = img, dark_image = img, size = size)
+                self._card_image_cache[cache_key]= ctk_img
                 return ctk_img
             else:
                 logging.warning(f"Card image not found: {img_path}")
@@ -8498,78 +8633,78 @@ class App:
         logging.info(f"Opening casino: {store.get('name')}")
 
         music_channel = None
-        if store.get("music") and store.get("playlist"):
-            music_channel = self._start_business_music(store.get("playlist"), first_play=True)
+        if store.get("music")and store.get("playlist"):
+            music_channel = self._start_business_music(store.get("playlist"), first_play = True)
 
         self._clear_window()
 
-        self.root.grid_rowconfigure(0, weight=1)
-        self.root.grid_columnconfigure(0, weight=1)
+        self.root.grid_rowconfigure(0, weight = 1)
+        self.root.grid_columnconfigure(0, weight = 1)
 
         main_frame = customtkinter.CTkFrame(self.root)
-        main_frame.grid(row=0, column=0, sticky="nsew")
-        main_frame.grid_columnconfigure(0, weight=1)
-        main_frame.grid_rowconfigure(1, weight=1)
+        main_frame.grid(row = 0, column = 0, sticky = "nsew")
+        main_frame.grid_columnconfigure(0, weight = 1)
+        main_frame.grid_rowconfigure(1, weight = 1)
 
-        header_frame = customtkinter.CTkFrame(main_frame, fg_color="transparent")
-        header_frame.grid(row=0, column=0, sticky="ew", padx=20, pady=10)
+        header_frame = customtkinter.CTkFrame(main_frame, fg_color = "transparent")
+        header_frame.grid(row = 0, column = 0, sticky = "ew", padx = 20, pady = 10)
 
-        title_label = customtkinter.CTkLabel(header_frame, text=store.get("name", "Casino"), font=customtkinter.CTkFont(size=24, weight="bold"))
-        title_label.pack(pady=(10, 5))
+        title_label = customtkinter.CTkLabel(header_frame, text = store.get("name", "Casino"), font = customtkinter.CTkFont(size = 24, weight = "bold"))
+        title_label.pack(pady =(10, 5))
 
-        shopkeeper_label = customtkinter.CTkLabel(header_frame, text=f"Proprietor: {store.get('shopkeeper', 'Unknown')}", font=customtkinter.CTkFont(size=14), text_color="gray")
+        shopkeeper_label = customtkinter.CTkLabel(header_frame, text = f"Proprietor: {store.get('shopkeeper', 'Unknown')}", font = customtkinter.CTkFont(size = 14), text_color = "gray")
         shopkeeper_label.pack()
 
-        save_path = os.path.join(saves_folder or "", (currentsave or "") + ".sldsv")
-        save_data = self._load_file((currentsave or "") + ".sldsv")
+        save_path = os.path.join(saves_folder or "", (currentsave or "")+".sldsv")
+        save_data = self._load_file((currentsave or "")+".sldsv")
         if save_data is None:
-            self._popup_show_info("Error", "Failed to load character data.", sound="error")
+            self._popup_show_info("Error", "Failed to load character data.", sound = "error")
             try:
                 self._stop_business_music(music_channel)
             except Exception:
                 pass
             return
 
-        player_money = [save_data.get("money", 0)]
+        player_money =[save_data.get("money", 0)]
         casino_name = store.get("name", "Unknown Casino")
 
-        if "casino_stats" not in save_data:
-            save_data["casino_stats"] = {}
+        if "casino_stats"not in save_data:
+            save_data["casino_stats"]= {}
         if casino_name not in save_data["casino_stats"]:
-            save_data["casino_stats"][casino_name] = {
-                "wins": 0,
-                "losses": 0,
-                "games_played": 0,
-                "net_profit": 0
+            save_data["casino_stats"][casino_name]= {
+            "wins":0,
+            "losses":0,
+            "games_played":0,
+            "net_profit":0
             }
-        casino_stats = [save_data["casino_stats"][casino_name]]
+        casino_stats =[save_data["casino_stats"][casino_name]]
 
-        money_label = customtkinter.CTkLabel(header_frame, text=f"Your Money: ${player_money[0]}", font=customtkinter.CTkFont(size=16, weight="bold"), text_color="green")
-        money_label.pack(pady=5)
+        money_label = customtkinter.CTkLabel(header_frame, text = f"Your Money: ${player_money[0]}", font = customtkinter.CTkFont(size = 16, weight = "bold"), text_color = "green")
+        money_label.pack(pady = 5)
 
-        stats_frame = customtkinter.CTkFrame(header_frame, fg_color="transparent")
-        stats_frame.pack(pady=5)
+        stats_frame = customtkinter.CTkFrame(header_frame, fg_color = "transparent")
+        stats_frame.pack(pady = 5)
 
         stats = casino_stats[0]
-        net_color = "green" if stats["net_profit"] >= 0 else "red"
-        net_prefix = "+$" if stats["net_profit"] >= 0 else "-$"
+        net_color = "green"if stats["net_profit"]>=0 else "red"
+        net_prefix = "+$"if stats["net_profit"]>=0 else "-$"
         net_display = f"{net_prefix}{abs(stats['net_profit'])}"
 
         stats_label = customtkinter.CTkLabel(
-            stats_frame,
-            text=f"Lifetime: {stats['wins']}W / {stats['losses']}L ({stats['games_played']} games) | Net: {net_display}",
-            font=customtkinter.CTkFont(size=12),
-            text_color="gray"
+        stats_frame,
+        text = f"Lifetime: {stats['wins']}W / {stats['losses']}L({stats['games_played']} games) | Net: {net_display}",
+        font = customtkinter.CTkFont(size = 12),
+        text_color = "gray"
         )
         stats_label.pack()
 
         def update_stats_display():
             try:
                 s = casino_stats[0]
-                nc = "green" if s["net_profit"] >= 0 else "red"
-                np = "+$" if s["net_profit"] >= 0 else "-$"
+                nc = "green"if s["net_profit"]>=0 else "red"
+                np = "+$"if s["net_profit"]>=0 else "-$"
                 nd = f"{np}{abs(s['net_profit'])}"
-                stats_label.configure(text=f"Lifetime: {s['wins']}W / {s['losses']}L ({s['games_played']} games) | Net: {nd}")
+                stats_label.configure(text = f"Lifetime: {s['wins']}W / {s['losses']}L({s['games_played']} games) | Net: {nd}")
             except Exception:
                 pass
 
@@ -8578,37 +8713,37 @@ class App:
 
         def update_money_display():
             try:
-                money_label.configure(text=f"Your Money: ${player_money[0]}")
+                money_label.configure(text = f"Your Money: ${player_money[0]}")
             except Exception:
                 pass
 
         def save_money():
             try:
-                save_data["money"] = player_money[0]
-                save_data["casino_stats"][casino_name] = casino_stats[0]
+                save_data["money"]= player_money[0]
+                save_data["casino_stats"][casino_name]= casino_stats[0]
                 self._write_save_to_path(save_path, save_data)
             except Exception as e:
                 logging.error(f"Failed to save money: {e}")
 
         def record_game_result(winnings):
-            casino_stats[0]["games_played"] += 1
-            casino_stats[0]["net_profit"] += winnings
-            if winnings > 0:
-                casino_stats[0]["wins"] += 1
-            elif winnings < 0:
-                casino_stats[0]["losses"] += 1
+            casino_stats[0]["games_played"]+=1
+            casino_stats[0]["net_profit"]+=winnings
+            if winnings >0:
+                casino_stats[0]["wins"]+=1
+            elif winnings <0:
+                casino_stats[0]["losses"]+=1
             update_stats_display()
 
         content_frame = customtkinter.CTkFrame(main_frame)
-        content_frame.grid(row=1, column=0, sticky="nsew", padx=20, pady=10)
-        content_frame.grid_columnconfigure(0, weight=1)
-        content_frame.grid_rowconfigure(0, weight=1)
+        content_frame.grid(row = 1, column = 0, sticky = "nsew", padx = 20, pady = 10)
+        content_frame.grid_columnconfigure(0, weight = 1)
+        content_frame.grid_rowconfigure(0, weight = 1)
 
         games_frame = customtkinter.CTkFrame(content_frame)
-        games_frame.pack(fill="both", expand=True, padx=10, pady=10)
+        games_frame.pack(fill = "both", expand = True, padx = 10, pady = 10)
 
-        games_label = customtkinter.CTkLabel(games_frame, text="Choose a Game", font=customtkinter.CTkFont(size=18, weight="bold"))
-        games_label.pack(pady=20)
+        games_label = customtkinter.CTkLabel(games_frame, text = "Choose a Game", font = customtkinter.CTkFont(size = 18, weight = "bold"))
+        games_label.pack(pady = 20)
 
         available_games = store.get("games", ["Blackjack"])
 
@@ -8627,21 +8762,21 @@ class App:
         def open_poker_lobby():
             self._open_poker_lobby(store, player_money, update_money_display, save_money, min_bet, max_bet, music_channel, table_data, record_game_result, casino_stats)
 
-        if "Blackjack" in available_games:
-            blackjack_btn = self._create_sound_button(games_frame, "Blackjack", open_blackjack, width=300, height=50, font=customtkinter.CTkFont(size=16))
-            blackjack_btn.pack(pady=10)
+        if "Blackjack"in available_games:
+            blackjack_btn = self._create_sound_button(games_frame, "Blackjack", open_blackjack, width = 300, height = 50, font = customtkinter.CTkFont(size = 16))
+            blackjack_btn.pack(pady = 10)
 
-        if "Poker" in available_games:
-            poker_btn = self._create_sound_button(games_frame, "Poker", open_poker_lobby, width=300, height=50, font=customtkinter.CTkFont(size=16))
-            poker_btn.pack(pady=10)
+        if "Poker"in available_games:
+            poker_btn = self._create_sound_button(games_frame, "Poker", open_poker_lobby, width = 300, height = 50, font = customtkinter.CTkFont(size = 16))
+            poker_btn.pack(pady = 10)
 
-        if "High-Low" in available_games:
-            highlow_btn = self._create_sound_button(games_frame, "High-Low", open_highlow, width=300, height=50, font=customtkinter.CTkFont(size=16))
-            highlow_btn.pack(pady=10)
+        if "High-Low"in available_games:
+            highlow_btn = self._create_sound_button(games_frame, "High-Low", open_highlow, width = 300, height = 50, font = customtkinter.CTkFont(size = 16))
+            highlow_btn.pack(pady = 10)
 
-        if "Roulette" in available_games:
-            roulette_btn = self._create_sound_button(games_frame, "Roulette", open_roulette, width=300, height=50, font=customtkinter.CTkFont(size=16))
-            roulette_btn.pack(pady=10)
+        if "Roulette"in available_games:
+            roulette_btn = self._create_sound_button(games_frame, "Roulette", open_roulette, width = 300, height = 50, font = customtkinter.CTkFont(size = 16))
+            roulette_btn.pack(pady = 10)
 
         def leave_casino():
             try:
@@ -8652,94 +8787,94 @@ class App:
             self._clear_window()
             self._open_business_tool()
 
-        button_frame = customtkinter.CTkFrame(main_frame, fg_color="transparent")
-        button_frame.grid(row=2, column=0, sticky="ew", padx=20, pady=10)
+        button_frame = customtkinter.CTkFrame(main_frame, fg_color = "transparent")
+        button_frame.grid(row = 2, column = 0, sticky = "ew", padx = 20, pady = 10)
 
-        back_btn = self._create_sound_button(button_frame, "Leave Casino", leave_casino, width=200, height=40, font=customtkinter.CTkFont(size=14))
-        back_btn.pack(pady=10)
+        back_btn = self._create_sound_button(button_frame, "Leave Casino", leave_casino, width = 200, height = 40, font = customtkinter.CTkFont(size = 14))
+        back_btn.pack(pady = 10)
 
-    def _open_blackjack_game(self, store, player_money, update_money_cb, save_money_cb, min_bet, max_bet, music_channel, table_data, record_game_cb=None, casino_stats=None):
+    def _open_blackjack_game(self, store, player_money, update_money_cb, save_money_cb, min_bet, max_bet, music_channel, table_data, record_game_cb = None, casino_stats = None):
         self._clear_window()
 
-        self.root.grid_rowconfigure(0, weight=1)
-        self.root.grid_columnconfigure(0, weight=1)
+        self.root.grid_rowconfigure(0, weight = 1)
+        self.root.grid_columnconfigure(0, weight = 1)
 
         main_frame = customtkinter.CTkFrame(self.root)
-        main_frame.grid(row=0, column=0, sticky="nsew")
-        main_frame.grid_columnconfigure(0, weight=1)
-        main_frame.grid_rowconfigure(1, weight=1)
+        main_frame.grid(row = 0, column = 0, sticky = "nsew")
+        main_frame.grid_columnconfigure(0, weight = 1)
+        main_frame.grid_rowconfigure(1, weight = 1)
 
-        header_frame = customtkinter.CTkFrame(main_frame, fg_color="transparent")
-        header_frame.grid(row=0, column=0, sticky="ew", padx=20, pady=10)
+        header_frame = customtkinter.CTkFrame(main_frame, fg_color = "transparent")
+        header_frame.grid(row = 0, column = 0, sticky = "ew", padx = 20, pady = 10)
 
-        title_label = customtkinter.CTkLabel(header_frame, text="Blackjack", font=customtkinter.CTkFont(size=24, weight="bold"))
-        title_label.pack(pady=(10, 5))
+        title_label = customtkinter.CTkLabel(header_frame, text = "Blackjack", font = customtkinter.CTkFont(size = 24, weight = "bold"))
+        title_label.pack(pady =(10, 5))
 
-        money_label = customtkinter.CTkLabel(header_frame, text=f"Your Money: ${player_money[0]}", font=customtkinter.CTkFont(size=16, weight="bold"), text_color="green")
-        money_label.pack(pady=5)
+        money_label = customtkinter.CTkLabel(header_frame, text = f"Your Money: ${player_money[0]}", font = customtkinter.CTkFont(size = 16, weight = "bold"), text_color = "green")
+        money_label.pack(pady = 5)
 
-        bet_label = customtkinter.CTkLabel(header_frame, text=f"Bet Range: ${min_bet} - ${max_bet}", font=customtkinter.CTkFont(size=12), text_color="orange")
+        bet_label = customtkinter.CTkLabel(header_frame, text = f"Bet Range: ${min_bet} - ${max_bet}", font = customtkinter.CTkFont(size = 12), text_color = "orange")
         bet_label.pack()
 
         game_frame = customtkinter.CTkFrame(main_frame)
-        game_frame.grid(row=1, column=0, sticky="nsew", padx=20, pady=10)
-        game_frame.grid_columnconfigure(0, weight=1)
+        game_frame.grid(row = 1, column = 0, sticky = "nsew", padx = 20, pady = 10)
+        game_frame.grid_columnconfigure(0, weight = 1)
 
-        suits = ["clubs", "diamonds", "hearts", "spades"]
-        values = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "jack", "queen", "king", "ace"]
+        suits =["clubs", "diamonds", "hearts", "spades"]
+        values =["2", "3", "4", "5", "6", "7", "8", "9", "10", "jack", "queen", "king", "ace"]
 
-        deck = [{"suit": s, "value": v} for s in suits for v in values]
+        deck =[{"suit":s, "value":v}for s in suits for v in values]
         game_state = {
-            "deck": [],
-            "player_hand": [],
-            "dealer_hand": [],
-            "current_bet": 0,
-            "game_active": False,
-            "player_turn": False,
-            "result": None,
-            "ui_active": True
+        "deck":[],
+        "player_hand":[],
+        "dealer_hand":[],
+        "current_bet":0,
+        "game_active":False,
+        "player_turn":False,
+        "result":None,
+        "ui_active":True
         }
 
-        dealer_frame = customtkinter.CTkFrame(game_frame, fg_color="transparent")
-        dealer_frame.pack(pady=10)
-        dealer_label = customtkinter.CTkLabel(dealer_frame, text="Dealer's Hand", font=customtkinter.CTkFont(size=14, weight="bold"))
+        dealer_frame = customtkinter.CTkFrame(game_frame, fg_color = "transparent")
+        dealer_frame.pack(pady = 10)
+        dealer_label = customtkinter.CTkLabel(dealer_frame, text = "Dealer's Hand", font = customtkinter.CTkFont(size = 14, weight = "bold"))
         dealer_label.pack()
-        dealer_cards_frame = customtkinter.CTkFrame(dealer_frame, fg_color="transparent")
-        dealer_cards_frame.pack(pady=5)
-        dealer_score_label = customtkinter.CTkLabel(dealer_frame, text="", font=customtkinter.CTkFont(size=12))
+        dealer_cards_frame = customtkinter.CTkFrame(dealer_frame, fg_color = "transparent")
+        dealer_cards_frame.pack(pady = 5)
+        dealer_score_label = customtkinter.CTkLabel(dealer_frame, text = "", font = customtkinter.CTkFont(size = 12))
         dealer_score_label.pack()
 
-        player_frame = customtkinter.CTkFrame(game_frame, fg_color="transparent")
-        player_frame.pack(pady=10)
-        player_label = customtkinter.CTkLabel(player_frame, text="Your Hand", font=customtkinter.CTkFont(size=14, weight="bold"))
+        player_frame = customtkinter.CTkFrame(game_frame, fg_color = "transparent")
+        player_frame.pack(pady = 10)
+        player_label = customtkinter.CTkLabel(player_frame, text = "Your Hand", font = customtkinter.CTkFont(size = 14, weight = "bold"))
         player_label.pack()
-        player_cards_frame = customtkinter.CTkFrame(player_frame, fg_color="transparent")
-        player_cards_frame.pack(pady=5)
-        player_score_label = customtkinter.CTkLabel(player_frame, text="", font=customtkinter.CTkFont(size=12))
+        player_cards_frame = customtkinter.CTkFrame(player_frame, fg_color = "transparent")
+        player_cards_frame.pack(pady = 5)
+        player_score_label = customtkinter.CTkLabel(player_frame, text = "", font = customtkinter.CTkFont(size = 12))
         player_score_label.pack()
 
-        result_label = customtkinter.CTkLabel(game_frame, text="", font=customtkinter.CTkFont(size=18, weight="bold"))
-        result_label.pack(pady=10)
+        result_label = customtkinter.CTkLabel(game_frame, text = "", font = customtkinter.CTkFont(size = 18, weight = "bold"))
+        result_label.pack(pady = 10)
 
         def get_card_value(card):
             v = card["value"]
-            if v in ["jack", "queen", "king"]:
+            if v in["jack", "queen", "king"]:
                 return 10
-            elif v == "ace":
+            elif v =="ace":
                 return 11
             else:
                 return int(v)
 
         def calculate_hand(hand):
-            total = sum(get_card_value(c) for c in hand)
-            aces = sum(1 for c in hand if c["value"] == "ace")
-            while total > 21 and aces > 0:
-                total -= 10
-                aces -= 1
+            total = sum(get_card_value(c)for c in hand)
+            aces = sum(1 for c in hand if c["value"]=="ace")
+            while total >21 and aces >0:
+                total -=10
+                aces -=1
             return total
 
         def shuffle_deck():
-            game_state["deck"] = deck.copy()
+            game_state["deck"]= deck.copy()
             random.shuffle(game_state["deck"])
             self._play_card_sound("shuffle")
 
@@ -8750,32 +8885,32 @@ class App:
             self._play_card_sound("flip")
             return card
 
-        def display_card(frame, card, hidden=False):
+        def display_card(frame, card, hidden = False):
             if hidden:
                 img = self._load_card_image(None, "back")
             else:
                 img = self._load_card_image(card["suit"], card["value"])
 
             if img:
-                card_label = customtkinter.CTkLabel(frame, image=img, text="")
+                card_label = customtkinter.CTkLabel(frame, image = img, text = "")
                 card_label.image = img
-                card_label.pack(side="left", padx=2)
+                card_label.pack(side = "left", padx = 2)
             else:
-                text = "??" if hidden else f"{card['value'][0].upper()}{card['suit'][0].upper()}"
-                card_label = customtkinter.CTkLabel(frame, text=text, width=60, height=84, fg_color="white", text_color="black", corner_radius=5)
-                card_label.pack(side="left", padx=2)
+                text = "??"if hidden else f"{card['value'][0].upper()}{card['suit'][0].upper()}"
+                card_label = customtkinter.CTkLabel(frame, text = text, width = 60, height = 84, fg_color = "white", text_color = "black", corner_radius = 5)
+                card_label.pack(side = "left", padx = 2)
 
         def clear_cards(frame):
             for widget in frame.winfo_children():
                 widget.destroy()
 
-        def update_display(reveal_dealer=False):
+        def update_display(reveal_dealer = False):
             clear_cards(dealer_cards_frame)
             clear_cards(player_cards_frame)
 
             for i, card in enumerate(game_state["dealer_hand"]):
-                if i == 0 and not reveal_dealer and game_state["player_turn"]:
-                    display_card(dealer_cards_frame, card, hidden=True)
+                if i ==0 and not reveal_dealer and game_state["player_turn"]:
+                    display_card(dealer_cards_frame, card, hidden = True)
                 else:
                     display_card(dealer_cards_frame, card)
 
@@ -8783,43 +8918,43 @@ class App:
                 display_card(player_cards_frame, card)
 
             player_total = calculate_hand(game_state["player_hand"])
-            player_score_label.configure(text=f"Score: {player_total}")
+            player_score_label.configure(text = f"Score: {player_total}")
 
             if reveal_dealer or not game_state["player_turn"]:
                 dealer_total = calculate_hand(game_state["dealer_hand"])
-                dealer_score_label.configure(text=f"Score: {dealer_total}")
+                dealer_score_label.configure(text = f"Score: {dealer_total}")
             else:
-                visible_card = game_state["dealer_hand"][1] if len(game_state["dealer_hand"]) > 1 else None
+                visible_card = game_state["dealer_hand"][1]if len(game_state["dealer_hand"])>1 else None
                 if visible_card:
-                    dealer_score_label.configure(text=f"Showing: {get_card_value(visible_card)}")
+                    dealer_score_label.configure(text = f"Showing: {get_card_value(visible_card)}")
                 else:
-                    dealer_score_label.configure(text="")
+                    dealer_score_label.configure(text = "")
 
-            money_label.configure(text=f"Your Money: ${player_money[0]}")
+            money_label.configure(text = f"Your Money: ${player_money[0]}")
             update_money_cb()
 
         def end_game(result_text, winnings):
             if not game_state.get("ui_active", False):
                 return
-            game_state["game_active"] = False
-            game_state["player_turn"] = False
-            game_state["result"] = result_text
+            game_state["game_active"]= False
+            game_state["player_turn"]= False
+            game_state["result"]= result_text
 
-            player_money[0] += winnings
+            player_money[0]+=winnings
             if record_game_cb:
                 record_game_cb(winnings)
             save_money_cb()
 
             try:
-                color = "green" if winnings > 0 else ("red" if winnings < 0 else "orange")
-                if winnings > 0:
-                    result_label.configure(text=f"{result_text} (+${winnings})", text_color=color)
-                elif winnings < 0:
-                    result_label.configure(text=f"{result_text} (-${abs(winnings)})", text_color=color)
+                color = "green"if winnings >0 else("red"if winnings <0 else "orange")
+                if winnings >0:
+                    result_label.configure(text = f"{result_text}(+${winnings})", text_color = color)
+                elif winnings <0:
+                    result_label.configure(text = f"{result_text}(-${abs(winnings)})", text_color = color)
                 else:
-                    result_label.configure(text=result_text, text_color=color)
+                    result_label.configure(text = result_text, text_color = color)
 
-                update_display(reveal_dealer=True)
+                update_display(reveal_dealer = True)
                 update_buttons()
             except Exception:
                 pass
@@ -8827,18 +8962,18 @@ class App:
         def dealer_turn():
             if not game_state.get("ui_active", False):
                 return
-            update_display(reveal_dealer=True)
+            update_display(reveal_dealer = True)
             dealer_total = calculate_hand(game_state["dealer_hand"])
 
             def dealer_draw():
                 nonlocal dealer_total
                 if not game_state.get("ui_active", False):
                     return
-                if dealer_total < 17:
+                if dealer_total <17:
                     game_state["dealer_hand"].append(draw_card())
                     dealer_total = calculate_hand(game_state["dealer_hand"])
                     try:
-                        update_display(reveal_dealer=True)
+                        update_display(reveal_dealer = True)
                     except Exception:
                         return
                     self.root.after(800, dealer_draw)
@@ -8846,11 +8981,11 @@ class App:
                     player_total = calculate_hand(game_state["player_hand"])
                     bet = game_state["current_bet"]
 
-                    if dealer_total > 21:
+                    if dealer_total >21:
                         end_game("Dealer Busts! You Win!", bet)
-                    elif dealer_total > player_total:
+                    elif dealer_total >player_total:
                         end_game("Dealer Wins!", -bet)
-                    elif player_total > dealer_total:
+                    elif player_total >dealer_total:
                         end_game("You Win!", bet)
                     else:
                         end_game("Push! It's a Tie!", 0)
@@ -8863,31 +8998,31 @@ class App:
             game_state["player_hand"].append(draw_card())
             update_display()
 
-            if calculate_hand(game_state["player_hand"]) > 21:
+            if calculate_hand(game_state["player_hand"])>21:
                 end_game("Bust! You Lose!", -game_state["current_bet"])
 
         def stand():
             if not game_state["player_turn"]:
                 return
-            game_state["player_turn"] = False
+            game_state["player_turn"]= False
             update_buttons()
             dealer_turn()
 
         def double_down():
-            if not game_state["player_turn"] or len(game_state["player_hand"]) != 2:
+            if not game_state["player_turn"]or len(game_state["player_hand"])!=2:
                 return
-            if player_money[0] < game_state["current_bet"]:
-                self._popup_show_info("Insufficient Funds", "You don't have enough money to double down.", sound="error")
+            if player_money[0]<game_state["current_bet"]:
+                self._popup_show_info("Insufficient Funds", "You don't have enough money to double down.", sound = "error")
                 return
 
-            game_state["current_bet"] *= 2
+            game_state["current_bet"]*=2
             game_state["player_hand"].append(draw_card())
             update_display()
 
-            if calculate_hand(game_state["player_hand"]) > 21:
+            if calculate_hand(game_state["player_hand"])>21:
                 end_game("Bust! You Lose!", -game_state["current_bet"])
             else:
-                game_state["player_turn"] = False
+                game_state["player_turn"]= False
                 update_buttons()
                 dealer_turn()
 
@@ -8896,33 +9031,33 @@ class App:
             try:
                 bet = int(bet_str)
             except ValueError:
-                self._popup_show_info("Invalid Bet", "Please enter a valid number.", sound="error")
+                self._popup_show_info("Invalid Bet", "Please enter a valid number.", sound = "error")
                 return
 
-            if bet < min_bet or bet > max_bet:
-                self._popup_show_info("Invalid Bet", f"Bet must be between ${min_bet} and ${max_bet}.", sound="error")
+            if bet <min_bet or bet >max_bet:
+                self._popup_show_info("Invalid Bet", f"Bet must be between ${min_bet} and ${max_bet}.", sound = "error")
                 return
 
-            if bet > player_money[0]:
-                self._popup_show_info("Insufficient Funds", "You don't have enough money for that bet.", sound="error")
+            if bet >player_money[0]:
+                self._popup_show_info("Insufficient Funds", "You don't have enough money for that bet.", sound = "error")
                 return
 
-            game_state["current_bet"] = bet
-            result_label.configure(text="")
+            game_state["current_bet"]= bet
+            result_label.configure(text = "")
 
             shuffle_deck()
-            game_state["player_hand"] = []
-            game_state["dealer_hand"] = []
+            game_state["player_hand"]=[]
+            game_state["dealer_hand"]=[]
 
             game_state["player_hand"].append(draw_card())
             game_state["dealer_hand"].append(draw_card())
-            self.root.after(300, lambda: None)
+            self.root.after(300, lambda:None)
             game_state["player_hand"].append(draw_card())
             game_state["dealer_hand"].append(draw_card())
 
-            game_state["game_active"] = True
-            game_state["player_turn"] = True
-            game_state["result"] = None
+            game_state["game_active"]= True
+            game_state["player_turn"]= True
+            game_state["result"]= None
 
             update_display()
             update_buttons()
@@ -8930,102 +9065,102 @@ class App:
             player_total = calculate_hand(game_state["player_hand"])
             dealer_total = calculate_hand(game_state["dealer_hand"])
 
-            if player_total == 21 and dealer_total == 21:
+            if player_total ==21 and dealer_total ==21:
                 end_game("Both Blackjack! Push!", 0)
-            elif player_total == 21:
-                end_game("Blackjack! You Win!", int(bet * 1.5))
-            elif dealer_total == 21:
+            elif player_total ==21:
+                end_game("Blackjack! You Win!", int(bet *1.5))
+            elif dealer_total ==21:
                 end_game("Dealer Blackjack! You Lose!", -bet)
 
         def update_buttons():
             if game_state["player_turn"]:
-                hit_btn.configure(state="normal")
-                stand_btn.configure(state="normal")
-                double_btn.configure(state="normal" if len(game_state["player_hand"]) == 2 and player_money[0] >= game_state["current_bet"] else "disabled")
-                deal_btn.configure(state="disabled")
+                hit_btn.configure(state = "normal")
+                stand_btn.configure(state = "normal")
+                double_btn.configure(state = "normal"if len(game_state["player_hand"])==2 and player_money[0]>=game_state["current_bet"]else "disabled")
+                deal_btn.configure(state = "disabled")
             else:
-                hit_btn.configure(state="disabled")
-                stand_btn.configure(state="disabled")
-                double_btn.configure(state="disabled")
-                deal_btn.configure(state="normal")
+                hit_btn.configure(state = "disabled")
+                stand_btn.configure(state = "disabled")
+                double_btn.configure(state = "disabled")
+                deal_btn.configure(state = "normal")
 
-        controls_frame = customtkinter.CTkFrame(main_frame, fg_color="transparent")
-        controls_frame.grid(row=2, column=0, sticky="ew", padx=20, pady=10)
+        controls_frame = customtkinter.CTkFrame(main_frame, fg_color = "transparent")
+        controls_frame.grid(row = 2, column = 0, sticky = "ew", padx = 20, pady = 10)
 
-        bet_frame = customtkinter.CTkFrame(controls_frame, fg_color="transparent")
-        bet_frame.pack(pady=5)
+        bet_frame = customtkinter.CTkFrame(controls_frame, fg_color = "transparent")
+        bet_frame.pack(pady = 5)
 
-        bet_label_entry = customtkinter.CTkLabel(bet_frame, text="Bet Amount: $", font=customtkinter.CTkFont(size=14))
-        bet_label_entry.pack(side="left")
+        bet_label_entry = customtkinter.CTkLabel(bet_frame, text = "Bet Amount: $", font = customtkinter.CTkFont(size = 14))
+        bet_label_entry.pack(side = "left")
 
-        bet_entry = customtkinter.CTkEntry(bet_frame, width=100, placeholder_text=str(min_bet))
-        bet_entry.pack(side="left", padx=5)
+        bet_entry = customtkinter.CTkEntry(bet_frame, width = 100, placeholder_text = str(min_bet))
+        bet_entry.pack(side = "left", padx = 5)
         bet_entry.insert(0, str(min_bet))
 
-        action_frame = customtkinter.CTkFrame(controls_frame, fg_color="transparent")
-        action_frame.pack(pady=10)
+        action_frame = customtkinter.CTkFrame(controls_frame, fg_color = "transparent")
+        action_frame.pack(pady = 10)
 
-        deal_btn = self._create_sound_button(action_frame, "Deal", start_new_game, width=100, height=40, font=customtkinter.CTkFont(size=14))
-        deal_btn.pack(side="left", padx=5)
+        deal_btn = self._create_sound_button(action_frame, "Deal", start_new_game, width = 100, height = 40, font = customtkinter.CTkFont(size = 14))
+        deal_btn.pack(side = "left", padx = 5)
 
-        hit_btn = self._create_sound_button(action_frame, "Hit", hit, width=100, height=40, font=customtkinter.CTkFont(size=14))
-        hit_btn.pack(side="left", padx=5)
-        hit_btn.configure(state="disabled")
+        hit_btn = self._create_sound_button(action_frame, "Hit", hit, width = 100, height = 40, font = customtkinter.CTkFont(size = 14))
+        hit_btn.pack(side = "left", padx = 5)
+        hit_btn.configure(state = "disabled")
 
-        stand_btn = self._create_sound_button(action_frame, "Stand", stand, width=100, height=40, font=customtkinter.CTkFont(size=14))
-        stand_btn.pack(side="left", padx=5)
-        stand_btn.configure(state="disabled")
+        stand_btn = self._create_sound_button(action_frame, "Stand", stand, width = 100, height = 40, font = customtkinter.CTkFont(size = 14))
+        stand_btn.pack(side = "left", padx = 5)
+        stand_btn.configure(state = "disabled")
 
-        double_btn = self._create_sound_button(action_frame, "Double", double_down, width=100, height=40, font=customtkinter.CTkFont(size=14))
-        double_btn.pack(side="left", padx=5)
-        double_btn.configure(state="disabled")
+        double_btn = self._create_sound_button(action_frame, "Double", double_down, width = 100, height = 40, font = customtkinter.CTkFont(size = 14))
+        double_btn.pack(side = "left", padx = 5)
+        double_btn.configure(state = "disabled")
 
         def back_to_casino():
-            game_state["ui_active"] = False
+            game_state["ui_active"]= False
             self._open_casino_interface(store, table_data)
 
-        back_btn = self._create_sound_button(controls_frame, "Back to Casino", back_to_casino, width=200, height=40, font=customtkinter.CTkFont(size=14))
-        back_btn.pack(pady=10)
+        back_btn = self._create_sound_button(controls_frame, "Back to Casino", back_to_casino, width = 200, height = 40, font = customtkinter.CTkFont(size = 14))
+        back_btn.pack(pady = 10)
 
-    def _open_poker_game(self, store, player_money, update_money_cb, save_money_cb, min_bet, max_bet, music_channel, table_data, record_game_cb=None, casino_stats=None, variant="five_card_draw"):
+    def _open_poker_game(self, store, player_money, update_money_cb, save_money_cb, min_bet, max_bet, music_channel, table_data, record_game_cb = None, casino_stats = None, variant = "five_card_draw"):
         self._clear_window()
 
-        self.root.grid_rowconfigure(0, weight=1)
-        self.root.grid_columnconfigure(0, weight=1)
+        self.root.grid_rowconfigure(0, weight = 1)
+        self.root.grid_columnconfigure(0, weight = 1)
 
         main_frame = customtkinter.CTkFrame(self.root)
-        main_frame.grid(row=0, column=0, sticky="nsew")
-        main_frame.grid_columnconfigure(0, weight=1)
-        main_frame.grid_rowconfigure(1, weight=1)
+        main_frame.grid(row = 0, column = 0, sticky = "nsew")
+        main_frame.grid_columnconfigure(0, weight = 1)
+        main_frame.grid_rowconfigure(1, weight = 1)
 
         variant_names = {
-            "five_card_draw": "5 Card Draw",
-            "five_card_stud": "5 Card Stud",
-            "seven_card_stud": "7 Card Stud",
-            "texas_holdem": "Texas Hold'em"
+        "five_card_draw":"5 Card Draw",
+        "five_card_stud":"5 Card Stud",
+        "seven_card_stud":"7 Card Stud",
+        "texas_holdem":"Texas Hold'em"
         }
 
-        header_frame = customtkinter.CTkFrame(main_frame, fg_color="transparent")
-        header_frame.grid(row=0, column=0, sticky="ew", padx=20, pady=10)
+        header_frame = customtkinter.CTkFrame(main_frame, fg_color = "transparent")
+        header_frame.grid(row = 0, column = 0, sticky = "ew", padx = 20, pady = 10)
 
-        title_label = customtkinter.CTkLabel(header_frame, text=f"Poker - {variant_names.get(variant, variant)}", font=customtkinter.CTkFont(size=24, weight="bold"))
-        title_label.pack(pady=(10, 5))
+        title_label = customtkinter.CTkLabel(header_frame, text = f"Poker - {variant_names.get(variant, variant)}", font = customtkinter.CTkFont(size = 24, weight = "bold"))
+        title_label.pack(pady =(10, 5))
 
-        money_label = customtkinter.CTkLabel(header_frame, text=f"Your Money: ${player_money[0]}", font=customtkinter.CTkFont(size=16, weight="bold"), text_color="green")
-        money_label.pack(pady=5)
+        money_label = customtkinter.CTkLabel(header_frame, text = f"Your Money: ${player_money[0]}", font = customtkinter.CTkFont(size = 16, weight = "bold"), text_color = "green")
+        money_label.pack(pady = 5)
 
-        bet_label = customtkinter.CTkLabel(header_frame, text=f"Bet Range: ${min_bet} - ${max_bet}", font=customtkinter.CTkFont(size=12), text_color="orange")
+        bet_label = customtkinter.CTkLabel(header_frame, text = f"Bet Range: ${min_bet} - ${max_bet}", font = customtkinter.CTkFont(size = 12), text_color = "orange")
         bet_label.pack()
 
         game_frame = customtkinter.CTkFrame(main_frame)
-        game_frame.grid(row=1, column=0, sticky="nsew", padx=20, pady=10)
-        game_frame.grid_columnconfigure(0, weight=1)
+        game_frame.grid(row = 1, column = 0, sticky = "nsew", padx = 20, pady = 10)
+        game_frame.grid_columnconfigure(0, weight = 1)
 
-        suits = ["clubs", "diamonds", "hearts", "spades"]
-        values = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "jack", "queen", "king", "ace"]
-        deck = [{"suit": s, "value": v} for s in suits for v in values]
+        suits =["clubs", "diamonds", "hearts", "spades"]
+        values =["2", "3", "4", "5", "6", "7", "8", "9", "10", "jack", "queen", "king", "ace"]
+        deck =[{"suit":s, "value":v}for s in suits for v in values]
 
-        npc_personalities = ["aggressive", "passive", "tight", "loose", "erratic"]
+        npc_personalities =["aggressive", "passive", "tight", "loose", "erratic"]
 
         def generate_random_npc_name():
             try:
@@ -9046,105 +9181,105 @@ class App:
 
         player_overrides = store.get("poker_player_override", [])
         generated_names = set()
-        npc_names = []
+        npc_names =[]
         npc_personality_map = {}
 
         for i in range(3):
-            override = next((p for p in player_overrides if p.get("slot") == i + 1), None)
+            override = next((p for p in player_overrides if p.get("slot")==i +1), None)
             if override and override.get("name"):
                 name_data = override["name"]
                 if isinstance(name_data, dict):
-                    name = f"{name_data.get('first', 'Player')} {name_data.get('last', str(i+1))}"
+                    name = f"{name_data.get('first', 'Player')} {name_data.get('last', str(i +1))}"
                 else:
                     name = str(name_data)
                 npc_names.append(name)
                 generated_names.add(name)
             else:
                 attempts = 0
-                while attempts < 50:
+                while attempts <50:
                     name = generate_random_npc_name()
                     if name not in generated_names:
                         generated_names.add(name)
                         npc_names.append(name)
                         break
-                    attempts += 1
+                    attempts +=1
                 else:
-                    fallback = f"Player {i + 1}"
+                    fallback = f"Player {i +1}"
                     npc_names.append(fallback)
                     generated_names.add(fallback)
 
-            npc_personality_map[npc_names[-1]] = random.choice(npc_personalities)
+            npc_personality_map[npc_names[-1]]= random.choice(npc_personalities)
 
         game_state = {
-            "deck": [],
-            "player_hand": [],
-            "npc_hands": {name: [] for name in npc_names},
-            "npc_held": {name: [False] * 7 for name in npc_names},
-            "held": [False] * 7,
-            "current_bet": 0,
-            "pot": 0,
-            "phase": "betting",
-            "card_labels": [],
-            "folded": {name: False for name in npc_names},
-            "player_folded": False,
-            "community_cards": [],
-            "ui_valid": True
+        "deck":[],
+        "player_hand":[],
+        "npc_hands":{name:[]for name in npc_names},
+        "npc_held":{name:[False]*7 for name in npc_names},
+        "held":[False]*7,
+        "current_bet":0,
+        "pot":0,
+        "phase":"betting",
+        "card_labels":[],
+        "folded":{name:False for name in npc_names},
+        "player_folded":False,
+        "community_cards":[],
+        "ui_valid":True
         }
 
         scroll_frame = customtkinter.CTkScrollableFrame(game_frame)
-        scroll_frame.pack(fill="both", expand=True, padx=5, pady=5)
+        scroll_frame.pack(fill = "both", expand = True, padx = 5, pady = 5)
 
         community_frame = None
         community_cards_frame = None
-        if variant == "texas_holdem":
-            community_frame = customtkinter.CTkFrame(scroll_frame, fg_color="transparent")
-            community_frame.pack(pady=10, fill="x")
-            customtkinter.CTkLabel(community_frame, text="Community Cards", font=customtkinter.CTkFont(size=14, weight="bold")).pack()
-            community_cards_frame = customtkinter.CTkFrame(community_frame, fg_color="transparent")
-            community_cards_frame.pack(pady=5)
+        if variant =="texas_holdem":
+            community_frame = customtkinter.CTkFrame(scroll_frame, fg_color = "transparent")
+            community_frame.pack(pady = 10, fill = "x")
+            customtkinter.CTkLabel(community_frame, text = "Community Cards", font = customtkinter.CTkFont(size = 14, weight = "bold")).pack()
+            community_cards_frame = customtkinter.CTkFrame(community_frame, fg_color = "transparent")
+            community_cards_frame.pack(pady = 5)
 
         npc_frames = {}
         for npc_name in npc_names:
             personality = npc_personality_map.get(npc_name, "normal")
-            npc_frame = customtkinter.CTkFrame(scroll_frame, fg_color="transparent")
-            npc_frame.pack(pady=5, fill="x")
-            personality_emoji = {"aggressive": "🔥", "passive": "😌", "tight": "🎯", "loose": "🎲", "erratic": "🃏"}.get(personality, "")
-            npc_label = customtkinter.CTkLabel(npc_frame, text=f"{npc_name} {personality_emoji}", font=customtkinter.CTkFont(size=12, weight="bold"))
+            npc_frame = customtkinter.CTkFrame(scroll_frame, fg_color = "transparent")
+            npc_frame.pack(pady = 5, fill = "x")
+            personality_emoji = {"aggressive":"🔥", "passive":"😌", "tight":"🎯", "loose":"🎲", "erratic":"🃏"}.get(personality, "")
+            npc_label = customtkinter.CTkLabel(npc_frame, text = f"{npc_name} {personality_emoji}", font = customtkinter.CTkFont(size = 12, weight = "bold"))
             npc_label.pack()
-            npc_cards_frame = customtkinter.CTkFrame(npc_frame, fg_color="transparent")
+            npc_cards_frame = customtkinter.CTkFrame(npc_frame, fg_color = "transparent")
             npc_cards_frame.pack()
-            npc_status_label = customtkinter.CTkLabel(npc_frame, text="", font=customtkinter.CTkFont(size=10))
+            npc_status_label = customtkinter.CTkLabel(npc_frame, text = "", font = customtkinter.CTkFont(size = 10))
             npc_status_label.pack()
-            npc_frames[npc_name] = {"frame": npc_frame, "cards": npc_cards_frame, "status": npc_status_label, "label": npc_label}
+            npc_frames[npc_name]= {"frame":npc_frame, "cards":npc_cards_frame, "status":npc_status_label, "label":npc_label}
 
-        separator = customtkinter.CTkLabel(scroll_frame, text="─" * 50, font=customtkinter.CTkFont(size=10))
-        separator.pack(pady=5)
+        separator = customtkinter.CTkLabel(scroll_frame, text = "─"*50, font = customtkinter.CTkFont(size = 10))
+        separator.pack(pady = 5)
 
-        player_frame = customtkinter.CTkFrame(scroll_frame, fg_color="transparent")
-        player_frame.pack(pady=10)
-        player_label = customtkinter.CTkLabel(player_frame, text="Your Hand", font=customtkinter.CTkFont(size=14, weight="bold"))
+        player_frame = customtkinter.CTkFrame(scroll_frame, fg_color = "transparent")
+        player_frame.pack(pady = 10)
+        player_label = customtkinter.CTkLabel(player_frame, text = "Your Hand", font = customtkinter.CTkFont(size = 14, weight = "bold"))
         player_label.pack()
-        player_cards_frame = customtkinter.CTkFrame(player_frame, fg_color="transparent")
-        player_cards_frame.pack(pady=5)
-        player_score_label = customtkinter.CTkLabel(player_frame, text="", font=customtkinter.CTkFont(size=12))
+        player_cards_frame = customtkinter.CTkFrame(player_frame, fg_color = "transparent")
+        player_cards_frame.pack(pady = 5)
+        player_score_label = customtkinter.CTkLabel(player_frame, text = "", font = customtkinter.CTkFont(size = 12))
         player_score_label.pack()
 
-        pot_label = customtkinter.CTkLabel(scroll_frame, text="Pot: $0", font=customtkinter.CTkFont(size=16, weight="bold"), text_color="gold")
-        pot_label.pack(pady=5)
+        pot_label = customtkinter.CTkLabel(scroll_frame, text = "Pot: $0", font = customtkinter.CTkFont(size = 16, weight = "bold"), text_color = "gold")
+        pot_label.pack(pady = 5)
 
-        result_label = customtkinter.CTkLabel(scroll_frame, text="", font=customtkinter.CTkFont(size=18, weight="bold"))
-        result_label.pack(pady=10)
+        result_label = customtkinter.CTkLabel(scroll_frame, text = "", font = customtkinter.CTkFont(size = 18, weight = "bold"))
+        result_label.pack(pady = 10)
 
         def get_card_value_num(card):
             v = card["value"]
-            if v == "ace": return 14
-            elif v == "king": return 13
-            elif v == "queen": return 12
-            elif v == "jack": return 11
-            else: return int(v)
+            if v =="ace":return 14
+            elif v =="king":return 13
+            elif v =="queen":return 12
+            elif v =="jack":return 11
+            else:return int(v)
 
         def shuffle_deck():
-            game_state["deck"] = deck.copy()
+            game_state["deck"]= deck.copy()
             random.shuffle(game_state["deck"])
             self._play_card_sound("shuffle")
 
@@ -9156,52 +9291,52 @@ class App:
             return card
 
         def evaluate_hand(hand):
-            if len(hand) < 5:
-                return ("Nothing", 0, [])
+            if len(hand)<5:
+                return("Nothing", 0, [])
 
             from itertools import combinations
-            best_eval = ("Nothing", 0, [])
+            best_eval =("Nothing", 0, [])
 
             for combo in combinations(hand, 5):
                 combo_list = list(combo)
-                vals = sorted([get_card_value_num(c) for c in combo_list], reverse=True)
-                suits_list = [c["suit"] for c in combo_list]
+                vals = sorted([get_card_value_num(c)for c in combo_list], reverse = True)
+                suits_list =[c["suit"]for c in combo_list]
 
-                is_flush = len(set(suits_list)) == 1
+                is_flush = len(set(suits_list))==1
                 sorted_vals = sorted(vals)
-                is_straight = sorted_vals == list(range(sorted_vals[0], sorted_vals[0] + 5))
-                if sorted_vals == [2, 3, 4, 5, 14]:
+                is_straight = sorted_vals ==list(range(sorted_vals[0], sorted_vals[0]+5))
+                if sorted_vals ==[2, 3, 4, 5, 14]:
                     is_straight = True
-                    vals = [5, 4, 3, 2, 1]
+                    vals =[5, 4, 3, 2, 1]
 
                 val_counts = {}
                 for v in vals:
-                    val_counts[v] = val_counts.get(v, 0) + 1
-                counts = sorted(val_counts.values(), reverse=True)
+                    val_counts[v]= val_counts.get(v, 0)+1
+                counts = sorted(val_counts.values(), reverse = True)
 
                 if is_straight and is_flush:
-                    if sorted(vals) == [10, 11, 12, 13, 14]:
-                        eval_result = ("Royal Flush", 10, vals)
+                    if sorted(vals)==[10, 11, 12, 13, 14]:
+                        eval_result =("Royal Flush", 10, vals)
                     else:
-                        eval_result = ("Straight Flush", 9, vals)
-                elif counts == [4, 1]:
-                    eval_result = ("Four of a Kind", 8, vals)
-                elif counts == [3, 2]:
-                    eval_result = ("Full House", 7, vals)
+                        eval_result =("Straight Flush", 9, vals)
+                elif counts ==[4, 1]:
+                    eval_result =("Four of a Kind", 8, vals)
+                elif counts ==[3, 2]:
+                    eval_result =("Full House", 7, vals)
                 elif is_flush:
-                    eval_result = ("Flush", 6, vals)
+                    eval_result =("Flush", 6, vals)
                 elif is_straight:
-                    eval_result = ("Straight", 5, vals)
-                elif counts == [3, 1, 1]:
-                    eval_result = ("Three of a Kind", 4, vals)
-                elif counts == [2, 2, 1]:
-                    eval_result = ("Two Pair", 3, vals)
-                elif counts == [2, 1, 1, 1]:
-                    eval_result = ("Pair", 2, vals)
+                    eval_result =("Straight", 5, vals)
+                elif counts ==[3, 1, 1]:
+                    eval_result =("Three of a Kind", 4, vals)
+                elif counts ==[2, 2, 1]:
+                    eval_result =("Two Pair", 3, vals)
+                elif counts ==[2, 1, 1, 1]:
+                    eval_result =("Pair", 2, vals)
                 else:
-                    eval_result = ("High Card", 1, vals)
+                    eval_result =("High Card", 1, vals)
 
-                if eval_result[1] > best_eval[1] or (eval_result[1] == best_eval[1] and eval_result[2] > best_eval[2]):
+                if eval_result[1]>best_eval[1]or(eval_result[1]==best_eval[1]and eval_result[2]>best_eval[2]):
                     best_eval = eval_result
 
             return best_eval
@@ -9209,51 +9344,51 @@ class App:
         def npc_decide_hold(hand, npc_name):
             personality = npc_personality_map.get(npc_name, "normal")
             _, rank, _ = evaluate_hand(hand)
-            held = [False] * len(hand)
+            held =[False]*len(hand)
 
             mistake_chance = 0.15
-            if random.random() < mistake_chance:
-                if random.random() < 0.5:
-                    random_idx = random.randint(0, len(hand) - 1)
-                    return [i == random_idx for i in range(len(hand))]
+            if random.random()<mistake_chance:
+                if random.random()<0.5:
+                    random_idx = random.randint(0, len(hand)-1)
+                    return[i ==random_idx for i in range(len(hand))]
                 else:
-                    return [True] * len(hand)
+                    return[True]*len(hand)
 
-            vals = [get_card_value_num(c) for c in hand]
+            vals =[get_card_value_num(c)for c in hand]
             val_counts = {}
             for i, v in enumerate(vals):
                 if v not in val_counts:
-                    val_counts[v] = []
+                    val_counts[v]=[]
                 val_counts[v].append(i)
 
-            if personality == "aggressive":
-                if rank >= 3:
-                    return [True] * len(hand)
-            elif personality == "passive":
-                if rank >= 5:
-                    return [True] * len(hand)
-            elif personality == "erratic":
-                if random.random() < 0.3:
-                    return [random.random() > 0.5 for _ in range(len(hand))]
+            if personality =="aggressive":
+                if rank >=3:
+                    return[True]*len(hand)
+            elif personality =="passive":
+                if rank >=5:
+                    return[True]*len(hand)
+            elif personality =="erratic":
+                if random.random()<0.3:
+                    return[random.random()>0.5 for _ in range(len(hand))]
 
-            if rank >= 4:
-                return [True] * len(hand)
+            if rank >=4:
+                return[True]*len(hand)
 
             for v, indices in val_counts.items():
-                if len(indices) >= 2:
+                if len(indices)>=2:
                     for idx in indices:
-                        held[idx] = True
+                        held[idx]= True
 
-            if rank >= 2:
+            if rank >=2:
                 return held
 
-            if personality == "tight":
-                high_cards = sorted(enumerate(vals), key=lambda x: x[1], reverse=True)[:3]
+            if personality =="tight":
+                high_cards = sorted(enumerate(vals), key = lambda x:x[1], reverse = True)[:3]
             else:
-                high_cards = sorted(enumerate(vals), key=lambda x: x[1], reverse=True)[:2]
+                high_cards = sorted(enumerate(vals), key = lambda x:x[1], reverse = True)[:2]
             for idx, _ in high_cards:
-                if idx < len(held):
-                    held[idx] = True
+                if idx <len(held):
+                    held[idx]= True
 
             return held
 
@@ -9261,33 +9396,33 @@ class App:
             personality = npc_personality_map.get(npc_name, "normal")
             _, rank, _ = evaluate_hand(hand)
 
-            if random.random() < 0.1:
-                if rank >= 4:
+            if random.random()<0.1:
+                if rank >=4:
                     return True
-                elif rank <= 1:
+                elif rank <=1:
                     return False
 
-            if personality == "aggressive":
-                if rank >= 2: return False
-                return random.random() < 0.3
-            elif personality == "passive":
-                if rank >= 4: return False
-                if rank >= 2: return random.random() < 0.4
-                return random.random() < 0.7
-            elif personality == "tight":
-                if rank >= 3: return False
-                if rank >= 2: return random.random() < 0.5
-                return random.random() < 0.8
-            elif personality == "loose":
-                if rank >= 1: return False
-                return random.random() < 0.2
-            elif personality == "erratic":
-                return random.random() < 0.35
+            if personality =="aggressive":
+                if rank >=2:return False
+                return random.random()<0.3
+            elif personality =="passive":
+                if rank >=4:return False
+                if rank >=2:return random.random()<0.4
+                return random.random()<0.7
+            elif personality =="tight":
+                if rank >=3:return False
+                if rank >=2:return random.random()<0.5
+                return random.random()<0.8
+            elif personality =="loose":
+                if rank >=1:return False
+                return random.random()<0.2
+            elif personality =="erratic":
+                return random.random()<0.35
             else:
-                if rank >= 3: return False
-                if rank == 2: return random.random() < 0.2
-                if rank == 1: return random.random() < 0.5
-                return random.random() < 0.3
+                if rank >=3:return False
+                if rank ==2:return random.random()<0.2
+                if rank ==1:return random.random()<0.5
+                return random.random()<0.3
 
         def display_community_cards():
             if not community_cards_frame:
@@ -9295,16 +9430,16 @@ class App:
             for widget in community_cards_frame.winfo_children():
                 widget.destroy()
             for card in game_state["community_cards"]:
-                img = self._load_card_image(card["suit"], card["value"], size=(60, 84))
+                img = self._load_card_image(card["suit"], card["value"], size =(60, 84))
                 if img:
-                    card_label = customtkinter.CTkLabel(community_cards_frame, image=img, text="")
+                    card_label = customtkinter.CTkLabel(community_cards_frame, image = img, text = "")
                     card_label.image = img
                 else:
                     text = f"{card['value'][0].upper()}{card['suit'][0].upper()}"
-                    card_label = customtkinter.CTkLabel(community_cards_frame, text=text, width=50, height=70, fg_color="white", text_color="black", corner_radius=5)
-                card_label.pack(side="left", padx=3)
+                    card_label = customtkinter.CTkLabel(community_cards_frame, text = text, width = 50, height = 70, fg_color = "white", text_color = "black", corner_radius = 5)
+                card_label.pack(side = "left", padx = 3)
 
-        def display_npc_hand(npc_name, reveal=False, show_indices=None):
+        def display_npc_hand(npc_name, reveal = False, show_indices = None):
             if not game_state["ui_valid"]:
                 return
             frame_info = npc_frames[npc_name]
@@ -9315,7 +9450,7 @@ class App:
                 widget.destroy()
 
             if game_state["folded"].get(npc_name, False):
-                status_label.configure(text="FOLDED", text_color="red")
+                status_label.configure(text = "FOLDED", text_color = "red")
                 return
 
             hand = game_state["npc_hands"].get(npc_name, [])
@@ -9325,37 +9460,37 @@ class App:
                     show_card = True
 
                 if show_card:
-                    img = self._load_card_image(card["suit"], card["value"], size=(50, 70))
+                    img = self._load_card_image(card["suit"], card["value"], size =(50, 70))
                 else:
-                    img = self._load_card_image(None, "back", size=(50, 70))
+                    img = self._load_card_image(None, "back", size =(50, 70))
 
                 if img:
-                    card_label = customtkinter.CTkLabel(cards_frame, image=img, text="")
+                    card_label = customtkinter.CTkLabel(cards_frame, image = img, text = "")
                     card_label.image = img
                 else:
-                    text = f"{card['value'][0].upper()}{card['suit'][0].upper()}" if show_card else "??"
-                    card_label = customtkinter.CTkLabel(cards_frame, text=text, width=40, height=56, fg_color="white", text_color="black", corner_radius=3)
-                card_label.pack(side="left", padx=1)
+                    text = f"{card['value'][0].upper()}{card['suit'][0].upper()}"if show_card else "??"
+                    card_label = customtkinter.CTkLabel(cards_frame, text = text, width = 40, height = 56, fg_color = "white", text_color = "black", corner_radius = 3)
+                card_label.pack(side = "left", padx = 1)
 
             if reveal:
-                full_hand = hand + game_state.get("community_cards", [])
+                full_hand = hand +game_state.get("community_cards", [])
                 hand_name, _, _ = evaluate_hand(full_hand)
-                status_label.configure(text=hand_name, text_color="cyan")
+                status_label.configure(text = hand_name, text_color = "cyan")
             else:
-                status_label.configure(text="In Game", text_color="green")
+                status_label.configure(text = "In Game", text_color = "green")
 
-        def display_player_hand(can_hold=False, show_indices=None):
+        def display_player_hand(can_hold = False, show_indices = None):
             if not game_state["ui_valid"]:
                 return
             for widget in player_cards_frame.winfo_children():
                 widget.destroy()
 
-            game_state["card_labels"] = []
+            game_state["card_labels"]=[]
             hand = game_state["player_hand"]
 
             for i, card in enumerate(hand):
-                card_container = customtkinter.CTkFrame(player_cards_frame, fg_color="transparent")
-                card_container.pack(side="left", padx=3)
+                card_container = customtkinter.CTkFrame(player_cards_frame, fg_color = "transparent")
+                card_container.pack(side = "left", padx = 3)
 
                 show_card = True
                 if show_indices is not None and i not in show_indices:
@@ -9367,34 +9502,34 @@ class App:
                     img = self._load_card_image(None, "back")
 
                 if img:
-                    card_label = customtkinter.CTkLabel(card_container, image=img, text="")
+                    card_label = customtkinter.CTkLabel(card_container, image = img, text = "")
                     card_label.image = img
                 else:
-                    text = f"{card['value'][0].upper()}{card['suit'][0].upper()}" if show_card else "??"
-                    card_label = customtkinter.CTkLabel(card_container, text=text, width=60, height=84, fg_color="white", text_color="black", corner_radius=5)
+                    text = f"{card['value'][0].upper()}{card['suit'][0].upper()}"if show_card else "??"
+                    card_label = customtkinter.CTkLabel(card_container, text = text, width = 60, height = 84, fg_color = "white", text_color = "black", corner_radius = 5)
                 card_label.pack()
                 game_state["card_labels"].append(card_label)
 
-                if can_hold and variant == "five_card_draw":
-                    held_text = "HELD" if game_state["held"][i] else ""
-                    hold_label = customtkinter.CTkLabel(card_container, text=held_text, font=customtkinter.CTkFont(size=10, weight="bold"), text_color="yellow")
+                if can_hold and variant =="five_card_draw":
+                    held_text = "HELD"if game_state["held"][i]else ""
+                    hold_label = customtkinter.CTkLabel(card_container, text = held_text, font = customtkinter.CTkFont(size = 10, weight = "bold"), text_color = "yellow")
                     hold_label.pack()
 
-                    def toggle_hold(idx=i, lbl=hold_label):
-                        if game_state["phase"] != "draw":
+                    def toggle_hold(idx = i, lbl = hold_label):
+                        if game_state["phase"]!="draw":
                             return
-                        game_state["held"][idx] = not game_state["held"][idx]
-                        lbl.configure(text="HELD" if game_state["held"][idx] else "")
+                        game_state["held"][idx]= not game_state["held"][idx]
+                        lbl.configure(text = "HELD"if game_state["held"][idx]else "")
                         self._play_card_sound("place")
 
-                    card_label.bind("<Button-1>", lambda e, idx=i, lbl=hold_label: toggle_hold(idx, lbl))
+                    card_label.bind("<Button-1>", lambda e, idx = i, lbl = hold_label:toggle_hold(idx, lbl))
 
-            full_hand = hand + game_state.get("community_cards", [])
+            full_hand = hand +game_state.get("community_cards", [])
             hand_name, _, _ = evaluate_hand(full_hand)
-            player_score_label.configure(text=f"Current: {hand_name}")
+            player_score_label.configure(text = f"Current: {hand_name}")
 
-            money_label.configure(text=f"Your Money: ${player_money[0]}")
-            pot_label.configure(text=f"Pot: ${game_state['pot']}")
+            money_label.configure(text = f"Your Money: ${player_money[0]}")
+            pot_label.configure(text = f"Pot: ${game_state['pot']}")
             update_money_cb()
 
         def deal_new_hand():
@@ -9404,107 +9539,107 @@ class App:
             try:
                 bet = int(bet_str)
             except ValueError:
-                self._popup_show_info("Invalid Bet", "Please enter a valid number.", sound="error")
+                self._popup_show_info("Invalid Bet", "Please enter a valid number.", sound = "error")
                 return
 
-            if bet < min_bet or bet > max_bet:
-                self._popup_show_info("Invalid Bet", f"Bet must be between ${min_bet} and ${max_bet}.", sound="error")
+            if bet <min_bet or bet >max_bet:
+                self._popup_show_info("Invalid Bet", f"Bet must be between ${min_bet} and ${max_bet}.", sound = "error")
                 return
 
-            if bet > player_money[0]:
-                self._popup_show_info("Insufficient Funds", "You don't have enough money for that bet.", sound="error")
+            if bet >player_money[0]:
+                self._popup_show_info("Insufficient Funds", "You don't have enough money for that bet.", sound = "error")
                 return
 
-            game_state["current_bet"] = bet
-            game_state["held"] = [False] * 7
-            game_state["player_folded"] = False
-            game_state["community_cards"] = []
+            game_state["current_bet"]= bet
+            game_state["held"]=[False]*7
+            game_state["player_folded"]= False
+            game_state["community_cards"]=[]
             for name in npc_names:
-                game_state["folded"][name] = False
-                game_state["npc_held"][name] = [False] * 7
-            result_label.configure(text="")
+                game_state["folded"][name]= False
+                game_state["npc_held"][name]=[False]*7
+            result_label.configure(text = "")
 
             shuffle_deck()
 
-            if variant == "five_card_draw":
-                game_state["player_hand"] = [draw_card() for _ in range(5)]
+            if variant =="five_card_draw":
+                game_state["player_hand"]=[draw_card()for _ in range(5)]
                 for npc_name in npc_names:
-                    game_state["npc_hands"][npc_name] = [draw_card() for _ in range(5)]
-            elif variant == "five_card_stud":
-                game_state["player_hand"] = [draw_card() for _ in range(5)]
+                    game_state["npc_hands"][npc_name]=[draw_card()for _ in range(5)]
+            elif variant =="five_card_stud":
+                game_state["player_hand"]=[draw_card()for _ in range(5)]
                 for npc_name in npc_names:
-                    game_state["npc_hands"][npc_name] = [draw_card() for _ in range(5)]
-            elif variant == "seven_card_stud":
-                game_state["player_hand"] = [draw_card() for _ in range(7)]
+                    game_state["npc_hands"][npc_name]=[draw_card()for _ in range(5)]
+            elif variant =="seven_card_stud":
+                game_state["player_hand"]=[draw_card()for _ in range(7)]
                 for npc_name in npc_names:
-                    game_state["npc_hands"][npc_name] = [draw_card() for _ in range(7)]
-            elif variant == "texas_holdem":
-                game_state["player_hand"] = [draw_card() for _ in range(2)]
+                    game_state["npc_hands"][npc_name]=[draw_card()for _ in range(7)]
+            elif variant =="texas_holdem":
+                game_state["player_hand"]=[draw_card()for _ in range(2)]
                 for npc_name in npc_names:
-                    game_state["npc_hands"][npc_name] = [draw_card() for _ in range(2)]
-                game_state["community_cards"] = [draw_card() for _ in range(5)]
+                    game_state["npc_hands"][npc_name]=[draw_card()for _ in range(2)]
+                game_state["community_cards"]=[draw_card()for _ in range(5)]
 
-            active_players = 1 + len(npc_names)
-            game_state["pot"] = bet * active_players
+            active_players = 1 +len(npc_names)
+            game_state["pot"]= bet *active_players
 
             for npc_name in npc_names:
-                full_hand = game_state["npc_hands"][npc_name] + game_state.get("community_cards", [])
+                full_hand = game_state["npc_hands"][npc_name]+game_state.get("community_cards", [])
                 if npc_decide_fold(full_hand, bet, npc_name):
-                    game_state["folded"][npc_name] = True
-                    game_state["pot"] -= bet
+                    game_state["folded"][npc_name]= True
+                    game_state["pot"]-=bet
 
-            if variant == "five_card_draw":
-                game_state["phase"] = "draw"
+            if variant =="five_card_draw":
+                game_state["phase"]= "draw"
             else:
-                game_state["phase"] = "showdown"
+                game_state["phase"]= "showdown"
 
-            if variant == "five_card_stud":
+            if variant =="five_card_stud":
                 for npc_name in npc_names:
-                    display_npc_hand(npc_name, reveal=False, show_indices=[1, 2, 3, 4])
-                display_player_hand(can_hold=False)
-            elif variant == "seven_card_stud":
+                    display_npc_hand(npc_name, reveal = False, show_indices =[1, 2, 3, 4])
+                display_player_hand(can_hold = False)
+            elif variant =="seven_card_stud":
                 for npc_name in npc_names:
-                    display_npc_hand(npc_name, reveal=False, show_indices=[2, 3, 4, 5])
-                display_player_hand(can_hold=False)
-            elif variant == "texas_holdem":
+                    display_npc_hand(npc_name, reveal = False, show_indices =[2, 3, 4, 5])
+                display_player_hand(can_hold = False)
+            elif variant =="texas_holdem":
                 display_community_cards()
                 for npc_name in npc_names:
-                    display_npc_hand(npc_name, reveal=False)
-                display_player_hand(can_hold=False)
+                    display_npc_hand(npc_name, reveal = False)
+                display_player_hand(can_hold = False)
             else:
                 for npc_name in npc_names:
-                    display_npc_hand(npc_name, reveal=False)
-                display_player_hand(can_hold=True)
+                    display_npc_hand(npc_name, reveal = False)
+                display_player_hand(can_hold = True)
 
             update_buttons()
-            if variant == "five_card_draw":
-                result_label.configure(text="Click cards to hold, then Draw", text_color="white")
+            if variant =="five_card_draw":
+                result_label.configure(text = "Click cards to hold, then Draw", text_color = "white")
             else:
-                result_label.configure(text="Press 'Show Cards' to reveal hands", text_color="white")
+                result_label.configure(text = "Press 'Show Cards' to reveal hands", text_color = "white")
 
         def draw_new_cards():
             if not game_state["ui_valid"]:
                 return
-            if game_state["phase"] != "draw":
+            if game_state["phase"]!="draw":
                 return
 
-            if variant == "five_card_draw":
+            if variant =="five_card_draw":
                 for i in range(5):
                     if not game_state["held"][i]:
-                        game_state["player_hand"][i] = draw_card()
+                        game_state["player_hand"][i]= draw_card()
 
                 for npc_name in npc_names:
                     if not game_state["folded"][npc_name]:
                         npc_held = npc_decide_hold(game_state["npc_hands"][npc_name], npc_name)
                         for i in range(5):
                             if not npc_held[i]:
-                                game_state["npc_hands"][npc_name][i] = draw_card()
+                                game_state["npc_hands"][npc_name][i]= draw_card()
 
-            game_state["phase"] = "showdown"
-            display_player_hand(can_hold=False)
+            game_state["phase"]= "showdown"
+            display_player_hand(can_hold = False)
 
             for npc_name in npc_names:
-                display_npc_hand(npc_name, reveal=True)
+                display_npc_hand(npc_name, reveal = True)
 
             determine_winner()
             update_buttons()
@@ -9512,105 +9647,105 @@ class App:
         def show_cards():
             if not game_state["ui_valid"]:
                 return
-            game_state["phase"] = "complete"
-            display_player_hand(can_hold=False)
+            game_state["phase"]= "complete"
+            display_player_hand(can_hold = False)
             for npc_name in npc_names:
-                display_npc_hand(npc_name, reveal=True)
+                display_npc_hand(npc_name, reveal = True)
             determine_winner()
             update_buttons()
 
         def fold_hand():
             if not game_state["ui_valid"]:
                 return
-            if game_state["phase"] not in ["draw", "showdown"]:
+            if game_state["phase"]not in["draw", "showdown"]:
                 return
-            game_state["player_folded"] = True
-            game_state["phase"] = "complete"
+            game_state["player_folded"]= True
+            game_state["phase"]= "complete"
 
             loss = -game_state["current_bet"]
             if record_game_cb:
                 record_game_cb(loss)
             save_money_cb()
 
-            active_npcs = [n for n in npc_names if not game_state["folded"][n]]
+            active_npcs =[n for n in npc_names if not game_state["folded"][n]]
             if active_npcs:
                 for npc_name in npc_names:
-                    display_npc_hand(npc_name, reveal=True)
-                result_label.configure(text=f"You folded. {active_npcs[0]} wins the pot!", text_color="red")
+                    display_npc_hand(npc_name, reveal = True)
+                result_label.configure(text = f"You folded.{active_npcs[0]} wins the pot!", text_color = "red")
             else:
-                result_label.configure(text="Everyone folded!", text_color="orange")
+                result_label.configure(text = "Everyone folded!", text_color = "orange")
 
             update_buttons()
-            money_label.configure(text=f"Your Money: ${player_money[0]}")
+            money_label.configure(text = f"Your Money: ${player_money[0]}")
             update_money_cb()
 
         def determine_winner():
             if not game_state["ui_valid"]:
                 return
-            player_full_hand = game_state["player_hand"] + game_state.get("community_cards", [])
+            player_full_hand = game_state["player_hand"]+game_state.get("community_cards", [])
             player_eval = evaluate_hand(player_full_hand)
-            best_hand = ("You", player_eval)
+            best_hand =("You", player_eval)
 
             for npc_name in npc_names:
                 if not game_state["folded"][npc_name]:
-                    npc_full_hand = game_state["npc_hands"][npc_name] + game_state.get("community_cards", [])
+                    npc_full_hand = game_state["npc_hands"][npc_name]+game_state.get("community_cards", [])
                     npc_eval = evaluate_hand(npc_full_hand)
-                    if npc_eval[1] > best_hand[1][1]:
-                        best_hand = (npc_name, npc_eval)
-                    elif npc_eval[1] == best_hand[1][1]:
-                        if npc_eval[2] > best_hand[1][2]:
-                            best_hand = (npc_name, npc_eval)
+                    if npc_eval[1]>best_hand[1][1]:
+                        best_hand =(npc_name, npc_eval)
+                    elif npc_eval[1]==best_hand[1][1]:
+                        if npc_eval[2]>best_hand[1][2]:
+                            best_hand =(npc_name, npc_eval)
 
             winner_name = best_hand[0]
             winner_hand = best_hand[1][0]
             pot = game_state["pot"]
 
-            if winner_name == "You":
-                winnings = pot - game_state["current_bet"]
-                player_money[0] += winnings
+            if winner_name =="You":
+                winnings = pot -game_state["current_bet"]
+                player_money[0]+=winnings
                 if record_game_cb:
                     record_game_cb(winnings)
-                result_label.configure(text=f"You win with {winner_hand}! +${winnings}", text_color="green")
+                result_label.configure(text = f"You win with {winner_hand}! +${winnings}", text_color = "green")
             else:
                 loss = -game_state["current_bet"]
-                player_money[0] -= game_state["current_bet"]
+                player_money[0]-=game_state["current_bet"]
                 if record_game_cb:
                     record_game_cb(loss)
-                result_label.configure(text=f"{winner_name} wins with {winner_hand}! -${game_state['current_bet']}", text_color="red")
+                result_label.configure(text = f"{winner_name} wins with {winner_hand}! -${game_state['current_bet']}", text_color = "red")
 
             save_money_cb()
-            game_state["phase"] = "complete"
-            money_label.configure(text=f"Your Money: ${player_money[0]}")
+            game_state["phase"]= "complete"
+            money_label.configure(text = f"Your Money: ${player_money[0]}")
             update_money_cb()
 
         def update_buttons():
             if not game_state["ui_valid"]:
                 return
             try:
-                if game_state["phase"] == "betting":
-                    deal_btn.configure(state="normal")
-                    if variant == "five_card_draw":
-                        draw_btn.configure(state="disabled")
+                if game_state["phase"]=="betting":
+                    deal_btn.configure(state = "normal")
+                    if variant =="five_card_draw":
+                        draw_btn.configure(state = "disabled")
                     else:
-                        show_btn.configure(state="disabled")
-                    fold_btn.configure(state="disabled")
-                elif game_state["phase"] == "draw":
-                    deal_btn.configure(state="disabled")
-                    if variant == "five_card_draw":
-                        draw_btn.configure(state="normal")
-                    fold_btn.configure(state="normal")
-                elif game_state["phase"] == "showdown":
-                    deal_btn.configure(state="disabled")
-                    if variant != "five_card_draw":
-                        show_btn.configure(state="normal")
-                    fold_btn.configure(state="normal")
+                        show_btn.configure(state = "disabled")
+                    fold_btn.configure(state = "disabled")
+                elif game_state["phase"]=="draw":
+                    deal_btn.configure(state = "disabled")
+                    if variant =="five_card_draw":
+                        draw_btn.configure(state = "normal")
+                    fold_btn.configure(state = "normal")
+                elif game_state["phase"]=="showdown":
+                    deal_btn.configure(state = "disabled")
+                    if variant !="five_card_draw":
+                        show_btn.configure(state = "normal")
+                    fold_btn.configure(state = "normal")
                 else:
-                    deal_btn.configure(state="normal")
-                    if variant == "five_card_draw":
-                        draw_btn.configure(state="disabled")
+                    deal_btn.configure(state = "normal")
+                    if variant =="five_card_draw":
+                        draw_btn.configure(state = "disabled")
                     else:
-                        show_btn.configure(state="disabled")
-                    fold_btn.configure(state="disabled")
+                        show_btn.configure(state = "disabled")
+                    fold_btn.configure(state = "disabled")
             except Exception:
                 pass
 
@@ -9621,186 +9756,186 @@ class App:
             popup.grab_set()
             popup.withdraw()
 
-            scroll_frame = customtkinter.CTkScrollableFrame(popup, width=500, height=500)
-            scroll_frame.pack(fill="both", expand=True, padx=10, pady=10)
+            scroll_frame = customtkinter.CTkScrollableFrame(popup, width = 500, height = 500)
+            scroll_frame.pack(fill = "both", expand = True, padx = 10, pady = 10)
 
-            title_lbl = customtkinter.CTkLabel(scroll_frame, text="Poker Hand Rankings", font=customtkinter.CTkFont(size=18, weight="bold"))
-            title_lbl.pack(pady=(5, 15))
+            title_lbl = customtkinter.CTkLabel(scroll_frame, text = "Poker Hand Rankings", font = customtkinter.CTkFont(size = 18, weight = "bold"))
+            title_lbl.pack(pady =(5, 15))
 
-            example_hands = [
-                ("1. Royal Flush", "A, K, Q, J, 10 all same suit", [("hearts", "ace"), ("hearts", "king"), ("hearts", "queen"), ("hearts", "jack"), ("hearts", "10")]),
-                ("2. Straight Flush", "Five sequential cards, same suit", [("spades", "9"), ("spades", "8"), ("spades", "7"), ("spades", "6"), ("spades", "5")]),
-                ("3. Four of a Kind", "Four cards of same rank", [("hearts", "king"), ("diamonds", "king"), ("clubs", "king"), ("spades", "king"), ("hearts", "3")]),
-                ("4. Full House", "Three of a kind + a pair", [("hearts", "queen"), ("diamonds", "queen"), ("clubs", "queen"), ("spades", "7"), ("hearts", "7")]),
-                ("5. Flush", "Five cards of same suit", [("diamonds", "ace"), ("diamonds", "jack"), ("diamonds", "8"), ("diamonds", "5"), ("diamonds", "2")]),
-                ("6. Straight", "Five sequential cards, any suit", [("hearts", "10"), ("diamonds", "9"), ("clubs", "8"), ("spades", "7"), ("hearts", "6")]),
-                ("7. Three of a Kind", "Three cards of same rank", [("hearts", "8"), ("diamonds", "8"), ("clubs", "8"), ("spades", "king"), ("hearts", "4")]),
-                ("8. Two Pair", "Two different pairs", [("hearts", "jack"), ("diamonds", "jack"), ("clubs", "5"), ("spades", "5"), ("hearts", "2")]),
-                ("9. Pair", "Two cards of same rank", [("hearts", "ace"), ("diamonds", "ace"), ("clubs", "9"), ("spades", "6"), ("hearts", "3")]),
-                ("10. High Card", "Highest card wins", [("hearts", "ace"), ("diamonds", "king"), ("clubs", "9"), ("spades", "5"), ("hearts", "2")]),
+            example_hands =[
+            ("1.Royal Flush", "A, K, Q, J, 10 all same suit", [("hearts", "ace"), ("hearts", "king"), ("hearts", "queen"), ("hearts", "jack"), ("hearts", "10")]),
+            ("2.Straight Flush", "Five sequential cards, same suit", [("spades", "9"), ("spades", "8"), ("spades", "7"), ("spades", "6"), ("spades", "5")]),
+            ("3.Four of a Kind", "Four cards of same rank", [("hearts", "king"), ("diamonds", "king"), ("clubs", "king"), ("spades", "king"), ("hearts", "3")]),
+            ("4.Full House", "Three of a kind + a pair", [("hearts", "queen"), ("diamonds", "queen"), ("clubs", "queen"), ("spades", "7"), ("hearts", "7")]),
+            ("5.Flush", "Five cards of same suit", [("diamonds", "ace"), ("diamonds", "jack"), ("diamonds", "8"), ("diamonds", "5"), ("diamonds", "2")]),
+            ("6.Straight", "Five sequential cards, any suit", [("hearts", "10"), ("diamonds", "9"), ("clubs", "8"), ("spades", "7"), ("hearts", "6")]),
+            ("7.Three of a Kind", "Three cards of same rank", [("hearts", "8"), ("diamonds", "8"), ("clubs", "8"), ("spades", "king"), ("hearts", "4")]),
+            ("8.Two Pair", "Two different pairs", [("hearts", "jack"), ("diamonds", "jack"), ("clubs", "5"), ("spades", "5"), ("hearts", "2")]),
+            ("9.Pair", "Two cards of same rank", [("hearts", "ace"), ("diamonds", "ace"), ("clubs", "9"), ("spades", "6"), ("hearts", "3")]),
+            ("10.High Card", "Highest card wins", [("hearts", "ace"), ("diamonds", "king"), ("clubs", "9"), ("spades", "5"), ("hearts", "2")]),
             ]
 
             for hand_name, description, cards in example_hands:
-                hand_frame = customtkinter.CTkFrame(scroll_frame, fg_color="transparent")
-                hand_frame.pack(pady=8, fill="x")
-                name_lbl = customtkinter.CTkLabel(hand_frame, text=hand_name, font=customtkinter.CTkFont(size=14, weight="bold"))
-                name_lbl.pack(anchor="w")
-                desc_lbl = customtkinter.CTkLabel(hand_frame, text=description, font=customtkinter.CTkFont(size=11), text_color="gray")
-                desc_lbl.pack(anchor="w")
-                cards_row = customtkinter.CTkFrame(hand_frame, fg_color="transparent")
-                cards_row.pack(anchor="w", pady=3)
+                hand_frame = customtkinter.CTkFrame(scroll_frame, fg_color = "transparent")
+                hand_frame.pack(pady = 8, fill = "x")
+                name_lbl = customtkinter.CTkLabel(hand_frame, text = hand_name, font = customtkinter.CTkFont(size = 14, weight = "bold"))
+                name_lbl.pack(anchor = "w")
+                desc_lbl = customtkinter.CTkLabel(hand_frame, text = description, font = customtkinter.CTkFont(size = 11), text_color = "gray")
+                desc_lbl.pack(anchor = "w")
+                cards_row = customtkinter.CTkFrame(hand_frame, fg_color = "transparent")
+                cards_row.pack(anchor = "w", pady = 3)
                 for suit, value in cards:
-                    img = self._load_card_image(suit, value, size=(45, 63))
+                    img = self._load_card_image(suit, value, size =(45, 63))
                     if img:
-                        card_lbl = customtkinter.CTkLabel(cards_row, image=img, text="")
+                        card_lbl = customtkinter.CTkLabel(cards_row, image = img, text = "")
                         card_lbl.image = img
                     else:
-                        card_lbl = customtkinter.CTkLabel(cards_row, text=f"{value[0].upper()}{suit[0].upper()}", width=35, height=49, fg_color="white", text_color="black", corner_radius=3)
-                    card_lbl.pack(side="left", padx=1)
+                        card_lbl = customtkinter.CTkLabel(cards_row, text = f"{value[0].upper()}{suit[0].upper()}", width = 35, height = 49, fg_color = "white", text_color = "black", corner_radius = 3)
+                    card_lbl.pack(side = "left", padx = 1)
 
-            close_btn = customtkinter.CTkButton(scroll_frame, text="Close", command=popup.destroy, width=100)
-            close_btn.pack(pady=15)
+            close_btn = customtkinter.CTkButton(scroll_frame, text = "Close", command = popup.destroy, width = 100)
+            close_btn.pack(pady = 15)
             self._play_ui_sound("click")
             popup.update_idletasks()
             w, h = 540, 600
-            x = self.root.winfo_x() + (self.root.winfo_width() // 2) - (w // 2)
-            y = self.root.winfo_y() + (self.root.winfo_height() // 2) - (h // 2)
+            x = self.root.winfo_x()+(self.root.winfo_width()//2)-(w //2)
+            y = self.root.winfo_y()+(self.root.winfo_height()//2)-(h //2)
             popup.geometry(f"{w}x{h}+{x}+{y}")
             popup.deiconify()
 
-        controls_frame = customtkinter.CTkFrame(main_frame, fg_color="transparent")
-        controls_frame.grid(row=2, column=0, sticky="ew", padx=20, pady=10)
+        controls_frame = customtkinter.CTkFrame(main_frame, fg_color = "transparent")
+        controls_frame.grid(row = 2, column = 0, sticky = "ew", padx = 20, pady = 10)
 
-        bet_frame = customtkinter.CTkFrame(controls_frame, fg_color="transparent")
-        bet_frame.pack(pady=5)
+        bet_frame = customtkinter.CTkFrame(controls_frame, fg_color = "transparent")
+        bet_frame.pack(pady = 5)
 
-        bet_label_entry = customtkinter.CTkLabel(bet_frame, text="Bet Amount: $", font=customtkinter.CTkFont(size=14))
-        bet_label_entry.pack(side="left")
+        bet_label_entry = customtkinter.CTkLabel(bet_frame, text = "Bet Amount: $", font = customtkinter.CTkFont(size = 14))
+        bet_label_entry.pack(side = "left")
 
-        bet_entry = customtkinter.CTkEntry(bet_frame, width=100, placeholder_text=str(min_bet))
-        bet_entry.pack(side="left", padx=5)
+        bet_entry = customtkinter.CTkEntry(bet_frame, width = 100, placeholder_text = str(min_bet))
+        bet_entry.pack(side = "left", padx = 5)
         bet_entry.insert(0, str(min_bet))
 
-        action_frame = customtkinter.CTkFrame(controls_frame, fg_color="transparent")
-        action_frame.pack(pady=10)
+        action_frame = customtkinter.CTkFrame(controls_frame, fg_color = "transparent")
+        action_frame.pack(pady = 10)
 
-        deal_btn = self._create_sound_button(action_frame, "Deal", deal_new_hand, width=100, height=40, font=customtkinter.CTkFont(size=14))
-        deal_btn.pack(side="left", padx=5)
+        deal_btn = self._create_sound_button(action_frame, "Deal", deal_new_hand, width = 100, height = 40, font = customtkinter.CTkFont(size = 14))
+        deal_btn.pack(side = "left", padx = 5)
 
-        if variant == "five_card_draw":
-            draw_btn = self._create_sound_button(action_frame, "Draw", draw_new_cards, width=100, height=40, font=customtkinter.CTkFont(size=14))
-            draw_btn.pack(side="left", padx=5)
-            draw_btn.configure(state="disabled")
+        if variant =="five_card_draw":
+            draw_btn = self._create_sound_button(action_frame, "Draw", draw_new_cards, width = 100, height = 40, font = customtkinter.CTkFont(size = 14))
+            draw_btn.pack(side = "left", padx = 5)
+            draw_btn.configure(state = "disabled")
             show_btn = None
         else:
-            show_btn = self._create_sound_button(action_frame, "Show Cards", show_cards, width=100, height=40, font=customtkinter.CTkFont(size=14))
-            show_btn.pack(side="left", padx=5)
-            show_btn.configure(state="disabled")
+            show_btn = self._create_sound_button(action_frame, "Show Cards", show_cards, width = 100, height = 40, font = customtkinter.CTkFont(size = 14))
+            show_btn.pack(side = "left", padx = 5)
+            show_btn.configure(state = "disabled")
             draw_btn = None
 
-        fold_btn = self._create_sound_button(action_frame, "Fold", fold_hand, width=100, height=40, font=customtkinter.CTkFont(size=14))
-        fold_btn.pack(side="left", padx=5)
-        fold_btn.configure(state="disabled")
+        fold_btn = self._create_sound_button(action_frame, "Fold", fold_hand, width = 100, height = 40, font = customtkinter.CTkFont(size = 14))
+        fold_btn.pack(side = "left", padx = 5)
+        fold_btn.configure(state = "disabled")
 
-        hands_btn = self._create_sound_button(action_frame, "Hand Rankings", show_hand_rankings, width=120, height=40, font=customtkinter.CTkFont(size=12))
-        hands_btn.pack(side="left", padx=5)
+        hands_btn = self._create_sound_button(action_frame, "Hand Rankings", show_hand_rankings, width = 120, height = 40, font = customtkinter.CTkFont(size = 12))
+        hands_btn.pack(side = "left", padx = 5)
 
         def back_to_poker_lobby():
-            game_state["ui_valid"] = False
+            game_state["ui_valid"]= False
             self._open_poker_lobby(store, player_money, update_money_cb, save_money_cb, min_bet, max_bet, music_channel, table_data, record_game_cb, casino_stats)
 
-        back_btn = self._create_sound_button(controls_frame, "Back to Poker Lobby", back_to_poker_lobby, width=200, height=40, font=customtkinter.CTkFont(size=14))
-        back_btn.pack(pady=10)
+        back_btn = self._create_sound_button(controls_frame, "Back to Poker Lobby", back_to_poker_lobby, width = 200, height = 40, font = customtkinter.CTkFont(size = 14))
+        back_btn.pack(pady = 10)
 
-    def _open_highlow_game(self, store, player_money, update_money_cb, save_money_cb, min_bet, max_bet, music_channel, table_data, record_game_cb=None, casino_stats=None):
+    def _open_highlow_game(self, store, player_money, update_money_cb, save_money_cb, min_bet, max_bet, music_channel, table_data, record_game_cb = None, casino_stats = None):
         self._clear_window()
 
-        self.root.grid_rowconfigure(0, weight=1)
-        self.root.grid_columnconfigure(0, weight=1)
+        self.root.grid_rowconfigure(0, weight = 1)
+        self.root.grid_columnconfigure(0, weight = 1)
 
         main_frame = customtkinter.CTkFrame(self.root)
-        main_frame.grid(row=0, column=0, sticky="nsew")
-        main_frame.grid_columnconfigure(0, weight=1)
-        main_frame.grid_rowconfigure(1, weight=1)
+        main_frame.grid(row = 0, column = 0, sticky = "nsew")
+        main_frame.grid_columnconfigure(0, weight = 1)
+        main_frame.grid_rowconfigure(1, weight = 1)
 
-        header_frame = customtkinter.CTkFrame(main_frame, fg_color="transparent")
-        header_frame.grid(row=0, column=0, sticky="ew", padx=20, pady=10)
+        header_frame = customtkinter.CTkFrame(main_frame, fg_color = "transparent")
+        header_frame.grid(row = 0, column = 0, sticky = "ew", padx = 20, pady = 10)
 
-        title_label = customtkinter.CTkLabel(header_frame, text="High-Low", font=customtkinter.CTkFont(size=24, weight="bold"))
-        title_label.pack(pady=(10, 5))
+        title_label = customtkinter.CTkLabel(header_frame, text = "High-Low", font = customtkinter.CTkFont(size = 24, weight = "bold"))
+        title_label.pack(pady =(10, 5))
 
-        money_label = customtkinter.CTkLabel(header_frame, text=f"Your Money: ${player_money[0]}", font=customtkinter.CTkFont(size=16, weight="bold"), text_color="green")
-        money_label.pack(pady=5)
+        money_label = customtkinter.CTkLabel(header_frame, text = f"Your Money: ${player_money[0]}", font = customtkinter.CTkFont(size = 16, weight = "bold"), text_color = "green")
+        money_label.pack(pady = 5)
 
-        bet_label = customtkinter.CTkLabel(header_frame, text=f"Bet Range: ${min_bet} - ${max_bet}", font=customtkinter.CTkFont(size=12), text_color="orange")
+        bet_label = customtkinter.CTkLabel(header_frame, text = f"Bet Range: ${min_bet} - ${max_bet}", font = customtkinter.CTkFont(size = 12), text_color = "orange")
         bet_label.pack()
 
         game_frame = customtkinter.CTkFrame(main_frame)
-        game_frame.grid(row=1, column=0, sticky="nsew", padx=20, pady=10)
-        game_frame.grid_columnconfigure(0, weight=1)
+        game_frame.grid(row = 1, column = 0, sticky = "nsew", padx = 20, pady = 10)
+        game_frame.grid_columnconfigure(0, weight = 1)
 
-        suits = ["clubs", "diamonds", "hearts", "spades"]
-        values = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "jack", "queen", "king", "ace"]
+        suits =["clubs", "diamonds", "hearts", "spades"]
+        values =["2", "3", "4", "5", "6", "7", "8", "9", "10", "jack", "queen", "king", "ace"]
 
-        deck = [{"suit": s, "value": v} for s in suits for v in values]
+        deck =[{"suit":s, "value":v}for s in suits for v in values]
         game_state = {
-            "deck": [],
-            "current_card": None,
-            "next_card": None,
-            "current_bet": 0,
-            "streak": 0,
-            "winnings": 0,
-            "game_active": False,
-            "ui_valid": True
+        "deck":[],
+        "current_card":None,
+        "next_card":None,
+        "current_bet":0,
+        "streak":0,
+        "winnings":0,
+        "game_active":False,
+        "ui_valid":True
         }
 
-        instruction_label = customtkinter.CTkLabel(game_frame, text="Guess if the next card will be Higher or Lower!", font=customtkinter.CTkFont(size=14), text_color="gray")
-        instruction_label.pack(pady=10)
+        instruction_label = customtkinter.CTkLabel(game_frame, text = "Guess if the next card will be Higher or Lower!", font = customtkinter.CTkFont(size = 14), text_color = "gray")
+        instruction_label.pack(pady = 10)
 
-        cards_frame = customtkinter.CTkFrame(game_frame, fg_color="transparent")
-        cards_frame.pack(pady=20)
+        cards_frame = customtkinter.CTkFrame(game_frame, fg_color = "transparent")
+        cards_frame.pack(pady = 20)
 
-        current_card_frame = customtkinter.CTkFrame(cards_frame, fg_color="transparent")
-        current_card_frame.pack(side="left", padx=20)
-        current_label = customtkinter.CTkLabel(current_card_frame, text="Current Card", font=customtkinter.CTkFont(size=12, weight="bold"))
+        current_card_frame = customtkinter.CTkFrame(cards_frame, fg_color = "transparent")
+        current_card_frame.pack(side = "left", padx = 20)
+        current_label = customtkinter.CTkLabel(current_card_frame, text = "Current Card", font = customtkinter.CTkFont(size = 12, weight = "bold"))
         current_label.pack()
-        current_card_display = customtkinter.CTkLabel(current_card_frame, text="", width=80, height=112)
-        current_card_display.pack(pady=5)
+        current_card_display = customtkinter.CTkLabel(current_card_frame, text = "", width = 80, height = 112)
+        current_card_display.pack(pady = 5)
 
-        arrow_label = customtkinter.CTkLabel(cards_frame, text="→", font=customtkinter.CTkFont(size=36, weight="bold"))
-        arrow_label.pack(side="left", padx=10)
+        arrow_label = customtkinter.CTkLabel(cards_frame, text = "→", font = customtkinter.CTkFont(size = 36, weight = "bold"))
+        arrow_label.pack(side = "left", padx = 10)
 
-        next_card_frame = customtkinter.CTkFrame(cards_frame, fg_color="transparent")
-        next_card_frame.pack(side="left", padx=20)
-        next_label = customtkinter.CTkLabel(next_card_frame, text="Next Card", font=customtkinter.CTkFont(size=12, weight="bold"))
+        next_card_frame = customtkinter.CTkFrame(cards_frame, fg_color = "transparent")
+        next_card_frame.pack(side = "left", padx = 20)
+        next_label = customtkinter.CTkLabel(next_card_frame, text = "Next Card", font = customtkinter.CTkFont(size = 12, weight = "bold"))
         next_label.pack()
-        next_card_display = customtkinter.CTkLabel(next_card_frame, text="", width=80, height=112)
-        next_card_display.pack(pady=5)
+        next_card_display = customtkinter.CTkLabel(next_card_frame, text = "", width = 80, height = 112)
+        next_card_display.pack(pady = 5)
 
-        streak_label = customtkinter.CTkLabel(game_frame, text="Streak: 0", font=customtkinter.CTkFont(size=16, weight="bold"), text_color="cyan")
-        streak_label.pack(pady=5)
+        streak_label = customtkinter.CTkLabel(game_frame, text = "Streak: 0", font = customtkinter.CTkFont(size = 16, weight = "bold"), text_color = "cyan")
+        streak_label.pack(pady = 5)
 
-        winnings_label = customtkinter.CTkLabel(game_frame, text="Current Winnings: $0", font=customtkinter.CTkFont(size=14), text_color="gold")
-        winnings_label.pack(pady=5)
+        winnings_label = customtkinter.CTkLabel(game_frame, text = "Current Winnings: $0", font = customtkinter.CTkFont(size = 14), text_color = "gold")
+        winnings_label.pack(pady = 5)
 
-        result_label = customtkinter.CTkLabel(game_frame, text="", font=customtkinter.CTkFont(size=18, weight="bold"))
-        result_label.pack(pady=10)
+        result_label = customtkinter.CTkLabel(game_frame, text = "", font = customtkinter.CTkFont(size = 18, weight = "bold"))
+        result_label.pack(pady = 10)
 
         def get_card_rank(card):
             v = card["value"]
-            if v == "ace":
+            if v =="ace":
                 return 14
-            elif v == "king":
+            elif v =="king":
                 return 13
-            elif v == "queen":
+            elif v =="queen":
                 return 12
-            elif v == "jack":
+            elif v =="jack":
                 return 11
             else:
                 return int(v)
 
         def shuffle_deck():
-            game_state["deck"] = deck.copy()
+            game_state["deck"]= deck.copy()
             random.shuffle(game_state["deck"])
             self._play_card_sound("shuffle")
 
@@ -9811,7 +9946,7 @@ class App:
             self._play_card_sound("flip")
             return card
 
-        def display_card(label, card, hidden=False):
+        def display_card(label, card, hidden = False):
             if not game_state["ui_valid"]:
                 return
             if hidden:
@@ -9822,21 +9957,21 @@ class App:
                 img = None
 
             if img:
-                label.configure(image=img, text="")
+                label.configure(image = img, text = "")
                 label.image = img
             elif card and not hidden:
                 text = f"{card['value'][0].upper()}{card['suit'][0].upper()}"
-                label.configure(image=None, text=text, fg_color="white", text_color="black")
+                label.configure(image = None, text = text, fg_color = "white", text_color = "black")
             else:
-                label.configure(image=None, text="??", fg_color="gray30", text_color="white")
+                label.configure(image = None, text = "??", fg_color = "gray30", text_color = "white")
 
         def update_display():
             if not game_state["ui_valid"]:
                 return
             try:
-                money_label.configure(text=f"Your Money: ${player_money[0]}")
-                streak_label.configure(text=f"Streak: {game_state['streak']}")
-                winnings_label.configure(text=f"Current Winnings: ${game_state['winnings']}")
+                money_label.configure(text = f"Your Money: ${player_money[0]}")
+                streak_label.configure(text = f"Streak: {game_state['streak']}")
+                winnings_label.configure(text = f"Current Winnings: ${game_state['winnings']}")
                 update_money_cb()
             except Exception:
                 pass
@@ -9846,29 +9981,29 @@ class App:
             try:
                 bet = int(bet_str)
             except ValueError:
-                self._popup_show_info("Invalid Bet", "Please enter a valid number.", sound="error")
+                self._popup_show_info("Invalid Bet", "Please enter a valid number.", sound = "error")
                 return
 
-            if bet < min_bet or bet > max_bet:
-                self._popup_show_info("Invalid Bet", f"Bet must be between ${min_bet} and ${max_bet}.", sound="error")
+            if bet <min_bet or bet >max_bet:
+                self._popup_show_info("Invalid Bet", f"Bet must be between ${min_bet} and ${max_bet}.", sound = "error")
                 return
 
-            if bet > player_money[0]:
-                self._popup_show_info("Insufficient Funds", "You don't have enough money for that bet.", sound="error")
+            if bet >player_money[0]:
+                self._popup_show_info("Insufficient Funds", "You don't have enough money for that bet.", sound = "error")
                 return
 
-            game_state["current_bet"] = bet
-            game_state["streak"] = 0
-            game_state["winnings"] = 0
-            game_state["game_active"] = True
-            result_label.configure(text="")
+            game_state["current_bet"]= bet
+            game_state["streak"]= 0
+            game_state["winnings"]= 0
+            game_state["game_active"]= True
+            result_label.configure(text = "")
 
             shuffle_deck()
-            game_state["current_card"] = draw_card()
-            game_state["next_card"] = None
+            game_state["current_card"]= draw_card()
+            game_state["next_card"]= None
 
             display_card(current_card_display, game_state["current_card"])
-            display_card(next_card_display, None, hidden=True)
+            display_card(next_card_display, None, hidden = True)
 
             update_display()
             update_buttons()
@@ -9887,23 +10022,23 @@ class App:
             if not game_state["ui_valid"]:
                 return
 
-            game_state["next_card"] = draw_card()
+            game_state["next_card"]= draw_card()
             display_card(next_card_display, game_state["next_card"])
 
             current_rank = get_card_rank(game_state["current_card"])
             next_rank = get_card_rank(game_state["next_card"])
 
-            if next_rank == current_rank:
-                result_label.configure(text="It's a Tie! Push - no win or loss.", text_color="orange")
-                game_state["current_card"] = game_state["next_card"]
+            if next_rank ==current_rank:
+                result_label.configure(text = "It's a Tie! Push - no win or loss.", text_color = "orange")
+                game_state["current_card"]= game_state["next_card"]
                 self.root.after(1500, continue_or_end)
-            elif (guess == "high" and next_rank > current_rank) or (guess == "low" and next_rank < current_rank):
-                game_state["streak"] += 1
-                multiplier = 1 + (game_state["streak"] - 1) * 0.5
-                round_win = int(game_state["current_bet"] * multiplier)
-                game_state["winnings"] += round_win
-                result_label.configure(text=f"Correct! +${round_win} (Streak: {game_state['streak']}x)", text_color="green")
-                game_state["current_card"] = game_state["next_card"]
+            elif(guess =="high"and next_rank >current_rank)or(guess =="low"and next_rank <current_rank):
+                game_state["streak"]+=1
+                multiplier = 1 +(game_state["streak"]-1)*0.5
+                round_win = int(game_state["current_bet"]*multiplier)
+                game_state["winnings"]+=round_win
+                result_label.configure(text = f"Correct! +${round_win}(Streak: {game_state['streak']}x)", text_color = "green")
+                game_state["current_card"]= game_state["next_card"]
                 update_display()
                 self.root.after(1500, continue_or_end)
             else:
@@ -9913,22 +10048,22 @@ class App:
             if not game_state["ui_valid"]:
                 return
             display_card(current_card_display, game_state["current_card"])
-            display_card(next_card_display, None, hidden=True)
-            result_label.configure(text="Keep going or Cash Out!", text_color="cyan")
+            display_card(next_card_display, None, hidden = True)
+            result_label.configure(text = "Keep going or Cash Out!", text_color = "cyan")
             update_buttons()
 
         def cash_out():
-            if not game_state["game_active"] or game_state["winnings"] <= 0:
+            if not game_state["game_active"]or game_state["winnings"]<=0:
                 return
 
             winnings = game_state["winnings"]
-            player_money[0] += winnings
+            player_money[0]+=winnings
             if record_game_cb:
                 record_game_cb(winnings)
             save_money_cb()
 
-            game_state["game_active"] = False
-            result_label.configure(text=f"Cashed Out! +${winnings}", text_color="green")
+            game_state["game_active"]= False
+            result_label.configure(text = f"Cashed Out! +${winnings}", text_color = "green")
             update_display()
             update_buttons()
 
@@ -9937,15 +10072,15 @@ class App:
                 return
 
             loss = -game_state["current_bet"]
-            player_money[0] += loss
+            player_money[0]+=loss
             if record_game_cb:
                 record_game_cb(loss)
             save_money_cb()
 
-            game_state["game_active"] = False
-            result_label.configure(text=f"Wrong! You lose ${game_state['current_bet']}", text_color="red")
-            game_state["streak"] = 0
-            game_state["winnings"] = 0
+            game_state["game_active"]= False
+            result_label.configure(text = f"Wrong! You lose ${game_state['current_bet']}", text_color = "red")
+            game_state["streak"]= 0
+            game_state["winnings"]= 0
             update_display()
             update_buttons()
 
@@ -9954,171 +10089,171 @@ class App:
                 return
             try:
                 if game_state["game_active"]:
-                    start_btn.configure(state="disabled")
-                    high_btn.configure(state="normal")
-                    low_btn.configure(state="normal")
-                    cashout_btn.configure(state="normal" if game_state["winnings"] > 0 else "disabled")
+                    start_btn.configure(state = "disabled")
+                    high_btn.configure(state = "normal")
+                    low_btn.configure(state = "normal")
+                    cashout_btn.configure(state = "normal"if game_state["winnings"]>0 else "disabled")
                 else:
-                    start_btn.configure(state="normal")
-                    high_btn.configure(state="disabled")
-                    low_btn.configure(state="disabled")
-                    cashout_btn.configure(state="disabled")
+                    start_btn.configure(state = "normal")
+                    high_btn.configure(state = "disabled")
+                    low_btn.configure(state = "disabled")
+                    cashout_btn.configure(state = "disabled")
             except Exception:
                 pass
 
-        controls_frame = customtkinter.CTkFrame(main_frame, fg_color="transparent")
-        controls_frame.grid(row=2, column=0, sticky="ew", padx=20, pady=10)
+        controls_frame = customtkinter.CTkFrame(main_frame, fg_color = "transparent")
+        controls_frame.grid(row = 2, column = 0, sticky = "ew", padx = 20, pady = 10)
 
-        bet_frame = customtkinter.CTkFrame(controls_frame, fg_color="transparent")
-        bet_frame.pack(pady=5)
+        bet_frame = customtkinter.CTkFrame(controls_frame, fg_color = "transparent")
+        bet_frame.pack(pady = 5)
 
-        bet_label_entry = customtkinter.CTkLabel(bet_frame, text="Bet Amount: $", font=customtkinter.CTkFont(size=14))
-        bet_label_entry.pack(side="left")
+        bet_label_entry = customtkinter.CTkLabel(bet_frame, text = "Bet Amount: $", font = customtkinter.CTkFont(size = 14))
+        bet_label_entry.pack(side = "left")
 
-        bet_entry = customtkinter.CTkEntry(bet_frame, width=100, placeholder_text=str(min_bet))
-        bet_entry.pack(side="left", padx=5)
+        bet_entry = customtkinter.CTkEntry(bet_frame, width = 100, placeholder_text = str(min_bet))
+        bet_entry.pack(side = "left", padx = 5)
         bet_entry.insert(0, str(min_bet))
 
-        action_frame = customtkinter.CTkFrame(controls_frame, fg_color="transparent")
-        action_frame.pack(pady=10)
+        action_frame = customtkinter.CTkFrame(controls_frame, fg_color = "transparent")
+        action_frame.pack(pady = 10)
 
-        start_btn = self._create_sound_button(action_frame, "Start", start_game, width=100, height=40, font=customtkinter.CTkFont(size=14))
-        start_btn.pack(side="left", padx=5)
+        start_btn = self._create_sound_button(action_frame, "Start", start_game, width = 100, height = 40, font = customtkinter.CTkFont(size = 14))
+        start_btn.pack(side = "left", padx = 5)
 
-        high_btn = self._create_sound_button(action_frame, "Higher", guess_high, width=100, height=40, font=customtkinter.CTkFont(size=14), fg_color="green", hover_color="darkgreen")
-        high_btn.pack(side="left", padx=5)
-        high_btn.configure(state="disabled")
+        high_btn = self._create_sound_button(action_frame, "Higher", guess_high, width = 100, height = 40, font = customtkinter.CTkFont(size = 14), fg_color = "green", hover_color = "darkgreen")
+        high_btn.pack(side = "left", padx = 5)
+        high_btn.configure(state = "disabled")
 
-        low_btn = self._create_sound_button(action_frame, "Lower", guess_low, width=100, height=40, font=customtkinter.CTkFont(size=14), fg_color="red", hover_color="darkred")
-        low_btn.pack(side="left", padx=5)
-        low_btn.configure(state="disabled")
+        low_btn = self._create_sound_button(action_frame, "Lower", guess_low, width = 100, height = 40, font = customtkinter.CTkFont(size = 14), fg_color = "red", hover_color = "darkred")
+        low_btn.pack(side = "left", padx = 5)
+        low_btn.configure(state = "disabled")
 
-        cashout_btn = self._create_sound_button(action_frame, "Cash Out", cash_out, width=100, height=40, font=customtkinter.CTkFont(size=14), fg_color="gold", hover_color="darkgoldenrod", text_color="black")
-        cashout_btn.pack(side="left", padx=5)
-        cashout_btn.configure(state="disabled")
+        cashout_btn = self._create_sound_button(action_frame, "Cash Out", cash_out, width = 100, height = 40, font = customtkinter.CTkFont(size = 14), fg_color = "gold", hover_color = "darkgoldenrod", text_color = "black")
+        cashout_btn.pack(side = "left", padx = 5)
+        cashout_btn.configure(state = "disabled")
 
         def back_to_casino():
-            game_state["ui_valid"] = False
+            game_state["ui_valid"]= False
             self._open_casino_interface(store, table_data)
 
-        back_btn = self._create_sound_button(controls_frame, "Back to Casino", back_to_casino, width=200, height=40, font=customtkinter.CTkFont(size=14))
-        back_btn.pack(pady=10)
+        back_btn = self._create_sound_button(controls_frame, "Back to Casino", back_to_casino, width = 200, height = 40, font = customtkinter.CTkFont(size = 14))
+        back_btn.pack(pady = 10)
 
-    def _open_roulette_game(self, store, player_money, update_money_cb, save_money_cb, min_bet, max_bet, music_channel, table_data, record_game_cb=None, casino_stats=None):
+    def _open_roulette_game(self, store, player_money, update_money_cb, save_money_cb, min_bet, max_bet, music_channel, table_data, record_game_cb = None, casino_stats = None):
         self._clear_window()
 
-        self.root.grid_rowconfigure(0, weight=1)
-        self.root.grid_columnconfigure(0, weight=1)
+        self.root.grid_rowconfigure(0, weight = 1)
+        self.root.grid_columnconfigure(0, weight = 1)
 
         main_frame = customtkinter.CTkFrame(self.root)
-        main_frame.grid(row=0, column=0, sticky="nsew")
-        main_frame.grid_columnconfigure(0, weight=1)
-        main_frame.grid_rowconfigure(1, weight=1)
+        main_frame.grid(row = 0, column = 0, sticky = "nsew")
+        main_frame.grid_columnconfigure(0, weight = 1)
+        main_frame.grid_rowconfigure(1, weight = 1)
 
-        header_frame = customtkinter.CTkFrame(main_frame, fg_color="transparent")
-        header_frame.grid(row=0, column=0, sticky="ew", padx=20, pady=10)
+        header_frame = customtkinter.CTkFrame(main_frame, fg_color = "transparent")
+        header_frame.grid(row = 0, column = 0, sticky = "ew", padx = 20, pady = 10)
 
-        title_label = customtkinter.CTkLabel(header_frame, text="Roulette", font=customtkinter.CTkFont(size=24, weight="bold"))
-        title_label.pack(pady=(10, 5))
+        title_label = customtkinter.CTkLabel(header_frame, text = "Roulette", font = customtkinter.CTkFont(size = 24, weight = "bold"))
+        title_label.pack(pady =(10, 5))
 
-        money_label = customtkinter.CTkLabel(header_frame, text=f"Your Money: ${player_money[0]}", font=customtkinter.CTkFont(size=16, weight="bold"), text_color="green")
-        money_label.pack(pady=5)
+        money_label = customtkinter.CTkLabel(header_frame, text = f"Your Money: ${player_money[0]}", font = customtkinter.CTkFont(size = 16, weight = "bold"), text_color = "green")
+        money_label.pack(pady = 5)
 
-        bet_label = customtkinter.CTkLabel(header_frame, text=f"Bet Range: ${min_bet} - ${max_bet}", font=customtkinter.CTkFont(size=12), text_color="orange")
+        bet_label = customtkinter.CTkLabel(header_frame, text = f"Bet Range: ${min_bet} - ${max_bet}", font = customtkinter.CTkFont(size = 12), text_color = "orange")
         bet_label.pack()
 
         game_frame = customtkinter.CTkFrame(main_frame)
-        game_frame.grid(row=1, column=0, sticky="nsew", padx=20, pady=10)
-        game_frame.grid_columnconfigure(0, weight=1)
+        game_frame.grid(row = 1, column = 0, sticky = "nsew", padx = 20, pady = 10)
+        game_frame.grid_columnconfigure(0, weight = 1)
 
-        roulette_numbers = [
-            (0, "green"), (32, "red"), (15, "black"), (19, "red"), (4, "black"), (21, "red"), (2, "black"),
-            (25, "red"), (17, "black"), (34, "red"), (6, "black"), (27, "red"), (13, "black"), (36, "red"),
-            (11, "black"), (30, "red"), (8, "black"), (23, "red"), (10, "black"), (5, "red"), (24, "black"),
-            (16, "red"), (33, "black"), (1, "red"), (20, "black"), (14, "red"), (31, "black"), (9, "red"),
-            (22, "black"), (18, "red"), (29, "black"), (7, "red"), (28, "black"), (12, "red"), (35, "black"),
-            (3, "red"), (26, "black")
+        roulette_numbers =[
+        (0, "green"), (32, "red"), (15, "black"), (19, "red"), (4, "black"), (21, "red"), (2, "black"),
+        (25, "red"), (17, "black"), (34, "red"), (6, "black"), (27, "red"), (13, "black"), (36, "red"),
+        (11, "black"), (30, "red"), (8, "black"), (23, "red"), (10, "black"), (5, "red"), (24, "black"),
+        (16, "red"), (33, "black"), (1, "red"), (20, "black"), (14, "red"), (31, "black"), (9, "red"),
+        (22, "black"), (18, "red"), (29, "black"), (7, "red"), (28, "black"), (12, "red"), (35, "black"),
+        (3, "red"), (26, "black")
         ]
 
         game_state = {
-            "current_bet": 0,
-            "bet_type": None,
-            "bet_value": None,
-            "spinning": False,
-            "ui_valid": True
+        "current_bet":0,
+        "bet_type":None,
+        "bet_value":None,
+        "spinning":False,
+        "ui_valid":True
         }
 
-        wheel_label = customtkinter.CTkLabel(game_frame, text="Place Your Bet", font=customtkinter.CTkFont(size=32, weight="bold"))
-        wheel_label.pack(pady=20)
+        wheel_label = customtkinter.CTkLabel(game_frame, text = "Place Your Bet", font = customtkinter.CTkFont(size = 32, weight = "bold"))
+        wheel_label.pack(pady = 20)
 
-        result_label = customtkinter.CTkLabel(game_frame, text="", font=customtkinter.CTkFont(size=18, weight="bold"))
-        result_label.pack(pady=10)
+        result_label = customtkinter.CTkLabel(game_frame, text = "", font = customtkinter.CTkFont(size = 18, weight = "bold"))
+        result_label.pack(pady = 10)
 
-        bet_types_frame = customtkinter.CTkFrame(game_frame, fg_color="transparent")
-        bet_types_frame.pack(pady=10)
+        bet_types_frame = customtkinter.CTkFrame(game_frame, fg_color = "transparent")
+        bet_types_frame.pack(pady = 10)
 
-        selected_bet = [None, None]
+        selected_bet =[None, None]
 
         def select_bet_type(bet_type, bet_value, btn):
             if game_state["spinning"]:
                 return
-            selected_bet[0] = bet_type
-            selected_bet[1] = bet_value
-            result_label.configure(text=f"Selected: {bet_type} - {bet_value}", text_color="cyan")
+            selected_bet[0]= bet_type
+            selected_bet[1]= bet_value
+            result_label.configure(text = f"Selected: {bet_type} - {bet_value}", text_color = "cyan")
             self._play_ui_sound("click")
 
-        color_frame = customtkinter.CTkFrame(bet_types_frame, fg_color="transparent")
-        color_frame.pack(pady=5)
-        customtkinter.CTkLabel(color_frame, text="Color Bets (2x):", font=customtkinter.CTkFont(size=12)).pack(side="left", padx=5)
-        red_btn = self._create_sound_button(color_frame, "Red", lambda: select_bet_type("Color", "red", red_btn), width=80, height=35, fg_color="#8B0000", hover_color="#5C0000")
-        red_btn.pack(side="left", padx=3)
-        black_btn = self._create_sound_button(color_frame, "Black", lambda: select_bet_type("Color", "black", black_btn), width=80, height=35, fg_color="#1a1a1a", hover_color="#333333")
-        black_btn.pack(side="left", padx=3)
-        green_btn = self._create_sound_button(color_frame, "Green (0)", lambda: select_bet_type("Color", "green", green_btn), width=80, height=35, fg_color="#006400", hover_color="#004d00")
-        green_btn.pack(side="left", padx=3)
+        color_frame = customtkinter.CTkFrame(bet_types_frame, fg_color = "transparent")
+        color_frame.pack(pady = 5)
+        customtkinter.CTkLabel(color_frame, text = "Color Bets(2x):", font = customtkinter.CTkFont(size = 12)).pack(side = "left", padx = 5)
+        red_btn = self._create_sound_button(color_frame, "Red", lambda:select_bet_type("Color", "red", red_btn), width = 80, height = 35, fg_color = "#8B0000", hover_color = "#5C0000")
+        red_btn.pack(side = "left", padx = 3)
+        black_btn = self._create_sound_button(color_frame, "Black", lambda:select_bet_type("Color", "black", black_btn), width = 80, height = 35, fg_color = "#1a1a1a", hover_color = "#333333")
+        black_btn.pack(side = "left", padx = 3)
+        green_btn = self._create_sound_button(color_frame, "Green(0)", lambda:select_bet_type("Color", "green", green_btn), width = 80, height = 35, fg_color = "#006400", hover_color = "#004d00")
+        green_btn.pack(side = "left", padx = 3)
 
-        parity_frame = customtkinter.CTkFrame(bet_types_frame, fg_color="transparent")
-        parity_frame.pack(pady=5)
-        customtkinter.CTkLabel(parity_frame, text="Parity Bets (2x):", font=customtkinter.CTkFont(size=12)).pack(side="left", padx=5)
-        odd_btn = self._create_sound_button(parity_frame, "Odd", lambda: select_bet_type("Parity", "odd", odd_btn), width=80, height=35)
-        odd_btn.pack(side="left", padx=3)
-        even_btn = self._create_sound_button(parity_frame, "Even", lambda: select_bet_type("Parity", "even", even_btn), width=80, height=35)
-        even_btn.pack(side="left", padx=3)
+        parity_frame = customtkinter.CTkFrame(bet_types_frame, fg_color = "transparent")
+        parity_frame.pack(pady = 5)
+        customtkinter.CTkLabel(parity_frame, text = "Parity Bets(2x):", font = customtkinter.CTkFont(size = 12)).pack(side = "left", padx = 5)
+        odd_btn = self._create_sound_button(parity_frame, "Odd", lambda:select_bet_type("Parity", "odd", odd_btn), width = 80, height = 35)
+        odd_btn.pack(side = "left", padx = 3)
+        even_btn = self._create_sound_button(parity_frame, "Even", lambda:select_bet_type("Parity", "even", even_btn), width = 80, height = 35)
+        even_btn.pack(side = "left", padx = 3)
 
-        range_frame = customtkinter.CTkFrame(bet_types_frame, fg_color="transparent")
-        range_frame.pack(pady=5)
-        customtkinter.CTkLabel(range_frame, text="Range Bets (2x):", font=customtkinter.CTkFont(size=12)).pack(side="left", padx=5)
-        low_btn = self._create_sound_button(range_frame, "1-18", lambda: select_bet_type("Range", "low", low_btn), width=80, height=35)
-        low_btn.pack(side="left", padx=3)
-        high_btn = self._create_sound_button(range_frame, "19-36", lambda: select_bet_type("Range", "high", high_btn), width=80, height=35)
-        high_btn.pack(side="left", padx=3)
+        range_frame = customtkinter.CTkFrame(bet_types_frame, fg_color = "transparent")
+        range_frame.pack(pady = 5)
+        customtkinter.CTkLabel(range_frame, text = "Range Bets(2x):", font = customtkinter.CTkFont(size = 12)).pack(side = "left", padx = 5)
+        low_btn = self._create_sound_button(range_frame, "1-18", lambda:select_bet_type("Range", "low", low_btn), width = 80, height = 35)
+        low_btn.pack(side = "left", padx = 3)
+        high_btn = self._create_sound_button(range_frame, "19-36", lambda:select_bet_type("Range", "high", high_btn), width = 80, height = 35)
+        high_btn.pack(side = "left", padx = 3)
 
-        dozen_frame = customtkinter.CTkFrame(bet_types_frame, fg_color="transparent")
-        dozen_frame.pack(pady=5)
-        customtkinter.CTkLabel(dozen_frame, text="Dozen Bets (3x):", font=customtkinter.CTkFont(size=12)).pack(side="left", padx=5)
-        first_btn = self._create_sound_button(dozen_frame, "1-12", lambda: select_bet_type("Dozen", "first", first_btn), width=70, height=35)
-        first_btn.pack(side="left", padx=3)
-        second_btn = self._create_sound_button(dozen_frame, "13-24", lambda: select_bet_type("Dozen", "second", second_btn), width=70, height=35)
-        second_btn.pack(side="left", padx=3)
-        third_btn = self._create_sound_button(dozen_frame, "25-36", lambda: select_bet_type("Dozen", "third", third_btn), width=70, height=35)
-        third_btn.pack(side="left", padx=3)
+        dozen_frame = customtkinter.CTkFrame(bet_types_frame, fg_color = "transparent")
+        dozen_frame.pack(pady = 5)
+        customtkinter.CTkLabel(dozen_frame, text = "Dozen Bets(3x):", font = customtkinter.CTkFont(size = 12)).pack(side = "left", padx = 5)
+        first_btn = self._create_sound_button(dozen_frame, "1-12", lambda:select_bet_type("Dozen", "first", first_btn), width = 70, height = 35)
+        first_btn.pack(side = "left", padx = 3)
+        second_btn = self._create_sound_button(dozen_frame, "13-24", lambda:select_bet_type("Dozen", "second", second_btn), width = 70, height = 35)
+        second_btn.pack(side = "left", padx = 3)
+        third_btn = self._create_sound_button(dozen_frame, "25-36", lambda:select_bet_type("Dozen", "third", third_btn), width = 70, height = 35)
+        third_btn.pack(side = "left", padx = 3)
 
-        number_frame = customtkinter.CTkFrame(bet_types_frame, fg_color="transparent")
-        number_frame.pack(pady=5)
-        customtkinter.CTkLabel(number_frame, text="Straight (36x):", font=customtkinter.CTkFont(size=12)).pack(side="left", padx=5)
-        number_entry = customtkinter.CTkEntry(number_frame, width=60, placeholder_text="0-36")
-        number_entry.pack(side="left", padx=3)
+        number_frame = customtkinter.CTkFrame(bet_types_frame, fg_color = "transparent")
+        number_frame.pack(pady = 5)
+        customtkinter.CTkLabel(number_frame, text = "Straight(36x):", font = customtkinter.CTkFont(size = 12)).pack(side = "left", padx = 5)
+        number_entry = customtkinter.CTkEntry(number_frame, width = 60, placeholder_text = "0-36")
+        number_entry.pack(side = "left", padx = 3)
         def select_number():
             try:
                 num = int(number_entry.get())
-                if 0 <= num <= 36:
+                if 0 <=num <=36:
                     select_bet_type("Straight", num, None)
                 else:
-                    self._popup_show_info("Invalid", "Enter a number 0-36", sound="error")
+                    self._popup_show_info("Invalid", "Enter a number 0-36", sound = "error")
             except:
-                self._popup_show_info("Invalid", "Enter a number 0-36", sound="error")
-        num_btn = self._create_sound_button(number_frame, "Select", select_number, width=60, height=35)
-        num_btn.pack(side="left", padx=3)
+                self._popup_show_info("Invalid", "Enter a number 0-36", sound = "error")
+        num_btn = self._create_sound_button(number_frame, "Select", select_number, width = 60, height = 35)
+        num_btn.pack(side = "left", padx = 3)
 
         def play_roulette_tick():
             try:
@@ -10134,58 +10269,58 @@ class App:
             if game_state["spinning"]:
                 return
 
-            if selected_bet[0] is None:
-                self._popup_show_info("No Bet", "Please select a bet type first.", sound="error")
+            if selected_bet[0]is None:
+                self._popup_show_info("No Bet", "Please select a bet type first.", sound = "error")
                 return
 
             bet_str = bet_entry.get()
             try:
                 bet = int(bet_str)
             except ValueError:
-                self._popup_show_info("Invalid Bet", "Please enter a valid number.", sound="error")
+                self._popup_show_info("Invalid Bet", "Please enter a valid number.", sound = "error")
                 return
 
-            if bet < min_bet or bet > max_bet:
-                self._popup_show_info("Invalid Bet", f"Bet must be between ${min_bet} and ${max_bet}.", sound="error")
+            if bet <min_bet or bet >max_bet:
+                self._popup_show_info("Invalid Bet", f"Bet must be between ${min_bet} and ${max_bet}.", sound = "error")
                 return
 
-            if bet > player_money[0]:
-                self._popup_show_info("Insufficient Funds", "You don't have enough money for that bet.", sound="error")
+            if bet >player_money[0]:
+                self._popup_show_info("Insufficient Funds", "You don't have enough money for that bet.", sound = "error")
                 return
 
-            game_state["current_bet"] = bet
-            game_state["bet_type"] = selected_bet[0]
-            game_state["bet_value"] = selected_bet[1]
-            game_state["spinning"] = True
-            spin_btn.configure(state="disabled")
+            game_state["current_bet"]= bet
+            game_state["bet_type"]= selected_bet[0]
+            game_state["bet_value"]= selected_bet[1]
+            game_state["spinning"]= True
+            spin_btn.configure(state = "disabled")
 
-            winning_idx = random.randint(0, len(roulette_numbers) - 1)
+            winning_idx = random.randint(0, len(roulette_numbers)-1)
             winning_number, winning_color = roulette_numbers[winning_idx]
 
             spin_duration = random.randint(60, 90)
-            current_idx = [0]
-            spins_done = [0]
+            current_idx =[0]
+            spins_done =[0]
 
             def animate_spin():
                 if not game_state["ui_valid"]:
                     return
 
-                if spins_done[0] >= spin_duration:
-                    current_idx[0] = winning_idx
+                if spins_done[0]>=spin_duration:
+                    current_idx[0]= winning_idx
                     num, col = roulette_numbers[current_idx[0]]
-                    color_code = "#ff0000" if col == "red" else ("#000000" if col == "black" else "#00ff00")
-                    wheel_label.configure(text=f"{num}", text_color=color_code)
+                    color_code = "#ff0000"if col =="red"else("#000000"if col =="black"else "#00ff00")
+                    wheel_label.configure(text = f"{num}", text_color = color_code)
                     determine_result(winning_number, winning_color)
                     return
 
                 play_roulette_tick()
-                current_idx[0] = (current_idx[0] + 1) % len(roulette_numbers)
+                current_idx[0]=(current_idx[0]+1)%len(roulette_numbers)
                 num, col = roulette_numbers[current_idx[0]]
-                color_code = "#ff0000" if col == "red" else ("#000000" if col == "black" else "#00ff00")
-                wheel_label.configure(text=f"{num}", text_color=color_code)
-                spins_done[0] += 1
+                color_code = "#ff0000"if col =="red"else("#000000"if col =="black"else "#00ff00")
+                wheel_label.configure(text = f"{num}", text_color = color_code)
+                spins_done[0]+=1
 
-                delay = 50 + (spins_done[0] * 5)
+                delay = 50 +(spins_done[0]*5)
                 self.root.after(delay, animate_spin)
 
             animate_spin()
@@ -10197,147 +10332,147 @@ class App:
             won = False
             multiplier = 0
 
-            if bet_type == "Color":
-                if bet_value == color:
+            if bet_type =="Color":
+                if bet_value ==color:
                     won = True
-                    multiplier = 2 if color != "green" else 35
+                    multiplier = 2 if color !="green"else 35
 
-            elif bet_type == "Parity":
-                if number != 0:
-                    is_odd = number % 2 == 1
-                    if (bet_value == "odd" and is_odd) or (bet_value == "even" and not is_odd):
+            elif bet_type =="Parity":
+                if number !=0:
+                    is_odd = number %2 ==1
+                    if(bet_value =="odd"and is_odd)or(bet_value =="even"and not is_odd):
                         won = True
                         multiplier = 2
 
-            elif bet_type == "Range":
-                if number != 0:
-                    if (bet_value == "low" and 1 <= number <= 18) or (bet_value == "high" and 19 <= number <= 36):
+            elif bet_type =="Range":
+                if number !=0:
+                    if(bet_value =="low"and 1 <=number <=18)or(bet_value =="high"and 19 <=number <=36):
                         won = True
                         multiplier = 2
 
-            elif bet_type == "Dozen":
-                if bet_value == "first" and 1 <= number <= 12:
+            elif bet_type =="Dozen":
+                if bet_value =="first"and 1 <=number <=12:
                     won = True
                     multiplier = 3
-                elif bet_value == "second" and 13 <= number <= 24:
+                elif bet_value =="second"and 13 <=number <=24:
                     won = True
                     multiplier = 3
-                elif bet_value == "third" and 25 <= number <= 36:
+                elif bet_value =="third"and 25 <=number <=36:
                     won = True
                     multiplier = 3
 
-            elif bet_type == "Straight":
-                if number == bet_value:
+            elif bet_type =="Straight":
+                if number ==bet_value:
                     won = True
                     multiplier = 36
 
             if won:
-                winnings = bet * (multiplier - 1)
-                player_money[0] += winnings
+                winnings = bet *(multiplier -1)
+                player_money[0]+=winnings
                 if record_game_cb:
                     record_game_cb(winnings)
-                result_label.configure(text=f"Winner! {number} ({color}) - +${winnings}", text_color="green")
+                result_label.configure(text = f"Winner! {number}({color}) - +${winnings}", text_color = "green")
             else:
-                player_money[0] -= bet
+                player_money[0]-=bet
                 if record_game_cb:
                     record_game_cb(-bet)
-                result_label.configure(text=f"Lost! {number} ({color}) - -${bet}", text_color="red")
+                result_label.configure(text = f"Lost! {number}({color}) - -${bet}", text_color = "red")
 
             save_money_cb()
-            money_label.configure(text=f"Your Money: ${player_money[0]}")
+            money_label.configure(text = f"Your Money: ${player_money[0]}")
             update_money_cb()
-            game_state["spinning"] = False
-            spin_btn.configure(state="normal")
+            game_state["spinning"]= False
+            spin_btn.configure(state = "normal")
 
-        controls_frame = customtkinter.CTkFrame(main_frame, fg_color="transparent")
-        controls_frame.grid(row=2, column=0, sticky="ew", padx=20, pady=10)
+        controls_frame = customtkinter.CTkFrame(main_frame, fg_color = "transparent")
+        controls_frame.grid(row = 2, column = 0, sticky = "ew", padx = 20, pady = 10)
 
-        bet_frame = customtkinter.CTkFrame(controls_frame, fg_color="transparent")
-        bet_frame.pack(pady=5)
+        bet_frame = customtkinter.CTkFrame(controls_frame, fg_color = "transparent")
+        bet_frame.pack(pady = 5)
 
-        bet_label_entry = customtkinter.CTkLabel(bet_frame, text="Bet Amount: $", font=customtkinter.CTkFont(size=14))
-        bet_label_entry.pack(side="left")
+        bet_label_entry = customtkinter.CTkLabel(bet_frame, text = "Bet Amount: $", font = customtkinter.CTkFont(size = 14))
+        bet_label_entry.pack(side = "left")
 
-        bet_entry = customtkinter.CTkEntry(bet_frame, width=100, placeholder_text=str(min_bet))
-        bet_entry.pack(side="left", padx=5)
+        bet_entry = customtkinter.CTkEntry(bet_frame, width = 100, placeholder_text = str(min_bet))
+        bet_entry.pack(side = "left", padx = 5)
         bet_entry.insert(0, str(min_bet))
 
-        action_frame = customtkinter.CTkFrame(controls_frame, fg_color="transparent")
-        action_frame.pack(pady=10)
+        action_frame = customtkinter.CTkFrame(controls_frame, fg_color = "transparent")
+        action_frame.pack(pady = 10)
 
-        spin_btn = self._create_sound_button(action_frame, "Spin!", spin_wheel, width=150, height=50, font=customtkinter.CTkFont(size=18, weight="bold"), fg_color="#8B4513", hover_color="#654321")
-        spin_btn.pack(pady=5)
+        spin_btn = self._create_sound_button(action_frame, "Spin!", spin_wheel, width = 150, height = 50, font = customtkinter.CTkFont(size = 18, weight = "bold"), fg_color = "#8B4513", hover_color = "#654321")
+        spin_btn.pack(pady = 5)
 
         def back_to_casino():
-            game_state["ui_valid"] = False
+            game_state["ui_valid"]= False
             self._open_casino_interface(store, table_data)
 
-        back_btn = self._create_sound_button(controls_frame, "Back to Casino", back_to_casino, width=200, height=40, font=customtkinter.CTkFont(size=14))
-        back_btn.pack(pady=10)
+        back_btn = self._create_sound_button(controls_frame, "Back to Casino", back_to_casino, width = 200, height = 40, font = customtkinter.CTkFont(size = 14))
+        back_btn.pack(pady = 10)
 
-    def _open_poker_lobby(self, store, player_money, update_money_cb, save_money_cb, min_bet, max_bet, music_channel, table_data, record_game_cb=None, casino_stats=None):
+    def _open_poker_lobby(self, store, player_money, update_money_cb, save_money_cb, min_bet, max_bet, music_channel, table_data, record_game_cb = None, casino_stats = None):
         self._clear_window()
 
-        self.root.grid_rowconfigure(0, weight=1)
-        self.root.grid_columnconfigure(0, weight=1)
+        self.root.grid_rowconfigure(0, weight = 1)
+        self.root.grid_columnconfigure(0, weight = 1)
 
         main_frame = customtkinter.CTkFrame(self.root)
-        main_frame.grid(row=0, column=0, sticky="nsew")
-        main_frame.grid_columnconfigure(0, weight=1)
-        main_frame.grid_rowconfigure(1, weight=1)
+        main_frame.grid(row = 0, column = 0, sticky = "nsew")
+        main_frame.grid_columnconfigure(0, weight = 1)
+        main_frame.grid_rowconfigure(1, weight = 1)
 
-        header_frame = customtkinter.CTkFrame(main_frame, fg_color="transparent")
-        header_frame.grid(row=0, column=0, sticky="ew", padx=20, pady=10)
+        header_frame = customtkinter.CTkFrame(main_frame, fg_color = "transparent")
+        header_frame.grid(row = 0, column = 0, sticky = "ew", padx = 20, pady = 10)
 
-        title_label = customtkinter.CTkLabel(header_frame, text="Poker Room", font=customtkinter.CTkFont(size=24, weight="bold"))
-        title_label.pack(pady=(10, 5))
+        title_label = customtkinter.CTkLabel(header_frame, text = "Poker Room", font = customtkinter.CTkFont(size = 24, weight = "bold"))
+        title_label.pack(pady =(10, 5))
 
-        money_label = customtkinter.CTkLabel(header_frame, text=f"Your Money: ${player_money[0]}", font=customtkinter.CTkFont(size=16, weight="bold"), text_color="green")
-        money_label.pack(pady=5)
+        money_label = customtkinter.CTkLabel(header_frame, text = f"Your Money: ${player_money[0]}", font = customtkinter.CTkFont(size = 16, weight = "bold"), text_color = "green")
+        money_label.pack(pady = 5)
 
         content_frame = customtkinter.CTkFrame(main_frame)
-        content_frame.grid(row=1, column=0, sticky="nsew", padx=20, pady=10)
-        content_frame.grid_columnconfigure(0, weight=1)
+        content_frame.grid(row = 1, column = 0, sticky = "nsew", padx = 20, pady = 10)
+        content_frame.grid_columnconfigure(0, weight = 1)
 
-        games_label = customtkinter.CTkLabel(content_frame, text="Select Poker Variant", font=customtkinter.CTkFont(size=18, weight="bold"))
-        games_label.pack(pady=20)
+        games_label = customtkinter.CTkLabel(content_frame, text = "Select Poker Variant", font = customtkinter.CTkFont(size = 18, weight = "bold"))
+        games_label.pack(pady = 20)
 
         def open_five_card_draw():
-            self._open_poker_game(store, player_money, update_money_cb, save_money_cb, min_bet, max_bet, music_channel, table_data, record_game_cb, casino_stats, variant="five_card_draw")
+            self._open_poker_game(store, player_money, update_money_cb, save_money_cb, min_bet, max_bet, music_channel, table_data, record_game_cb, casino_stats, variant = "five_card_draw")
 
         def open_five_card_stud():
-            self._open_poker_game(store, player_money, update_money_cb, save_money_cb, min_bet, max_bet, music_channel, table_data, record_game_cb, casino_stats, variant="five_card_stud")
+            self._open_poker_game(store, player_money, update_money_cb, save_money_cb, min_bet, max_bet, music_channel, table_data, record_game_cb, casino_stats, variant = "five_card_stud")
 
         def open_seven_card_stud():
-            self._open_poker_game(store, player_money, update_money_cb, save_money_cb, min_bet, max_bet, music_channel, table_data, record_game_cb, casino_stats, variant="seven_card_stud")
+            self._open_poker_game(store, player_money, update_money_cb, save_money_cb, min_bet, max_bet, music_channel, table_data, record_game_cb, casino_stats, variant = "seven_card_stud")
 
         def open_texas_holdem():
-            self._open_poker_game(store, player_money, update_money_cb, save_money_cb, min_bet, max_bet, music_channel, table_data, record_game_cb, casino_stats, variant="texas_holdem")
+            self._open_poker_game(store, player_money, update_money_cb, save_money_cb, min_bet, max_bet, music_channel, table_data, record_game_cb, casino_stats, variant = "texas_holdem")
 
-        fcd_btn = self._create_sound_button(content_frame, "5 Card Draw", open_five_card_draw, width=300, height=50, font=customtkinter.CTkFont(size=16))
-        fcd_btn.pack(pady=10)
-        customtkinter.CTkLabel(content_frame, text="Classic draw poker - draw to improve your hand", font=customtkinter.CTkFont(size=10), text_color="gray").pack()
+        fcd_btn = self._create_sound_button(content_frame, "5 Card Draw", open_five_card_draw, width = 300, height = 50, font = customtkinter.CTkFont(size = 16))
+        fcd_btn.pack(pady = 10)
+        customtkinter.CTkLabel(content_frame, text = "Classic draw poker - draw to improve your hand", font = customtkinter.CTkFont(size = 10), text_color = "gray").pack()
 
-        fcs_btn = self._create_sound_button(content_frame, "5 Card Stud", open_five_card_stud, width=300, height=50, font=customtkinter.CTkFont(size=16))
-        fcs_btn.pack(pady=10)
-        customtkinter.CTkLabel(content_frame, text="One hole card, four face-up cards", font=customtkinter.CTkFont(size=10), text_color="gray").pack()
+        fcs_btn = self._create_sound_button(content_frame, "5 Card Stud", open_five_card_stud, width = 300, height = 50, font = customtkinter.CTkFont(size = 16))
+        fcs_btn.pack(pady = 10)
+        customtkinter.CTkLabel(content_frame, text = "One hole card, four face-up cards", font = customtkinter.CTkFont(size = 10), text_color = "gray").pack()
 
-        scs_btn = self._create_sound_button(content_frame, "7 Card Stud", open_seven_card_stud, width=300, height=50, font=customtkinter.CTkFont(size=16))
-        scs_btn.pack(pady=10)
-        customtkinter.CTkLabel(content_frame, text="Two hole cards, four face-up, one final hole card", font=customtkinter.CTkFont(size=10), text_color="gray").pack()
+        scs_btn = self._create_sound_button(content_frame, "7 Card Stud", open_seven_card_stud, width = 300, height = 50, font = customtkinter.CTkFont(size = 16))
+        scs_btn.pack(pady = 10)
+        customtkinter.CTkLabel(content_frame, text = "Two hole cards, four face-up, one final hole card", font = customtkinter.CTkFont(size = 10), text_color = "gray").pack()
 
-        th_btn = self._create_sound_button(content_frame, "Texas Hold'em", open_texas_holdem, width=300, height=50, font=customtkinter.CTkFont(size=16))
-        th_btn.pack(pady=10)
-        customtkinter.CTkLabel(content_frame, text="Two hole cards + five community cards", font=customtkinter.CTkFont(size=10), text_color="gray").pack()
+        th_btn = self._create_sound_button(content_frame, "Texas Hold'em", open_texas_holdem, width = 300, height = 50, font = customtkinter.CTkFont(size = 16))
+        th_btn.pack(pady = 10)
+        customtkinter.CTkLabel(content_frame, text = "Two hole cards + five community cards", font = customtkinter.CTkFont(size = 10), text_color = "gray").pack()
 
-        button_frame = customtkinter.CTkFrame(main_frame, fg_color="transparent")
-        button_frame.grid(row=2, column=0, sticky="ew", padx=20, pady=10)
+        button_frame = customtkinter.CTkFrame(main_frame, fg_color = "transparent")
+        button_frame.grid(row = 2, column = 0, sticky = "ew", padx = 20, pady = 10)
 
         def back_to_casino():
             self._open_casino_interface(store, table_data)
 
-        back_btn = self._create_sound_button(button_frame, "Back to Casino", back_to_casino, width=200, height=40, font=customtkinter.CTkFont(size=14))
-        back_btn.pack(pady=10)
+        back_btn = self._create_sound_button(button_frame, "Back to Casino", back_to_casino, width = 200, height = 40, font = customtkinter.CTkFont(size = 14))
+        back_btn.pack(pady = 10)
 
     def _open_inventory_manager_tool(self):
         logging.info("Inventory Manager definition called")
@@ -10595,9 +10730,9 @@ class App:
         stat_clamp = 20
         slot_disable_points = 6
         try:
-            table_files = glob.glob(os.path.join("tables", "*.sldtbl"))
-            if table_files:
-                with open(table_files[0], 'r')as f:
+            tbl_path = get_current_table_path()
+            if tbl_path and os.path.exists(tbl_path):
+                with open(tbl_path, 'r')as f:
                     table_data = json.load(f)
                     stat_clamp = table_data.get("additional_settings", {}).get("stat_clamp", 20)
                     slot_disable_points = table_data.get("additional_settings", {}).get("slot_disable_points", 1)
@@ -10750,9 +10885,9 @@ class App:
         stat_clamp = 20
         slot_disable_points = 6
         try:
-            table_files = glob.glob(os.path.join("tables", "*.sldtbl"))
-            if table_files:
-                with open(table_files[0], 'r')as f:
+            tbl_path = get_current_table_path()
+            if tbl_path and os.path.exists(tbl_path):
+                with open(tbl_path, 'r')as f:
                     table_data = json.load(f)
                     stat_clamp = table_data.get("additional_settings", {}).get("stat_clamp", 20)
                     slot_disable_points = table_data.get("additional_settings", {}).get("slot_disable_points", 1)
@@ -10952,6 +11087,8 @@ class App:
         logging.info("Load Existing Character definition called")
 
         save_files =[]
+        current_table = global_variables.get('current_table')
+        incompatible_saves =[]
         try:
             for filename in os.listdir(saves_folder):
                 if filename.endswith(".sldsv.sldsv"):
@@ -10964,13 +11101,22 @@ class App:
                             char_name = "Unknown"
                         else:
                             char_name = save_data.get("charactername", "Unknown")
+                            save_table = save_data.get('_table')or save_data.get('table')
+
+                            if current_table and save_table:
+                                current_table_base = os.path.splitext(current_table)[0]
+                                save_table_base = os.path.splitext(save_table)[0]
+                                if current_table_base !=save_table_base and current_table !=save_table:
+                                    incompatible_saves.append({'filename':filename, 'character_name':char_name, 'save_table':save_table})
+                                    continue
 
                             uuid_part = filename.replace(".sldsv", "").split("_")[-1]
                             save_files.append({
                             "filename":filename,
                             "character_name":char_name,
                             "uuid":uuid_part,
-                            "data":save_data
+                            "data":save_data,
+                            "save_table":save_table
                             })
                     except Exception as e:
                         logging.warning(f"Failed to load save file {filename}: {e}")
@@ -10980,7 +11126,10 @@ class App:
             return
 
         if not save_files:
-            self._popup_show_info("No Saves Found", "No character save files found.", sound = "error")
+            msg = "No character save files found for the current table."
+            if incompatible_saves:
+                msg +=f"\n\n{len(incompatible_saves)} save(s) found for other tables."
+            self._popup_show_info("No Saves Found", msg, sound = "error")
             return
 
         self.root.grid_rowconfigure(0, weight = 1)
@@ -11045,7 +11194,17 @@ class App:
             text_color = "gray",
             anchor = "w"
             )
-            equipment_label.grid(row = 2, column = 0, sticky = "w", padx = 15, pady =(0, 10))
+            equipment_label.grid(row = 2, column = 0, sticky = "w", padx = 15, pady =(0, 5))
+
+            save_table_name = save_info.get("save_table")or "Unknown"
+            table_label = customtkinter.CTkLabel(
+            char_frame,
+            text = f"Data Table: {save_table_name}",
+            font = customtkinter.CTkFont(size = 11),
+            text_color = "gray",
+            anchor = "w"
+            )
+            table_label.grid(row = 3, column = 0, sticky = "w", padx = 15, pady =(0, 5))
 
             file_name = save_info["filename"]
             file_name_label = customtkinter.CTkLabel(
@@ -11055,7 +11214,7 @@ class App:
             text_color = "gray",
             anchor = "w"
             )
-            file_name_label.grid(row = 3, column = 0, sticky = "w", padx = 15, pady =(0, 10))
+            file_name_label.grid(row = 4, column = 0, sticky = "w", padx = 15, pady =(0, 10))
 
             load_button = self._create_sound_button(
             char_frame,
@@ -11065,7 +11224,7 @@ class App:
             height = 35,
             font = customtkinter.CTkFont(size = 13)
             )
-            load_button.grid(row = 0, column = 1, rowspan = 3, padx = 15, pady = 10)
+            load_button.grid(row = 0, column = 1, rowspan = 4, padx = 15, pady = 10)
 
         button_frame = customtkinter.CTkFrame(main_frame, fg_color = "transparent")
         button_frame.grid(row = 2, column = 0, pady =(10, 0))
@@ -11992,9 +12151,9 @@ class App:
         stat_clamp = 4
         try:
             import glob, json, os
-            table_files = glob.glob(os.path.join("tables", "*.sldtbl"))
-            if table_files:
-                with open(table_files[0], 'r')as tf:
+            tbl_path = get_current_table_path()
+            if tbl_path and os.path.exists(tbl_path):
+                with open(tbl_path, 'r')as tf:
                     td = json.load(tf)
                     sc = td.get("additional_settings", {}).get("stat_clamp")
                     if isinstance(sc, (int, float)):
@@ -14772,11 +14931,11 @@ class App:
             return
 
         try:
-            table_files = glob.glob(os.path.join("tables", "*.sldtbl"))
-            if not table_files:
+            tbl_path = get_current_table_path()
+            if not tbl_path or not os.path.exists(tbl_path):
                 self._popup_show_info("Error", "No table file found.", sound = "error")
                 return
-            with open(table_files[0], 'r')as f:
+            with open(tbl_path, 'r')as f:
                 table_data = json.load(f)
         except Exception as e:
             logging.error(f"Failed to load table: {e}")
@@ -14920,9 +15079,9 @@ class App:
                 try:
                     stat_clamp = 20
                     try:
-                        table_files = glob.glob(os.path.join("tables", "*.sldtbl"))
-                        if table_files:
-                            with open(table_files[0], 'r')as tf:
+                        tbl_path = get_current_table_path()
+                        if tbl_path and os.path.exists(tbl_path):
+                            with open(tbl_path, 'r')as tf:
                                 td = json.load(tf)
                                 stat_clamp = td.get("additional_settings", {}).get("stat_clamp", stat_clamp)
                     except Exception:
@@ -15032,9 +15191,9 @@ class App:
                     parts.append("Equipment modifiers / Set bonuses:")
                     try:
                         clamp_val = None
-                        table_files = glob.glob(os.path.join("tables", "*.sldtbl"))
-                        if table_files:
-                            with open(table_files[0], 'r')as tf:
+                        tbl_path = get_current_table_path()
+                        if tbl_path and os.path.exists(tbl_path):
+                            with open(tbl_path, 'r')as tf:
                                 td = json.load(tf)
                                 clamp_val = td.get('additional_settings', {}).get('bonus_clamp')
                     except Exception:
@@ -17948,9 +18107,9 @@ class App:
                     variant_name = first_round.split("|")[-1].strip()
                     caliber_part = first_round.split("|")[0].strip()
                     try:
-                        table_files = glob.glob(os.path.join("tables", "*.sldtbl"))
-                        if table_files:
-                            with open(table_files[0], 'r')as f:
+                        tbl_path = get_current_table_path()
+                        if tbl_path and os.path.exists(tbl_path):
+                            with open(tbl_path, 'r')as f:
                                 table_data = json.load(f)
                             for ammo in table_data.get("tables", {}).get("ammunition", []):
                                 if ammo.get("caliber")==caliber_part or ammo.get("name")==caliber_part:
@@ -21758,11 +21917,11 @@ class App:
 
         try:
             mag_windowed = False
-            if loaded_mag_obj and isinstance(loaded_mag_obj, dict)and loaded_mag_obj.get('windowed_magazine'):
+            if loaded_mag_obj and isinstance(loaded_mag_obj, dict)and(loaded_mag_obj.get('windowed_magazine')or loaded_mag_obj.get('window')):
                 mag_windowed = True
-            elif chambered_obj and isinstance(chambered_obj, dict)and chambered_obj.get('windowed_magazine'):
+            elif chambered_obj and isinstance(chambered_obj, dict)and(chambered_obj.get('windowed_magazine')or chambered_obj.get('window')):
                 mag_windowed = True
-            elif isinstance(weapon, dict)and weapon.get('windowed_magazine'):
+            elif isinstance(weapon, dict)and(weapon.get('windowed_magazine')or weapon.get('window')):
                 mag_windowed = True
         except Exception:
             mag_windowed = False
@@ -23718,8 +23877,12 @@ class App:
 
                 if clamp_val is None:
                     try:
-                        tbl_path = os.path.join("tables", "lid.sldtbl")
-                        if os.path.exists(tbl_path):
+                        current_tbl = global_variables.get('current_table')
+                        if current_tbl:
+                            tbl_path = os.path.join("tables", current_tbl)
+                        else:
+                            tbl_path = os.path.join("tables", sorted(glob.glob(os.path.join("tables", "*.sldtbl")))[0])if glob.glob(os.path.join("tables", "*.sldtbl"))else None
+                        if tbl_path and os.path.exists(tbl_path):
                             with open(tbl_path, 'r', encoding = 'utf-8')as tf:
                                 import json as _json
                                 tdata = _json.load(tf)
@@ -23857,8 +24020,12 @@ class App:
 
             try:
                 if round_display ==str(caliber):
-                    tbl_path = os.path.join("tables", "lid.sldtbl")
-                    if os.path.exists(tbl_path):
+                    current_tbl = global_variables.get('current_table')
+                    if current_tbl:
+                        tbl_path = os.path.join("tables", current_tbl)
+                    else:
+                        tbl_path = os.path.join("tables", sorted(glob.glob(os.path.join("tables", "*.sldtbl")))[0])if glob.glob(os.path.join("tables", "*.sldtbl"))else None
+                    if tbl_path and os.path.exists(tbl_path):
                         try:
                             with open(tbl_path, 'r', encoding = 'utf-8')as tf:
                                 import json as _json
@@ -24093,9 +24260,9 @@ class App:
 
             table_data = None
             try:
-                table_files = glob.glob(os.path.join("tables", "*.sldtbl"))
-                if table_files:
-                    with open(table_files[0], 'r', encoding = 'utf-8')as f:
+                tbl_path = get_current_table_path()
+                if tbl_path and os.path.exists(tbl_path):
+                    with open(tbl_path, 'r', encoding = 'utf-8')as f:
                         table_data = json.load(f)
             except Exception:
                 logging.exception("Failed to load table data for infinite ammo reload")
@@ -27094,12 +27261,12 @@ class App:
             return
 
         try:
-            table_files = glob.glob(os.path.join("tables", "*.sldtbl"))
-            if not table_files:
+            tbl_path = get_current_table_path()
+            if not tbl_path or not os.path.exists(tbl_path):
                 self._popup_show_info("Error", "No table files found.", sound = "error")
                 return
 
-            with open(table_files[0], 'r')as f:
+            with open(tbl_path, 'r')as f:
                 table_data = json.load(f)
 
             all_items =[]
@@ -28470,10 +28637,10 @@ class App:
             def _load_rooms_table():
 
                 try:
-                    table_files = glob.glob(os.path.join("tables", "*.sldtbl"))
-                    if not table_files:
+                    tbl_path = get_current_table_path()
+                    if not tbl_path or not os.path.exists(tbl_path):
                         return[]
-                    with open(table_files[0], 'r')as f:
+                    with open(tbl_path, 'r')as f:
                         table_data = json.load(f)
                     return table_data.get("tables", {}).get("rooms", [])
                 except Exception as e:
@@ -28483,10 +28650,10 @@ class App:
             def _load_enemies_table():
 
                 try:
-                    table_files = glob.glob(os.path.join("tables", "*.sldtbl"))
-                    if not table_files:
+                    tbl_path = get_current_table_path()
+                    if not tbl_path or not os.path.exists(tbl_path):
                         return[]
-                    with open(table_files[0], 'r')as f:
+                    with open(tbl_path, 'r')as f:
                         table_data = json.load(f)
                     return table_data.get("tables", {}).get("enemy_drops", [])
                 except Exception as e:
@@ -29418,9 +29585,9 @@ class App:
 
                     table_data = None
                     try:
-                        table_files = glob.glob(os.path.join("tables", "*.sldtbl"))
-                        if table_files:
-                            with open(table_files[0], 'r')as f:
+                        tbl_path = get_current_table_path()
+                        if tbl_path and os.path.exists(tbl_path):
+                            with open(tbl_path, 'r')as f:
                                 full_table = json.load(f)
 
                                 table_data = {
@@ -30810,11 +30977,11 @@ class App:
         logging.info("Encounter Roll tool called")
 
         try:
-            table_files = glob.glob(os.path.join("tables", "*.sldtbl"))
-            if not table_files:
+            tbl_path = get_current_table_path()
+            if not tbl_path or not os.path.exists(tbl_path):
                 self._popup_show_info("Error", "No table file found.", sound = "error")
                 return
-            with open(table_files[0], 'r')as f:
+            with open(tbl_path, 'r')as f:
                 table_data = json.load(f)
         except Exception as e:
             logging.error(f"Failed to load table: {e}")
@@ -31060,11 +31227,11 @@ class App:
         logging.info("Individual Enemy Loot tool called")
 
         try:
-            table_files = glob.glob(os.path.join("tables", "*.sldtbl"))
-            if not table_files:
+            tbl_path = get_current_table_path()
+            if not tbl_path or not os.path.exists(tbl_path):
                 self._popup_show_info("Error", "No table file found.", sound = "error")
                 return
-            with open(table_files[0], 'r')as f:
+            with open(tbl_path, 'r')as f:
                 table_data = json.load(f)
         except Exception as e:
             logging.error(f"Failed to load table: {e}")
@@ -31508,11 +31675,11 @@ class App:
         title_label.pack(pady = 20)
 
         try:
-            table_files = glob.glob(os.path.join("tables", "*.sldtbl"))
-            if not table_files:
+            tbl_path = get_current_table_path()
+            if not tbl_path or not os.path.exists(tbl_path):
                 self._popup_show_info("Error", "No table files found.", sound = "error")
                 return
-            with open(table_files[0], 'r')as f:
+            with open(tbl_path, 'r')as f:
                 table_data = json.load(f)
         except Exception as e:
             logging.error(f"Failed to load tables for loot crate creator: {e}")
@@ -31597,11 +31764,11 @@ class App:
         self._clear_window()
 
         try:
-            table_files = glob.glob(os.path.join("tables", "*.sldtbl"))
-            if not table_files:
+            tbl_path = get_current_table_path()
+            if not tbl_path or not os.path.exists(tbl_path):
                 self._popup_show_info("Error", "No table files found.", sound = "error")
                 return
-            with open(table_files[0], 'r')as f:
+            with open(tbl_path, 'r')as f:
                 table_data = json.load(f)
         except Exception as e:
             logging.error(f"Failed to load tables for loot crate creator: {e}")
@@ -32204,11 +32371,11 @@ class App:
         self._clear_window()
 
         try:
-            table_files = glob.glob(os.path.join("tables", "*.sldtbl"))
-            if not table_files:
+            tbl_path = get_current_table_path()
+            if not tbl_path or not os.path.exists(tbl_path):
                 self._popup_show_info("Error", "No table files found.", sound = "error")
                 return
-            with open(table_files[0], 'r')as f:
+            with open(tbl_path, 'r')as f:
                 table_data = json.load(f)
         except Exception as e:
             logging.error(f"Failed to load tables for item transfer: {e}")
@@ -32555,11 +32722,11 @@ class App:
         logging.info("Create Loaded Magazine Transfer tool called")
 
         try:
-            table_files = glob.glob(os.path.join("tables", "*.sldtbl"))
-            if not table_files:
+            tbl_path = get_current_table_path()
+            if not tbl_path or not os.path.exists(tbl_path):
                 self._popup_show_info("Error", "No table file found.", sound = "error")
                 return
-            with open(table_files[0], 'r')as f:
+            with open(tbl_path, 'r')as f:
                 table_data = json.load(f)
         except Exception as e:
             logging.error(f"Failed to load table: {e}")
@@ -32981,11 +33148,11 @@ class App:
         logging.info("Create Belt Transfer tool called")
 
         try:
-            table_files = glob.glob(os.path.join("tables", "*.sldtbl"))
-            if not table_files:
+            tbl_path = get_current_table_path()
+            if not tbl_path or not os.path.exists(tbl_path):
                 self._popup_show_info("Error", "No table file found.", sound = "error")
                 return
-            with open(table_files[0], 'r')as f:
+            with open(tbl_path, 'r')as f:
                 table_data = json.load(f)
         except Exception as e:
             logging.error(f"Failed to load table: {e}")
@@ -33253,11 +33420,11 @@ class App:
         logging.info("Modify Settings tool called")
 
         try:
-            table_files = glob.glob(os.path.join("tables", "*.sldtbl"))
-            if not table_files:
+            tbl_path = get_current_table_path()
+            if not tbl_path or not os.path.exists(tbl_path):
                 self._popup_show_info("Error", "No table file found.", sound = "error")
                 return
-            with open(table_files[0], 'r')as f:
+            with open(tbl_path, 'r')as f:
                 table_data = json.load(f)
         except Exception as e:
             logging.error(f"Failed to load table: {e}")
@@ -33409,4 +33576,10 @@ if __name__ =="__main__":
                     pass
     except Exception:
         pass
+
+    try:
+        show_table_selection_dialog()
+    except Exception:
+        logging.exception("Table selection dialog failed")
+
     app = App()

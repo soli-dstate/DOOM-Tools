@@ -7909,6 +7909,7 @@
                 "magazinesystem": "STANAG 4179",
                 "can_stack": false,
                 "in_armory": true,
+                "window": true,
                 "armory_category": "Magazines",
                 "armory_subcategory": "STANAG 4179 Magazines"
             },
@@ -10977,7 +10978,8 @@
                     "sell": 1.5
                 },
                 "restock_time_minutes": 30,
-                "accepts_trades": true
+                "accepts_trades": true,
+                "display_in_program": false
             },
             {
                 "name": "Example Armory",
