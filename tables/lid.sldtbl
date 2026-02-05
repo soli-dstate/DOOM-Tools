@@ -5469,7 +5469,8 @@
                         "pen": "IIIa",
                         "modifiers": null,
                         "rarity": "Common",
-                        "tip": "#33852a"
+                        "tip": "#33852a",
+                        "lead_free": false
                     },
                     {
                         "name": "M855A1 EPR",
@@ -5477,7 +5478,8 @@
                         "pen": "III",
                         "modifiers": null,
                         "rarity": "Uncommon",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": true
                     },
                     {
                         "name": "M856 Tracer",
@@ -5485,7 +5487,8 @@
                         "pen": "IIIa",
                         "modifiers": {"stats": {"aim": 1, "stealth": -1}},
                         "rarity": "Rare",
-                        "tip": "#ff4500"
+                        "tip": "#ff4500",
+                        "lead_free": false
                     },
                     {
                         "name": "M856A1 Tracer",
@@ -5493,7 +5496,8 @@
                         "pen": "IIIa",
                         "modifiers": {"stats": {"aim": 1, "stealth": -1}},
                         "rarity": "Rare",
-                        "tip": "#ff6347"
+                        "tip": "#ff6347",
+                        "lead_free": true
                     },
                     {
                         "name": "M995 Armor-Piercing",
@@ -5501,7 +5505,8 @@
                         "pen": "IV",
                         "modifiers": null,
                         "rarity": "Legendary",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": true
                     },
                     {
                         "name": "XM996 Dim Tracer",
@@ -5509,7 +5514,8 @@
                         "pen": "IIIa",
                         "modifiers": {"stats": {"aim": 1}},
                         "rarity": "Mythic",
-                        "tip": "#754338"
+                        "tip": "#754338",
+                        "lead_free": false
                     }
                 ],
                 "in_armory": true,
@@ -5532,7 +5538,8 @@
                         "pen": "II",
                         "modifiers": null,
                         "rarity": "Common",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": false
                     },
                     {
                         "name": "A023 Rifled Slug",
@@ -5540,7 +5547,8 @@
                         "pen": "III",
                         "modifiers": {"stats": {"aim": 1}},
                         "rarity": "Uncommon",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": false
                     },
                     {
                         "name": "Frangible Breaching Slug",
@@ -5548,7 +5556,8 @@
                         "pen": "I",
                         "modifiers": {"stats": {"aim": -1}},
                         "rarity": "Rare",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": true
                     },
                     {
                         "name": "AA51 Beanbag",
@@ -5556,7 +5565,8 @@
                         "pen": null,
                         "modifiers": null,
                         "rarity": "Legendary",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": true
                     },
                     {
                         "name": "FRAG-12 High-Explosive",
@@ -5564,7 +5574,8 @@
                         "pen": "IV",
                         "modifiers": null,
                         "rarity": "Mythic",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": false
                     }
                 ],
                 "in_armory": true,
@@ -5587,7 +5598,8 @@
                         "pen": "I",
                         "modifiers": null,
                         "rarity": "Common",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": false
                     },
                     {
                         "name": "M26 Tracer",
@@ -5595,7 +5607,8 @@
                         "pen": "I",
                         "modifiers": {"stats": {"aim": 1}},
                         "rarity": "Uncommon",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": false
                     },
                     {
                         "name": "M12 Birdshot",
@@ -5603,7 +5616,17 @@
                         "pen": null,
                         "modifiers": {"stats": {"aim": -1}},
                         "rarity": "Rare",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "American Eagle Indoor Range FMJ",
+                        "type": "FMJ",
+                        "pen": "I",
+                        "modifiers": null,
+                        "rarity": "Legendary",
+                        "tip": null,
+                        "lead_free": true
                     }
                 ],
                 "in_armory": true,
@@ -5626,7 +5649,8 @@
                         "pen": "I",
                         "modifiers": null,
                         "rarity": "Common",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": false
                     },
                     {
                         "name": "M1153 JHP",
@@ -5634,7 +5658,8 @@
                         "pen": "I",
                         "modifiers": null,
                         "rarity": "Uncommon",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": false
                     },
                     {
                         "name": "MK 254 MOD 0 Frangible",
@@ -5642,7 +5667,8 @@
                         "pen": "I",
                         "modifiers": null,
                         "rarity": "Rare",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": true
                     }
                 ],
                 "in_armory": true,
@@ -5665,7 +5691,17 @@
                         "pen": "IIIa",
                         "modifiers": null,
                         "rarity": "Common",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "M80A1 Ball",
+                        "type": "Ball",
+                        "pen": "IIIa",
+                        "modifiers": null,
+                        "rarity": "Common",
+                        "tip": null,
+                        "lead_free": true
                     },
                     {
                         "name": "M61 AP",
@@ -5673,7 +5709,8 @@
                         "pen": "III",
                         "modifiers": null,
                         "rarity": "Uncommon",
-                        "tip": "#212121"
+                        "tip": "#212121",
+                        "lead_free": false
                     },
                     {
                         "name": "M993 AP",
@@ -5681,7 +5718,17 @@
                         "pen": "IV",
                         "modifiers": null,
                         "rarity": "Rare",
-                        "tip": "#000000"
+                        "tip": "#000000",
+                        "lead_free": false
+                    },
+                    {
+                        "name": "M1158 ADVAP",
+                        "type": "AP",
+                        "pen": "IV",
+                        "modifiers": null,
+                        "rarity": "Rare",
+                        "tip": "#000000",
+                        "lead_free": true
                     },
                     {
                         "name": "M62 Tracer",
@@ -5689,7 +5736,8 @@
                         "pen": "IIIa",
                         "modifiers": {"stats": {"aim": 1, "stealth": -1}},
                         "rarity": "Rare",
-                        "tip": "#ff4500"
+                        "tip": "#ff4500",
+                        "lead_free": false
                     },
                     {
                         "name": "M948 SLAP",
@@ -5697,7 +5745,8 @@
                         "pen": "IV",
                         "modifiers": null,
                         "rarity": "Legendary",
-                        "tip": "#ffd700"
+                        "tip": "#ffd700",
+                        "lead_free": true
                     },
                     {
                         "name": "M959 SLAP-T",
@@ -5705,7 +5754,8 @@
                         "pen": "IV",
                         "modifiers": null,
                         "rarity": "Mythic",
-                        "tip": "#ffd700"
+                        "tip": "#ffd700",
+                        "lead_free": true
                     }
                 ],
                 "in_armory": true,
@@ -5728,7 +5778,8 @@
                         "pen": "II",
                         "modifiers": null,
                         "rarity": "Common",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": false
                     },
                     {
                         "name": "Speer Gold Dot JHP",
@@ -5736,7 +5787,8 @@
                         "pen": "I",
                         "modifiers": null,
                         "rarity": "Uncommon",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": false
                     },
                     {
                         "name": "Bear Claw JSP",
@@ -5744,7 +5796,17 @@
                         "pen": "I",
                         "modifiers": null,
                         "rarity": "Rare",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "G2 Research Civic Duty Lead-free JHP",
+                        "type": "JHP",
+                        "pen": "I",
+                        "modifiers": null,
+                        "rarity": "Rare",
+                        "tip": null,
+                        "lead_free": true
                     }
                 ],
                 "in_armory": true,
@@ -5767,7 +5829,8 @@
                         "pen": "IV",
                         "modifiers": null,
                         "rarity": "Common",
-                        "tip": "#ff0000"
+                        "tip": "#ff0000",
+                        "lead_free": false
                     },
                     {
                         "name": "M397 Air Burst",
@@ -5775,7 +5838,8 @@
                         "pen": "IV",
                         "modifiers": null,
                         "rarity": "Mythic",
-                        "tip": "#ff0000"
+                        "tip": "#ff0000",
+                        "lead_free": false
                     },
                     {
                         "name": "M433E1 HEDP",
@@ -5783,7 +5847,8 @@
                         "pen": "IV",
                         "modifiers": null,
                         "rarity": "Mythic",
-                        "tip": "#ff0000"
+                        "tip": "#ff0000",
+                        "lead_free": true
                     },
                     {
                         "name": "M576 MP-APERS",
@@ -5791,7 +5856,8 @@
                         "pen": "IV",
                         "modifiers": null,
                         "rarity": "Legendary",
-                        "tip": "#ff0000"
+                        "tip": "#ff0000",
+                        "lead_free": false
                     },
                     {
                         "name": "M713 Red Smoke",
@@ -5799,7 +5865,8 @@
                         "pen": null,
                         "modifiers": null,
                         "rarity": "Uncommon",
-                        "tip": "#ff0000"
+                        "tip": "#ff0000",
+                        "lead_free": true
                     },
                     {
                         "name": "M714 White Smoke",
@@ -5807,7 +5874,8 @@
                         "pen": null,
                         "modifiers": null,
                         "rarity": "Uncommon",
-                        "tip": "#ff0000"
+                        "tip": "#ff0000",
+                        "lead_free": true
                     },
                     {
                         "name": "M715 Green Smoke",
@@ -5815,7 +5883,8 @@
                         "pen": null,
                         "modifiers": null,
                         "rarity": "Uncommon",
-                        "tip": "#ff0000"
+                        "tip": "#ff0000",
+                        "lead_free": true
                     },
                     {
                         "name": "M716 Yellow Smoke",
@@ -5823,7 +5892,8 @@
                         "pen": null,
                         "modifiers": null,
                         "rarity": "Uncommon",
-                        "tip": "#ff0000"
+                        "tip": "#ff0000",
+                        "lead_free": true
                     },
                     {
                         "name": "M651 CS Gas",
@@ -5831,7 +5901,8 @@
                         "pen": null,
                         "modifiers": null,
                         "rarity": "Uncommon",
-                        "tip": "#ff0000"
+                        "tip": "#ff0000",
+                        "lead_free": true
                     },
                     {
                         "name": "XM1060 Thermobaric",
@@ -5839,7 +5910,8 @@
                         "pen": "IV",
                         "modifiers": null,
                         "rarity": "Mythic",
-                        "tip": "#ff0000"
+                        "tip": "#ff0000",
+                        "lead_free": true
                     }
                 ],
                 "in_armory": true,
@@ -5862,7 +5934,8 @@
                         "pen": "III",
                         "modifiers": null,
                         "rarity": "Common",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": true
                     },
                     {
                         "name": "M186 Ball-Tracer",
@@ -5870,7 +5943,8 @@
                         "pen": "III",
                         "modifiers": {"stats": {"aim": 1, "stealth": -1}},
                         "rarity": "Uncommon",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": true
                     },
                     {
                         "name": "M193 SLAP",
@@ -5878,7 +5952,8 @@
                         "pen": "IV",
                         "modifiers": null,
                         "rarity": "Rare",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": true
                     },
                     {
                         "name": "M199 Subsonic",
@@ -5886,7 +5961,8 @@
                         "pen": "IIIa",
                         "modifiers": {"stats": {"stealth": 1}},
                         "rarity": "Uncommon",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": true
                     },
                     {
                         "name": "XM187 Frangible Unarmored Target",
@@ -5894,7 +5970,8 @@
                         "pen": "IIIa",
                         "modifiers": null,
                         "rarity": "Mythic",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": false
                     }
                 ],
                 "in_armory": true,
@@ -5917,7 +5994,8 @@
                         "pen": "IIIa",
                         "modifiers": null,
                         "rarity": "Common",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": false
                     },
                     {
                         "name": "L191 Tracer",
@@ -5925,7 +6003,8 @@
                         "pen": "IIIa",
                         "modifiers": {"stats": {"aim": 1, "stealth": -1}},
                         "rarity": "Uncommon",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": false
                     },
                     {
                         "name": "FR199 Frangible",
@@ -5933,7 +6012,8 @@
                         "pen": "II",
                         "modifiers": null,
                         "rarity": "Rare",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": true
                     }
                 ],
                 "in_armory": true,
@@ -5956,7 +6036,8 @@
                         "pen": "IIIa",
                         "modifiers": null,
                         "rarity": "Common",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": false
                     },
                     {
                         "name": "M6 Tracer",
@@ -5964,7 +6045,8 @@
                         "pen": "IIIa",
                         "modifiers": {"stats": {"aim": 1, "stealth": -1}},
                         "rarity": "Uncommon",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": false
                     },
                     {
                         "name": "M13 AP",
@@ -5972,7 +6054,8 @@
                         "pen": "III",
                         "modifiers": null,
                         "rarity": "Rare",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": false
                     }
                 ],
                 "in_armory": true,
@@ -5995,7 +6078,8 @@
                         "pen": "I",
                         "modifiers": null,
                         "rarity": "Common",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": false
                     },
                     {                        
                         "name": "MK 308 MOD 0 JHP",
@@ -6003,7 +6087,8 @@
                         "pen": "I",
                         "modifiers": {"stats": {"aim": 1}},
                         "rarity": "Uncommon",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": false
                     }
                 ],
                 "in_armory": true,
@@ -6026,7 +6111,8 @@
                         "pen": "IIIa",
                         "modifiers": null,
                         "rarity": "Common",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": false
                     },
                     {
                         "name": "7N23 BP AP",
@@ -6034,7 +6120,8 @@
                         "pen": "III",
                         "modifiers": null,
                         "rarity": "Uncommon",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": false
                     },
                     {
                         "name": "7N27 PP AP",
@@ -6042,7 +6129,8 @@
                         "pen": "IV",
                         "modifiers": null,
                         "rarity": "Rare",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": false
                     },
                     {
                         "name": "57-N-231PM1 Tracer",
@@ -6050,7 +6138,8 @@
                         "pen": "IIIa",
                         "modifiers": {"stats": {"aim": 1, "stealth": -1}},
                         "rarity": "Rare",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": false
                     },
                     {
                         "name": "US Subsonic",
@@ -6058,7 +6147,8 @@
                         "pen": "II",
                         "modifiers": {"stats": {"stealth": 1}},
                         "rarity": "Mythic",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": false
                     }
                 ],
                 "in_armory": true,
@@ -6081,7 +6171,8 @@
                         "pen": "IIIa",
                         "modifiers": null,
                         "rarity": "Common",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": false
                     },
                     {
                         "name": "7N10 EPR",
@@ -6089,7 +6180,8 @@
                         "pen": "III",
                         "modifiers": null,
                         "rarity": "Uncommon",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": false
                     },
                     {
                         "name": "7N22 AP",
@@ -6097,7 +6189,8 @@
                         "pen": "III",
                         "modifiers": null,
                         "rarity": "Rare",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": false
                     },
                     {
                         "name": "7N24 Super AP",
@@ -6105,7 +6198,8 @@
                         "pen": "IV",
                         "modifiers": null,
                         "rarity": "Legendary",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": false
                     },
                     {
                         "name": "7N39 AP+",
@@ -6113,7 +6207,8 @@
                         "pen": "IV",
                         "modifiers": null,
                         "rarity": "Mythic",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": false
                     }
                 ],
                 "in_armory": true,
@@ -6131,20 +6226,13 @@
                 "sounds": "338",
                 "variants": [
                     {
-                        "name": "M1162 AP",
-                        "type": "AP",
+                        "name": "Ball",
+                        "type": "Ball",
                         "pen": "IV",
                         "modifiers": null,
                         "rarity": "Common",
-                        "tip": null
-                    },
-                    {
-                        "name": "SOCOM Multi-Purpose",
-                        "type": "AP",
-                        "pen": "IV",
-                        "modifiers": null,
-                        "rarity": "Uncommon",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": false
                     }
                 ],
                 "in_armory": true,
@@ -6167,7 +6255,8 @@
                         "pen": "IV",
                         "modifiers": null,
                         "rarity": "Common",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": false
                     },
                     {
                         "name": "M2 AP",
@@ -6175,7 +6264,8 @@
                         "pen": "IV",
                         "modifiers": null,
                         "rarity": "Uncommon",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": false
                     },
                     {
                         "name": "M8 API",
@@ -6183,7 +6273,8 @@
                         "pen": "IV",
                         "modifiers": null,
                         "rarity": "Rare",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": false
                     },
                     {
                         "name": "M20 API-T",
@@ -6191,7 +6282,8 @@
                         "pen": "IV",
                         "modifiers": {"stats": {"aim": 1, "stealth": -1}},
                         "rarity": "Rare",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": false
                     },
                     {
                         "name": "M17 Tracer",
@@ -6199,7 +6291,8 @@
                         "pen": "IV",
                         "modifiers": {"stats": {"aim": 1, "stealth": -1}},
                         "rarity": "Common",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": false
                     },
                     {
                         "name": "MK 211 MOD 0 Raufoss",
@@ -6207,7 +6300,8 @@
                         "pen": "IV",
                         "modifiers": null,
                         "rarity": "Rare",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": false
                     },
                     {
                         "name": "M903 SLAP",
@@ -6215,7 +6309,8 @@
                         "pen": "IV",
                         "modifiers": null,
                         "rarity": "Legendary",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": true
                     },
                     {
                         "name": "M962 SLAP-T",
@@ -6223,21 +6318,24 @@
                         "pen": "IV",
                         "modifiers": {"stats": {"aim": 1, "stealth": -1}},
                         "rarity": "Legendary",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": true
                     },
                     {
                         "name": "MK 232 Polymer Case",
                         "type": "Ball",
                         "pen": "IV",
                         "modifiers": null,
-                        "tip": null
+                        "tip": null,
+                        "lead_free": false
                     },
                     {
                         "name": "A-MAX",
                         "type": "Match",
                         "pen": "IV",
                         "modifiers": {"stats": {"aim": 1}},
-                        "tip": null
+                        "tip": null,
+                        "lead_free": false
                     }
                 ],
                 "in_armory": true,
@@ -6260,7 +6358,8 @@
                         "pen": "IIIa",
                         "modifiers": null,
                         "rarity": "Common",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": true
                     },
                     {
                         "name": "AP SX Lead-Free",
@@ -6268,7 +6367,8 @@
                         "pen": "IIIa",
                         "modifiers": null,
                         "rarity": "Common",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": true
                     },
                     {
                         "name": "CPS Black Tip",
@@ -6276,7 +6376,8 @@
                         "pen": "III",
                         "modifiers": null,
                         "rarity": "Rare",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": true
                     },
                     {
                         "name": "Subsonic SX",
@@ -6284,7 +6385,8 @@
                         "pen": "II",
                         "modifiers": {"stats": {"stealth": 1}},
                         "rarity": "Mythic",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": true
                     },
                     {
                         "name": "Action SX Lead-Free",
@@ -6292,7 +6394,8 @@
                         "pen": "II",
                         "modifiers": null,
                         "rarity": "Mythic",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": true
                     },
                     {
                         "name": "Spoon-Tip Frangible",
@@ -6300,7 +6403,8 @@
                         "pen": "I",
                         "modifiers": null,
                         "rarity": "Rare",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": true
                     }
                 ],
                 "in_armory": true,
@@ -6320,26 +6424,29 @@
                     {
                         "name": "SP-5",
                         "type": "AP",
-                        "pen": "III",
+                        "pen": "IIIa",
                         "modifiers": null,
                         "rarity": "Uncommon",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": false
                     },
                     {
                         "name": "SP-6",
                         "type": "AP",
-                        "pen": "IV",
+                        "pen": "III",
                         "modifiers": null,
                         "rarity": "Rare",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": false
                     },
                     {
                         "name": "PAB-9",
                         "type": "APIT",
-                        "pen": "IV",
+                        "pen": "III",
                         "modifiers": null,
                         "rarity": "Legendary",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": false
                     }
                 ],
                 "in_armory": true,
@@ -6362,7 +6469,17 @@
                         "pen": "IV",
                         "modifiers": null,
                         "rarity": "Legendary",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "B&B 408 CT 419gr Lead-free",
+                        "type": "Match",
+                        "pen": "IV",
+                        "modifiers": {"stats": {"aim": 1}},
+                        "rarity": "Mythic",
+                        "tip": null,
+                        "lead_free": true
                     }
                 ],
                 "in_armory": true,
@@ -6385,7 +6502,8 @@
                         "pen": "II",
                         "modifiers": null,
                         "rarity": "Common",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": false
                     },
                     {
                         "name": "FMJ",
@@ -6393,7 +6511,8 @@
                         "pen": "IIIa",
                         "modifiers": null,
                         "rarity": "Uncommon",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": false
                     }
                 ],
                 "in_armory": true,
@@ -6416,7 +6535,8 @@
                         "pen": "II",
                         "modifiers": null,
                         "rarity": "Common",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": false
                     },
                     {
                         "name": "FMJ",
@@ -6424,7 +6544,8 @@
                         "pen": "IIIa",
                         "modifiers": null,
                         "rarity": "Uncommon",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": false
                     }
                 ],
                 "in_armory": true,
@@ -6447,7 +6568,8 @@
                         "pen": "IIIa",
                         "modifiers": null,
                         "rarity": "Uncommon",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": false
                     },
                     {
                         "name": "AP",
@@ -6455,7 +6577,8 @@
                         "pen": "III",
                         "modifiers": null,
                         "rarity": "Rare",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": false
                     }
                 ],
                 "in_armory": true,
@@ -6473,12 +6596,22 @@
                 "sounds": "338",
                 "variants": [
                     {
-                        "name": "Ball",
-                        "type": "Ball",
+                        "name": "M1162 AP",
+                        "type": "AP",
                         "pen": "IV",
                         "modifiers": null,
                         "rarity": "Common",
-                        "tip": null
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "SOCOM Multi-Purpose",
+                        "type": "AP",
+                        "pen": "IV",
+                        "modifiers": null,
+                        "rarity": "Uncommon",
+                        "tip": null,
+                        "lead_free": false
                     }
                 ],
                 "in_armory": true,
@@ -10862,7 +10995,9 @@
                 "shopkeeper": "Casino Dealer",
                 "music": true,
                 "playlist": ["casino"],
-                "games": ["Blackjack","Poker"]
+                "games": ["Blackjack","Poker","High-Low"],
+                "min_bet": 10,
+                "max_bet": 1000
             }
         ],
         "rooms": [

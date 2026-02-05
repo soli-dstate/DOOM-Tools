@@ -6773,10 +6773,12 @@ class App:
 
         cart =[]
         cart_points =[0]
+        lead_free_only = [False]
 
         subcat_scroll = None
 
         items_scroll = None
+        lead_free_checkbox = [None]
 
         def update_cart_display():
             if max_points !="disabled":
@@ -6886,6 +6888,14 @@ class App:
                 if parent is None:
                     parent = items_scroll if items_scroll is not None else items_frame
                 for item in items_list:
+                    is_ammo = item.get("_table_category") == "ammunition"
+                    variants = item.get("variants", []) if is_ammo else []
+
+                    if is_ammo and lead_free_only[0]:
+                        has_lead_free = any(v.get("lead_free", False) for v in variants)
+                        if not has_lead_free:
+                            continue
+
                     item_frame = customtkinter.CTkFrame(parent)
                     item_frame.pack(fill = "x", pady = 5, padx = 10)
 
@@ -6950,6 +6960,20 @@ class App:
                     if info_parts:
                         info_label = customtkinter.CTkLabel(item_frame, text = " | ".join(info_parts), font = customtkinter.CTkFont(size = 10), text_color = "orange")
                         info_label.pack(anchor = "w", padx = 10, pady =(0, 5))
+
+                    if is_ammo and variants:
+                        variant_info_parts = []
+                        for v in variants:
+                            pen = v.get("pen", "?")
+                            lf = v.get("lead_free", False)
+                            lf_indicator = " 🌿" if lf else ""
+                            if lead_free_only[0] and not lf:
+                                continue
+                            variant_info_parts.append(f"{v.get('name', 'Unknown')} (Pen: {pen}{lf_indicator})")
+                        if variant_info_parts:
+                            variants_text = "Variants: " + ", ".join(variant_info_parts)
+                            variants_label = customtkinter.CTkLabel(item_frame, text = variants_text, font = customtkinter.CTkFont(size = 9), text_color = "#88aaff", wraplength = 500, justify = "left", anchor = "w")
+                            variants_label.pack(anchor = "w", padx = 10, pady =(0, 5))
 
                     def add_to_cart(it = item):
                         if max_points !="disabled":
@@ -7108,11 +7132,22 @@ class App:
                             variants = ammo_def.get("variants", [])
                             sel_var = None
                             if variants:
-                                opts =[v.get("name")for v in variants]
+                                if lead_free_only[0]:
+                                    variants = [v for v in variants if v.get("lead_free", False)]
+                                if not variants:
+                                    self._popup_show_info("No Lead-Free Variants", "No lead-free variants available for this ammunition.", sound="error")
+                                    return
+                                opts = []
+                                for v in variants:
+                                    pen = v.get("pen", "?")
+                                    lf = v.get("lead_free", False)
+                                    lf_indicator = " 🌿" if lf else ""
+                                    opts.append(f"{v.get('name')} (Pen: {pen}{lf_indicator})")
                                 sel_var = self._popup_select_option("Ammo Variant", "Choose ammo variant:", opts)
                                 if sel_var is None:
                                     return
-                                chosen = next((v for v in variants if v.get("name")==sel_var), None)
+                                sel_name = sel_var.split(" (Pen:")[0]
+                                chosen = next((v for v in variants if v.get("name")==sel_name), None)
                             else:
                                 chosen = None
 
@@ -7282,9 +7317,33 @@ class App:
                     items_scroll.pack(fill = "both", expand = True, padx = 0, pady = 0)
                 except Exception:
                     items_scroll = None
+
+                is_ammo_category = "ammunition" in category_name.lower() or "ammo" in category_name.lower()
+
                 if items_scroll is not None:
-                    cat_title = customtkinter.CTkLabel(items_scroll, text = category_name, font = customtkinter.CTkFont(size = 18, weight = "bold"))
-                    cat_title.pack(pady =(10, 6), anchor = "w", padx = 10)
+                    header_frame_cat = customtkinter.CTkFrame(items_scroll, fg_color = "transparent")
+                    header_frame_cat.pack(fill = "x", pady = (10, 6), padx = 10)
+
+                    cat_title = customtkinter.CTkLabel(header_frame_cat, text = category_name, font = customtkinter.CTkFont(size = 18, weight = "bold"))
+                    cat_title.pack(side = "left")
+
+                    if is_ammo_category:
+                        def toggle_lead_free():
+                            lead_free_only[0] = not lead_free_only[0]
+                            show_category_items(category_name)
+
+                        lf_check_var = customtkinter.BooleanVar(value = lead_free_only[0])
+                        lf_checkbox = customtkinter.CTkCheckBox(
+                            header_frame_cat,
+                            text = "Lead-Free Only 🌿",
+                            variable = lf_check_var,
+                            command = toggle_lead_free,
+                            font = customtkinter.CTkFont(size = 11),
+                            text_color = "#7CFC00"
+                        )
+                        lf_checkbox.pack(side = "right", padx = 10)
+                        lead_free_checkbox[0] = lf_checkbox
+
                     render_item_list(cat_items, parent = items_scroll)
                 else:
                     cat_title = customtkinter.CTkLabel(items_frame, text = category_name, font = customtkinter.CTkFont(size = 18, weight = "bold"))
@@ -8559,6 +8618,9 @@ class App:
         def open_poker():
             self._open_poker_game(store, player_money, update_money_display, save_money, min_bet, max_bet, music_channel, table_data, record_game_result, casino_stats)
 
+        def open_highlow():
+            self._open_highlow_game(store, player_money, update_money_display, save_money, min_bet, max_bet, music_channel, table_data, record_game_result, casino_stats)
+
         if "Blackjack" in available_games:
             blackjack_btn = self._create_sound_button(games_frame, "Blackjack", open_blackjack, width=300, height=50, font=customtkinter.CTkFont(size=16))
             blackjack_btn.pack(pady=10)
@@ -8566,6 +8628,10 @@ class App:
         if "Poker" in available_games:
             poker_btn = self._create_sound_button(games_frame, "Poker (Five Card Draw)", open_poker, width=300, height=50, font=customtkinter.CTkFont(size=16))
             poker_btn.pack(pady=10)
+
+        if "High-Low" in available_games:
+            highlow_btn = self._create_sound_button(games_frame, "High-Low", open_highlow, width=300, height=50, font=customtkinter.CTkFont(size=16))
+            highlow_btn.pack(pady=10)
 
         def leave_casino():
             try:
@@ -9440,6 +9506,298 @@ class App:
         hands_btn.pack(side="left", padx=5)
 
         def back_to_casino():
+            self._open_casino_interface(store, table_data)
+
+        back_btn = self._create_sound_button(controls_frame, "Back to Casino", back_to_casino, width=200, height=40, font=customtkinter.CTkFont(size=14))
+        back_btn.pack(pady=10)
+
+    def _open_highlow_game(self, store, player_money, update_money_cb, save_money_cb, min_bet, max_bet, music_channel, table_data, record_game_cb=None, casino_stats=None):
+        self._clear_window()
+
+        self.root.grid_rowconfigure(0, weight=1)
+        self.root.grid_columnconfigure(0, weight=1)
+
+        main_frame = customtkinter.CTkFrame(self.root)
+        main_frame.grid(row=0, column=0, sticky="nsew")
+        main_frame.grid_columnconfigure(0, weight=1)
+        main_frame.grid_rowconfigure(1, weight=1)
+
+        header_frame = customtkinter.CTkFrame(main_frame, fg_color="transparent")
+        header_frame.grid(row=0, column=0, sticky="ew", padx=20, pady=10)
+
+        title_label = customtkinter.CTkLabel(header_frame, text="High-Low", font=customtkinter.CTkFont(size=24, weight="bold"))
+        title_label.pack(pady=(10, 5))
+
+        money_label = customtkinter.CTkLabel(header_frame, text=f"Your Money: ${player_money[0]}", font=customtkinter.CTkFont(size=16, weight="bold"), text_color="green")
+        money_label.pack(pady=5)
+
+        bet_label = customtkinter.CTkLabel(header_frame, text=f"Bet Range: ${min_bet} - ${max_bet}", font=customtkinter.CTkFont(size=12), text_color="orange")
+        bet_label.pack()
+
+        game_frame = customtkinter.CTkFrame(main_frame)
+        game_frame.grid(row=1, column=0, sticky="nsew", padx=20, pady=10)
+        game_frame.grid_columnconfigure(0, weight=1)
+
+        suits = ["clubs", "diamonds", "hearts", "spades"]
+        values = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "jack", "queen", "king", "ace"]
+
+        deck = [{"suit": s, "value": v} for s in suits for v in values]
+        game_state = {
+            "deck": [],
+            "current_card": None,
+            "next_card": None,
+            "current_bet": 0,
+            "streak": 0,
+            "winnings": 0,
+            "game_active": False,
+            "ui_valid": True
+        }
+
+        instruction_label = customtkinter.CTkLabel(game_frame, text="Guess if the next card will be Higher or Lower!", font=customtkinter.CTkFont(size=14), text_color="gray")
+        instruction_label.pack(pady=10)
+
+        cards_frame = customtkinter.CTkFrame(game_frame, fg_color="transparent")
+        cards_frame.pack(pady=20)
+
+        current_card_frame = customtkinter.CTkFrame(cards_frame, fg_color="transparent")
+        current_card_frame.pack(side="left", padx=20)
+        current_label = customtkinter.CTkLabel(current_card_frame, text="Current Card", font=customtkinter.CTkFont(size=12, weight="bold"))
+        current_label.pack()
+        current_card_display = customtkinter.CTkLabel(current_card_frame, text="", width=80, height=112)
+        current_card_display.pack(pady=5)
+
+        arrow_label = customtkinter.CTkLabel(cards_frame, text="→", font=customtkinter.CTkFont(size=36, weight="bold"))
+        arrow_label.pack(side="left", padx=10)
+
+        next_card_frame = customtkinter.CTkFrame(cards_frame, fg_color="transparent")
+        next_card_frame.pack(side="left", padx=20)
+        next_label = customtkinter.CTkLabel(next_card_frame, text="Next Card", font=customtkinter.CTkFont(size=12, weight="bold"))
+        next_label.pack()
+        next_card_display = customtkinter.CTkLabel(next_card_frame, text="", width=80, height=112)
+        next_card_display.pack(pady=5)
+
+        streak_label = customtkinter.CTkLabel(game_frame, text="Streak: 0", font=customtkinter.CTkFont(size=16, weight="bold"), text_color="cyan")
+        streak_label.pack(pady=5)
+
+        winnings_label = customtkinter.CTkLabel(game_frame, text="Current Winnings: $0", font=customtkinter.CTkFont(size=14), text_color="gold")
+        winnings_label.pack(pady=5)
+
+        result_label = customtkinter.CTkLabel(game_frame, text="", font=customtkinter.CTkFont(size=18, weight="bold"))
+        result_label.pack(pady=10)
+
+        def get_card_rank(card):
+            v = card["value"]
+            if v == "ace":
+                return 14
+            elif v == "king":
+                return 13
+            elif v == "queen":
+                return 12
+            elif v == "jack":
+                return 11
+            else:
+                return int(v)
+
+        def shuffle_deck():
+            game_state["deck"] = deck.copy()
+            random.shuffle(game_state["deck"])
+            self._play_card_sound("shuffle")
+
+        def draw_card():
+            if not game_state["deck"]:
+                shuffle_deck()
+            card = game_state["deck"].pop()
+            self._play_card_sound("flip")
+            return card
+
+        def display_card(label, card, hidden=False):
+            if not game_state["ui_valid"]:
+                return
+            if hidden:
+                img = self._load_card_image(None, "back")
+            elif card:
+                img = self._load_card_image(card["suit"], card["value"])
+            else:
+                img = None
+
+            if img:
+                label.configure(image=img, text="")
+                label.image = img
+            elif card and not hidden:
+                text = f"{card['value'][0].upper()}{card['suit'][0].upper()}"
+                label.configure(image=None, text=text, fg_color="white", text_color="black")
+            else:
+                label.configure(image=None, text="??", fg_color="gray30", text_color="white")
+
+        def update_display():
+            if not game_state["ui_valid"]:
+                return
+            try:
+                money_label.configure(text=f"Your Money: ${player_money[0]}")
+                streak_label.configure(text=f"Streak: {game_state['streak']}")
+                winnings_label.configure(text=f"Current Winnings: ${game_state['winnings']}")
+                update_money_cb()
+            except Exception:
+                pass
+
+        def start_game():
+            bet_str = bet_entry.get()
+            try:
+                bet = int(bet_str)
+            except ValueError:
+                self._popup_show_info("Invalid Bet", "Please enter a valid number.", sound="error")
+                return
+
+            if bet < min_bet or bet > max_bet:
+                self._popup_show_info("Invalid Bet", f"Bet must be between ${min_bet} and ${max_bet}.", sound="error")
+                return
+
+            if bet > player_money[0]:
+                self._popup_show_info("Insufficient Funds", "You don't have enough money for that bet.", sound="error")
+                return
+
+            game_state["current_bet"] = bet
+            game_state["streak"] = 0
+            game_state["winnings"] = 0
+            game_state["game_active"] = True
+            result_label.configure(text="")
+
+            shuffle_deck()
+            game_state["current_card"] = draw_card()
+            game_state["next_card"] = None
+
+            display_card(current_card_display, game_state["current_card"])
+            display_card(next_card_display, None, hidden=True)
+
+            update_display()
+            update_buttons()
+
+        def guess_high():
+            if not game_state["game_active"]:
+                return
+            make_guess("high")
+
+        def guess_low():
+            if not game_state["game_active"]:
+                return
+            make_guess("low")
+
+        def make_guess(guess):
+            if not game_state["ui_valid"]:
+                return
+
+            game_state["next_card"] = draw_card()
+            display_card(next_card_display, game_state["next_card"])
+
+            current_rank = get_card_rank(game_state["current_card"])
+            next_rank = get_card_rank(game_state["next_card"])
+
+            if next_rank == current_rank:
+                result_label.configure(text="It's a Tie! Push - no win or loss.", text_color="orange")
+                game_state["current_card"] = game_state["next_card"]
+                self.root.after(1500, continue_or_end)
+            elif (guess == "high" and next_rank > current_rank) or (guess == "low" and next_rank < current_rank):
+                game_state["streak"] += 1
+                multiplier = 1 + (game_state["streak"] - 1) * 0.5
+                round_win = int(game_state["current_bet"] * multiplier)
+                game_state["winnings"] += round_win
+                result_label.configure(text=f"Correct! +${round_win} (Streak: {game_state['streak']}x)", text_color="green")
+                game_state["current_card"] = game_state["next_card"]
+                update_display()
+                self.root.after(1500, continue_or_end)
+            else:
+                end_game_loss()
+
+        def continue_or_end():
+            if not game_state["ui_valid"]:
+                return
+            display_card(current_card_display, game_state["current_card"])
+            display_card(next_card_display, None, hidden=True)
+            result_label.configure(text="Keep going or Cash Out!", text_color="cyan")
+            update_buttons()
+
+        def cash_out():
+            if not game_state["game_active"] or game_state["winnings"] <= 0:
+                return
+
+            winnings = game_state["winnings"]
+            player_money[0] += winnings
+            if record_game_cb:
+                record_game_cb(winnings)
+            save_money_cb()
+
+            game_state["game_active"] = False
+            result_label.configure(text=f"Cashed Out! +${winnings}", text_color="green")
+            update_display()
+            update_buttons()
+
+        def end_game_loss():
+            if not game_state["ui_valid"]:
+                return
+
+            loss = -game_state["current_bet"]
+            player_money[0] += loss
+            if record_game_cb:
+                record_game_cb(loss)
+            save_money_cb()
+
+            game_state["game_active"] = False
+            result_label.configure(text=f"Wrong! You lose ${game_state['current_bet']}", text_color="red")
+            game_state["streak"] = 0
+            game_state["winnings"] = 0
+            update_display()
+            update_buttons()
+
+        def update_buttons():
+            if not game_state["ui_valid"]:
+                return
+            try:
+                if game_state["game_active"]:
+                    start_btn.configure(state="disabled")
+                    high_btn.configure(state="normal")
+                    low_btn.configure(state="normal")
+                    cashout_btn.configure(state="normal" if game_state["winnings"] > 0 else "disabled")
+                else:
+                    start_btn.configure(state="normal")
+                    high_btn.configure(state="disabled")
+                    low_btn.configure(state="disabled")
+                    cashout_btn.configure(state="disabled")
+            except Exception:
+                pass
+
+        controls_frame = customtkinter.CTkFrame(main_frame, fg_color="transparent")
+        controls_frame.grid(row=2, column=0, sticky="ew", padx=20, pady=10)
+
+        bet_frame = customtkinter.CTkFrame(controls_frame, fg_color="transparent")
+        bet_frame.pack(pady=5)
+
+        bet_label_entry = customtkinter.CTkLabel(bet_frame, text="Bet Amount: $", font=customtkinter.CTkFont(size=14))
+        bet_label_entry.pack(side="left")
+
+        bet_entry = customtkinter.CTkEntry(bet_frame, width=100, placeholder_text=str(min_bet))
+        bet_entry.pack(side="left", padx=5)
+        bet_entry.insert(0, str(min_bet))
+
+        action_frame = customtkinter.CTkFrame(controls_frame, fg_color="transparent")
+        action_frame.pack(pady=10)
+
+        start_btn = self._create_sound_button(action_frame, "Start", start_game, width=100, height=40, font=customtkinter.CTkFont(size=14))
+        start_btn.pack(side="left", padx=5)
+
+        high_btn = self._create_sound_button(action_frame, "Higher", guess_high, width=100, height=40, font=customtkinter.CTkFont(size=14), fg_color="green", hover_color="darkgreen")
+        high_btn.pack(side="left", padx=5)
+        high_btn.configure(state="disabled")
+
+        low_btn = self._create_sound_button(action_frame, "Lower", guess_low, width=100, height=40, font=customtkinter.CTkFont(size=14), fg_color="red", hover_color="darkred")
+        low_btn.pack(side="left", padx=5)
+        low_btn.configure(state="disabled")
+
+        cashout_btn = self._create_sound_button(action_frame, "Cash Out", cash_out, width=100, height=40, font=customtkinter.CTkFont(size=14), fg_color="gold", hover_color="darkgoldenrod", text_color="black")
+        cashout_btn.pack(side="left", padx=5)
+        cashout_btn.configure(state="disabled")
+
+        def back_to_casino():
+            game_state["ui_valid"] = False
             self._open_casino_interface(store, table_data)
 
         back_btn = self._create_sound_button(controls_frame, "Back to Casino", back_to_casino, width=200, height=40, font=customtkinter.CTkFont(size=14))
