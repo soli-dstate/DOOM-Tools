@@ -7342,7 +7342,7 @@ class App:
                             text_color = "#7CFC00"
                         )
                         lf_checkbox.pack(side = "right", padx = 10)
-                        lead_free_checkbox[0] = lf_checkbox
+                        lead_free_checkbox[0] = lf_checkbox # type: ignore
 
                     render_item_list(cat_items, parent = items_scroll)
                 else:

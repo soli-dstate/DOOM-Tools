@@ -40,7 +40,7 @@
                 "magazinesystem": "STANAG 4179",
                 "jamrate": 0.01,
                 "accessories": [
-                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": null},
+                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": {"name":"Colt Carry Handle","value":500,"description":"Standard carry handle for the Colt M16 series, allows for easy transport and mounting of iron sights.","rarity":"Common","random_quantity":false,"weight":0.5,"id":372,"attachment":true,"slot":"picatinny_optic","modifiers":null,"subslots":[{"name":"Carry Handle Mount","slot":"m16_carryhandle","current":null}],"can_stack":false,"in_armory":true,"armory_category":"Attachments","armory_subcategory":"Carry Handle"}},
                     {"name": "Picatinny Rail (Handguard Top)", "slot": "picatinny_rifle", "current": null},
                     {"name": "Picatinny Rail (Handguard Left)", "slot": "picatinny_rifle", "current": null},
                     {"name": "Picatinny Rail (Handguard Right)", "slot": "picatinny_rifle", "current": null},
@@ -929,7 +929,7 @@
                 "magazinesystem": "STANAG 4179",
                 "jamrate": 0.001,
                 "accessories": [
-                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": null},
+                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": {"name":"Colt Carry Handle","value":500,"description":"Standard carry handle for the Colt M16 series, allows for easy transport and mounting of iron sights.","rarity":"Common","random_quantity":false,"weight":0.5,"id":372,"attachment":true,"slot":"picatinny_optic","modifiers":null,"subslots":[{"name":"Carry Handle Mount","slot":"m16_carryhandle","current":null}],"can_stack":false,"in_armory":true,"armory_category":"Attachments","armory_subcategory":"Carry Handle"}},
                     {"name": "Picatinny Rail (Handguard Top)", "slot": "picatinny_rifle", "current": null},
                     {"name": "Picatinny Rail (Handguard Left)", "slot": "picatinny_rifle", "current": null},
                     {"name": "Picatinny Rail (Handguard Right)", "slot": "picatinny_rifle", "current": null},
