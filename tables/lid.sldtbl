@@ -10995,9 +10995,23 @@
                 "shopkeeper": "Casino Dealer",
                 "music": true,
                 "playlist": ["casino"],
-                "games": ["Blackjack","Poker","High-Low"],
+                "games": ["Blackjack","Poker","High-Low","Roulette"],
                 "min_bet": 10,
                 "max_bet": 1000
+            },
+            {
+                "name": "Kitty Council",
+                "type": "casino",
+                "shopkeeper": "Alina 'Waffles' Hoffman",
+                "music": true,
+                "playlist": ["casino"],
+                "games": ["Blackjack","Poker","High-Low"],
+                "poker_player_override": [
+                    {"slot": 1, "name": {"first": "Katerina 'Tabby'", "last": "Bochmann"}},
+                    {"slot": 2, "name": {"first": "Random Kyntarian", "last": "Worker"}}
+                ],
+                "min_bet": 1,
+                "max_bet": 500
             }
         ],
         "rooms": [
