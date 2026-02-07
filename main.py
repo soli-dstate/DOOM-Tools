@@ -2284,21 +2284,15 @@ for user in dm_users:
 
                         prompt = f"{os.getlogin()}:~ "
                         try:
-                            import sys
-
-                            sys.stdout.write('\n')
-                            sys.stdout.flush()
+                            cmd = input(prompt)
+                        except EOFError:
+                            time.sleep(0.25)
+                            continue
                         except Exception:
-                            pass
-                        cmd = input(prompt)
-
-                        try:
-                            log_console_colored(logging.getLogger(), logging.INFO, f"CMD: {os.getlogin()}:~ {cmd}", 'magenta')
-                        except Exception:
-                            pass
-                    except EOFError:
-                        time.sleep(0.25)
-                        continue
+                            logging.exception('Console input error')
+                            continue
+                    except Exception:
+                        logging.exception('Console prompt error')
                     if not cmd:
                         continue
                     cmd = cmd.strip()
@@ -3021,6 +3015,28 @@ class App:
                 customtkinter.set_default_color_theme("dark-blue")
         else:
             customtkinter.set_default_color_theme(theme_name)
+        # Override Tk's class-level exception reporter to suppress noisy Tcl/Tk
+        # "invalid command name" messages originating from expired `after` callbacks.
+        try:
+            import tkinter as _tk
+            _orig_tk_report = getattr(_tk.Tk, 'report_callback_exception', None)
+            def _tk_suppress(self, exc_type, exc_value, exc_tb):
+                try:
+                    msg = str(exc_value)
+                    import re
+                    if "invalid command name" in msg and ("after" in msg or re.search(r'\d{6,}', msg)):
+                        return
+                except Exception:
+                    pass
+                if _orig_tk_report:
+                    try:
+                        return _orig_tk_report(self, exc_type, exc_value, exc_tb)
+                    except Exception:
+                        pass
+            _tk.Tk.report_callback_exception = _tk_suppress
+        except Exception:
+            pass
+
         self.root = customtkinter.CTk()
         self.root.title("DOOM Tools")
         self.root.geometry(appearance_settings["resolution"])
@@ -3029,8 +3045,13 @@ class App:
         _original_report = self.root.report_callback_exception
         def _suppress_after_errors(exc_type, exc_value, exc_tb):
             msg = str(exc_value)
-            if "invalid command name"in msg and any(x in msg for x in["check_dpi_scaling", "_click_animation", "after#"]):
-                return
+            try:
+                import re
+                if "invalid command name" in msg:
+                    if re.search(r'"\d+(?:check_dpi_scaling|_click_animation|update)"', msg) or "after" in msg:
+                        return
+            except Exception:
+                pass
             _original_report(exc_type, exc_value, exc_tb)
         self.root.report_callback_exception = _suppress_after_errors
 
@@ -8904,6 +8925,37 @@ class App:
             for widget in frame.winfo_children():
                 widget.destroy()
 
+        def place_card_back(frame):
+            img = self._load_card_image(None, "back")
+            if img:
+                card_label = customtkinter.CTkLabel(frame, image = img, text = "")
+                card_label.image = img
+                card_label.pack(side = "left", padx = 2)
+            else:
+                card_label = customtkinter.CTkLabel(frame, text = "??", width = 60, height = 84, fg_color = "white", text_color = "black", corner_radius = 5)
+                card_label.pack(side = "left", padx = 2)
+            return card_label
+
+        def place_card_face_up(frame, card):
+            img = self._load_card_image(card["suit"], card["value"])
+            if img:
+                card_label = customtkinter.CTkLabel(frame, image = img, text = "")
+                card_label.image = img
+                card_label.pack(side = "left", padx = 2)
+            else:
+                text = f"{card['value'][0].upper()}{card['suit'][0].upper()}"
+                card_label = customtkinter.CTkLabel(frame, text = text, width = 60, height = 84, fg_color = "white", text_color = "black", corner_radius = 5)
+                card_label.pack(side = "left", padx = 2)
+            return card_label
+
+        def flip_card_label(card_label, card):
+            img = self._load_card_image(card["suit"], card["value"])
+            if img:
+                card_label.configure(image = img)
+                card_label.image = img
+            else:
+                card_label.configure(text = f"{card['value'][0].upper()}{card['suit'][0].upper()}")
+
         def update_display(reveal_dealer = False):
             clear_cards(dealer_cards_frame)
             clear_cards(player_cards_frame)
@@ -8962,21 +9014,35 @@ class App:
         def dealer_turn():
             if not game_state.get("ui_active", False):
                 return
-            update_display(reveal_dealer = True)
+
+            dealer_children = dealer_cards_frame.winfo_children()
+            if dealer_children:
+                first_label = dealer_children[0]
+                self._play_card_sound("flip")
+                flip_card_label(first_label, game_state["dealer_hand"][0])
+
             dealer_total = calculate_hand(game_state["dealer_hand"])
+            dealer_score_label.configure(text = f"Score: {dealer_total}")
 
             def dealer_draw():
                 nonlocal dealer_total
                 if not game_state.get("ui_active", False):
                     return
                 if dealer_total <17:
-                    game_state["dealer_hand"].append(draw_card())
+                    if not game_state["deck"]:
+                        shuffle_deck()
+                    card = game_state["deck"].pop()
+                    game_state["dealer_hand"].append(card)
                     dealer_total = calculate_hand(game_state["dealer_hand"])
+
                     try:
-                        update_display(reveal_dealer = True)
+                        self._play_card_sound("place")
+                        place_card_face_up(dealer_cards_frame, card)
+                        dealer_score_label.configure(text = f"Score: {dealer_total}")
                     except Exception:
                         return
-                    self.root.after(800, dealer_draw)
+
+                    self.root.after(600, dealer_draw)
                 else:
                     player_total = calculate_hand(game_state["player_hand"])
                     bet = game_state["current_bet"]
@@ -8995,10 +9061,17 @@ class App:
         def hit():
             if not game_state["player_turn"]:
                 return
-            game_state["player_hand"].append(draw_card())
-            update_display()
 
-            if calculate_hand(game_state["player_hand"])>21:
+            if not game_state["deck"]:
+                shuffle_deck()
+            card = game_state["deck"].pop()
+            game_state["player_hand"].append(card)
+
+            self._play_card_sound("place")
+            place_card_face_up(player_cards_frame, card)
+            player_total = calculate_hand(game_state["player_hand"])
+            player_score_label.configure(text = f"Score: {player_total}")
+            if player_total >21:
                 end_game("Bust! You Lose!", -game_state["current_bet"])
 
         def stand():
@@ -9016,10 +9089,17 @@ class App:
                 return
 
             game_state["current_bet"]*=2
-            game_state["player_hand"].append(draw_card())
-            update_display()
 
-            if calculate_hand(game_state["player_hand"])>21:
+            if not game_state["deck"]:
+                shuffle_deck()
+            card = game_state["deck"].pop()
+            game_state["player_hand"].append(card)
+
+            self._play_card_sound("place")
+            place_card_face_up(player_cards_frame, card)
+            player_total = calculate_hand(game_state["player_hand"])
+            player_score_label.configure(text = f"Score: {player_total}")
+            if player_total >21:
                 end_game("Bust! You Lose!", -game_state["current_bet"])
             else:
                 game_state["player_turn"]= False
@@ -9049,28 +9129,70 @@ class App:
             game_state["player_hand"]=[]
             game_state["dealer_hand"]=[]
 
-            game_state["player_hand"].append(draw_card())
-            game_state["dealer_hand"].append(draw_card())
-            self.root.after(300, lambda:None)
-            game_state["player_hand"].append(draw_card())
-            game_state["dealer_hand"].append(draw_card())
+            clear_cards(dealer_cards_frame)
+            clear_cards(player_cards_frame)
+            player_score_label.configure(text = "")
+            dealer_score_label.configure(text = "")
 
-            game_state["game_active"]= True
-            game_state["player_turn"]= True
-            game_state["result"]= None
+            deal_btn.configure(state = "disabled")
+            hit_btn.configure(state = "disabled")
+            stand_btn.configure(state = "disabled")
+            double_btn.configure(state = "disabled")
 
-            update_display()
-            update_buttons()
+            drawn_cards =[]
+            for _ in range(4):
+                if not game_state["deck"]:
+                    shuffle_deck()
+                drawn_cards.append(game_state["deck"].pop())
 
-            player_total = calculate_hand(game_state["player_hand"])
-            dealer_total = calculate_hand(game_state["dealer_hand"])
+            deal_plan =[
+                (player_cards_frame, drawn_cards[0], "player", True),
+                (dealer_cards_frame, drawn_cards[1], "dealer", False),
+                (player_cards_frame, drawn_cards[2], "player", True),
+                (dealer_cards_frame, drawn_cards[3], "dealer", True),
+            ]
 
-            if player_total ==21 and dealer_total ==21:
-                end_game("Both Blackjack! Push!", 0)
-            elif player_total ==21:
-                end_game("Blackjack! You Win!", int(bet *1.5))
-            elif dealer_total ==21:
-                end_game("Dealer Blackjack! You Lose!", -bet)
+            def animate_deal(step = 0):
+                if not game_state.get("ui_active", False):
+                    return
+                if step >=len(deal_plan):
+                    game_state["game_active"]= True
+                    game_state["player_turn"]= True
+                    game_state["result"]= None
+
+                    player_total = calculate_hand(game_state["player_hand"])
+                    player_score_label.configure(text = f"Score: {player_total}")
+                    visible_card = game_state["dealer_hand"][1]if len(game_state["dealer_hand"])>1 else None
+                    if visible_card:
+                        dealer_score_label.configure(text = f"Showing: {get_card_value(visible_card)}")
+                    money_label.configure(text = f"Your Money: ${player_money[0]}")
+                    update_money_cb()
+                    update_buttons()
+
+                    if player_total ==21 and calculate_hand(game_state["dealer_hand"])==21:
+                        end_game("Both Blackjack! Push!", 0)
+                    elif player_total ==21:
+                        end_game("Blackjack! You Win!", int(bet *1.5))
+                    elif calculate_hand(game_state["dealer_hand"])==21:
+                        end_game("Dealer Blackjack! You Lose!", -bet)
+                    return
+
+                frame, card, target, face_up = deal_plan[step]
+
+                if target =="player":
+                    game_state["player_hand"].append(card)
+                else:
+                    game_state["dealer_hand"].append(card)
+
+                self._play_card_sound("place")
+                if face_up:
+                    place_card_face_up(frame, card)
+                else:
+                    place_card_back(frame)
+
+                self.root.after(400, lambda:animate_deal(step +1))
+
+            animate_deal(0)
 
         def update_buttons():
             if game_state["player_turn"]:
@@ -9593,29 +9715,48 @@ class App:
             else:
                 game_state["phase"]= "showdown"
 
-            if variant =="five_card_stud":
-                for npc_name in npc_names:
-                    display_npc_hand(npc_name, reveal = False, show_indices =[1, 2, 3, 4])
-                display_player_hand(can_hold = False)
-            elif variant =="seven_card_stud":
-                for npc_name in npc_names:
-                    display_npc_hand(npc_name, reveal = False, show_indices =[2, 3, 4, 5])
-                display_player_hand(can_hold = False)
-            elif variant =="texas_holdem":
-                display_community_cards()
-                for npc_name in npc_names:
-                    display_npc_hand(npc_name, reveal = False)
-                display_player_hand(can_hold = False)
-            else:
-                for npc_name in npc_names:
-                    display_npc_hand(npc_name, reveal = False)
-                display_player_hand(can_hold = True)
-
-            update_buttons()
+            deal_btn.configure(state = "disabled")
             if variant =="five_card_draw":
-                result_label.configure(text = "Click cards to hold, then Draw", text_color = "white")
+                if draw_btn:
+                    draw_btn.configure(state = "disabled")
             else:
-                result_label.configure(text = "Press 'Show Cards' to reveal hands", text_color = "white")
+                if show_btn:
+                    show_btn.configure(state = "disabled")
+            fold_btn.configure(state = "disabled")
+
+            if variant =="texas_holdem":
+                display_community_cards()
+
+            deal_order = list(npc_names)+["__player__"]
+
+            def animate_poker_deal(step = 0):
+                if not game_state["ui_valid"]:
+                    return
+                if step >=len(deal_order):
+                    update_buttons()
+                    if variant =="five_card_draw":
+                        result_label.configure(text = "Click cards to hold, then Draw", text_color = "white")
+                    else:
+                        result_label.configure(text = "Press 'Show Cards' to reveal hands", text_color = "white")
+                    return
+
+                name = deal_order[step]
+                self._play_card_sound("place")
+
+                if name =="__player__":
+                    can_hold = variant =="five_card_draw"
+                    display_player_hand(can_hold = can_hold)
+                else:
+                    if variant =="five_card_stud":
+                        display_npc_hand(name, reveal = False, show_indices =[1, 2, 3, 4])
+                    elif variant =="seven_card_stud":
+                        display_npc_hand(name, reveal = False, show_indices =[2, 3, 4, 5])
+                    else:
+                        display_npc_hand(name, reveal = False)
+
+                self.root.after(400, lambda:animate_poker_deal(step +1))
+
+            animate_poker_deal(0)
 
         def draw_new_cards():
             if not game_state["ui_valid"]:
@@ -9638,21 +9779,49 @@ class App:
             game_state["phase"]= "showdown"
             display_player_hand(can_hold = False)
 
-            for npc_name in npc_names:
-                display_npc_hand(npc_name, reveal = True)
+            if draw_btn:
+                draw_btn.configure(state = "disabled")
+            fold_btn.configure(state = "disabled")
 
-            determine_winner()
-            update_buttons()
+            active_npcs =[n for n in npc_names if not game_state["folded"][n]]
+
+            def reveal_after_draw(step = 0):
+                if not game_state["ui_valid"]:
+                    return
+                if step >=len(active_npcs):
+                    determine_winner()
+                    update_buttons()
+                    return
+                self._play_card_sound("flip")
+                display_npc_hand(active_npcs[step], reveal = True)
+                self.root.after(400, lambda:reveal_after_draw(step +1))
+
+            reveal_after_draw(0)
 
         def show_cards():
             if not game_state["ui_valid"]:
                 return
             game_state["phase"]= "complete"
             display_player_hand(can_hold = False)
-            for npc_name in npc_names:
-                display_npc_hand(npc_name, reveal = True)
-            determine_winner()
-            update_buttons()
+
+            if show_btn:
+                show_btn.configure(state = "disabled")
+            fold_btn.configure(state = "disabled")
+
+            active_npcs =[n for n in npc_names if not game_state["folded"][n]]
+
+            def reveal_step(step = 0):
+                if not game_state["ui_valid"]:
+                    return
+                if step >=len(active_npcs):
+                    determine_winner()
+                    update_buttons()
+                    return
+                self._play_card_sound("flip")
+                display_npc_hand(active_npcs[step], reveal = True)
+                self.root.after(400, lambda:reveal_step(step +1))
+
+            reveal_step(0)
 
         def fold_hand():
             if not game_state["ui_valid"]:

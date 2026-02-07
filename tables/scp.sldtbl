@@ -57,6 +57,37 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Assault Rifle"
+            },
+            {
+                "name": "Rhineland Arms AR-57",
+                "value": 2000,
+                "description": "Modern personal defense weapon chambered in 5.7x28mm. Based on the AR-15 platform, has got more modularity than a P90 normally would have. It's also tuff as hell.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 2.7,
+                "id": 10,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "smg",
+                "platform": "AR-57",
+                "caliber": ["5.7x28mm NATO"],
+                "action": ["Semi", "Auto"],
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 900,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "P90",
+                "jamrate": 0.015,
+                "accessories": [
+                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": null},
+                    {"name": "Picatinny Rail (Handguard Left)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Right)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom_nounderbarrel", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_22", "current": null}
+                ],
+                "can_stack": false,
+                "in_armory": true,
+                "armory_category": "Personal Defense Weapon"
             }
         ],
         "german_weapons": [],
@@ -207,9 +238,137 @@
                 "in_armory": true,
                 "armory_category": "Magazines",
                 "armory_subcategory": "STANAG 4179 Magazines"
+            },
+            {
+                "name": "FN Herstal 50-Round 5.7x28mm NATO P90 magazine",
+                "value": 60,
+                "description": "High-capacity 50-round magazine for 5.7x28mm NATO chambered FN P90 PDW.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 0.6,
+                "id": 11,
+                "caliber": ["5.7x28mm NATO"],
+                "capacity": 50,
+                "magazinesystem": "P90",
+                "can_stack": false,
+                "in_armory": true,
+                "armory_category": "Magazines",
+                "armory_subcategory": "P90 Magazines"
             }
         ],
-        "ammunition": [],
+        "ammunition": [
+            {
+                "name": "5.56x45mm NATO",
+                "value": 0.4,
+                "description": "Used to be the standard issue round for the LEDF and is still widely used by the Kyntarians. Known for its versatility and effectiveness at close-medium ranges.",
+                "rarity": "Uncommon",
+                "random_quantity": {"min": 20, "max": 200},
+                "weight": 0.012,
+                "id": 12,
+                "caliber": "5.56x45mm NATO",
+                "sounds": "556",
+                "variants": [
+                    {
+                        "name": "M855 Ball",
+                        "type": "FMJ",
+                        "pen": "IIIa",
+                        "modifiers": null,
+                        "rarity": "Common",
+                        "tip": "#33852a",
+                        "lead_free": false
+                    },
+                    {
+                        "name": "M855A1 EPR",
+                        "type": "FMJ",
+                        "pen": "III",
+                        "modifiers": null,
+                        "rarity": "Uncommon",
+                        "tip": null,
+                        "lead_free": true
+                    },
+                    {
+                        "name": "M856 Tracer",
+                        "type": "Tracer",
+                        "pen": "IIIa",
+                        "modifiers": {"stats": {"aim": 1, "stealth": -1}},
+                        "rarity": "Rare",
+                        "tip": "#ff4500",
+                        "lead_free": false
+                    },
+                    {
+                        "name": "M856A1 Tracer",
+                        "type": "Tracer",
+                        "pen": "IIIa",
+                        "modifiers": {"stats": {"aim": 1, "stealth": -1}},
+                        "rarity": "Rare",
+                        "tip": "#ff6347",
+                        "lead_free": true
+                    },
+                    {
+                        "name": "M995 Armor-Piercing",
+                        "type": "AP",
+                        "pen": "IV",
+                        "modifiers": null,
+                        "rarity": "Legendary",
+                        "tip": null,
+                        "lead_free": true
+                    },
+                    {
+                        "name": "XM996 Dim Tracer",
+                        "type": "Tracer",
+                        "pen": "IIIa",
+                        "modifiers": {"stats": {"aim": 1}},
+                        "rarity": "Mythic",
+                        "tip": "#754338",
+                        "lead_free": false
+                    }
+                ],
+                "in_armory": true,
+                "armory_category": "Rifle Ammunition"
+            },
+            {
+                "name": "5.7x28mm NATO",
+                "value": 0.4,
+                "description": "Standard-issue handgun round for the LEDF. Designed to penetrate soft body armor.",
+                "rarity": "Common",
+                "random_quantity": {"min": 10, "max": 100},
+                "weight": 0.008,
+                "id": 13,
+                "caliber": ["5.7x28mm NATO"],
+                "sounds": "224baker",
+                "variants": [
+                    {
+                        "name": "SS190 AP",
+                        "type": "AP",
+                        "pen": "IIIa",
+                        "modifiers": null,
+                        "rarity": "Common",
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "L191 Tracer",
+                        "type": "Tracer",
+                        "pen": "IIIa",
+                        "modifiers": {"stats": {"aim": 1, "stealth": -1}},
+                        "rarity": "Uncommon",
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "FR199 Frangible",
+                        "type": "Hollow Point",
+                        "pen": "II",
+                        "modifiers": null,
+                        "rarity": "Rare",
+                        "tip": null,
+                        "lead_free": true
+                    }
+                ],
+                "in_armory": true,
+                "armory_category": "Pistol Ammunition"
+            }
+        ],
         "throwables": [],
         "melee_weapons": [],
         "armor": [],
