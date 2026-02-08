@@ -4,6 +4,7 @@ import os
 import logging
 import re
 from datetime import datetime
+from datetime import timezone, timedelta
 import zipfile
 import glob
 import requests
@@ -2578,7 +2579,7 @@ class App:
             encoded = base64.b85encode(pickled).decode('utf-8')
             with open(path, 'w', encoding = 'utf-8')as f:
                 f.write(encoded)
-            logging.info(f"Data written to {path}(pickled+base85)")
+            logging.info(f"Data written to {path}")
         except Exception as e:
             logging.error(f"Failed to write save to {path}: {e}")
 
@@ -2596,7 +2597,7 @@ class App:
                 pickled = base64.b85decode(text.encode('utf-8'))
                 data = pickle.loads(pickled)
                 if isinstance(data, dict):
-                    logging.info(f"Loaded save from {path}(pickled+base85)")
+                    logging.info(f"Loaded save from {path}")
                     return data
             except Exception:
                 pass
@@ -2773,7 +2774,7 @@ class App:
                 if len(parts)==2:
                     uuid_part = parts[1].replace('.sldsv', '')
                     persistentdata["last_loaded_save"]= uuid_part
-                    logging.info(f"Updated last_loaded_save to UUID: {uuid_part}")
+                    logging.debug(f"Updated last_loaded_save to UUID: {uuid_part}")
 
             data = populate_equipment_with_subslots(data)
 
@@ -2787,6 +2788,14 @@ class App:
                     logging.exception("Failed to sync equipment slots after normalization")
             except Exception as e:
                 logging.warning(f"Failed to normalize save data: {e}")
+            try:
+                # process paychecks for this save on load
+                try:
+                    self._award_paychecks_for_save(data, save_path)
+                except Exception:
+                    pass
+            except Exception:
+                pass
             return data
         except Exception as e:
             logging.error(f"Failed to load data from '{save_path}': {e}")
@@ -2958,6 +2967,222 @@ class App:
                     storage[k]= new_items
 
         return data
+    def _get_local_central_tz(self):
+        try:
+            from zoneinfo import ZoneInfo
+            return ZoneInfo("America/Chicago")
+        except Exception:
+            try:
+                return timezone(timedelta(hours=-6))
+            except Exception:
+                return None
+
+    def _award_paychecks_for_save(self, save_data, save_path):
+        try:
+            if not isinstance(save_data, dict):
+                return
+            tbl_name = (save_data.get('_table') or save_data.get('table'))
+            # load table data for this save if possible
+            table_path = None
+            if tbl_name:
+                matches = sorted(glob.glob(os.path.join('tables', f"*{global_variables.get('table_extension', '.sldtbl')}")))
+                for fpath in matches:
+                    try:
+                        b = os.path.basename(fpath)
+                        name_no_ext = os.path.splitext(b)[0]
+                        absf = os.path.abspath(fpath)
+                        if (
+                            b == tbl_name
+                            or name_no_ext == tbl_name
+                            or absf.endswith(tbl_name)
+                            or absf.endswith(tbl_name + global_variables.get('table_extension', '.sldtbl'))
+                        ):
+                            table_path = fpath
+                            break
+                    except Exception:
+                        continue
+            table_data = None
+            if table_path and os.path.exists(table_path):
+                try:
+                    with open(table_path, 'r', encoding='utf-8') as tf:
+                        table_data = json.load(tf)
+                except Exception:
+                    table_data = None
+
+            addl = (table_data or {}).get('additional_settings', {})
+            if not addl.get('paycheck'):
+                return
+
+            pay_amount = int(addl.get('paycheck_amount', 0) or 0)
+            period = (addl.get('pay_period') or '').lower()
+            if pay_amount <= 0 or period not in ('daily', 'weekly', 'biweekly', 'monthly'):
+                return
+
+            tz = self._get_local_central_tz() or timezone.utc
+            now = datetime.now(tz)
+
+            # determine save uuid
+            uuid_val = None
+            try:
+                if save_path and os.path.exists(save_path):
+                    parts = os.path.basename(save_path).rsplit('_', 1)
+                    if len(parts) == 2:
+                        uuid_val = parts[1].replace('.sldsv', '')
+            except Exception:
+                uuid_val = None
+            if not uuid_val:
+                uuid_val = save_data.get('uuid') or save_data.get('id') or save_data.get('charactername')
+
+            persistentdata.setdefault('paychecks', {})
+            last_paid_iso = persistentdata['paychecks'].get(uuid_val)
+            last_paid = None
+            if last_paid_iso:
+                try:
+                    last_paid = datetime.fromisoformat(last_paid_iso)
+                    if last_paid.tzinfo is None:
+                        last_paid = last_paid.replace(tzinfo=tz)
+                except Exception:
+                    last_paid = None
+
+            def make_dt(year, month, day, hour=19, minute=0):
+                try:
+                    return datetime(year, month, day, hour, minute, tzinfo=tz)
+                except Exception:
+                    return None
+
+            awarded = 0
+
+            # helper to write save and notify
+            def _apply_payment(dt_when):
+                nonlocal awarded, save_data, save_path, pay_amount, uuid_val
+                try:
+                    save_data['money'] = int(save_data.get('money', 0)) + pay_amount
+                except Exception:
+                    save_data['money'] = (save_data.get('money', 0) or 0) + pay_amount
+                awarded += 1
+                persistentdata['paychecks'][uuid_val] = dt_when.isoformat()
+                try:
+                    self._write_save_to_path(save_path, save_data)
+                except Exception:
+                    try:
+                        # fallback: attempt to save via _save_file if this is the currently loaded save
+                        if currentsave and os.path.basename(save_path).startswith(currentsave):
+                            self._save_file(save_data)
+                    except Exception:
+                        pass
+                try:
+                    title = "Paycheck Received"
+                    charname = save_data.get('charactername') or save_data.get('character_name') or 'Character'
+                    message = f"{charname} received ${pay_amount}."
+                    try:
+                        self._popup_show_info(title, message, sound='success')
+                    except Exception:
+                        pass
+                    try:
+                        send_windows_notification(title, message)
+                    except Exception:
+                        pass
+                except Exception:
+                    pass
+
+            # If no last_paid -> treat as new save: give the previous scheduled payment once
+            if last_paid is None:
+                # determine the most recent scheduled time before now
+                if period == 'daily':
+                    cand = now.replace(hour=19, minute=0, second=0, microsecond=0)
+                    if cand > now:
+                        cand = cand - timedelta(days=1)
+                    if cand <= now:
+                        _apply_payment(cand)
+                elif period == 'weekly':
+                    # find most recent Friday
+                    days_back = (now.weekday() - 4) % 7
+                    cand = (now - timedelta(days=days_back)).replace(hour=19, minute=0, second=0, microsecond=0)
+                    if cand > now:
+                        cand -= timedelta(weeks=1)
+                    if cand <= now:
+                        _apply_payment(cand)
+                elif period == 'biweekly':
+                    # find most recent Friday and apply one
+                    days_back = (now.weekday() - 4) % 7
+                    cand = (now - timedelta(days=days_back)).replace(hour=19, minute=0, second=0, microsecond=0)
+                    if cand > now:
+                        cand -= timedelta(weeks=1)
+                    if cand <= now:
+                        _apply_payment(cand)
+                elif period == 'monthly':
+                    # first of this month at 19:00; if in future, use previous month
+                    cand = make_dt(now.year, now.month, 1)
+                    if cand and cand > now:
+                        # previous month
+                        prev_month = now.month - 1 or 12
+                        year = now.year if now.month != 1 else now.year - 1
+                        cand = make_dt(year, prev_month, 1)
+                    if cand and cand <= now:
+                        _apply_payment(cand)
+            else:
+                # iterate from last_paid forward according to period
+                cursor = last_paid
+                # ensure tz-aware
+                if cursor.tzinfo is None:
+                    cursor = cursor.replace(tzinfo=tz)
+                # compute next due
+                if period == 'daily':
+                    next_due = cursor + timedelta(days=1)
+                    next_due = next_due.replace(hour=19, minute=0, second=0, microsecond=0)
+                    while next_due <= now:
+                        _apply_payment(next_due)
+                        next_due = next_due + timedelta(days=1)
+                elif period == 'weekly':
+                    # advance by weeks until > now
+                    # align to Friday 19:00
+                    # find next Friday after cursor
+                    next_due = cursor
+                    # move to next scheduled Friday
+                    next_due = next_due + timedelta(days=((4 - next_due.weekday()) % 7))
+                    next_due = next_due.replace(hour=19, minute=0, second=0, microsecond=0)
+                    if next_due <= cursor:
+                        next_due += timedelta(weeks=1)
+                    while next_due <= now:
+                        _apply_payment(next_due)
+                        next_due += timedelta(weeks=1)
+                elif period == 'biweekly':
+                    # add 14-day increments from last_paid
+                    next_due = cursor
+                    # align to Friday
+                    next_due = next_due + timedelta(days=((4 - next_due.weekday()) % 7))
+                    next_due = next_due.replace(hour=19, minute=0, second=0, microsecond=0)
+                    if next_due <= cursor:
+                        next_due += timedelta(weeks=2)
+                    while next_due <= now:
+                        _apply_payment(next_due)
+                        next_due += timedelta(weeks=2)
+                elif period == 'monthly':
+                    # add months iteratively
+                    def add_month(dt):
+                        y = dt.year + (dt.month // 12)
+                        m = dt.month % 12 + 1
+                        try:
+                            return dt.replace(year=y, month=m, day=1, hour=19, minute=0, second=0, microsecond=0)
+                        except Exception:
+                            return None
+                    # move to first-of-month after cursor
+                    next_due = cursor.replace(day=1, hour=19, minute=0, second=0, microsecond=0)
+                    if next_due <= cursor:
+                        nd = add_month(next_due)
+                        if nd:
+                            next_due = nd
+                    while next_due and next_due <= now:
+                        _apply_payment(next_due)
+                        next_due = add_month(next_due)
+
+            if awarded:
+                try:
+                    self._save_persistent_data()
+                except Exception:
+                    pass
+        except Exception:
+            logging.exception('Paycheck processing failed')
     def _sync_equipment_slots(self, data):
 
         try:
@@ -3123,6 +3348,32 @@ class App:
                     logging.exception("Failed to initialize dev toolbar")
         except Exception:
             pass
+        try:
+            def _bg_pay_worker():
+                try:
+                    while True:
+                        try:
+                            saves_dir = saves_folder or 'saves'
+                            pattern = os.path.join(saves_dir, "*_*.sldsv")
+                            files = glob.glob(pattern)
+                            for fpath in files:
+                                try:
+                                    data = self._read_save_from_path(fpath)
+                                    if data:
+                                        try:
+                                            self._award_paychecks_for_save(data, fpath)
+                                        except Exception:
+                                            logging.exception('Error awarding paychecks for %s', fpath)
+                                except Exception:
+                                    logging.exception('Failed processing save for paychecks: %s', fpath)
+                        except Exception:
+                            logging.exception('Background paycheck loop error')
+                        time.sleep(60)
+                except Exception:
+                    logging.exception('Background paycheck worker exiting')
+            threading.Thread(target=_bg_pay_worker, daemon=True).start()
+        except Exception:
+            logging.exception('Failed to start background paycheck worker')
         self.root.mainloop()
     def _play_ui_sound(self, sound_filename):
         sound_path = os.path.join("sounds", "ui", sound_filename +".ogg")
@@ -5539,7 +5790,11 @@ class App:
                     matching_items =[]
                     for single_id in item_id:
                         for table_name, table_items in table_data.get("tables", {}).items():
+                            if not isinstance(table_items, list):
+                                continue
                             for item in table_items:
+                                if not isinstance(item, dict):
+                                    continue
                                 if item.get("id")==single_id:
                                     matching_items.append((item, table_name))
                                     if global_variables.get("devmode", {}).get("value", False):
@@ -5578,7 +5833,11 @@ class App:
                 else:
 
                     for table_name, table_items in table_data.get("tables", {}).items():
+                        if not isinstance(table_items, list):
+                            continue
                         for item in table_items:
+                            if not isinstance(item, dict):
+                                continue
                             if item.get("id")==item_id:
                                 item_copy = item.copy()
                                 item_copy["table_category"]= table_name
@@ -8769,19 +9028,19 @@ class App:
         available_games = store.get("games", ["Blackjack"])
 
         def open_blackjack():
-            self._open_blackjack_game(store, player_money, update_money_display, save_money, min_bet, max_bet, music_channel, table_data, record_game_result, casino_stats)
+            self._open_blackjack_game(store, player_money, update_money_display, save_money, min_bet, max_bet, music_channel, table_data, record_game_result, casino_stats, save_data = save_data, save_path = save_path)
 
         def open_poker():
-            self._open_poker_game(store, player_money, update_money_display, save_money, min_bet, max_bet, music_channel, table_data, record_game_result, casino_stats)
+            self._open_poker_game(store, player_money, update_money_display, save_money, min_bet, max_bet, music_channel, table_data, record_game_result, casino_stats, save_data = save_data, save_path = save_path)
 
         def open_highlow():
-            self._open_highlow_game(store, player_money, update_money_display, save_money, min_bet, max_bet, music_channel, table_data, record_game_result, casino_stats)
+            self._open_highlow_game(store, player_money, update_money_display, save_money, min_bet, max_bet, music_channel, table_data, record_game_result, casino_stats, save_data = save_data, save_path = save_path)
 
         def open_roulette():
-            self._open_roulette_game(store, player_money, update_money_display, save_money, min_bet, max_bet, music_channel, table_data, record_game_result, casino_stats)
+            self._open_roulette_game(store, player_money, update_money_display, save_money, min_bet, max_bet, music_channel, table_data, record_game_result, casino_stats, save_data = save_data, save_path = save_path)
 
         def open_poker_lobby():
-            self._open_poker_lobby(store, player_money, update_money_display, save_money, min_bet, max_bet, music_channel, table_data, record_game_result, casino_stats)
+            self._open_poker_lobby(store, player_money, update_money_display, save_money, min_bet, max_bet, music_channel, table_data, record_game_result, casino_stats, save_data = save_data, save_path = save_path)
 
         if "Blackjack"in available_games:
             blackjack_btn = self._create_sound_button(games_frame, "Blackjack", open_blackjack, width = 300, height = 50, font = customtkinter.CTkFont(size = 16))
@@ -8814,7 +9073,219 @@ class App:
         back_btn = self._create_sound_button(button_frame, "Leave Casino", leave_casino, width = 200, height = 40, font = customtkinter.CTkFont(size = 14))
         back_btn.pack(pady = 10)
 
-    def _open_blackjack_game(self, store, player_money, update_money_cb, save_money_cb, min_bet, max_bet, music_channel, table_data, record_game_cb = None, casino_stats = None):
+    def _get_all_player_items_from_save(self, save_data):
+        all_items = []
+        if not save_data or not isinstance(save_data, dict):
+            return all_items
+
+        hands_items = save_data.get("hands", {}).get("items", [])
+        for idx, item in enumerate(hands_items):
+            if isinstance(item, dict):
+                all_items.append({"item": item, "location": "hands", "index": idx})
+
+        equipment = save_data.get("equipment", {})
+        for slot_name, slot_item in equipment.items():
+            if slot_item and isinstance(slot_item, dict):
+                if "items" in slot_item and "capacity" in slot_item:
+                    for idx, item in enumerate(slot_item.get("items", [])):
+                        if isinstance(item, dict):
+                            all_items.append({"item": item, "location": f"equipment.{slot_name}", "index": idx})
+                if "subslots" in slot_item:
+                    for subslot_idx, subslot_data in enumerate(slot_item.get("subslots", [])):
+                        subslot_item = subslot_data.get("current")
+                        if subslot_item and isinstance(subslot_item, dict) and "items" in subslot_item:
+                            for idx, item in enumerate(subslot_item.get("items", [])):
+                                if isinstance(item, dict):
+                                    all_items.append({"item": item, "location": f"equipment.{slot_name}.subslot.{subslot_idx}", "index": idx})
+            elif isinstance(slot_item, list):
+                for list_idx, list_item in enumerate(slot_item):
+                    if list_item and isinstance(list_item, dict):
+                        if "items" in list_item and "capacity" in list_item:
+                            for idx, item in enumerate(list_item.get("items", [])):
+                                if isinstance(item, dict):
+                                    all_items.append({"item": item, "location": f"equipment.{slot_name}.list.{list_idx}", "index": idx})
+                        if "subslots" in list_item:
+                            for subslot_idx, subslot_data in enumerate(list_item.get("subslots", [])):
+                                subslot_item = subslot_data.get("current")
+                                if subslot_item and isinstance(subslot_item, dict) and "items" in subslot_item:
+                                    for idx, item in enumerate(subslot_item.get("items", [])):
+                                        if isinstance(item, dict):
+                                            all_items.append({"item": item, "location": f"equipment.{slot_name}.list.{list_idx}.subslot.{subslot_idx}", "index": idx})
+        return all_items
+
+    def _remove_item_from_save_location(self, save_data, location, index):
+        if location == "hands":
+            items = save_data.get("hands", {}).get("items", [])
+            if 0 <= index < len(items):
+                items.pop(index)
+        elif location.startswith("equipment."):
+            parts = location.split(".")
+            slot = parts[1]
+            slot_item = save_data.get("equipment", {}).get(slot)
+
+            if len(parts) == 2:
+                if slot_item and isinstance(slot_item, dict) and "items" in slot_item:
+                    items = slot_item.get("items", [])
+                    if 0 <= index < len(items):
+                        items.pop(index)
+            elif len(parts) >= 4 and parts[2] == "subslot":
+                subslot_idx = int(parts[3])
+                if slot_item and isinstance(slot_item, dict) and "subslots" in slot_item:
+                    subslot_item = slot_item["subslots"][subslot_idx].get("current")
+                    if subslot_item and "items" in subslot_item:
+                        items = subslot_item.get("items", [])
+                        if 0 <= index < len(items):
+                            items.pop(index)
+            elif len(parts) >= 4 and parts[2] == "list":
+                list_idx = int(parts[3])
+                if isinstance(slot_item, list) and 0 <= list_idx < len(slot_item):
+                    list_item = slot_item[list_idx]
+                    if len(parts) == 4:
+                        if list_item and isinstance(list_item, dict) and "items" in list_item:
+                            items = list_item.get("items", [])
+                            if 0 <= index < len(items):
+                                items.pop(index)
+                    elif len(parts) >= 6 and parts[4] == "subslot":
+                        subslot_idx = int(parts[5])
+                        if list_item and isinstance(list_item, dict) and "subslots" in list_item:
+                            subslot_item = list_item["subslots"][subslot_idx].get("current")
+                            if subslot_item and "items" in subslot_item:
+                                items = subslot_item.get("items", [])
+                                if 0 <= index < len(items):
+                                    items.pop(index)
+
+    def _open_item_bet_dialog(self, save_data, wagered_items, on_update_cb = None):
+        if not save_data:
+            self._popup_show_info("Error", "No character data available for item betting.", sound = "error")
+            return
+
+        popup = customtkinter.CTkToplevel(self.root)
+        popup.title("Wager Items")
+        popup.transient(self.root)
+        popup.grab_set()
+        popup.withdraw()
+
+        all_items = self._get_all_player_items_from_save(save_data)
+
+        wager_total = [sum(int(e["item"].get("value", 0)) for e in wagered_items)]
+
+        status_label = customtkinter.CTkLabel(popup, text = f"Wagered Items Value: ${wager_total[0]}", font = customtkinter.CTkFont(size = 14, weight = "bold"), text_color = "gold")
+        status_label.pack(pady = (10, 5))
+
+        hint_label = customtkinter.CTkLabel(popup, text = "Click items to toggle wager (green = wagered)", font = customtkinter.CTkFont(size = 11), text_color = "gray")
+        hint_label.pack(pady = (0, 5))
+
+        scroll_frame = customtkinter.CTkScrollableFrame(popup, width = 450, height = 400)
+        scroll_frame.pack(fill = "both", expand = True, padx = 10, pady = 5)
+
+        for item_data in all_items:
+            item = item_data["item"]
+            location = item_data["location"]
+            item_idx = item_data["index"]
+
+            if item.get("_from_armory"):
+                continue
+
+            item_value = int(item.get("value", 0))
+            if item_value <= 0:
+                continue
+
+            item_frame = customtkinter.CTkFrame(scroll_frame)
+            item_frame.pack(fill = "x", pady = 3, padx = 5)
+
+            cart_key = f"{location}:{item_idx}"
+            is_selected = any(f"{e['location']}:{e['index']}" == cart_key for e in wagered_items)
+            if is_selected:
+                item_frame.configure(fg_color = ("green", "darkgreen"))
+
+            location_text = location.replace("equipment.", "").replace(".list.", " #").replace(".subslot.", " sub#")
+
+            name_label = customtkinter.CTkLabel(item_frame, text = f"{self._format_item_name(item)} (${item_value})", font = customtkinter.CTkFont(size = 11), anchor = "w")
+            name_label.pack(anchor = "w", padx = 8, pady = (5, 0))
+
+            loc_label = customtkinter.CTkLabel(item_frame, text = f"{location_text}", font = customtkinter.CTkFont(size = 9), text_color = "gray", anchor = "w")
+            loc_label.pack(anchor = "w", padx = 8, pady = (0, 3))
+
+            def toggle_item(loc = location, i = item_idx, it = item, val = item_value, frame = item_frame):
+                cart_key = f"{loc}:{i}"
+                existing = [idx for idx, e in enumerate(wagered_items) if f"{e['location']}:{e['index']}" == cart_key]
+                if existing:
+                    wagered_items.pop(existing[0])
+                    wager_total[0] -= val
+                    frame.configure(fg_color = ("gray86", "gray17"))
+                else:
+                    wagered_items.append({"location": loc, "index": i, "item": it, "value": val})
+                    wager_total[0] += val
+                    frame.configure(fg_color = ("green", "darkgreen"))
+                status_label.configure(text = f"Wagered Items Value: ${wager_total[0]}")
+                self._play_ui_sound("click")
+
+            item_frame.bind("<Button-1>", lambda e, f = toggle_item: f())
+            name_label.bind("<Button-1>", lambda e, f = toggle_item: f())
+            loc_label.bind("<Button-1>", lambda e, f = toggle_item: f())
+
+        def confirm_wager():
+            if on_update_cb:
+                on_update_cb()
+            popup.destroy()
+
+        def clear_wager():
+            wagered_items.clear()
+            wager_total[0] = 0
+            status_label.configure(text = f"Wagered Items Value: ${wager_total[0]}")
+            for widget in scroll_frame.winfo_children():
+                try:
+                    widget.configure(fg_color = ("gray86", "gray17"))
+                except Exception:
+                    pass
+            if on_update_cb:
+                on_update_cb()
+            self._play_ui_sound("click")
+
+        btn_frame = customtkinter.CTkFrame(popup, fg_color = "transparent")
+        btn_frame.pack(pady = 10)
+
+        clear_btn = self._create_sound_button(btn_frame, "Clear All", clear_wager, width = 120, height = 35, font = customtkinter.CTkFont(size = 12))
+        clear_btn.pack(side = "left", padx = 5)
+
+        confirm_btn = self._create_sound_button(btn_frame, "Confirm", confirm_wager, width = 120, height = 35, font = customtkinter.CTkFont(size = 12))
+        confirm_btn.pack(side = "left", padx = 5)
+
+        self._play_ui_sound("click")
+        popup.update_idletasks()
+        w, h = 500, 550
+        x = self.root.winfo_x() + (self.root.winfo_width() // 2) - (w // 2)
+        y = self.root.winfo_y() + (self.root.winfo_height() // 2) - (h // 2)
+        popup.geometry(f"{w}x{h}+{x}+{y}")
+        popup.deiconify()
+
+    def _process_item_bet_loss(self, save_data, save_path, wagered_items):
+        if not wagered_items or not save_data or not save_path:
+            return
+        try:
+            locations_to_remove = {}
+            for entry in wagered_items:
+                loc = entry["location"]
+                idx = entry["index"]
+                if loc not in locations_to_remove:
+                    locations_to_remove[loc] = []
+                locations_to_remove[loc].append(idx)
+
+            for loc in locations_to_remove:
+                locations_to_remove[loc] = sorted(locations_to_remove[loc], reverse = True)
+
+            for loc, indices in locations_to_remove.items():
+                for idx in indices:
+                    self._remove_item_from_save_location(save_data, loc, idx)
+
+            self._write_save_to_path(save_path, save_data)
+
+            item_names = [e["item"].get("name", "Unknown") for e in wagered_items]
+            logging.info(f"Items lost in gambling: {item_names}")
+        except Exception as e:
+            logging.error(f"Failed to process item bet loss: {e}")
+
+    def _open_blackjack_game(self, store, player_money, update_money_cb, save_money_cb, min_bet, max_bet, music_channel, table_data, record_game_cb = None, casino_stats = None, save_data = None, save_path = None):
         self._clear_window()
 
         self.root.grid_rowconfigure(0, weight = 1)
@@ -8855,6 +9326,9 @@ class App:
         "result":None,
         "ui_active":True
         }
+
+        wagered_items = []
+        item_bet_value = [0]
 
         dealer_frame = customtkinter.CTkFrame(game_frame, fg_color = "transparent")
         dealer_frame.pack(pady = 10)
@@ -8995,16 +9469,39 @@ class App:
             player_money[0]+=winnings
             if record_game_cb:
                 record_game_cb(winnings)
+
+            item_lost = False
+            if winnings <0 and wagered_items:
+                self._process_item_bet_loss(save_data, save_path, wagered_items)
+                item_names = [e["item"].get("name", "Unknown") for e in wagered_items]
+                item_lost = True
+            elif winnings >0 and wagered_items:
+                player_money[0] += item_bet_value[0]
+
             save_money_cb()
 
             try:
                 color = "green"if winnings >0 else("red"if winnings <0 else "orange")
+                item_suffix = ""
+                if item_lost:
+                    item_suffix = f" | Lost {len(wagered_items)} item(s)"
+                elif winnings >0 and item_bet_value[0] >0:
+                    item_suffix = f" | +${item_bet_value[0]} from items"
+
                 if winnings >0:
-                    result_label.configure(text = f"{result_text}(+${winnings})", text_color = color)
+                    total_display = winnings + (item_bet_value[0] if wagered_items else 0)
+                    result_label.configure(text = f"{result_text}(+${total_display}){item_suffix}", text_color = color)
                 elif winnings <0:
-                    result_label.configure(text = f"{result_text}(-${abs(winnings)})", text_color = color)
+                    result_label.configure(text = f"{result_text}(-${abs(winnings)}){item_suffix}", text_color = color)
                 else:
                     result_label.configure(text = result_text, text_color = color)
+
+                wagered_items.clear()
+                item_bet_value[0] = 0
+                try:
+                    item_wager_label.configure(text = "Items Wagered: None")
+                except Exception:
+                    pass
 
                 update_display(reveal_dealer = True)
                 update_buttons()
@@ -9219,6 +9716,27 @@ class App:
         bet_entry.pack(side = "left", padx = 5)
         bet_entry.insert(0, str(min_bet))
 
+        if save_data and save_path:
+            item_wager_label = customtkinter.CTkLabel(bet_frame, text = "Items Wagered: None", font = customtkinter.CTkFont(size = 11), text_color = "gray")
+            item_wager_label.pack(side = "left", padx = 10)
+
+            def update_item_wager_display():
+                total = sum(int(e["item"].get("value", 0)) for e in wagered_items)
+                item_bet_value[0] = total
+                if wagered_items:
+                    item_wager_label.configure(text = f"Items Wagered: {len(wagered_items)} (${total})", text_color = "gold")
+                else:
+                    item_wager_label.configure(text = "Items Wagered: None", text_color = "gray")
+
+            def open_item_wager():
+                if game_state["game_active"]:
+                    self._popup_show_info("Game Active", "Cannot change item wager during a game.", sound = "popup")
+                    return
+                self._open_item_bet_dialog(save_data, wagered_items, update_item_wager_display)
+
+            wager_btn = self._create_sound_button(bet_frame, "Wager Items", open_item_wager, width = 110, height = 30, font = customtkinter.CTkFont(size = 11), fg_color = "#8B4513", hover_color = "#654321")
+            wager_btn.pack(side = "left", padx = 5)
+
         action_frame = customtkinter.CTkFrame(controls_frame, fg_color = "transparent")
         action_frame.pack(pady = 10)
 
@@ -9244,7 +9762,7 @@ class App:
         back_btn = self._create_sound_button(controls_frame, "Back to Casino", back_to_casino, width = 200, height = 40, font = customtkinter.CTkFont(size = 14))
         back_btn.pack(pady = 10)
 
-    def _open_poker_game(self, store, player_money, update_money_cb, save_money_cb, min_bet, max_bet, music_channel, table_data, record_game_cb = None, casino_stats = None, variant = "five_card_draw"):
+    def _open_poker_game(self, store, player_money, update_money_cb, save_money_cb, min_bet, max_bet, music_channel, table_data, record_game_cb = None, casino_stats = None, variant = "five_card_draw", save_data = None, save_path = None):
         self._clear_window()
 
         self.root.grid_rowconfigure(0, weight = 1)
@@ -9347,6 +9865,9 @@ class App:
         "community_cards":[],
         "ui_valid":True
         }
+
+        wagered_items = []
+        item_bet_value = [0]
 
         scroll_frame = customtkinter.CTkScrollableFrame(game_frame)
         scroll_frame.pack(fill = "both", expand = True, padx = 5, pady = 5)
@@ -9834,15 +10355,27 @@ class App:
             loss = -game_state["current_bet"]
             if record_game_cb:
                 record_game_cb(loss)
+
+            item_suffix = ""
+            if wagered_items:
+                self._process_item_bet_loss(save_data, save_path, wagered_items)
+                item_suffix = f" | Lost {len(wagered_items)} item(s)"
+                wagered_items.clear()
+                item_bet_value[0] = 0
+                try:
+                    item_wager_label.configure(text = "Items Wagered: None", text_color = "gray")
+                except Exception:
+                    pass
+
             save_money_cb()
 
             active_npcs =[n for n in npc_names if not game_state["folded"][n]]
             if active_npcs:
                 for npc_name in npc_names:
                     display_npc_hand(npc_name, reveal = True)
-                result_label.configure(text = f"You folded.{active_npcs[0]} wins the pot!", text_color = "red")
+                result_label.configure(text = f"You folded. {active_npcs[0]} wins the pot!{item_suffix}", text_color = "red")
             else:
-                result_label.configure(text = "Everyone folded!", text_color = "orange")
+                result_label.configure(text = f"Everyone folded!{item_suffix}", text_color = "orange")
 
             update_buttons()
             money_label.configure(text = f"Your Money: ${player_money[0]}")
@@ -9872,15 +10405,31 @@ class App:
             if winner_name =="You":
                 winnings = pot -game_state["current_bet"]
                 player_money[0]+=winnings
+                if wagered_items:
+                    player_money[0] += item_bet_value[0]
                 if record_game_cb:
                     record_game_cb(winnings)
-                result_label.configure(text = f"You win with {winner_hand}! +${winnings}", text_color = "green")
+                item_suffix = ""
+                if item_bet_value[0] > 0 and wagered_items:
+                    item_suffix = f" | +${item_bet_value[0]} from items"
+                result_label.configure(text = f"You win with {winner_hand}! +${winnings + (item_bet_value[0] if wagered_items else 0)}{item_suffix}", text_color = "green")
             else:
                 loss = -game_state["current_bet"]
                 player_money[0]-=game_state["current_bet"]
                 if record_game_cb:
                     record_game_cb(loss)
-                result_label.configure(text = f"{winner_name} wins with {winner_hand}! -${game_state['current_bet']}", text_color = "red")
+                item_suffix = ""
+                if wagered_items:
+                    self._process_item_bet_loss(save_data, save_path, wagered_items)
+                    item_suffix = f" | Lost {len(wagered_items)} item(s)"
+                result_label.configure(text = f"{winner_name} wins with {winner_hand}! -${game_state['current_bet']}{item_suffix}", text_color = "red")
+
+            wagered_items.clear()
+            item_bet_value[0] = 0
+            try:
+                item_wager_label.configure(text = "Items Wagered: None", text_color = "gray")
+            except Exception:
+                pass
 
             save_money_cb()
             game_state["phase"]= "complete"
@@ -9985,6 +10534,27 @@ class App:
         bet_entry.pack(side = "left", padx = 5)
         bet_entry.insert(0, str(min_bet))
 
+        if save_data and save_path:
+            item_wager_label = customtkinter.CTkLabel(bet_frame, text = "Items Wagered: None", font = customtkinter.CTkFont(size = 11), text_color = "gray")
+            item_wager_label.pack(side = "left", padx = 10)
+
+            def update_item_wager_display():
+                total = sum(int(e["item"].get("value", 0)) for e in wagered_items)
+                item_bet_value[0] = total
+                if wagered_items:
+                    item_wager_label.configure(text = f"Items Wagered: {len(wagered_items)} (${total})", text_color = "gold")
+                else:
+                    item_wager_label.configure(text = "Items Wagered: None", text_color = "gray")
+
+            def open_item_wager():
+                if game_state["phase"] not in ["betting", "complete"]:
+                    self._popup_show_info("Game Active", "Cannot change item wager during a game.", sound = "popup")
+                    return
+                self._open_item_bet_dialog(save_data, wagered_items, update_item_wager_display)
+
+            wager_btn = self._create_sound_button(bet_frame, "Wager Items", open_item_wager, width = 110, height = 30, font = customtkinter.CTkFont(size = 11), fg_color = "#8B4513", hover_color = "#654321")
+            wager_btn.pack(side = "left", padx = 5)
+
         action_frame = customtkinter.CTkFrame(controls_frame, fg_color = "transparent")
         action_frame.pack(pady = 10)
 
@@ -10011,12 +10581,12 @@ class App:
 
         def back_to_poker_lobby():
             game_state["ui_valid"]= False
-            self._open_poker_lobby(store, player_money, update_money_cb, save_money_cb, min_bet, max_bet, music_channel, table_data, record_game_cb, casino_stats)
+            self._open_poker_lobby(store, player_money, update_money_cb, save_money_cb, min_bet, max_bet, music_channel, table_data, record_game_cb, casino_stats, save_data = save_data, save_path = save_path)
 
         back_btn = self._create_sound_button(controls_frame, "Back to Poker Lobby", back_to_poker_lobby, width = 200, height = 40, font = customtkinter.CTkFont(size = 14))
         back_btn.pack(pady = 10)
 
-    def _open_highlow_game(self, store, player_money, update_money_cb, save_money_cb, min_bet, max_bet, music_channel, table_data, record_game_cb = None, casino_stats = None):
+    def _open_highlow_game(self, store, player_money, update_money_cb, save_money_cb, min_bet, max_bet, music_channel, table_data, record_game_cb = None, casino_stats = None, save_data = None, save_path = None):
         self._clear_window()
 
         self.root.grid_rowconfigure(0, weight = 1)
@@ -10057,6 +10627,9 @@ class App:
         "game_active":False,
         "ui_valid":True
         }
+
+        wagered_items = []
+        item_bet_value = [0]
 
         instruction_label = customtkinter.CTkLabel(game_frame, text = "Guess if the next card will be Higher or Lower!", font = customtkinter.CTkFont(size = 14), text_color = "gray")
         instruction_label.pack(pady = 10)
@@ -10227,12 +10800,23 @@ class App:
 
             winnings = game_state["winnings"]
             player_money[0]+=winnings
+            if wagered_items:
+                player_money[0] += item_bet_value[0]
             if record_game_cb:
                 record_game_cb(winnings)
             save_money_cb()
 
             game_state["game_active"]= False
-            result_label.configure(text = f"Cashed Out! +${winnings}", text_color = "green")
+            item_suffix = ""
+            if item_bet_value[0] > 0 and wagered_items:
+                item_suffix = f" | +${item_bet_value[0]} from items"
+            result_label.configure(text = f"Cashed Out! +${winnings + (item_bet_value[0] if wagered_items else 0)}{item_suffix}", text_color = "green")
+            wagered_items.clear()
+            item_bet_value[0] = 0
+            try:
+                item_wager_label.configure(text = "Items Wagered: None", text_color = "gray")
+            except Exception:
+                pass
             update_display()
             update_buttons()
 
@@ -10244,10 +10828,22 @@ class App:
             player_money[0]+=loss
             if record_game_cb:
                 record_game_cb(loss)
+
+            item_suffix = ""
+            if wagered_items:
+                self._process_item_bet_loss(save_data, save_path, wagered_items)
+                item_suffix = f" | Lost {len(wagered_items)} item(s)"
+                wagered_items.clear()
+                item_bet_value[0] = 0
+                try:
+                    item_wager_label.configure(text = "Items Wagered: None", text_color = "gray")
+                except Exception:
+                    pass
+
             save_money_cb()
 
             game_state["game_active"]= False
-            result_label.configure(text = f"Wrong! You lose ${game_state['current_bet']}", text_color = "red")
+            result_label.configure(text = f"Wrong! You lose ${game_state['current_bet']}{item_suffix}", text_color = "red")
             game_state["streak"]= 0
             game_state["winnings"]= 0
             update_display()
@@ -10283,6 +10879,27 @@ class App:
         bet_entry.pack(side = "left", padx = 5)
         bet_entry.insert(0, str(min_bet))
 
+        if save_data and save_path:
+            item_wager_label = customtkinter.CTkLabel(bet_frame, text = "Items Wagered: None", font = customtkinter.CTkFont(size = 11), text_color = "gray")
+            item_wager_label.pack(side = "left", padx = 10)
+
+            def update_item_wager_display():
+                total = sum(int(e["item"].get("value", 0)) for e in wagered_items)
+                item_bet_value[0] = total
+                if wagered_items:
+                    item_wager_label.configure(text = f"Items Wagered: {len(wagered_items)} (${total})", text_color = "gold")
+                else:
+                    item_wager_label.configure(text = "Items Wagered: None", text_color = "gray")
+
+            def open_item_wager():
+                if game_state["game_active"]:
+                    self._popup_show_info("Game Active", "Cannot change item wager during a game.", sound = "popup")
+                    return
+                self._open_item_bet_dialog(save_data, wagered_items, update_item_wager_display)
+
+            wager_btn = self._create_sound_button(bet_frame, "Wager Items", open_item_wager, width = 110, height = 30, font = customtkinter.CTkFont(size = 11), fg_color = "#8B4513", hover_color = "#654321")
+            wager_btn.pack(side = "left", padx = 5)
+
         action_frame = customtkinter.CTkFrame(controls_frame, fg_color = "transparent")
         action_frame.pack(pady = 10)
 
@@ -10308,7 +10925,7 @@ class App:
         back_btn = self._create_sound_button(controls_frame, "Back to Casino", back_to_casino, width = 200, height = 40, font = customtkinter.CTkFont(size = 14))
         back_btn.pack(pady = 10)
 
-    def _open_roulette_game(self, store, player_money, update_money_cb, save_money_cb, min_bet, max_bet, music_channel, table_data, record_game_cb = None, casino_stats = None):
+    def _open_roulette_game(self, store, player_money, update_money_cb, save_money_cb, min_bet, max_bet, music_channel, table_data, record_game_cb = None, casino_stats = None, save_data = None, save_path = None):
         self._clear_window()
 
         self.root.grid_rowconfigure(0, weight = 1)
@@ -10351,6 +10968,9 @@ class App:
         "spinning":False,
         "ui_valid":True
         }
+
+        wagered_items = []
+        item_bet_value = [0]
 
         wheel_label = customtkinter.CTkLabel(game_frame, text = "Place Your Bet", font = customtkinter.CTkFont(size = 32, weight = "bold"))
         wheel_label.pack(pady = 20)
@@ -10538,14 +11158,30 @@ class App:
             if won:
                 winnings = bet *(multiplier -1)
                 player_money[0]+=winnings
+                if wagered_items:
+                    player_money[0] += item_bet_value[0]
                 if record_game_cb:
                     record_game_cb(winnings)
-                result_label.configure(text = f"Winner! {number}({color}) - +${winnings}", text_color = "green")
+                item_suffix = ""
+                if item_bet_value[0] > 0 and wagered_items:
+                    item_suffix = f" | +${item_bet_value[0]} from items"
+                result_label.configure(text = f"Winner! {number}({color}) - +${winnings + (item_bet_value[0] if wagered_items else 0)}{item_suffix}", text_color = "green")
             else:
                 player_money[0]-=bet
                 if record_game_cb:
                     record_game_cb(-bet)
-                result_label.configure(text = f"Lost! {number}({color}) - -${bet}", text_color = "red")
+                item_suffix = ""
+                if wagered_items:
+                    self._process_item_bet_loss(save_data, save_path, wagered_items)
+                    item_suffix = f" | Lost {len(wagered_items)} item(s)"
+                result_label.configure(text = f"Lost! {number}({color}) - -${bet}{item_suffix}", text_color = "red")
+
+            wagered_items.clear()
+            item_bet_value[0] = 0
+            try:
+                item_wager_label.configure(text = "Items Wagered: None", text_color = "gray")
+            except Exception:
+                pass
 
             save_money_cb()
             money_label.configure(text = f"Your Money: ${player_money[0]}")
@@ -10566,6 +11202,27 @@ class App:
         bet_entry.pack(side = "left", padx = 5)
         bet_entry.insert(0, str(min_bet))
 
+        if save_data and save_path:
+            item_wager_label = customtkinter.CTkLabel(bet_frame, text = "Items Wagered: None", font = customtkinter.CTkFont(size = 11), text_color = "gray")
+            item_wager_label.pack(side = "left", padx = 10)
+
+            def update_item_wager_display():
+                total = sum(int(e["item"].get("value", 0)) for e in wagered_items)
+                item_bet_value[0] = total
+                if wagered_items:
+                    item_wager_label.configure(text = f"Items Wagered: {len(wagered_items)} (${total})", text_color = "gold")
+                else:
+                    item_wager_label.configure(text = "Items Wagered: None", text_color = "gray")
+
+            def open_item_wager():
+                if game_state["spinning"]:
+                    self._popup_show_info("Game Active", "Cannot change item wager while spinning.", sound = "popup")
+                    return
+                self._open_item_bet_dialog(save_data, wagered_items, update_item_wager_display)
+
+            wager_btn = self._create_sound_button(bet_frame, "Wager Items", open_item_wager, width = 110, height = 30, font = customtkinter.CTkFont(size = 11), fg_color = "#8B4513", hover_color = "#654321")
+            wager_btn.pack(side = "left", padx = 5)
+
         action_frame = customtkinter.CTkFrame(controls_frame, fg_color = "transparent")
         action_frame.pack(pady = 10)
 
@@ -10579,7 +11236,7 @@ class App:
         back_btn = self._create_sound_button(controls_frame, "Back to Casino", back_to_casino, width = 200, height = 40, font = customtkinter.CTkFont(size = 14))
         back_btn.pack(pady = 10)
 
-    def _open_poker_lobby(self, store, player_money, update_money_cb, save_money_cb, min_bet, max_bet, music_channel, table_data, record_game_cb = None, casino_stats = None):
+    def _open_poker_lobby(self, store, player_money, update_money_cb, save_money_cb, min_bet, max_bet, music_channel, table_data, record_game_cb = None, casino_stats = None, save_data = None, save_path = None):
         self._clear_window()
 
         self.root.grid_rowconfigure(0, weight = 1)
@@ -10607,16 +11264,16 @@ class App:
         games_label.pack(pady = 20)
 
         def open_five_card_draw():
-            self._open_poker_game(store, player_money, update_money_cb, save_money_cb, min_bet, max_bet, music_channel, table_data, record_game_cb, casino_stats, variant = "five_card_draw")
+            self._open_poker_game(store, player_money, update_money_cb, save_money_cb, min_bet, max_bet, music_channel, table_data, record_game_cb, casino_stats, variant = "five_card_draw", save_data = save_data, save_path = save_path)
 
         def open_five_card_stud():
-            self._open_poker_game(store, player_money, update_money_cb, save_money_cb, min_bet, max_bet, music_channel, table_data, record_game_cb, casino_stats, variant = "five_card_stud")
+            self._open_poker_game(store, player_money, update_money_cb, save_money_cb, min_bet, max_bet, music_channel, table_data, record_game_cb, casino_stats, variant = "five_card_stud", save_data = save_data, save_path = save_path)
 
         def open_seven_card_stud():
-            self._open_poker_game(store, player_money, update_money_cb, save_money_cb, min_bet, max_bet, music_channel, table_data, record_game_cb, casino_stats, variant = "seven_card_stud")
+            self._open_poker_game(store, player_money, update_money_cb, save_money_cb, min_bet, max_bet, music_channel, table_data, record_game_cb, casino_stats, variant = "seven_card_stud", save_data = save_data, save_path = save_path)
 
         def open_texas_holdem():
-            self._open_poker_game(store, player_money, update_money_cb, save_money_cb, min_bet, max_bet, music_channel, table_data, record_game_cb, casino_stats, variant = "texas_holdem")
+            self._open_poker_game(store, player_money, update_money_cb, save_money_cb, min_bet, max_bet, music_channel, table_data, record_game_cb, casino_stats, variant = "texas_holdem", save_data = save_data, save_path = save_path)
 
         fcd_btn = self._create_sound_button(content_frame, "5 Card Draw", open_five_card_draw, width = 300, height = 50, font = customtkinter.CTkFont(size = 16))
         fcd_btn.pack(pady = 10)
@@ -15803,7 +16460,8 @@ class App:
         "weapon":current_weapon,
         "ammo_label_ref":None,
         "original_ammo_text":"",
-        "clean_label_ref":None
+        "clean_label_ref":None,
+        "mag_checked":False
         }
         weapon_name_label = customtkinter.CTkLabel(
         weapon_switch_frame,
@@ -17496,20 +18154,10 @@ class App:
             wpn = current_weapon_state["weapon"]
             logging.info("Cycle bolt requested for %s", wpn.get("name", "Unknown"))
             result = self._cycle_bolt(wpn)
-            self._popup_show_info("Bolt Cycle", result)
+            self._popup_show_info("Cycle Action", result)
             update_weapon_view()
 
-        if "Bolt"in current_weapon.get("action", []):
-            self._create_sound_button(
-            actions_frame,
-            text = "Cycle Bolt",
-            command = cycle_bolt,
-            width = 150,
-            height = 50,
-            font = customtkinter.CTkFont(size = 14),
-            fg_color = "#8B4513",
-            hover_color = "#A0522D"
-            ).pack(side = "left", padx = 10, pady = 10)
+        # Cycle Action is exposed via the More Actions popup; toolbar button removed
 
         def _toggle_nvg():
             try:
@@ -18329,11 +18977,23 @@ class App:
 
             self._play_weapon_action_sound(wpn, "magin")
 
+            current_weapon_state["mag_checked"]= True
+
+            next_variant_name = None
+            try:
+                if rounds:
+                    first_r = rounds[0]
+                    if isinstance(first_r, dict):
+                        next_variant_name = first_r.get("variant")or first_r.get("name")
+            except Exception:
+                next_variant_name = None
+            variant_suffix = f" [{next_variant_name}]"if next_variant_name and round_count >0 else ""
+
             if ammo_label_ref:
                 if tip_color and round_count >0:
-                    ammo_label_ref.configure(text = estimation, text_color = tip_color)
+                    ammo_label_ref.configure(text = f"{estimation}{variant_suffix}", text_color = tip_color)
                 else:
-                    ammo_label_ref.configure(text = estimation, text_color =("gray10", "gray90"))
+                    ammo_label_ref.configure(text = f"{estimation}{variant_suffix}", text_color =("gray10", "gray90"))
                 self.root.update()
 
         def reload_magazine():
@@ -18460,13 +19120,21 @@ class App:
             for idx, (location, mag_item)in enumerate(all_magazines):
                 mag_name = mag_item.get("name", "Unknown Magazine")
                 capacity = mag_item.get("capacity", "?")
-                rounds = len(mag_item.get("rounds", []))
+                mag_rounds_list = mag_item.get("rounds", [])
+                rounds = len(mag_rounds_list)
                 mag_system = mag_item.get("magazinesystem", "Unknown")
+                _next_var = ""
+                if mag_rounds_list and isinstance(mag_rounds_list, list)and len(mag_rounds_list)>0:
+                    _nr = mag_rounds_list[0]
+                    if isinstance(_nr, dict):
+                        _nv = _nr.get("variant")or _nr.get("name")
+                        if _nv:
+                            _next_var = f" [next: {_nv}]"
 
                 radio_frame = customtkinter.CTkFrame(scroll_frame, fg_color = "transparent")
                 radio_frame.pack(fill = "x", pady = 5, padx = 5)
 
-                radio_text = f"{mag_name}({rounds}/{capacity}) - {mag_system} - {location}"
+                radio_text = f"{mag_name}({rounds}/{capacity}) - {mag_system} - {location}{_next_var}"
                 radio = customtkinter.CTkRadioButton(
                 radio_frame,
                 text = radio_text,
@@ -18958,6 +19626,21 @@ class App:
                 lab.pack(pady = 8)
 
                 try:
+                    wpn_mag_info = current_weapon_state.get('weapon') or {}
+                    _loaded_mag_info = wpn_mag_info.get('loaded')
+                    _mag_next_variant = None
+                    if isinstance(_loaded_mag_info, dict):
+                        _mag_rds = _loaded_mag_info.get('rounds', [])
+                        if _mag_rds and isinstance(_mag_rds, list) and len(_mag_rds) > 0:
+                            _mnr = _mag_rds[0]
+                            if isinstance(_mnr, dict):
+                                _mag_next_variant = _mnr.get('variant') or _mnr.get('name')
+                    if _mag_next_variant:
+                        customtkinter.CTkLabel(popup, text = f'Next round: {_mag_next_variant}', font = customtkinter.CTkFont(size = 12)).pack(pady = 2)
+                except Exception:
+                    pass
+
+                try:
                     load_into_weapon_var = customtkinter.BooleanVar(value = True)
                     load_checkbox = customtkinter.CTkCheckBox(popup, text = 'Load magazine into weapon', variable = load_into_weapon_var)
                     load_checkbox.pack(pady = 4)
@@ -19230,13 +19913,21 @@ class App:
                     for idx, (location, mag_item)in enumerate(all_magazines):
                         mag_name = mag_item.get("name", "Unknown Magazine")
                         capacity = mag_item.get("capacity", "?")
-                        rounds = len(mag_item.get("rounds", []))
+                        mag_rounds_list = mag_item.get("rounds", [])
+                        rounds = len(mag_rounds_list)
                         mag_system = mag_item.get("magazinesystem", "Unknown")
+                        _next_var = ""
+                        if mag_rounds_list and isinstance(mag_rounds_list, list)and len(mag_rounds_list)>0:
+                            _nr = mag_rounds_list[0]
+                            if isinstance(_nr, dict):
+                                _nv = _nr.get("variant")or _nr.get("name")
+                                if _nv:
+                                    _next_var = f" [next: {_nv}]"
 
                         radio_frame = customtkinter.CTkFrame(scroll_frame, fg_color = "transparent")
                         radio_frame.pack(fill = "x", pady = 5, padx = 5)
 
-                        radio_text = f"{mag_name}({rounds}/{capacity}) - {mag_system} - {location}"
+                        radio_text = f"{mag_name}({rounds}/{capacity}) - {mag_system} - {location}{_next_var}"
                         radio = customtkinter.CTkRadioButton(
                         radio_frame,
                         text = radio_text,
@@ -20399,6 +21090,11 @@ class App:
                     _add('Check Cleanliness', check_cleanliness)
                 if check_mag_btn is not None:
                     _add('Check Magazine', check_magazine)
+                # expose cycle action in More Actions as well
+                try:
+                    _add('Cycle Action', cycle_bolt)
+                except Exception:
+                    pass
                 if throw_btn is not None:
                     _add('Throw', throw_throwable)
                 if manage_attach_btn is not None:
@@ -20750,8 +21446,12 @@ class App:
                     found =[]
                     tables = table_data.get("tables", {})if table_data else {}
                     for tname, items in tables.items():
+                        if not isinstance(items, list):
+                            continue
                         try:
                             for it in items:
+                                if not isinstance(it, dict):
+                                    continue
                                 try:
                                     typ = str(it.get('type', '')).lower()
                                     if typ in('fragmentation', 'smoke', 'stun', '9-bang', '9bang', '9_bang'):
@@ -21452,7 +22152,7 @@ class App:
 
             if cur and isinstance(cur, dict):
                 try:
-                    logging.info("_apply_item_overrides: found accessory for overrides: id=%s name=%s on weapon id=%s", cur.get('id'), cur.get('name'), weapon.get('id'))
+                    logging.debug("_apply_item_overrides: found accessory for overrides: id=%s name=%s on weapon id=%s", cur.get('id'), cur.get('name'), weapon.get('id'))
                 except Exception:
                     pass
                 overrides = cur.get("overrides")or {}
@@ -21463,7 +22163,7 @@ class App:
                             orig = weapon.get(k, MISSING)
                             weapon.setdefault("_applied_overrides", {})[k]= orig
                             try:
-                                logging.info("_apply_item_overrides: recording original value for key=%s orig=%s", k, orig)
+                                logging.debug("_apply_item_overrides: recording original value for key=%s orig=%s", k, orig)
                             except Exception:
                                 pass
 
@@ -21472,7 +22172,7 @@ class App:
                         except Exception:
                             weapon[k]= v
                         try:
-                            logging.info("_apply_item_overrides: applied override key=%s value=%s from accessory id=%s", k, v, cur.get('id'))
+                            logging.debug("_apply_item_overrides: applied override key=%s value=%s from accessory id=%s", k, v, cur.get('id'))
                         except Exception:
                             pass
 
@@ -21550,7 +22250,7 @@ class App:
                                                 orig = weapon.get(k, MISSING)
                                                 weapon.setdefault("_applied_overrides", {})[k]= orig
                                                 try:
-                                                    logging.info("_apply_item_overrides: recording original value for key=%s orig=%s(mode override)", k, orig)
+                                                    logging.debug("_apply_item_overrides: recording original value for key=%s orig=%s(mode override)", k, orig)
                                                 except Exception:
                                                     pass
                                             try:
@@ -21558,7 +22258,7 @@ class App:
                                             except Exception:
                                                 weapon[k]= v
                                             try:
-                                                logging.info("_apply_item_overrides: applied mode override key=%s value=%s from accessory id=%s", k, v, cur.get('id'))
+                                                logging.debug("_apply_item_overrides: applied mode override key=%s value=%s from accessory id=%s", k, v, cur.get('id'))
                                             except Exception:
                                                 pass
                                 except Exception:
@@ -21751,16 +22451,16 @@ class App:
 
                 ub_found = None
                 try:
-                    logging.info("Underbarrel detection: weapon_id=%s accessories=%s", weapon.get("id"), weapon.get("accessories"))
+                    logging.debug("Underbarrel detection: weapon_id=%s accessories=%s", weapon.get("id"), weapon.get("accessories"))
                 except Exception:
                     pass
                 for acc in weapon.get("accessories", [])or[]:
                     cur = acc.get("current")
                     resolved = _resolve_current(cur)
                     try:
-                        logging.info("Resolving accessory current=%s -> resolved=%s", repr(cur), getattr(resolved, 'get', lambda k, d = None:None)('id', resolved))
+                        logging.debug("Resolving accessory current=%s -> resolved=%s", repr(cur), getattr(resolved, 'get', lambda k, d = None:None)('id', resolved))
                     except Exception:
-                        logging.info("Resolving accessory current=%s -> resolved=%s", repr(cur), str(resolved))
+                        logging.debug("Resolving accessory current=%s -> resolved=%s", repr(cur), str(resolved))
                     if resolved and isinstance(resolved, dict)and resolved.get("underbarrel_weapon"):
                         ub_found = resolved
                         break
@@ -21789,7 +22489,7 @@ class App:
                             "accessory_name":ub_found.get("name")if isinstance(ub_found, dict)else None
                             }
                             try:
-                                logging.info("Set active_underbarrel: parent_index=%s accessory_id=%s accessory_name=%s", combat_state.get("current_weapon_index"), ub_found.get("id"), ub_found.get("name"))
+                                logging.debug("Set active_underbarrel: parent_index=%s accessory_id=%s accessory_name=%s", combat_state.get("current_weapon_index"), ub_found.get("id"), ub_found.get("name"))
                             except Exception:
                                 pass
                             try:
@@ -21952,7 +22652,18 @@ class App:
         if current_weapon_state is not None:
             current_weapon_state["clean_label_ref"]= clean_label
 
-        ammo_text = self._get_ammo_display(weapon, bool(ammo_exact))
+        mag_checked = current_weapon_state.get("mag_checked", False)if current_weapon_state else False
+        mag_windowed = False
+        try:
+            loaded_mag_local = weapon.get("loaded")
+            if isinstance(loaded_mag_local, dict)and(loaded_mag_local.get("windowed_magazine")or loaded_mag_local.get("window")):
+                mag_windowed = True
+            elif weapon.get("windowed_magazine")or weapon.get("window"):
+                mag_windowed = True
+        except Exception:
+            mag_windowed = False
+        show_variant = bool(ammo_exact)and(mag_checked or mag_windowed or(has_csad and gunlink_on_weapon))
+        ammo_text = self._get_ammo_display(weapon, bool(ammo_exact), show_variant = show_variant)
 
         ammo_label = customtkinter.CTkLabel(
         detail_frame,
@@ -21991,7 +22702,7 @@ class App:
                 return True
         return False
 
-    def _get_ammo_display(self, weapon, has_hud):
+    def _get_ammo_display(self, weapon, has_hud, show_variant = False):
 
         loaded_mag = weapon.get("loaded")
         chambered = weapon.get("chambered")
@@ -22102,6 +22813,30 @@ class App:
 
         effective_has_hud = bool(has_hud)or bool(mag_windowed)
 
+        next_variant = None
+        if show_variant:
+            try:
+                if chambered_obj and isinstance(chambered_obj, dict):
+                    next_variant = chambered_obj.get("variant")or chambered_obj.get("name")
+                if not next_variant:
+                    if is_internal or is_revolver:
+                        _int_rounds = weapon.get("rounds", [])
+                        if _int_rounds and isinstance(_int_rounds, list)and len(_int_rounds)>0:
+                            _nr = _int_rounds[0]
+                            if isinstance(_nr, dict):
+                                next_variant = _nr.get("variant")or _nr.get("name")
+                    else:
+                        _mag_obj = loaded_mag_obj or(loaded_mag if isinstance(loaded_mag, dict)else None)
+                        if _mag_obj and isinstance(_mag_obj, dict):
+                            _mag_rounds = _mag_obj.get("rounds", [])
+                            if _mag_rounds and isinstance(_mag_rounds, list)and len(_mag_rounds)>0:
+                                _nr = _mag_rounds[0]
+                                if isinstance(_nr, dict):
+                                    next_variant = _nr.get("variant")or _nr.get("name")
+            except Exception:
+                next_variant = None
+        variant_text = f" [{next_variant}]"if next_variant else ""
+
         if is_internal or is_revolver:
 
             internal_rounds = weapon.get("rounds", [])
@@ -22112,11 +22847,11 @@ class App:
             if effective_has_hud:
                 chamber_text = "(+1 chambered)"if chambered else ""
                 capacity = weapon.get("capacity", 0)
-                return f"Ammo: {total_rounds}/{capacity} rounds{chamber_text}"
+                return f"Ammo: {total_rounds}/{capacity} rounds{chamber_text}{variant_text}"
             else:
                 if total_rounds ==0:
                     return "Ammo: Empty(no rounds)"
-                return "Ammo: Loaded(exact count unknown)"
+                return f"Ammo: Loaded(exact count unknown){variant_text}"
 
         if not loaded_mag and not chambered:
             return "Ammo: Empty(no magazine)"
@@ -22133,17 +22868,17 @@ class App:
 
             chamber_text = "(+1 chambered)"if chambered else ""
             if loaded_mag and not loaded_mag.get("rounds"):
-                return f"Ammo: 0 rounds(empty magazine loaded){chamber_text}"
-            return f"Ammo: {total_rounds} rounds{chamber_text}"
+                return f"Ammo: 0 rounds(empty magazine loaded){chamber_text}{variant_text}"
+            return f"Ammo: {total_rounds} rounds{chamber_text}{variant_text}"
         else:
 
             if not loaded_mag and chambered:
-                return "Ammo: Unknown(mag out, round chambered)"
+                return f"Ammo: Unknown(mag out, round chambered){variant_text}"
             if not loaded_mag:
                 return "Ammo: No magazine"
             if not loaded_mag.get("rounds"):
                 return "Ammo: Empty magazine loaded(check/reload)"
-            return "Ammo: Unknown(remove mag to check)"
+            return f"Ammo: Unknown(remove mag to check){variant_text}"
 
     def _save_combat_state(self, save_data):
 
@@ -25897,40 +26632,55 @@ class App:
         logging.info("_cycle_bolt start: name=%s", weapon.get("name", "Unknown"))
 
         actions = weapon.get("action", [])
-        if "Bolt"not in actions:
-            return "This weapon does not have a bolt to cycle."
+        magazine_type = (weapon.get("magazinetype") or "").lower()
+        is_internal = "internal" in magazine_type or "tube" in magazine_type
+        is_revolver = "revolver" in (weapon.get("platform", "") or "").lower()
 
         chambered = weapon.get("chambered")
         if chambered:
-            logging.info("Bolt cycle: ejecting chambered round")
+            logging.info("Cycle action: ejecting chambered round")
             self._play_weapon_action_sound(weapon, "boltback", block = True)
             self._play_weapon_action_sound(weapon, "shelleject")
             time.sleep(0.2)
 
             weapon["chambered"]= None
-            message = "Ejected chambered round."
+            message = "Ejected chambered round. "
         else:
             message = ""
+
+        if is_internal or is_revolver:
+            internal_rounds = weapon.get("rounds", [])
+            if not internal_rounds:
+                self._play_weapon_action_sound(weapon, "boltback", block = True)
+                self._play_weapon_action_sound(weapon, "boltforward")
+                return message + "No rounds in magazine - action cycled but no round chambered."
+
+            self._play_weapon_action_sound(weapon, "boltback", block = True)
+            next_round = internal_rounds.pop(0)
+            weapon["chambered"] = next_round
+            self._play_weapon_action_sound(weapon, "boltforward")
+            next_var = next_round.get("variant") or next_round.get("name") if isinstance(next_round, dict) else str(next_round)
+            return message + f"Action cycled - chambered {next_var or 'a round'}."
 
         loaded_mag = weapon.get("loaded")
 
         if not loaded_mag:
             self._play_weapon_action_sound(weapon, "boltback", block = True)
             self._play_weapon_action_sound(weapon, "boltforward")
-            return message +"No magazine loaded - bolt cycled but no round chambered."
+            return message +"No magazine loaded - action cycled but no round chambered."
 
         rounds = loaded_mag.get("rounds", [])
         if not rounds:
             self._play_weapon_action_sound(weapon, "boltback", block = True)
             self._play_weapon_action_sound(weapon, "boltforward")
-            return message +"Magazine empty - bolt cycled but no round chambered."
+            return message +"Magazine empty - action cycled but no round chambered."
 
         self._play_weapon_action_sound(weapon, "boltback", block = True)
         next_round = rounds.pop(0)
         weapon["chambered"]= next_round
         self._play_weapon_action_sound(weapon, "boltforward")
-
-        return message +f"Bolt cycled - chambered {next_round}."
+        next_var = next_round.get("variant") or next_round.get("name") if isinstance(next_round, dict) else str(next_round)
+        return message +f"Action cycled - chambered {next_var or 'a round'}."
 
     def _show_magazine_selection_menu(self, weapon, save_data, table_data, current_weapon_state, update_callback):
 
@@ -26124,6 +26874,13 @@ class App:
             if mag_cal_display:
                 radio_text +=f" - {mag_cal_display}"
             radio_text +=f" - from {location}"
+            _mag_rds_list = mag_item.get("rounds", [])
+            if _mag_rds_list and isinstance(_mag_rds_list, list) and len(_mag_rds_list) > 0:
+                _mnr = _mag_rds_list[0]
+                if isinstance(_mnr, dict):
+                    _mnv = _mnr.get("variant") or _mnr.get("name")
+                    if _mnv:
+                        radio_text += f" [next: {_mnv}]"
             radio = customtkinter.CTkRadioButton(
             radio_frame,
             text = radio_text,
@@ -27440,8 +28197,10 @@ class App:
 
             all_items =[]
             for table_name, items in table_data.get("tables", {}).items():
+                if not isinstance(items, list):
+                    continue
                 for item in items:
-                    if item.get("id")is None:
+                    if not isinstance(item, dict)or item.get("id")is None:
                         continue
                     item_copy = item.copy()
                     item_copy["table_category"]= table_name
@@ -31949,8 +32708,10 @@ class App:
         for table_name, items in table_data.get("tables", {}).items():
             if table_name in excluded_tables:
                 continue
+            if not isinstance(items, list):
+                continue
             for item in items:
-                if item.get("id")is None:
+                if not isinstance(item, dict)or item.get("id")is None:
                     continue
                 item_copy = item.copy()
                 item_copy["table_category"]= table_name
@@ -32553,8 +33314,10 @@ class App:
 
         all_items =[]
         for table_name, items in table_data.get("tables", {}).items():
+            if not isinstance(items, list):
+                continue
             for item in items:
-                if item.get("id")is None:
+                if not isinstance(item, dict)or item.get("id")is None:
                     continue
                 item_copy = item.copy()
                 item_copy["table_category"]= table_name

@@ -6,7 +6,10 @@
         "bonus_clamp": 5,
         "stat_clamp": 4,
         "slot_disable_points": 1,
-        "style": "classic"
+        "style": "classic",
+        "paycheck": true,
+        "paycheck_amount": 2000,
+        "pay_period": "weekly"
     },
     "rarity_weights": {
         "Common": 40,
