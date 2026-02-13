@@ -77,3 +77,4 @@ Thumbs.db
 
 # Downloaded tools (ffmpeg, etc.)
 /scripts/tools/
+/combatreports/

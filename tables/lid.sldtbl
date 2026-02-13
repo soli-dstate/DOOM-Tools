@@ -9,7 +9,8 @@
         "style": "classic",
         "paycheck": true,
         "paycheck_amount": 2000,
-        "pay_period": "weekly"
+        "pay_period": "weekly",
+        "combat_repots": false
     },
     "rarity_weights": {
         "Common": 40,
@@ -8009,6 +8010,7 @@
                 "magazinesystem": "STANAG 4179",
                 "can_stack": false,
                 "in_armory": true,
+                "window": true,
                 "armory_category": "Magazines",
                 "armory_subcategory": "STANAG 4179 Magazines"
             }
@@ -8762,6 +8764,38 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Restraints"
+            },
+            {
+                "name": "Monster Energy Zero Ultra",
+                "value": 3,
+                "description": "A classic can of white Monster. Tastes like pure battery acid. Drinking it restores a small amount of health.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.4,
+                "id": 460,
+                "consumable": true,
+                "consumable_sounds": [
+                    "drinkcanopen.ogg",
+                    "drink.ogg"
+                ],
+                "used_up": true,
+                "can_stack": false
+            },
+            {
+                "name": "Little Debbie Honey Bun",
+                "value": 2,
+                "description": "A delicious Little Debbie Honey Bun. Eating it restores a small amount of health.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.3,
+                "id": 461,
+                "consumable": true,
+                "consumable_sounds": [
+                    "cigarettepackopen.ogg",
+                    "eat.ogg"
+                ],
+                "used_up": true,
+                "can_stack": false
             }
         ],
         "special_items": [

@@ -1,0 +1,6 @@
+{
+    "date": "2-10-2026",
+    "include": ["2-11-2026"],
+    "lead_free_required": true,
+    "fine_for_lead": 10000
+}
