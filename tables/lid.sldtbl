@@ -1,7 +1,7 @@
 {
     "prettyname": "Light in Darkness",
     "filename": "lid.sldtbl",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "additional_settings": {
         "bonus_clamp": 5,
         "stat_clamp": 4,
@@ -1794,7 +1794,7 @@
                 "cyclic": 450,
                 "magazinetype": "Detachable box",
                 "magazinesystem": "M9L-G",
-                "jamrate": 0.001,
+                "jamrate": 0.001, 
                 "accessories": [
                     {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": null},
                     {"name": "Picatinny Rail (Handguard Top)", "slot": "picatinny_rifle", "current": null},
@@ -2276,7 +2276,7 @@
                 "bolt_catch": false,
                 "cyclic": 550,
                 "magazinetype": "Detachable box",
-                "magazinesystem": "CACPPF-439",
+                "magazinesystem": "MP-40",
                 "jamrate": 0.02,
                 "accessories": [
                     {"name": "SSA Accessory Mount", "slot": "ssa_mount", "current": null},
@@ -2302,7 +2302,7 @@
                 "bolt_catch": false,
                 "cyclic": 550,
                 "magazinetype": "Detachable box",
-                "magazinesystem": "CACPPF-439",
+                "magazinesystem": "MP-40",
                 "jamrate": 0.02,
                 "accessories": [
                     {"name": "SSA Accessory Mount", "slot": "ssa_mount", "current": {"name":"MSVN night vision scope","value":2000,"description":"Experimental early night vision sight designed for the Legion SSA accessory rail.","rarity":"Rare","random_quantity":false,"weight":2.26,"id":232,"attachment":true,"slot":"ssa_mount","modifiers":{"stats":{"aim":2},"night_vision_compatible":true},"magnified":true,"variable":false,"night_vision_compatible":true,"can_stack":false}},
@@ -6637,7 +6637,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "STANAG 4179 Magazines"
+                "armory_subcategory": "STANAG 4179 Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "H&K UMP-45 ACP 25-Round polymer magazine",
@@ -6653,7 +6654,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "UMP-45 Magazines"
+                "armory_subcategory": "UMP-45 Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Beretta USGI 15-Round steel M9 magazine",
@@ -6669,7 +6671,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "Beretta 92 Magazines"
+                "armory_subcategory": "Beretta 92 Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Magpul PMAG 10-Round 7.62x51mm NATO AICS magazine",
@@ -6685,7 +6688,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "AICS Magazines"
+                "armory_subcategory": "AICS Magazines",
+                "marking_system": "Magpul Dot Matrix"
             },
             {
                 "name": "Steyr TMP 15-Round 9x19mm Parabellum magazine",
@@ -6701,7 +6705,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "TMP Magazines"
+                "armory_subcategory": "TMP Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Steyr TMP 30-Round 9x19mm Parabellum magazine",
@@ -6717,7 +6722,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "TMP Magazines"
+                "armory_subcategory": "TMP Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Glock 17 17-Round 9x19mm Parabellum magazine",
@@ -6733,7 +6739,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "Glock 9x19mm Parabellum Magazines"
+                "armory_subcategory": "Glock 9x19mm Parabellum Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Glock 33-Round 9x19mm Parabellum magazine",
@@ -6749,7 +6756,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "Glock 9x19mm Parabellum Magazines"
+                "armory_subcategory": "Glock 9x19mm Parabellum Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Glock 21 13-Round .45 ACP magazine",
@@ -6765,7 +6773,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "Glock .45 ACP Magazines"
+                "armory_subcategory": "Glock .45 ACP Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Glock 21 30-Round .45 ACP magazine",
@@ -6781,7 +6790,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "Glock .45 ACP Magazines"
+                "armory_subcategory": "Glock .45 ACP Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Glock 20 15-Round 10mm Auto magazine",
@@ -6797,7 +6807,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "Glock 10mm Auto Magazines"
+                "armory_subcategory": "Glock 10mm Auto Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Glock 20 30-Round 10mm Auto magazine",
@@ -6813,7 +6824,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "Glock 10mm Auto Magazines"
+                "armory_subcategory": "Glock 10mm Auto Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Colt USGI 30-Round polymer 6.5x45mm Colt STANAG magazine",
@@ -6829,7 +6841,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "STANAG 8556 Magazines"
+                "armory_subcategory": "STANAG 8556 Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Colt USGI 40-Round polymer 6.5x45mm Colt STANAG magazine",
@@ -6845,7 +6858,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "STANAG 8556 Magazines"
+                "armory_subcategory": "STANAG 8556 Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Colt USGI 50-Round polymer 5.7x28mm NATO STANAG magazine",
@@ -6861,7 +6875,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "M9L Magazines"
+                "armory_subcategory": "M9L Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Colt USGI 90-Round polymer 5.7x28mm NATO STANAG drum",
@@ -6877,7 +6892,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "M9L Magazines"
+                "armory_subcategory": "M9L Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Colt USGI 20-Round polymer .50 AE M9L-G magazine",
@@ -6893,7 +6909,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "M9L-G Magazines"
+                "armory_subcategory": "M9L-G Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Colt USGI 40-Round polymer .50 AE M9L-G magazine",
@@ -6909,7 +6926,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "M9L-G Magazines"
+                "armory_subcategory": "M9L-G Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Colt USGI 60-Round polymer .50 AE M9L-G drum magazine",
@@ -6925,7 +6943,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "M9L-G Magazines"
+                "armory_subcategory": "M9L-G Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Colt USGI 20-Round polymer 5.7x28mm NATO M19 magazine",
@@ -6941,7 +6960,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "M19 Magazines"
+                "armory_subcategory": "M19 Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Colt USGI 30-Round polymer 5.7x28mm NATO M19 magazine",
@@ -6957,7 +6977,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "M19 Magazines"
+                "armory_subcategory": "M19 Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Beta C-Mag 100-Round 5.56x45mm NATO STANAG drum magazine",
@@ -6973,7 +6994,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "STANAG 4179 Magazines"
+                "armory_subcategory": "STANAG 4179 Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Beta C-Mag 100-Round 6.5x45mm Colt STANAG drum magazine",
@@ -6989,7 +7011,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "STANAG 8556 Magazines"
+                "armory_subcategory": "STANAG 8556 Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "SIG Sauer MCX-Spear 20 Round Multi-Caliber Magazine",
@@ -7005,7 +7028,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "MCX-Spear Magazines"
+                "armory_subcategory": "MCX-Spear Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Armalite USGI 10-Round 7.62x51mm NATO AR-10 magazine",
@@ -7021,7 +7045,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "AR-10 Magazines"
+                "armory_subcategory": "AR-10 Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Armalite USGI 20-Round 7.62x51mm NATO AR-10 magazine",
@@ -7037,7 +7062,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "AR-10 Magazines"
+                "armory_subcategory": "AR-10 Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Armalite USGI 30-Round 7.62x51mm NATO AR-10 magazine",
@@ -7053,7 +7079,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "AR-10 Magazines"
+                "armory_subcategory": "AR-10 Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "H&K UMP-9 30-Round polymer magazine",
@@ -7069,7 +7096,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "UMP-9 Magazines"
+                "armory_subcategory": "UMP-9 Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Military Armaments Corporation 16-Round 9x19mm Parabellum MAC-11 magazine",
@@ -7085,7 +7113,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "MAC-11 Magazines"
+                "armory_subcategory": "MAC-11 Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Military Armaments Corporation 32-Round 9x19mm Parabellum MAC-11 magazine",
@@ -7101,7 +7130,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "MAC-11 Magazines"
+                "armory_subcategory": "MAC-11 Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "USGI 15-Round stamped steel .30 Carbine magazine",
@@ -7117,7 +7147,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "M1 Carbine Magazines"
+                "armory_subcategory": "M1 Carbine Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "USGI 30-Round stamped steel .30 Carbine magazine",
@@ -7133,7 +7164,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "M1 Carbine Magazines"
+                "armory_subcategory": "M1 Carbine Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "H&K MP5 30-Round 9x19mm Parabellum stamped steel magazine",
@@ -7149,7 +7181,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "MP5 Magazines"
+                "armory_subcategory": "MP5 Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Glock 22 15-Round .40 S&W magazine",
@@ -7165,7 +7198,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "Glock .40 S&W Magazines"
+                "armory_subcategory": "Glock .40 S&W Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Glock 22 22-Round .40 S&W magazine",
@@ -7181,7 +7215,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "Glock .40 S&W Magazines"
+                "armory_subcategory": "Glock .40 S&W Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Izhmash PP-19 Bizon 53-Round 9x19mm Parabellum helical magazine",
@@ -7197,7 +7232,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "Bizon Magazines"
+                "armory_subcategory": "Bizon Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Kalashnikov Concern PP-19-01 Vityaz 30-Round 9x19mm Parabellum magazine",
@@ -7213,7 +7249,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "Vityaz Magazines"
+                "armory_subcategory": "Vityaz Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Izhmash 30-Round 7.62x39mm Soviet stamped steel AK-47 magazine",
@@ -7229,7 +7266,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "AK-47 Magazines"
+                "armory_subcategory": "AK-47 Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "SIG Sauer 15-Round 9x19mm Parabellum P226 steel magazine",
@@ -7245,7 +7283,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "SIG P226 Magazines"
+                "armory_subcategory": "SIG P226 Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "SIG Sauer 7-Round .45 ACP 1911 steel magazine",
@@ -7261,7 +7300,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "SIG 1911 Magazines"
+                "armory_subcategory": "SIG 1911 Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Taran Tactical Innovations 20-Round .45 ACP 2011 steel magazine",
@@ -7277,7 +7317,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "2011 Magazines"
+                "armory_subcategory": "2011 Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Heckler & Koch 15-Round 9x19mm Parabellum USP hybrid magazine",
@@ -7293,7 +7334,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "H&K USP-9 Magazines"
+                "armory_subcategory": "H&K USP-9 Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Heckler & Koch 13-Round .40 S&W USP hybrid magazine",
@@ -7309,7 +7351,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "H&K USP-40 Magazines"
+                "armory_subcategory": "H&K USP-40 Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Heckler & Koch 12-Round .45 ACP USP hybrid magazine",
@@ -7325,7 +7368,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "H&K USP-45 Magazines"
+                "armory_subcategory": "H&K USP-45 Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "FN Herstal 20-Round 5.7x28mm NATO Five-seveN magazine",
@@ -7341,7 +7385,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "FN Five-seveN Magazines"
+                "armory_subcategory": "FN Five-seveN Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "FN Herstal 30-Round 5.7x28mm NATO Five-seveN magazine",
@@ -7357,7 +7402,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "FN Five-seveN Magazines"
+                "armory_subcategory": "FN Five-seveN Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "IMI 7-Round .50 AE Desert Eagle magazine",
@@ -7373,7 +7419,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "Desert Eagle Magazines"
+                "armory_subcategory": "Desert Eagle Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Izmash 30-Round 5.45x39mm Soviet bakelite AK-74 magazine",
@@ -7389,7 +7436,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "AK-74 Magazines"
+                "armory_subcategory": "AK-74 Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Legionaire 20-Round 7.62x51mm NATO FAF-439 magazine",
@@ -7402,7 +7450,8 @@
                 "caliber": ["7.62x51mm NATO"],
                 "capacity": 20,
                 "magazinesystem": "FAL",
-                "can_stack": false
+                "can_stack": false,
+                "marking_system": "Tape"
             },
             {
                 "name": "FN Herstal 20-Round 7.62x51mm NATO FAL magazine",
@@ -7418,7 +7467,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "FAL Magazines"
+                "armory_subcategory": "FAL Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "FN Herstal 30-Round 7.62x51mm NATO FAL magazine",
@@ -7434,7 +7484,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "FAL Magazines"
+                "armory_subcategory": "FAL Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Legionaire 10-Round 9x19mm Parabellum CACPPF-439 magazine",
@@ -7446,11 +7497,12 @@
                 "id": 241,
                 "caliber": ["9x19mm Parabellum"],
                 "capacity": 10,
-                "magazinesystem": "CACPPF-439",
+                "magazinesystem": "MP-40",
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "CACPPF-439 Magazines"
+                "armory_subcategory": "MP-40 Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Legionaire 20-Round 9x19mm Parabellum CACPPF-439 magazine",
@@ -7462,11 +7514,12 @@
                 "id": 242,
                 "caliber": ["9x19mm Parabellum"],
                 "capacity": 20,
-                "magazinesystem": "CACPPF-439",
+                "magazinesystem": "MP-40",
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "CACPPF-439 Magazines"
+                "armory_subcategory": "MP-40 Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Legionaire 30-Round 9x19mm Parabellum CACPPF-439 magazine",
@@ -7478,11 +7531,12 @@
                 "id": 243,
                 "caliber": ["9x19mm Parabellum"],
                 "capacity": 30,
-                "magazinesystem": "CACPPF-439",
+                "magazinesystem": "MP-40",
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "CACPPF-439 Magazines"
+                "armory_subcategory": "MP-40 Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Legionaire 40-Round 9x19mm Parabellum CACPPF-439 magazine",
@@ -7494,11 +7548,12 @@
                 "id": 244,
                 "caliber": ["9x19mm Parabellum"],
                 "capacity": 40,
-                "magazinesystem": "CACPPF-439",
+                "magazinesystem": "MP-40",
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "CACPPF-439 Magazines"
+                "armory_subcategory": "MP-40 Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Legionaire 47-Round 7.62x51mm NATO MPF-439 pan magazine",
@@ -7514,7 +7569,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "MPF-439 Magazines"
+                "armory_subcategory": "MPF-439 Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Legionaire 97-Round 7.62x51mm NATO MPF-439 drum magazine",
@@ -7530,7 +7586,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "MPF-439 Magazines"
+                "armory_subcategory": "MPF-439 Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "FN Herstal 10-Round 7.62x51mm NATO SCAR-H magazine",
@@ -7546,7 +7603,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "SCAR-H Magazines"
+                "armory_subcategory": "SCAR-H Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "FN Herstal 20-Round 7.62x51mm NATO SCAR-H magazine",
@@ -7562,7 +7620,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "SCAR-H Magazines"
+                "armory_subcategory": "SCAR-H Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Baines F439 7-Round .45 ACP M1911 magazine",
@@ -7578,7 +7637,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "F439 Magazines"
+                "armory_subcategory": "F439 Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Mossberg M590M 10-Round 12 Gauge magazine",
@@ -7594,7 +7654,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "M590M Magazines"
+                "armory_subcategory": "M590M Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Mossberg M590M 15-Round 12 Gauge magazine",
@@ -7610,7 +7671,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "M590M Magazines"
+                "armory_subcategory": "M590M Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Izhmash 8-Round 12 Gauge Saiga-12 magazine",
@@ -7626,7 +7688,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "Saiga-12 Magazines"
+                "armory_subcategory": "Saiga-12 Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "ProMag Saiga-12 20-Round 12 Gauge drum magazine",
@@ -7642,7 +7705,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "Saiga-12 Magazines"
+                "armory_subcategory": "Saiga-12 Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Atchisson AA-12 8-Round 12 Gauge magazine",
@@ -7658,7 +7722,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "AA-12 Magazines"
+                "armory_subcategory": "AA-12 Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Atchisson AA-12 20-Round 12 Gauge drum magazine",
@@ -7674,7 +7739,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "AA-12 Magazines"
+                "armory_subcategory": "AA-12 Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Accuracy International Arctic Warfare 10-Round magazine",
@@ -7690,7 +7756,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "Arctic Warfare Magazines"
+                "armory_subcategory": "Arctic Warfare Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "PGM Precision Hecate II 7-Round .50 BMG magazine",
@@ -7706,7 +7773,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "Hecate II Magazines"
+                "armory_subcategory": "Hecate II Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Barrett M82 10-Round .50 BMG magazine",
@@ -7722,7 +7790,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "M82 Magazines"
+                "armory_subcategory": "M82 Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Heckler & Koch 20-Round 7.62x51mm NATO HK417 magazine",
@@ -7738,7 +7807,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "HK417 Magazines"
+                "armory_subcategory": "HK417 Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Heckler & Koch 20-Round 4.6x30mm MP7 magazine",
@@ -7754,7 +7824,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "MP7 Magazines"
+                "armory_subcategory": "MP7 Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Heckler & Koch 30-Round 4.6x30mm MP7 magazine",
@@ -7770,7 +7841,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "MP7 Magazines"
+                "armory_subcategory": "MP7 Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Heckler & Koch 40-Round 4.6x30mm MP7 magazine",
@@ -7786,7 +7858,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "MP7 Magazines"
+                "armory_subcategory": "MP7 Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "FN Herstal 50-Round 5.7x28mm NATO P90 magazine",
@@ -7802,7 +7875,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "P90 Magazines"
+                "armory_subcategory": "P90 Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Heckler & Koch 20-Round 7.62x51mm NATO G3 magazine",
@@ -7818,7 +7892,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "G3 Magazines"
+                "armory_subcategory": "G3 Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Heckler & Koch 30-Round 7.62x51mm NATO G3 magazine",
@@ -7834,7 +7909,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "G3 Magazines"
+                "armory_subcategory": "G3 Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Tula Arms 20-Round 9x39mm Soviet AS-Val magazine",
@@ -7850,7 +7926,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "AS-Val Magazines"
+                "armory_subcategory": "AS-Val Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Cheyenne Tactical 7-Round .408 Cheyenne Tactical magazine",
@@ -7866,7 +7943,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "Intervention Magazines"
+                "armory_subcategory": "Intervention Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Howa Type 64 20-Round 7.62x51mm NATO magazine",
@@ -7882,7 +7960,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "Type 64 Magazines"
+                "armory_subcategory": "Type 64 Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Colt USGI 20-Round stamped steel 5.56x45mm NATO STANAG magazine",
@@ -7898,7 +7977,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "STANAG 4179 Magazines"
+                "armory_subcategory": "STANAG 4179 Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Magpul PMAG 30 GEN M3 Window 30-Round polymer 5.56x45mm NATO STANAG magazine",
@@ -7915,7 +7995,8 @@
                 "in_armory": true,
                 "window": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "STANAG 4179 Magazines"
+                "armory_subcategory": "STANAG 4179 Magazines",
+                "marking_system": "Magpul Dot Matrix"
             },
             {
                 "name": "Magpul PMAG 40 GEN M3 40-Round polymer 5.56x45mm NATO STANAG magazine",
@@ -7931,7 +8012,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "STANAG 4179 Magazines"
+                "armory_subcategory": "STANAG 4179 Magazines",
+                "marking_system": "Magpul Dot Matrix"
             },
             {
                 "name": "Magpul PMAG D-60 GEN M3 60-Round drum 5.56x45mm NATO STANAG magazine",
@@ -7947,7 +8029,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "STANAG 4179 Magazines"
+                "armory_subcategory": "STANAG 4179 Magazines",
+                "marking_system": "Magpul Dot Matrix"
             },
             {
                 "name": "Lancer L5AWM GEN 2 30-Round polymer 5.56x45mm NATO STANAG magazine",
@@ -7963,7 +8046,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "STANAG 4179 Magazines"
+                "armory_subcategory": "STANAG 4179 Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Daniel Defense DD32 32-Round polymer 5.56x45mm NATO STANAG magazine",
@@ -7979,7 +8063,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "STANAG 4179 Magazines"
+                "armory_subcategory": "STANAG 4179 Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Heckler & Koch 30-Round stamped steel 5.56x45mm NATO STANAG magazine",
@@ -7995,7 +8080,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "STANAG 4179 Magazines"
+                "armory_subcategory": "STANAG 4179 Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Heckler & Koch GEN 3 30-Round polymer 5.56x45mm NATO STANAG magazine",
@@ -8012,7 +8098,25 @@
                 "in_armory": true,
                 "window": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "STANAG 4179 Magazines"
+                "armory_subcategory": "STANAG 4179 Magazines",
+                "marking_system": "Tape"
+            },
+            {
+                "name": "Merz Werke 32-Round stamped steel 9x19mm Parabellum MP-40 magazine",
+                "value": 25,
+                "description": "Standard 32-round magazine for 9x19mm Parabellum chambered MP-40 submachine guns.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.3,
+                "id": 463,
+                "caliber": ["9x19mm Parabellum"],
+                "capacity": 32,
+                "magazinesystem": "MP-40",
+                "can_stack": false,
+                "in_armory": true,
+                "armory_category": "Magazines",
+                "armory_subcategory": "MP-40 Magazines",
+                "marking_system": "Tape"
             }
         ],
         "melee": [
@@ -8974,12 +9078,12 @@
                 "magazinesystem": "STANAG 4179",
                 "jamrate": 0.01,
                 "accessories": [
-                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": {"name":"EOTech SU-231A/PEQ Holographic Sight","value":1200,"description":"Advanced holographic sight providing rapid target acquisition at close to medium ranges. Mounts to a picatinny rail.","rarity":"Rare","random_quantity":false,"weight":0.75,"id":124,"attachment":true,"slot":"picatinny_optic","modifiers":{"stats":{"aim":1}},"magnified":false,"variable":false,"night_vision_compatible":true,"subslots":[{"name":"Magnifier","slot":"magnifier","current":{"name":"EOTech G33 Magnifier","value":600,"description":"3x magnifier that pairs with holographic sights for improved medium-range target acquisition. Mounts to a picatinny rail.","rarity":"Uncommon","random_quantity":false,"weight":0.4,"id":122,"attachment":true,"slot":"magnifier","modes":[{"name":"Off","type":"none","usage":null,"modifiers":null},{"name":"3x","type":"magnification","usage":null,"modifiers":{"stats":{"aim":1},"night_vision_compatible":false}},{"mode_method":"slider"}],"can_stack":false}}],"can_stack":false}},
-                    {"name": "Picatinny Rail (Handguard Top)", "slot": "picatinny_rifle", "current": {"name":"L3Harris AN/PEQ-15 LAM","value":2000,"description":"Combination IR laser/illuminator, and visible laser designator. Mounts to a picatinny rail.","rarity":"Uncommon","random_quantity":false,"weight":0.3,"id":125,"attachment":true,"slot":"picatinny_rifle","modifiers":null,"electronic":true,"battery_type":"CR123A","battery_life":4,"can_stack":false,"modes":[{"name":"Laser IR","type":"ir_laser","usage":2,"modifiers":{"stats":{"aim":1},"night_vision_compatible":true},"position":180},{"name":"Laser","type":"visible_laser","usage":2,"modifiers":{"stats":{"aim":1,"stealth":-1},"night_vision_compatible":true},"position":225},{"name":"Light IR","type":"ir_illuminator","usage":3,"modifiers":{"stats":{"perception":1},"night_vision_compatible":true},"position":45},{"name":"Light Laser","type":"flashlight_visible_laser","usage":3,"modifiers":{"stats":{"aim":1,"perception":1,"stealth":-1},"night_vision_compatible":false},"position":90},{"mode_method":"dial"}]}},
+                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": {"id": 118, "sub_attachment": 122}},
+                    {"name": "Picatinny Rail (Handguard Top)", "slot": "picatinny_rifle", "current": {"id": 125}},
                     {"name": "MLOK Mounts (Handguard Left)", "slot": "mlok_rifle", "current": null},
                     {"name": "MLOK Mounts (Handguard Right)", "slot": "mlok_rifle", "current": null},
-                    {"name": "MLOK Mounts (Handguard Bottom)", "slot": "mlok_bottom", "current": {"name":"Magpul RVG Vertical Foregrip","value":25,"description":"Vertical foregrip that improves weapon handling and reduces recoil. Mounts to a picatinny rail.","rarity":"Common","random_quantity":false,"weight":0.2,"id":110,"attachment":true,"slot":["picatinny_bottom","picatinny_bottom_nounderbarrel"],"modifiers":{"stats":{"aim":1}},"can_stack":false}},
-                    {"name": "Muzzle Device", "slot": "muzzle_556", "current": {"name":"Knight's Armament QDSS-NT4 Suppressor","value":1200,"description":"5.56mm suppressor that hides muzzle flash and dampens sound.","rarity":"Rare","random_quantity":false,"weight":0.4,"id":7,"attachment":true,"slot":"muzzle_556","suppressor":true,"modifiers":{"stats":{"stealth":2}},"can_stack":false}}
+                    {"name": "MLOK Mounts (Handguard Bottom)", "slot": "mlok_bottom", "current": {"id": 110}},
+                    {"name": "Muzzle Device", "slot": "muzzle_556", "current": {"id": 7}}
                 ],
                 "can_stack": false,
                 "infinite_ammo": true,
@@ -10603,6 +10707,31 @@
                 "armory_subcategory": "Hearing Protection"
             }
         ],
+        "non_lootable": [
+            {
+                "name": "Tikkakoski Suomi KP/-31",
+                "value": 1200,
+                "description": "Finnish submachine gun used during World War II, known for its reliability and high rate of fire.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 4.6,
+                "id": 462,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "smg",
+                "platform": "KP-31",
+                "caliber": ["9x19mm Parabellum"],
+                "action": ["Semi", "Auto"],
+                "bolt": "open",
+                "bolt_catch": true,
+                "cyclic": 900,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "MP-40",
+                "jamrate": 0.01,
+                "accessories": null,
+                "can_stack": false
+            }
+        ],
         "enemy_drops": [
             {
                 "name": "Legion Rifleman",
@@ -11047,7 +11176,8 @@
                 "games": ["Blackjack","Poker","High-Low"],
                 "poker_player_override": [
                     {"slot": 1, "name": {"first": "Katerina 'Tabby'", "last": "Bochmann"}},
-                    {"slot": 2, "name": {"first": "Random Kyntarian", "last": "Worker"}}
+                    {"slot": 2, "name": {"first": "Random Kyntarian", "last": "Worker"}},
+                    {"slot": 3, "name": {"first": "Emeilia", "last": "Muller"}}
                 ],
                 "min_bet": 1,
                 "max_bet": 500
