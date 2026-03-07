@@ -49,6 +49,7 @@ TABLES_DIR = ROOT / 'tables'
 BUILD_DIR = ROOT / 'build'
 DIST_DIR = ROOT / 'dist'
 FONTS_DIR = ROOT / 'fonts'
+IMAGES_DIR = ROOT / 'images'
 def get_version_from_main():
     if not MAIN_PY.exists():
         return '0.0.0'
@@ -73,6 +74,15 @@ def build_exe(name='DOOM-Tools', onefile=True, clean=True):
         pyinstaller_cmd.append('--clean')
     if onefile:
         pyinstaller_cmd.append('--onefile')
+
+    # Include the images directory as bundled data so images are available
+    # inside the frozen application (_MEIPASS). Use os.pathsep so this works
+    # cross-platform (PyInstaller expects ';' on Windows and ':' on POSIX).
+    if IMAGES_DIR.exists():
+        add_data_str = f"{str(IMAGES_DIR)}{os.pathsep}images"
+        logging.info('Adding PyInstaller data: %s', add_data_str)
+        pyinstaller_cmd += ['--add-data', add_data_str]
+
     pyinstaller_cmd += ['--name', name, str(MAIN_PY)]
     rc = run(pyinstaller_cmd, cwd=str(ROOT))
     return rc == 0

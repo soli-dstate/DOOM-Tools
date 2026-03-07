@@ -8,15 +8,12 @@
         "stat_neg_clamp": 2,
         "use_stat_levelling": true,
         "slot_disable_points": 1,
-        "style": "traits",
+        "style": "classic",
         "paycheck": true,
         "paycheck_amount": 10500,
         "pay_period": "weekly",
-        "combat_repots": true
-    },
-    "traits": {
-        "positive": [],
-        "negative": []
+        "combat_reports": true,
+        "hardcore_mode": true
     },
     "rarity_weights": {
         "Common": 40,
@@ -123,7 +120,39 @@
                 "armory_category": "Pistol"
             }
         ],
-        "german_weapons": [],
+        "german_weapons": [
+            {
+                "name": "Heckler & Koch HK416A7",
+                "value": 3000,
+                "description": "Standard issue rifle for the Security Department of the SCP Foundation. Based on the AR-15 platform, but with a short-stroke gas piston system for improved reliability and reduced recoil. Chambered in 5.56x45mm NATO.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 3.69,
+                "id": 43,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "AR-15",
+                "caliber": ["5.56x45mm NATO"],
+                "action": ["Semi", "Auto"],
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 850,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "STANAG 4179",
+                "jamrate": 0.01,
+                "accessories": [
+                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": null},
+                    {"name": "Picatinny Rail (Handguard Left)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Right)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_556", "current": null, "conflicts_with": ["bayonet_mount_ar15"]}
+                ],
+                "can_stack": false,
+                "in_armory": true,
+                "armory_category": "Assault Rifle"
+            }
+        ],
         "consumables": [],
         "attachments": [],
         "magazines": [
@@ -141,7 +170,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "STANAG 4179 Magazines"
+                "armory_subcategory": "STANAG 4179 Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Colt USGI 20-Round stamped steel 5.56x45mm NATO STANAG magazine",
@@ -157,7 +187,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "STANAG 4179 Magazines"
+                "armory_subcategory": "STANAG 4179 Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Magpul PMAG 30 GEN M3 Window 30-Round polymer 5.56x45mm NATO STANAG magazine",
@@ -174,7 +205,8 @@
                 "in_armory": true,
                 "window": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "STANAG 4179 Magazines"
+                "armory_subcategory": "STANAG 4179 Magazines",
+                "marking_system": "Magpul Dot Matrix"
             },
             {
                 "name": "Magpul PMAG 40 GEN M3 40-Round polymer 5.56x45mm NATO STANAG magazine",
@@ -190,7 +222,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "STANAG 4179 Magazines"
+                "armory_subcategory": "STANAG 4179 Magazines",
+                "marking_system": "Magpul Dot Matrix"
             },
             {
                 "name": "Magpul PMAG D-60 GEN M3 60-Round drum 5.56x45mm NATO STANAG magazine",
@@ -206,7 +239,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "STANAG 4179 Magazines"
+                "armory_subcategory": "STANAG 4179 Magazines",
+                "marking_system": "Magpul Dot Matrix"
             },
             {
                 "name": "Lancer L5AWM GEN 2 30-Round polymer 5.56x45mm NATO STANAG magazine",
@@ -222,7 +256,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "STANAG 4179 Magazines"
+                "armory_subcategory": "STANAG 4179 Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Daniel Defense DD32 32-Round polymer 5.56x45mm NATO STANAG magazine",
@@ -238,10 +273,11 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "STANAG 4179 Magazines"
+                "armory_subcategory": "STANAG 4179 Magazines",
+                "marking_system": "Tape"
             },
             {
-                "name": "Heckler & Koch 30-Round stamped steel 5.56x45mm NATO STANAG magazine",
+                "name": "Heckler & Koch Maritime 30-Round stamped steel 5.56x45mm NATO STANAG magazine",
                 "value": 94.95,
                 "description": "Durable 30-round stamped steel magazine for 5.56x45mm NATO chambered STANAG rifles.",
                 "rarity": "Rare",
@@ -254,7 +290,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "STANAG 4179 Magazines"
+                "armory_subcategory": "STANAG 4179 Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Heckler & Koch GEN 3 30-Round polymer 5.56x45mm NATO STANAG magazine",
@@ -271,7 +308,8 @@
                 "in_armory": true,
                 "window": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "STANAG 4179 Magazines"
+                "armory_subcategory": "STANAG 4179 Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "FN Herstal 50-Round 5.7x28mm NATO P90 magazine",
@@ -287,7 +325,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "P90 Magazines"
+                "armory_subcategory": "P90 Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Smith & Wesson 22-Round 5.7x28mm NATO M&P 5.7 magazine",
@@ -303,7 +342,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "M&P 5.7 Magazines"
+                "armory_subcategory": "M&P 5.7 Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "H&K UMP-45 ACP 25-Round polymer magazine",
@@ -319,7 +359,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "UMP-45 Magazines"
+                "armory_subcategory": "UMP-45 Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "H&K UMP-9 30-Round polymer magazine",
@@ -335,7 +376,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "UMP-9 Magazines"
+                "armory_subcategory": "UMP-9 Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Cheyenne Tactical 7-Round .408 Cheyenne Tactical magazine",
@@ -351,7 +393,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "Intervention Magazines"
+                "armory_subcategory": "Intervention Magazines",
+                "marking_system": "Tape"
             },
             {
                 "name": "Accuracy International Arctic Warfare 10-Round magazine",
@@ -367,7 +410,8 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Magazines",
-                "armory_subcategory": "Arctic Warfare Magazines"
+                "armory_subcategory": "Arctic Warfare Magazines",
+                "marking_system": "Tape"
             }
         ],
         "ammunition": [
@@ -494,7 +538,7 @@
             {
                 "name": ".45 ACP",
                 "value": 0.5,
-                "description": "Popular pistol and submachine gun round, used to be semi-standard issue for the LEDF and is still widely used by the Kyntarians. Known for its stopping power at close ranges.",
+                "description": "Popular pistol and submachine gun round. Known for its stopping power at close ranges.",
                 "rarity": "Common",
                 "random_quantity": {"min": 20, "max": 150},
                 "weight": 0.015,
@@ -545,7 +589,7 @@
             {
                 "name": "9x19mm Parabellum",
                 "value": 0.3,
-                "description": "Widely used pistol and submachine gun round, standard issue for the LEDF and Kyntarians. Known for its balance of recoil, capacity, and effectiveness.",
+                "description": "Widely used pistol and submachine gun round. Known for its balance of recoil, capacity, and effectiveness.",
                 "rarity": "Common",
                 "random_quantity": {"min": 30, "max": 200},
                 "weight": 0.01,
@@ -756,7 +800,7 @@
                 "accessories": null,
                 "can_stack": false,
                 "infinite_ammo": true,
-                "mag_to_load": 13,
+                "mag_to_load": 1,
                 "custom_equip_sound": "sounds/firearms/weaponsounds/famas/french.ogg"
             },
             {
@@ -790,7 +834,7 @@
                 ],
                 "can_stack": false,
                 "infinite_ammo": true,
-                "mag_to_load": 408
+                "mag_to_load": 3
             },
             {
                 "name": "Colt M16A1",
@@ -819,7 +863,7 @@
                 ],
                 "can_stack": false,
                 "infinite_ammo": true,
-                "mag_to_load": 13
+                "mag_to_load": 2
             },
             {
                 "name": "M4 SOPMOD II",
@@ -852,12 +896,12 @@
                 ],
                 "can_stack": false,
                 "infinite_ammo": true,
-                "mag_to_load": 411
+                "mag_to_load": 6
             },
             {
                 "name": "Colt M4A1 Carbine",
                 "value": 4500,
-                "description": "Versatile carbine, once standard issue for the LEDF, now adopted by the Kyntarians. This one is tan on the handguard, receivers, and stock. The buffer tube has green accents.",
+                "description": "Versatile carbine, standard issue for the US armed forces. This one is tan on the handguard, receivers, and stock. The buffer tube has green accents.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
                 "weight": 2.9,
@@ -885,7 +929,7 @@
                 ],
                 "can_stack": false,
                 "infinite_ammo": true,
-                "mag_to_load": 407
+                "mag_to_load": 1
             },
             {
                 "name": "Heckler & Koch HK416",
@@ -917,7 +961,7 @@
                 ],
                 "can_stack": false,
                 "infinite_ammo": true,
-                "mag_to_load": 413
+                "mag_to_load": 8
             },
             {
                 "name": "Heckler & Koch UMP-45",
@@ -950,7 +994,7 @@
                 ],
                 "can_stack": false,
                 "infinite_ammo": true,
-                "mag_to_load": 14
+                "mag_to_load": 34
             },
             {
                 "name": "Heckler & Koch UMP-9",
@@ -983,7 +1027,7 @@
                 ],
                 "can_stack": false,
                 "infinite_ammo": true,
-                "mag_to_load": 127
+                "mag_to_load": 35
             },
             {
                 "name": "Heckler & Koch G11K2",
@@ -1148,7 +1192,7 @@
                 ],
                 "can_stack": false,
                 "infinite_ammo": true,
-                "mag_to_load": 384
+                "mag_to_load": 36
             },
             {
                 "name": "Mossberg M500",
@@ -1203,7 +1247,7 @@
                 ],
                 "can_stack": false,
                 "infinite_ammo": true,
-                "mag_to_load": 338
+                "mag_to_load": 37
             }
         ],
         "stores": [

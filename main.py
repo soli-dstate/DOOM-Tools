@@ -514,7 +514,15 @@ def get_current_table_path():
 
     current_tbl = global_variables.get('current_table')
     if current_tbl:
-        return os.path.join("tables", current_tbl)
+        path = os.path.join("tables", current_tbl)
+        if os.path.exists(path):
+            return path
+        ext = global_variables.get('table_extension', '.sldtbl')
+        if not current_tbl.endswith(ext):
+            path_with_ext = os.path.join("tables", current_tbl + ext)
+            if os.path.exists(path_with_ext):
+                global_variables['current_table'] = current_tbl + ext
+                return path_with_ext
     table_files = sorted(glob.glob(os.path.join("tables", f"*{global_variables.get('table_extension', '.sldtbl')}")))
     if table_files:
         return table_files[0]
@@ -1282,9 +1290,13 @@ def validate_table_ids():
     table_sequence_details =[]
     ammo_errors =[]
     ammo_errors_details =[]
+    sound_warnings = []
 
     referenced_slots = set()
+    referenced_slots_by_table = {}
+    table_pretty_names = {}
     all_table_items =[]
+    table_hardcore = {}
 
     for table_file in sorted(table_files):
         table_path = os.path.join(tables_dir, table_file)
@@ -1293,7 +1305,16 @@ def validate_table_ids():
                 table_data = json.load(f)
 
             table_name = table_data.get("prettyname", table_file)
+            try:
+                table_pretty_names[table_file] = table_name
+            except Exception:
+                pass
             tables = table_data.get("tables", {})
+
+            try:
+                table_hardcore[table_file] = bool((table_data.get('additional_settings') or {}).get('hardcore_mode'))
+            except Exception:
+                table_hardcore[table_file] = False
 
             try:
                 magazine_items =[]
@@ -1370,7 +1391,12 @@ def validate_table_ids():
                             if isinstance(accs, list):
                                 for a in accs:
                                     if isinstance(a, dict)and a.get('slot'):
-                                        referenced_slots.add(str(a.get('slot')).strip())
+                                                slot_name = str(a.get('slot')).strip()
+                                                referenced_slots.add(slot_name)
+                                                try:
+                                                    referenced_slots_by_table.setdefault(table_file, set()).add(slot_name)
+                                                except Exception:
+                                                    pass
                         except Exception:
                             pass
 
@@ -1379,7 +1405,12 @@ def validate_table_ids():
                             if isinstance(subs, list):
                                 for s in subs:
                                     if isinstance(s, dict)and s.get('slot'):
-                                        referenced_slots.add(str(s.get('slot')).strip())
+                                        slot_name = str(s.get('slot')).strip()
+                                        referenced_slots.add(slot_name)
+                                        try:
+                                            referenced_slots_by_table.setdefault(table_file, set()).add(slot_name)
+                                        except Exception:
+                                            pass
                         except Exception:
                             pass
 
@@ -1459,6 +1490,191 @@ def validate_table_ids():
     except Exception:
         pass
 
+    # Resolve accessory `current` references that are specified as simple IDs
+    try:
+        import copy as _copy
+        hardcore_errors = []
+        hardcore_errors_details = []
+
+        id_to_item = {}
+        for it, tf, sub in all_table_items:
+            try:
+                if isinstance(it, dict) and 'id' in it:
+                    id_to_item[it['id']] = it
+            except Exception:
+                pass
+
+        # Validate firearm parts for tables in hardcore mode
+        try:
+            for item, tf, sub in all_table_items:
+                try:
+                    if not isinstance(item, dict):
+                        continue
+                    if not table_hardcore.get(tf):
+                        continue
+                    if not item.get('firearm'):
+                        continue
+
+                    fname = item.get('name') or '<unnamed>'
+                    fplat = item.get('platform') or ''
+                    parts = item.get('parts') or []
+                    for p in parts:
+                        try:
+                            if not isinstance(p, dict):
+                                continue
+                            cur = p.get('current')
+                            if cur is None:
+                                continue
+
+                            target_id = None
+                            if isinstance(cur, int):
+                                target_id = cur
+                            elif isinstance(cur, dict) and 'id' in cur:
+                                target_id = cur.get('id')
+
+                            if target_id is None or (isinstance(target_id, str) and str(target_id).strip().lower() == 'null'):
+                                msg = f"Table '{table_pretty_names.get(tf, tf)}': Firearm '{fname}' has part '{p.get('name')}' with invalid 'current' id: {target_id}"
+                                hardcore_errors.append(msg)
+                                try:
+                                    hardcore_errors_details.append({'table': tf, 'weapon': item, 'part': p, 'reason': 'invalid_part_current_id', 'id': target_id})
+                                except Exception:
+                                    pass
+                                continue
+
+                            if target_id not in id_to_item:
+                                msg = f"Table '{table_pretty_names.get(tf, tf)}': Firearm '{fname}' has part '{p.get('name')}' referencing missing item ID {target_id}"
+                                hardcore_errors.append(msg)
+                                try:
+                                    hardcore_errors_details.append({'table': tf, 'weapon': item, 'part': p, 'reason': 'missing_referenced_part', 'id': target_id})
+                                except Exception:
+                                    pass
+                                continue
+
+                            target = id_to_item.get(target_id) or {}
+                            tplat = (target.get('platform') or '')
+                            try:
+                                lf = str(fplat).strip().lower()
+                                lt = str(tplat).strip().lower()
+                                if lf and lt and not (lf in lt or lt in lf):
+                                    msg = f"Table '{table_pretty_names.get(tf, tf)}': Firearm '{fname}' part '{p.get('name')}' references item ID {target_id} with platform '{tplat}' which does not match firearm platform '{fplat}'"
+                                    hardcore_errors.append(msg)
+                                    try:
+                                        hardcore_errors_details.append({'table': tf, 'weapon': item, 'part': p, 'reason': 'platform_mismatch', 'weapon_platform': fplat, 'part_platform': tplat, 'id': target_id})
+                                    except Exception:
+                                        pass
+                            except Exception:
+                                pass
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+        def _resolve_current(obj):
+            if not isinstance(obj, dict):
+                return
+
+            # Resolve accessories list
+            accs = obj.get('accessories') or []
+            if isinstance(accs, list):
+                for acc in accs:
+                    try:
+                        cur = acc.get('current')
+                        if cur is None:
+                            continue
+
+                        target_id = None
+                        sub_attachment = None
+                        overrides = {}
+
+                        if isinstance(cur, int):
+                            target_id = cur
+                        elif isinstance(cur, dict) and 'id' in cur:
+                            target_id = cur.get('id')
+                            sub_attachment = cur.get('sub_attachment')
+                            for k, v in cur.items():
+                                if k not in ('id', 'sub_attachment'):
+                                    overrides[k] = v
+
+                        if target_id is None:
+                            # If current is already an object, recurse into it
+                            if isinstance(cur, dict):
+                                _resolve_current(cur)
+                            continue
+
+                        target = id_to_item.get(target_id)
+                        if not target:
+                            continue
+
+                        new_installed = _copy.deepcopy(target)
+                        # apply overrides from the compact current dict (if any)
+                        for k, v in overrides.items():
+                            try:
+                                new_installed[k] = v
+                            except Exception:
+                                pass
+
+                        acc['current'] = new_installed
+
+                        # handle optional sub_attachment placement
+                        if sub_attachment:
+                            sub_target = id_to_item.get(sub_attachment)
+                            if sub_target and isinstance(new_installed.get('subslots'), list):
+                                placed = False
+                                for ss in new_installed['subslots']:
+                                    try:
+                                        ss_slot = ss.get('slot')
+                                        if ss_slot == sub_target.get('slot') or ss.get('current') is None:
+                                            ss['current'] = _copy.deepcopy(sub_target)
+                                            placed = True
+                                            break
+                                    except Exception:
+                                        pass
+                                if not placed:
+                                    try:
+                                        new_installed['subslots'][0]['current'] = _copy.deepcopy(sub_target)
+                                    except Exception:
+                                        pass
+
+                        # recurse into newly installed item's own accessories/subslots
+                        try:
+                            _resolve_current(new_installed)
+                        except Exception:
+                            pass
+                    except Exception:
+                        pass
+
+            # Resolve subslots that may have compact `current` definitions
+            subs = obj.get('subslots') or []
+            if isinstance(subs, list):
+                for s in subs:
+                    try:
+                        cur = s.get('current')
+                        if cur is None:
+                            continue
+                        if isinstance(cur, int) or (isinstance(cur, dict) and 'id' in cur):
+                            # place via a temporary accessory wrapper to reuse logic
+                            tmp = {'accessories': [{'current': cur}]}
+                            _resolve_current(tmp)
+                            # pull resolved value back
+                            try:
+                                s['current'] = tmp['accessories'][0].get('current')
+                            except Exception:
+                                pass
+                        elif isinstance(cur, dict):
+                            _resolve_current(cur)
+                    except Exception:
+                        pass
+
+        for item, tf, sub in all_table_items:
+            try:
+                _resolve_current(item)
+            except Exception:
+                pass
+    except Exception:
+        pass
+
     try:
         for item, tf, sub in all_table_items:
             try:
@@ -1520,52 +1736,91 @@ def validate_table_ids():
                 duplicate_suggestions.append(f"Unable to suggest fixes for duplicate ID {dup_id}.")
 
     try:
-        missing_slots =[]
-        if referenced_slots:
+        missing_slots = []
 
-            def item_matches_slot(item, slot_name):
+        # Emit non-fatal warnings for firearms that have a matching weaponsound folder
+        try:
+            sound_root = os.path.join('sounds', 'firearms', 'weaponsounds')
+            for item, tf, sub in all_table_items:
                 try:
-
-                    if isinstance(item, (list, tuple))and item:
-                        item = item[0]
                     if not isinstance(item, dict):
-                        return False
-
-                    for v in item.values():
-                        if isinstance(v, str)and v.strip().lower()==slot_name.lower():
-                            return True
-                        if isinstance(v, (list, tuple)):
-                            for e in v:
-                                try:
-                                    if isinstance(e, str)and e.strip().lower()==slot_name.lower():
-                                        return True
-                                except Exception:
-                                    continue
-
-                    if isinstance(item.get('slot'), str)and item.get('slot').strip().lower()==slot_name.lower():
-                        return True
-                except Exception:
-                    pass
-                return False
-
-            for slot in sorted(referenced_slots):
-
-                try:
-                    if isinstance(slot, str)and slot.strip().lower()=='weapon_slot':
                         continue
+                    if not item.get('firearm'):
+                        continue
+                    if item.get('ignore_weaponsound_in_log'):
+                        continue
+                    plat = item.get('platform')
+                    if not plat:
+                        continue
+                    plat_key = str(plat).strip().lower()
+                    if not plat_key:
+                        continue
+                    folder = os.path.join(sound_root, plat_key)
+                    if not os.path.isdir(folder):
+                        msg = f"Table '{table_pretty_names.get(tf, tf)}': Firearm '{item.get('name')}' platform '{plat}' missing weaponsound folder '{folder}'"
+                        logging.warning(msg)
+                        sound_warnings.append(msg)
                 except Exception:
                     pass
+        except Exception:
+            pass
 
-                found = any(item_matches_slot(it, slot)for it in all_table_items)
-                if not found:
-                    missing_slots.append(slot)
-        if missing_slots:
-            for s in missing_slots:
-                logging.warning(f"Referenced slot '{s}' has no items available in tables to populate it.")
+        def item_matches_slot(item, slot_name):
+            try:
+                if isinstance(item, (list, tuple)) and item:
+                    item = item[0]
+                if not isinstance(item, dict):
+                    return False
+
+                for v in item.values():
+                    if isinstance(v, str) and v.strip().lower() == slot_name.lower():
+                        return True
+                    if isinstance(v, (list, tuple)):
+                        for e in v:
+                            try:
+                                if isinstance(e, str) and e.strip().lower() == slot_name.lower():
+                                    return True
+                            except Exception:
+                                continue
+
+                if isinstance(item.get('slot'), str) and item.get('slot').strip().lower() == slot_name.lower():
+                    return True
+            except Exception:
+                pass
+            return False
+
+        # Emit warnings per-table: only warn about slots referenced from that table
+        # which have no matching items anywhere to populate them.
+        for table_file, slots in referenced_slots_by_table.items():
+            try:
+                if not slots:
+                    continue
+                table_pretty = None
+                try:
+                    # attempt to find pretty name from earlier loaded tables
+                    # table_name variable may not be in scope here, so derive from file
+                    table_pretty = None
+                except Exception:
+                    table_pretty = None
+
+                for slot in sorted(slots):
+                    try:
+                        if isinstance(slot, str) and slot.strip().lower() == 'weapon_slot':
+                            continue
+                    except Exception:
+                        pass
+
+                    found = any(item_matches_slot(it, slot) for it, tf, sub in all_table_items if tf == table_file)
+                    if not found:
+                        # Prefer pretty name if available; fall back to filename
+                        display_table = table_pretty_names.get(table_file, table_file)
+                        logging.warning(f"Table '{display_table}' references slot '{slot}' but no items are available in that table to populate it.")
+            except Exception:
+                pass
     except Exception:
         pass
 
-    all_errors = duplicate_errors +magazine_errors +table_sequence_errors
+    all_errors = duplicate_errors +magazine_errors +table_sequence_errors + hardcore_errors
     if all_errors:
 
         for err in all_errors:
@@ -29158,11 +29413,11 @@ class App:
                     table_data = json.load(f)
                 pretty_name = table_data.get("prettyname", table_file)
                 table_display_names.append(pretty_name)
-                table_name_map[pretty_name]= table_file.replace(".sldtbl", "")
+                table_name_map[pretty_name]= table_file
             except Exception as e:
                 logging.warning(f"Failed to load table pretty name for {table_file}: {e}")
                 table_display_names.append(table_file)
-                table_name_map[table_file]= table_file.replace(".sldtbl", "")
+                table_name_map[table_file]= table_file
 
         if not table_display_names:
             table_display_names =["<none>"]
@@ -29178,8 +29433,9 @@ class App:
         current_table_val = global_variables.get("current_table")
         current_display_name = "<none>"
         if current_table_val:
+            current_table_base = os.path.splitext(current_table_val)[0]
             for display_name, filename in table_name_map.items():
-                if filename ==current_table_val:
+                if filename ==current_table_val or os.path.splitext(filename)[0]==current_table_base:
                     current_display_name = display_name
                     break
 

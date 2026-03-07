@@ -1,7 +1,7 @@
 {
     "prettyname": "Light in Darkness",
     "filename": "lid.sldtbl",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "additional_settings": {
         "bonus_clamp": 5,
         "stat_clamp": 4,
@@ -6620,6 +6620,39 @@
                 ],
                 "in_armory": true,
                 "armory_category": "Anti-materiel Ammunition"
+            },
+            {
+                "name": ".50 Action Express",
+                "value": 0.5,
+                "description": "A powerful handgun cartridge designed for the Desert Eagle pistol, known for its high velocity and stopping power.",
+                "rarity": "Uncommon",
+                "random_quantity": {"min": 5, "max": 20},
+                "weight": 0.02,
+                "id": 464,
+                "caliber": [".50 Action Express"],
+                "sounds": "50ae",
+                "variants": [
+                    {
+                        "name": "JHP",
+                        "type": "JHP",
+                        "pen": "II",
+                        "modifiers": null,
+                        "rarity": "Uncommon",
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "FMJ",
+                        "type": "FMJ",
+                        "pen": "IIIa",
+                        "modifiers": null,
+                        "rarity": "Rare",
+                        "tip": null,
+                        "lead_free": false
+                    }
+                ],
+                "in_armory": true,
+                "armory_category": "Pistol Ammunition"
             }
         ],
         "magazines": [
