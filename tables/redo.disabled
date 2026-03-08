@@ -1585,6 +1585,42 @@
                     {"name": "USP45 Recoil Spring", "slot": "usp45_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
                     {"name": "USP45 Trigger Spring", "slot": "usp45_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"}
                 ]
+            },
+            {
+                "name": "Heckler & Koch MP5A5",
+                "value": 3000,
+                "description": "German made submachine gun chambered in 9x19mm Parabellum, variant of the MP5 with a fixed stock, known for its reliability and performance in various combat situations.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 2.88,
+                "id": 81,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "submachine_gun",
+                "platform": "MP5",
+                "caliber": ["9x19mm Parabellum", "9x19mm NATO"],
+                "action": ["Semi", "Auto"],
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 800,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "MP5",
+                "jamrate": 0.005,
+                "accessories": [
+                    {"name": "Iron Sights", "slot": "mp5_iron_sights", "current": null},
+                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": null},
+                    {"name": "Picatinny Rail (Handguard Left)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Right)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom_nounderbarrel", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_9mm", "current": null}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "MP5 Barrel", "slot": "mp5_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "MP5 Recoil Spring", "slot": "mp5_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
+                    {"name": "MP5 Trigger Spring", "slot": "mp5_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
+                    {"name": "MP5 Bolt Carrier Group", "slot": "mp5_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"}
+                ]
             }
         ],
         "parts": [

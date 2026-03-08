@@ -952,324 +952,6 @@ if not global_variables.get("devmode", {}).get("value", False):
 else:
     logging.info("Remote table sync active, skipped due to devmode.")
 
-def suggest_magazine_for_weapon_static(weapon):
-
-    try:
-        name =(weapon.get('name')or '').strip()
-    except Exception:
-        name = ''
-    try:
-        calib_raw = weapon.get('caliber')
-        if isinstance(calib_raw, (list, tuple))and calib_raw:
-            calib = str(calib_raw[0])
-        else:
-            calib = str(calib_raw or '')
-    except Exception:
-        calib = ''
-
-    results = {
-    'weapon_name':name,
-    'caliber':calib,
-    'wiki_matches':[],
-    'suggested_capacities':[],
-    'suggested_mag_item':None,
-    'next_id':0,
-    'notes':[]
-    }
-
-    caliber_map = {
-    '9x19':[15, 17, 30],
-    '9mm':[15, 17, 30],
-    '5.56x45':[30],
-    '5.56':[30],
-    '7.62x39':[30],
-    '7.62x51':[20, 30],
-    '7.62':[20, 30],
-    '.45 acp':[7, 8, 10],
-    '.45':[7, 8, 10],
-    '.308':[10, 20, 30],
-    '.30-06':[5, 10],
-    '12 gauge':[1, 4, 5, 8],
-    '40mm':[1]
-    }
-
-    def _norm(s):
-        try:
-            return re.sub(r"[^0-9a-zA-Z\.x\-\s]", '', str(s or '')).strip().lower()
-        except Exception:
-            return ''
-
-    capacities_meta =[]
-    try:
-        session = requests.Session()
-        session.headers.update({'User-Agent':'DOOM-Tools/1.0(https://example.local)'})
-        wiki_candidates =[]
-
-        def _safe_wiki_get(url, params = None, timeout = 8):
-            try:
-                r = session.get(url, params = params, timeout = timeout)
-            except Exception as e:
-                logging.warning("suggest_magazine_for_weapon_static: HTTP request failed(%s): %s", url, e)
-                return None
-            if r is None:
-                return None
-            text =(r.text or '').strip()
-            if not text:
-                logging.warning("suggest_magazine_for_weapon_static: Empty response from %s", url)
-                return None
-            try:
-                return r.json()
-            except ValueError:
-
-                try:
-                    logging.warning("suggest_magazine_for_weapon_static: Non-JSON response from %s: %s", url, text[:400].replace('\n', ' '))
-                except Exception:
-                    pass
-                return None
-
-        if name:
-            url = 'https://en.wikipedia.org/w/api.php'
-            params = {'action':'query', 'list':'search', 'srsearch':name, 'format':'json', 'srlimit':4}
-            j = _safe_wiki_get(url, params = params)
-            if j:
-                for s in j.get('query', {}).get('search', [])or[]:
-                    wiki_candidates.append(s.get('title'))
-        if calib:
-            url = 'https://en.wikipedia.org/w/api.php'
-            params = {'action':'query', 'list':'search', 'srsearch':calib, 'format':'json', 'srlimit':4}
-            j = _safe_wiki_get(url, params = params)
-            if j:
-                for s in j.get('query', {}).get('search', [])or[]:
-                    if s.get('title')not in wiki_candidates:
-                        wiki_candidates.append(s.get('title'))
-
-        capacities_found =[]
-        api = 'https://en.wikipedia.org/w/api.php'
-        for title in wiki_candidates[:4]:
-            try:
-                params = {'action':'query', 'prop':'extracts', 'explaintext':1, 'titles':title, 'format':'json', 'exintro':1}
-                j = _safe_wiki_get(api, params = params)
-                text = ''
-                if j:
-                    pages = j.get('query', {}).get('pages', {})or {}
-                    for p in pages.values():
-                        text = p.get('extract')or ''
-                        break
-
-                try:
-                    wt_params = {'action':'query', 'prop':'revisions', 'rvprop':'content', 'rvslots':'main', 'titles':title, 'format':'json'}
-                    jwt = _safe_wiki_get(api, params = wt_params)
-                    wikitext = ''
-                    if jwt:
-                        pages2 = jwt.get('query', {}).get('pages', {})or {}
-                        for p2 in pages2.values():
-                            revs = p2.get('revisions')or[]
-                            if revs:
-
-                                r0 = revs[0]
-                                if isinstance(r0, dict):
-                                    if 'slots'in r0 and isinstance(r0.get('slots'), dict):
-                                        main_slot = r0.get('slots', {}).get('main', {})or {}
-                                        wikitext = main_slot.get('*')or ''
-                                    if not wikitext:
-                                        wikitext = r0.get('*')or r0.get('content')or ''
-                            break
-                    if wikitext:
-
-                        for m in re.finditer(r"\|\s*(feed(?:_system)?|feed_system|magazine|capacity|feeds?)\s*=\s*(.*?)(?=\n\s*\||\n\s*\}\})", wikitext, flags = re.IGNORECASE |re.DOTALL):
-                            raw_block =(m.group(2)or '').strip()
-                            if not raw_block:
-                                continue
-
-                            lines =[ln.strip()for ln in raw_block.splitlines()if ln.strip()]
-                            for ln in lines:
-
-                                ln2 = re.sub(r"^[\*\u2022\-\:\;\s]+", '', ln)
-                                if not ln2:
-                                    continue
-
-                                nums = re.findall(r"(\d{1, 3})\s*(?:-round|rounds|round|rnd|rd|rds)\b", ln2, flags = re.IGNORECASE)
-
-                                nums +=re.findall(r"(\d{1, 3})\s*\+\s*1", ln2)
-
-                                if not nums and re.search(r"magazin|feed|capac|round", ln2, flags = re.IGNORECASE):
-                                    nums = re.findall(r"(\d{1, 3})", ln2)
-
-                                for n in nums:
-                                    try:
-                                        iv = int(n)
-                                        if 1 <=iv <=200:
-
-                                            try:
-                                                if calib and calib.lower()in ln2.lower():
-                                                    capacities_found.extend([iv, iv])
-                                                else:
-                                                    capacities_found.append(iv)
-                                            except Exception:
-                                                capacities_found.append(iv)
-                                    except Exception:
-                                        pass
-
-                            if not capacities_found:
-                                try:
-                                    logging.debug("suggest_magazine_for_weapon_static: no numeric capacities parsed from infobox block for %s: %s", title, raw_block[:300].replace('\n', ' '))
-                                except Exception:
-                                    pass
-                        if capacities_found:
-                            try:
-                                logging.info("suggest_magazine_for_weapon_static: infobox feed capacities for %s: %s", title, capacities_found)
-                                results['notes'].append(f"infobox_feed_caps: {capacities_found}")
-                            except Exception:
-                                pass
-                except Exception:
-                    pass
-
-                if not text:
-                    try:
-                        rest_url = f"https://en.wikipedia.org/api/rest_v1/page/summary/{requests.utils.requote_uri(title)}"
-                        r2 = session.get(rest_url, timeout = 8)
-                        if r2 and r2.status_code ==200:
-                            try:
-                                j2 = r2.json()
-                                text =(j2.get('extract')or '')
-                            except ValueError:
-                                logging.warning("suggest_magazine_for_weapon_static: REST summary non-JSON for %s: %s", title, (r2.text or '')[:200])
-                        else:
-                            logging.warning("suggest_magazine_for_weapon_static: REST summary failed for %s: status %s", title, getattr(r2, 'status_code', None))
-                    except Exception as e:
-                        logging.warning("suggest_magazine_for_weapon_static: REST summary request failed for %s: %s", title, e)
-                if not text:
-                    continue
-                results['wiki_matches'].append({'title':title, 'snippet':text[:600]})
-                lower = text.lower()
-                for m in re.finditer(r"magazine|capacity|standard|commonly|usually", lower):
-                    start = max(0, m.start()-120)
-                    end = min(len(lower), m.end()+120)
-                    ctx = lower[start:end]
-                    nums = re.findall(r"(\d{1, 3})\s*(?:-round|rounds|round|rnd|rd)", ctx)
-                    for n in nums:
-                        try:
-                            capacities_meta.append((int(n), ctx))
-                        except Exception:
-                            pass
-                nums2 = re.findall(r"(\d{1, 3})\s*-?\s*round(?:s)?", lower)
-                for n in nums2:
-                    try:
-                        capacities_meta.append((int(n), lower))
-                    except Exception:
-                        pass
-            except Exception:
-                continue
-    except Exception as e:
-        results['notes'].append('Wikipedia lookup failed or timed out')
-        logging.warning("suggest_magazine_for_weapon_static: Wikipedia lookup error for '%s' calib='%s': %s", name, calib, e)
-
-    caps =[]
-
-    if capacities_meta:
-        try:
-            raw_caps =[c for c, _ in capacities_meta]
-            logging.debug("suggest_magazine_for_weapon_static: raw capacities_meta for '%s'(calib=%s): %s", name, calib, raw_caps)
-        except Exception:
-            raw_caps =[c for c, _ in capacities_meta]
-
-        def _norm_for_match(s:str)->str:
-            try:
-                s2 = str(s or '').lower()
-                s2 = s2.replace('\u00d7', 'x').replace('×', 'x')
-                s2 = re.sub(r"[^0-9a-zx]+", ' ', s2)
-                return s2
-            except Exception:
-                return str(s or '').lower()
-
-        calib_norm = _norm_for_match(calib)
-        calib_freq = {}
-        overall_freq = {}
-        for iv, src in capacities_meta:
-            overall_freq[iv]= overall_freq.get(iv, 0)+1
-            try:
-                if calib and calib_norm and calib_norm in _norm_for_match(src):
-                    calib_freq[iv]= calib_freq.get(iv, 0)+1
-            except Exception:
-                pass
-
-        if calib_freq:
-            caps = sorted(calib_freq.keys(), key = lambda x:(-calib_freq[x], -overall_freq.get(x, 0), x))[:5]
-        else:
-            caps = sorted(overall_freq.keys(), key = lambda x:(-overall_freq[x], x))[:5]
-        try:
-            logging.info("suggest_magazine_for_weapon_static: Wikipedia capacities for '%s'(calib=%s): %s(raw=%s)", name, calib, caps, raw_caps)
-            results['notes'].append(f"wikipedia_caps: {caps}")
-        except Exception:
-            pass
-
-    if not caps and calib:
-        ncal = _norm(calib)
-
-        ncal_tokens = set(re.findall(r"\w+", ncal))
-        for k, v in caliber_map.items():
-            nk = _norm(k)
-            k_tokens = set(re.findall(r"\w+", nk))
-
-            if ncal_tokens &k_tokens:
-                caps = v[:3]
-                try:
-                    logging.info("suggest_magazine_for_weapon_static: used caliber_map fallback for '%s'(calib=%s): %s(matched_key=%s)", name, calib, caps, k)
-                    results['notes'].append(f"fallback_caliber_map: {caps}(matched {k})")
-                except Exception:
-                    pass
-                break
-
-    if not caps:
-        caps =[10, 20, 30]
-        try:
-            logging.info("suggest_magazine_for_weapon_static: using default capacities for '%s'(calib=%s): %s", name, calib, caps)
-            results['notes'].append('fallback_default_caps')
-        except Exception:
-            pass
-
-    results['suggested_capacities']= caps
-
-    try:
-        table_files = glob.glob(os.path.join('tables', '*.sldtbl'))
-        maxid = 0
-        for tf in table_files:
-            try:
-                with open(tf, 'r', encoding = 'utf-8')as fh:
-                    td = json.load(fh)
-                for items in(td.get('tables')or {}).values():
-                    if isinstance(items, list):
-                        for it in items:
-                            if isinstance(it, dict)and 'id'in it:
-                                iid = it.get('id')
-                                try:
-                                    if iid is None:
-                                        continue
-                                    iv = int(iid)
-                                    if iv >maxid:
-                                        maxid = iv
-                                except Exception:
-                                    pass
-            except Exception:
-                continue
-        next_id = maxid +1
-    except Exception:
-        next_id = 0
-
-    results['next_id']= next_id
-
-    try:
-        cap0 = caps[0]if caps else 30
-        mag_item = {'id':next_id, 'name':f"Synthetic Mag({cap0})", 'capacity':int(cap0), 'magazinetype':weapon.get('magazinetype')or 'detachable box', 'magazinesystem':weapon.get('magazinesystem')or weapon.get('magazinetype')or '', 'rounds':[]}
-        round_name =(calib or 'Unknown')+' | FMJ'
-        for i in range(int(cap0)):
-            mag_item['rounds'].append({'name':round_name, 'caliber':calib or None, 'variant':'FMJ'})
-        results['suggested_mag_item']= mag_item
-    except Exception:
-        results['notes'].append('Failed to build mag item')
-
-    return results
-
 def validate_table_ids():
 
     tables_dir = "tables"
@@ -1839,68 +1521,6 @@ def validate_table_ids():
                 preview +="\n".join([f" {s}"for s in duplicate_suggestions])
         except Exception:
             pass
-
-        try:
-            if magazine_errors_details:
-                preview +="\n\nSuggested magazine entries for problematic firearms:\n"
-
-                try:
-                    max_existing = 0
-                    for k in list(global_id_map.keys()):
-                        try:
-                            iv = int(k)
-                            if iv >max_existing:
-                                max_existing = iv
-                        except Exception:
-                            continue
-                    next_sugg_id = max_existing +1
-                except Exception:
-                    next_sugg_id = 1
-
-                for det in magazine_errors_details[:8]:
-                    weapon = det.get('weapon')or {}
-                    table = det.get('table')or '<unknown table>'
-                    wname = weapon.get('name')or weapon.get('prettyname')or '<unnamed>'
-                    try:
-                        sug = suggest_magazine_for_weapon_static(weapon)
-                        caps = sug.get('suggested_capacities')or[10]
-                        wiki = sug.get('wiki_matches')or[]
-
-                        ms = weapon.get('magazinesystem')or weapon.get('magazinetype')
-                        req_count = 1
-                        if isinstance(ms, list)and ms:
-                            req_count = len(ms)
-
-                        assigned =[]
-                        for i in range(req_count):
-                            cap = caps[i]if i <len(caps)else caps[0]
-                            assigned_id = next_sugg_id
-                            next_sugg_id +=1
-                            assigned.append((assigned_id, cap))
-
-                        entries_str = ", ".join([f"ID {aid}(cap {cap})"for aid, cap in assigned])
-                        preview +=f"- {table}: {wname} -> suggested magazines: {entries_str}\n"
-
-                        if wiki:
-                            try:
-                                first = wiki[0]
-                                t = first.get('title')
-                                try:
-                                    link = f"https://en.wikipedia.org/wiki/{requests.utils.requote_uri(t.replace(' ', '_'))}"
-                                except Exception:
-                                    link = f"https://en.wikipedia.org/wiki/{t.replace(' ', '_')}"
-                                preview +=f" Information derived from: {link}\n"
-                            except Exception:
-                                pass
-
-                        preview +="\n"
-                    except Exception:
-                        preview +=f"- {table}: {wname} -> suggestion unavailable\n\n"
-                if len(magazine_errors_details)>8:
-                    preview +=f"...and {len(magazine_errors_details)-8} more magazine issues\n"
-        except Exception:
-            pass
-
         try:
             if table_sequence_details:
                 preview +="\n\nID sequence issues detected in tables:\n"
@@ -15308,30 +14928,40 @@ class App:
                     if weapon_subtype =="pistol"and "waistband"in equipment and equipment["waistband"]is None and not _slot_blocked_by_subslots("waistband"):
                         add_choice("Waistband", slot = "waistband")
 
-                    for parent_slot, equipped_item in equipment.items():
-                        if isinstance(equipped_item, dict)and equipped_item.get("holster_sling", False):
-                            compatible_types = equipped_item.get("weapon_types", [])
-                            if weapon_subtype in compatible_types or weapon_melee_type in compatible_types:
-                                for subslot_data in equipped_item.get("subslots", []):
-                                    if subslot_data.get("slot")!="weapon_slot"or subslot_data.get("current")is not None:
-                                        continue
-                                    conflicts = subslot_data.get("conflicts_with")
-                                    blocked = False
-                                    if conflicts:
-                                        if isinstance(conflicts, dict):
-                                            conflict_type = conflicts.get("type")
-                                            conflict_slot = conflicts.get("slot")
-                                            if conflict_type =="main"and conflict_slot in equipment and equipment.get(conflict_slot)is not None:
+                    def _check_holster_sling(equipped_item, parent_slot, label_prefix=None):
+                        if not isinstance(equipped_item, dict) or not equipped_item.get("holster_sling", False):
+                            return
+                        compatible_types = equipped_item.get("weapon_types", [])
+                        if weapon_subtype in compatible_types or weapon_melee_type in compatible_types:
+                            for subslot_data in equipped_item.get("subslots", []):
+                                if subslot_data.get("slot")!="weapon_slot"or subslot_data.get("current")is not None:
+                                    continue
+                                conflicts = subslot_data.get("conflicts_with")
+                                blocked = False
+                                if conflicts:
+                                    if isinstance(conflicts, dict):
+                                        conflict_type = conflicts.get("type")
+                                        conflict_slot = conflicts.get("slot")
+                                        if conflict_type =="main"and conflict_slot in equipment and equipment.get(conflict_slot)is not None:
+                                            blocked = True
+                                    elif isinstance(conflicts, (list, tuple)):
+                                        for conflict_slot in conflicts:
+                                            if conflict_slot in equipment and equipment.get(conflict_slot)is not None:
                                                 blocked = True
-                                        elif isinstance(conflicts, (list, tuple)):
-                                            for conflict_slot in conflicts:
-                                                if conflict_slot in equipment and equipment.get(conflict_slot)is not None:
-                                                    blocked = True
-                                                    break
-                                    if blocked:
-                                        continue
-                                    label = f"{parent_slot.title()} - {subslot_data.get('name', 'Weapon Slot')}"
-                                    add_choice(label, parent_slot = parent_slot, subslot = subslot_data)
+                                                break
+                                if blocked:
+                                    continue
+                                lbl = label_prefix or parent_slot.title()
+                                label = f"{lbl} - {subslot_data.get('name', 'Weapon Slot')}"
+                                add_choice(label, parent_slot = parent_slot, subslot = subslot_data)
+
+                    for parent_slot, equipped_item in equipment.items():
+                        if isinstance(equipped_item, dict):
+                            _check_holster_sling(equipped_item, parent_slot)
+                            for ss in equipped_item.get("subslots", []) or []:
+                                cur = ss.get("current")
+                                if isinstance(cur, dict) and cur.get("holster_sling", False):
+                                    _check_holster_sling(cur, parent_slot, label_prefix=f"{parent_slot.title()} - {ss.get('name', 'Subslot')}")
 
                     if not choices:
                         if weapon_subtype =="pistol":
@@ -15500,6 +15130,7 @@ class App:
                 def apply_choice(choice):
                     def _take_one_from_list(lst, idx):
                         try:
+                            import copy as _copy
                             if not isinstance(lst, list):
                                 return None
                             if idx is None or not(0 <=int(idx)<len(lst)):
@@ -15513,7 +15144,7 @@ class App:
                                         it['quantity']= int(qty)-1
                                     except Exception:
                                         pass
-                                    single = it.copy()
+                                    single = _copy.deepcopy(it)
                                     single['quantity']= 1
                                     return single
 
@@ -23379,12 +23010,22 @@ class App:
 
             if item and isinstance(item, dict)and "subslots"in item:
                 for subslot in item["subslots"]:
-                    if subslot.get("current")and isinstance(subslot.get("current"), dict)and subslot["current"].get("firearm"):
-                        weapons.append({
-                        "item":subslot["current"],
-                        "slot":f"{slot_name} -> {subslot['name']}",
-                        "display_name":subslot["current"].get("name", "Unknown Weapon")
-                        })
+                    if subslot.get("current")and isinstance(subslot.get("current"), dict):
+                        sub_cur = subslot["current"]
+                        if sub_cur.get("firearm"):
+                            weapons.append({
+                            "item":sub_cur,
+                            "slot":f"{slot_name} -> {subslot['name']}",
+                            "display_name":sub_cur.get("name", "Unknown Weapon")
+                            })
+                        if sub_cur.get("holster_sling") and "subslots" in sub_cur:
+                            for nested_ss in sub_cur["subslots"]:
+                                if nested_ss.get("current") and isinstance(nested_ss.get("current"), dict) and nested_ss["current"].get("firearm"):
+                                    weapons.append({
+                                    "item":nested_ss["current"],
+                                    "slot":f"{slot_name} -> {subslot['name']} -> {nested_ss['name']}",
+                                    "display_name":nested_ss["current"].get("name", "Unknown Weapon")
+                                    })
 
             try:
                 if item and isinstance(item, dict)and item.get("accessories"):
@@ -27540,13 +27181,13 @@ class App:
         compatible_ammo =[]
         caliber_list = weapon.get("caliber", [])or[]
         caliber = caliber_list[0]if caliber_list else None
+        ammo_loaded = 0
 
         if not caliber:
             return "Weapon has no caliber defined."
 
         if weapon.get("infinite_ammo"):
             ammo_needed = capacity -len(current_rounds)
-            ammo_loaded = 0
             for _ in range(ammo_needed):
                 current_rounds.append({"name":f"{caliber} | Infinite", "caliber":caliber, "variant":"infinite"})
                 ammo_loaded +=1

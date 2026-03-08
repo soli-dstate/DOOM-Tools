@@ -1669,6 +1669,34 @@
                 "can_stack": false,
                 "in_armory": true,
                 "armory_category": "Anti-materiel Rifle"
+            },
+            {
+                "name": "Mosin Nagant M/28-30",
+                "value": 500,
+                "description": "A Finnish variant of the Mosin Nagant bolt-action rifle, chambered in 7.62x54mmR. Of Simo Häyhä fame, the deadliest sniper in history.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 4,
+                "id": 466,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "Mosin Nagant",
+                "caliber": ["7.62x54mmR Soviet"],
+                "action": ["Bolt"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 40,
+                "magazinetype": "Internal Box",
+                "capacity": 5,
+                "jamrate": 0.01,
+                "accessories": [
+                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null},
+                    {"name": "Scope Mount", "slot": "mosin_scope", "current": null}
+                ],
+                "can_stack": false,
+                "in_armory": true,
+                "armory_category": "Sniper Rifle"
             }
         ],
         "submachine_guns": [
@@ -6622,14 +6650,14 @@
                 "armory_category": "Anti-materiel Ammunition"
             },
             {
-                "name": ".50 Action Express",
+                "name": ".50 AE",
                 "value": 0.5,
                 "description": "A powerful handgun cartridge designed for the Desert Eagle pistol, known for its high velocity and stopping power.",
                 "rarity": "Uncommon",
                 "random_quantity": {"min": 5, "max": 20},
                 "weight": 0.02,
                 "id": 464,
-                "caliber": [".50 Action Express"],
+                "caliber": [".50 AE"],
                 "sounds": "50ae",
                 "variants": [
                     {
@@ -6653,6 +6681,66 @@
                 ],
                 "in_armory": true,
                 "armory_category": "Pistol Ammunition"
+            },
+            {
+                "name": "7.62x54mmR Soviet",
+                "value": 0.6,
+                "description": "A rimmed rifle cartridge used in various Soviet and Russian firearms, known for its long-range capabilities.",
+                "rarity": "Common",
+                "random_quantity": {"min": 10, "max": 100},
+                "weight": 0.02,
+                "id": 465,
+                "caliber": ["7.62x54mmR Soviet"],
+                "sounds": "762_54",
+                "variants": [
+                    {
+                        "name": "57-N-323S Ball",
+                        "type": "Ball",
+                        "pen": "III",
+                        "modifiers": null,
+                        "rarity": "Uncommon",
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "7N1 Sniper",
+                        "type": "AP",
+                        "pen": "IV",
+                        "modifiers": {"stats": {"aim": 1}},
+                        "rarity": "Rare",
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "7N13 AP",
+                        "type": "AP",
+                        "pen": "IV",
+                        "modifiers": null,
+                        "rarity": "Rare",
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "7T2 Tracer",
+                        "type": "Tracer",
+                        "pen": "III",
+                        "modifiers": {"stats": {"aim": 1, "stealth": -1}},
+                        "rarity": "Uncommon",
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "7BZ-3 API",
+                        "type": "API",
+                        "pen": "IV",
+                        "modifiers": null,
+                        "rarity": "Legendary",
+                        "tip": null,
+                        "lead_free": false
+                    }
+                ],
+                "in_armory": true,
+                "armory_category": "Rifle Ammunition"
             }
         ],
         "magazines": [
@@ -10272,7 +10360,7 @@
                 "id": 424,
                 "equippable": true,
                 "encumbrance_reduction": 0.2,
-                "slot": "chest",
+                "slot": "torso",
                 "material": "kevlar",
                 "subslots": [
                     {"name": "Front Armor Slot", "slot": "front_armor", "current": null},
@@ -10298,7 +10386,7 @@
                 "id": 425,
                 "equippable": true,
                 "encumbrance_reduction": 0.2,
-                "slot": "chest",
+                "slot": "torso",
                 "material": "kevlar",
                 "subslots": [
                     {"name": "Front Armor Slot", "slot": "front_armor", "current": null},
@@ -10322,7 +10410,7 @@
                 "id": 426,
                 "equippable": true,
                 "encumbrance_reduction": 0.2,
-                "slot": "chest",
+                "slot": "torso",
                 "material": "kevlar",
                 "protection": "IIIa",
                 "subslots": [
@@ -10347,7 +10435,7 @@
                 "id": 427,
                 "equippable": true,
                 "encumbrance_reduction": 0.2,
-                "slot": "chest",
+                "slot": "torso",
                 "material": "kevlar",
                 "protection": "IIIa",
                 "subslots": [
@@ -10374,7 +10462,7 @@
                 "id": 428,
                 "equippable": true,
                 "encumbrance_reduction": 0.2,
-                "slot": "chest",
+                "slot": "torso",
                 "material": "kevlar",
                 "protection": "IIIa",
                 "subslots": [
@@ -10401,7 +10489,7 @@
                 "id": 429,
                 "equippable": true,
                 "encumbrance_reduction": 0.5,
-                "slot": "chest",
+                "slot": "torso",
                 "subslots": [
                     {"name": "Front Armor Slot", "slot": "front_armor", "current": null},
                     {"name": "Back Armor Slot", "slot": "back_armor", "current": null},
