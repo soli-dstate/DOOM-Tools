@@ -1832,9 +1832,7 @@
                     {"name": "CSAD Gun Link mount", "slot": "csad_link", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_50", "current": null}
                 ],
-                "can_stack": false,
-                "in_armory": true,
-                "armory_category": "Personal Defense Weapon"
+                "can_stack": false
             },
             {
                 "name": "US CCPA Submachine Gun",
@@ -9081,7 +9079,8 @@
                 ],
                 "can_stack": false,
                 "infinite_ammo": true,
-                "mag_to_load": 408
+                "mag_to_load": 408,
+                "custom_equip_sound": "sounds/firearms/weaponsounds/ar-15/star15.ogg"
             },
             {
                 "name": "Colt M16A1",
@@ -9110,7 +9109,8 @@
                 ],
                 "can_stack": false,
                 "infinite_ammo": true,
-                "mag_to_load": 13
+                "mag_to_load": 13,
+                "custom_equip_sound": "sounds/firearms/weaponsounds/ar-15/m16a1.ogg"
             },
             {
                 "name": "M4 SOPMOD II",
@@ -9143,7 +9143,8 @@
                 ],
                 "can_stack": false,
                 "infinite_ammo": true,
-                "mag_to_load": 411
+                "mag_to_load": 411,
+                "custom_equip_sound": "sounds/firearms/weaponsounds/ar-15/sopii.ogg"
             },
             {
                 "name": "Colt M4A1 Carbine",
@@ -9176,7 +9177,8 @@
                 ],
                 "can_stack": false,
                 "infinite_ammo": true,
-                "mag_to_load": 407
+                "mag_to_load": 407,
+                "custom_equip_sound": "sounds/firearms/weaponsounds/ar-15/m4a1.ogg"
             },
             {
                 "name": "Heckler & Koch HK416",
@@ -9208,7 +9210,8 @@
                 ],
                 "can_stack": false,
                 "infinite_ammo": true,
-                "mag_to_load": 413
+                "mag_to_load": 413,
+                "custom_equip_sound": "sounds/firearms/weaponsounds/ar-15/hk416.ogg"
             },
             {
                 "name": "Heckler & Koch UMP-45",
@@ -9241,7 +9244,8 @@
                 ],
                 "can_stack": false,
                 "infinite_ammo": true,
-                "mag_to_load": 14
+                "mag_to_load": 14,
+                "custom_equip_sound": "sounds/firearms/weaponsounds/ump/ump45.ogg"
             },
             {
                 "name": "Heckler & Koch UMP-9",
@@ -9274,7 +9278,8 @@
                 ],
                 "can_stack": false,
                 "infinite_ammo": true,
-                "mag_to_load": 127
+                "mag_to_load": 127,
+                "custom_equip_sound": "sounds/firearms/weaponsounds/ump/ump9.ogg"
             },
             {
                 "name": "Heckler & Koch G11K2",
@@ -9304,7 +9309,8 @@
                 "infinite_ammo": true,
                 "has_magazine_in_pool": false,
                 "mag_to_load": {"capacity": 50},
-                "can_stack": false
+                "can_stack": false,
+                "custom_equip_sound": "sounds/firearms/weaponsounds/g11/g11.ogg"
             },
             {
                 "name": "M4A1's boots",
@@ -9439,7 +9445,8 @@
                 ],
                 "can_stack": false,
                 "infinite_ammo": true,
-                "mag_to_load": 384
+                "mag_to_load": 384,
+                "custom_equip_sound": "sounds/firearms/weaponsounds/intervention mw2/m200.ogg"
             },
             {
                 "name": "Mossberg M500",
@@ -9467,7 +9474,8 @@
                     {"name": "Muzzle Device", "slot": "muzzle_12g", "current": null}
                 ],
                 "can_stack": false,
-                "infinite_ammo": true
+                "infinite_ammo": true,
+                "custom_equip_sound": "sounds/firearms/weaponsounds/m500/m500.ogg"
             },
             {
                 "name": "Accuracy International Arctic Warfare Police",
@@ -10851,6 +10859,95 @@
                 "jamrate": 0.01,
                 "accessories": null,
                 "can_stack": false
+            },
+            {
+                "name": "Ethereal Plate Carrier",
+                "value": 0,
+                "description": "",
+                "rarity": "Ethereal",
+                "random_quantity": false,
+                "weight": 0,
+                "id": -1,
+                "equippable": true,
+                "encumbrance_reduction": 1,
+                "slot": "torso",
+                "material": "ethereal",
+                "protection": "All Of It",
+                "subslots": []
+            },
+            {
+                "name": "Ethereal Cross",
+                "value": 0,
+                "description": "",
+                "rarity": "Ethereal",
+                "random_quantity": false,
+                "weight": 0,
+                "id": -2,
+                "equippable": true,
+                "slot": "neck",
+                "encumbrance_reduction": 1,
+                "subslots": []
+            },
+            {
+                "name": "Ray Gun Mark II",
+                "value": 0,
+                "description": "",
+                "rarity": "Ethereal",
+                "random_quantity": false,
+                "weight": 0,
+                "id": -3,
+                "firearm": true,
+                "type": "caseless",
+                "subtype": "pistol",
+                "platform": "Ray Gun Mark II",
+                "caliber": ["Energy"],
+                "action": ["Burst"],
+                "burst_count": 3,
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 500,
+                "magazinetype": "Internal",
+                "capacity": 21,
+                "jamrate": 0,
+                "accessories": null,
+                "can_stack": false,
+                "infinite_ammo": true,
+                "custom_equip_sound": "sounds/firearms/weaponsounds/ray gun mark ii/equip.ogg"
+            },
+            {
+                "name": "Wedding Ring",
+                "value": 0,
+                "description": "",
+                "rarity": "Ethereal",
+                "random_quantity": false,
+                "weight": 0,
+                "id": -4,
+                "equippable": true,
+                "slot": ["right hand"],
+                "curse_of_binding": true
+            },
+            {
+                "name": "Bell Collar",
+                "value": 0,
+                "description": "",
+                "rarity": "Ethereal",
+                "random_quantity": false,
+                "weight": 0,
+                "id": -5,
+                "equippable": true,
+                "slot": ["neck"],
+                "curse_of_binding": true
+            },
+            {
+                "name": "Polaroid",
+                "value": 0,
+                "description": "",
+                "rarity": "Ethereal",
+                "random_quantity": false,
+                "weight": 0,
+                "id": -6,
+                "inspectable": true,
+                "inspect": "sounds/misc/dungeon/polaroid.png"
             }
         ],
         "enemy_drops": [

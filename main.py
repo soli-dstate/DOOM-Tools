@@ -1,4 +1,4 @@
-version = "1.0.9"
+version = "1.0.10"
 
 import os
 import logging
@@ -2032,7 +2032,7 @@ def update_item_keys_from_table(save_data):
             for key, value in preserved_data.items():
                 item[key]= value
 
-            if "subslots"in item:
+            if item.get("subslots"):
                 for subslot in item["subslots"]:
                     if isinstance(subslot, dict)and subslot.get("current"):
                         update_item(subslot["current"])
@@ -5912,7 +5912,7 @@ class App:
                         "location":f"equipment.{slot}"
                         })
 
-                    if "subslots"in item:
+                    if item.get("subslots"):
                         for subslot_idx, subslot_data in enumerate(item["subslots"]):
                             subslot_item = subslot_data.get("current")
                             if subslot_item and isinstance(subslot_item, dict):
@@ -11626,6 +11626,7 @@ class App:
         stat_names = list(emptysave["stats"].keys())
         stat_sliders = {}
         stat_value_labels = {}
+        stat_range_labels = {}
         for i, stat in enumerate(stat_names):
             stat_label = customtkinter.CTkLabel(stats_frame, text = f"{stat}:", font = customtkinter.CTkFont(size = 12), width = 100)
             stat_label.grid(row = i +1, column = 0, sticky = "w", padx =(0, 10), pady = 8)
@@ -11654,6 +11655,7 @@ class App:
             stat_sliders[stat]= slider
             range_label = customtkinter.CTkLabel(stats_frame, text = f"[{stat_min}, +{stat_max}]", font = customtkinter.CTkFont(size = 10), text_color = "gray")
             range_label.grid(row = i +1, column = 3, sticky = "w", padx =(10, 0), pady = 8)
+            stat_range_labels[stat]= range_label
 
         equipment_frame = customtkinter.CTkFrame(scrollable_frame)
         equipment_frame.grid(row = 4, column = 0, sticky = "ew", pady = 10, padx = 10)
@@ -11678,8 +11680,42 @@ class App:
             checkbox.grid(row = row, column = col, sticky = "w", padx = 10, pady = 5)
             slot_checkboxes[slot]= checkbox
 
+        disable_limits_var = customtkinter.BooleanVar(value = False)
+        if global_variables.get("devmode", {}).get("value", False):
+            def on_disable_limits_toggle():
+                unlimited = disable_limits_var.get()
+                for stat in stat_names:
+                    slider = stat_sliders[stat]
+                    if unlimited:
+                        if stat =="Luck":
+                            new_min, new_max, new_steps = -100, 100, 200
+                        else:
+                            new_min, new_max, new_steps = -100, 100, 200
+                    else:
+                        if stat =="Luck":
+                            new_min, new_max, new_steps = -4, 4, 8
+                        else:
+                            new_min, new_max = -20, stat_clamp
+                            new_steps = 40 +stat_clamp
+                    current_val = int(float(slider.get()))
+                    clamped_val = max(new_min, min(new_max, current_val))
+                    slider.configure(from_ = new_min, to = new_max, number_of_steps = new_steps)
+                    slider.set(clamped_val)
+                    stat_value_labels[stat].configure(text = str(clamped_val))
+                    stat_range_labels[stat].configure(text = f"[{new_min}, +{new_max}]")
+                update_sum()
+
+            limits_checkbox = customtkinter.CTkCheckBox(
+            scrollable_frame,
+            text = "Disable Limits (Dev)",
+            variable = disable_limits_var,
+            command = on_disable_limits_toggle,
+            font = customtkinter.CTkFont(size = 12)
+            )
+            limits_checkbox.grid(row = 5, column = 0, sticky = "w", pady = 5, padx = 10)
+
         sum_frame = customtkinter.CTkFrame(scrollable_frame)
-        sum_frame.grid(row = 5, column = 0, sticky = "ew", pady = 15, padx = 10)
+        sum_frame.grid(row = 6, column = 0, sticky = "ew", pady = 15, padx = 10)
         sum_frame.grid_columnconfigure(1, weight = 1)
         sum_label = customtkinter.CTkLabel(sum_frame, text = "Total Points:", font = customtkinter.CTkFont(size = 12, weight = "bold"))
         sum_label.grid(row = 0, column = 0, sticky = "w", padx =(0, 10))
@@ -11693,7 +11729,10 @@ class App:
             total = stat_total +bonus_points
 
             sum_value_label.configure(text = f"{stat_total} + {bonus_points} = {total}")
-            if total >0:
+            if disable_limits_var.get():
+                sum_value_label.configure(text_color = "white")
+                create_button.configure(state = "normal")
+            elif total >0:
                 sum_value_label.configure(text_color = "red")
                 create_button.configure(state = "disabled")
             else:
@@ -11710,7 +11749,7 @@ class App:
             slot_checkboxes[slot].configure(command = update_sum)
 
         button_frame = customtkinter.CTkFrame(scrollable_frame, fg_color = "transparent")
-        button_frame.grid(row = 6, column = 0, sticky = "ew", pady =(20, 0), padx = 10)
+        button_frame.grid(row = 7, column = 0, sticky = "ew", pady =(20, 0), padx = 10)
         button_frame.grid_columnconfigure((0, 1), weight = 1)
 
         def perform_character_creation():
@@ -11762,7 +11801,9 @@ class App:
             bonus_points = disabled_slots *slot_disable_points *-1
             total = stat_total +bonus_points
 
-            if total <0:
+            if disable_limits_var.get():
+                perform_character_creation()
+            elif total <0:
                 self._popup_confirm(
                 "Negative Balance Warning",
                 f"Your point balance is {total}(negative).This means you have unspent points.\n\nAre you sure you want to continue?",
@@ -13501,7 +13542,7 @@ class App:
                         "location":f"equipment.{slot}"
                         })
 
-                    if "subslots"in item:
+                    if item.get("subslots"):
                         for subslot_idx, subslot_data in enumerate(item["subslots"]):
                             subslot_item = subslot_data.get("current")
                             if subslot_item and isinstance(subslot_item, dict):
@@ -14460,7 +14501,7 @@ class App:
                     )
                     unequip_button.pack(side = "right", padx = 10, pady = 5)
 
-                    if isinstance(item, dict)and "subslots"in item:
+                    if isinstance(item, dict)and item.get("subslots"):
                         for subslot_data in item["subslots"]:
                             subslot_name = subslot_data.get("name", "Unknown Subslot")
                             subslot_type = subslot_data.get("slot", "unknown")
@@ -17043,6 +17084,46 @@ class App:
                 pass
             self._open_combat_mode_tool()
 
+        def _container_type_from_entry(entry):
+            if entry is None:
+                return "unknown"
+            slot = entry.get("slot", "")
+            if slot =="Hands":
+                return "hands"
+            if "->" in slot:
+                parts = [p.strip() for p in slot.split(">")]
+                top_slot = parts[0].rstrip(" -")
+                parent = save_data.get("equipment", {}).get(top_slot)
+                if parent and isinstance(parent, dict):
+                    if parent.get("holster_sling"):
+                        pname = parent.get("name", "").lower()
+                        ptypes = [pt.lower() for pt in parent.get("weapon_types", []) if isinstance(pt, str)]
+                        if "pistol" in ptypes or "holster" in pname:
+                            return "holster"
+                        return "sling"
+                    for ss in parent.get("subslots", []) or []:
+                        cur = ss.get("current")
+                        if isinstance(cur, dict) and cur.get("holster_sling"):
+                            cname = cur.get("name", "").lower()
+                            ctypes = [ct.lower() for ct in cur.get("weapon_types", []) if isinstance(ct, str)]
+                            if "pistol" in ctypes or "holster" in cname:
+                                return "holster"
+                            return "sling"
+                if top_slot == "waistband":
+                    return "waistband"
+                return "unknown"
+            if slot =="waistband":
+                return "waistband"
+            parent = save_data.get("equipment", {}).get(slot)
+            if parent and isinstance(parent, dict):
+                pname = parent.get("name", "").lower()
+                ptypes =[pt.lower()for pt in parent.get("weapon_types", [])if isinstance(pt, str)]
+                if "pistol"in ptypes or "holster"in pname:
+                    return "holster"
+                if parent.get("holster_sling"):
+                    return "sling"
+            return "unknown"
+
         def select_previous():
             logging.debug(
             "Switching weapon: prev from %s/%s",
@@ -17060,30 +17141,6 @@ class App:
 
                 new_idx =(combat_state["current_weapon_index"]-1)%len(equipped_weapons)
 
-                def _parent_slot_from_entry(entry):
-                    slot = entry.get("slot", "")
-                    if slot =="Hands":
-                        return None
-                    if "->"in slot:
-                        return slot.split("->")[0].strip()
-                    return slot
-
-                def _container_type(parent_slot):
-
-                    if parent_slot is None:
-                        return "hands"
-                    if parent_slot =="waistband":
-                        return "waistband"
-                    parent = save_data.get("equipment", {}).get(parent_slot)
-                    if parent and isinstance(parent, dict):
-                        pname = parent.get("name", "").lower()
-                        ptypes =[pt.lower()for pt in parent.get("weapon_types", [])if isinstance(pt, str)]
-                        if "pistol"in ptypes or "holster"in pname:
-                            return "holster"
-                        if parent.get("holster_sling"):
-                            return "sling"
-                    return "unknown"
-
                 try:
                     combat_state.pop("active_underbarrel", None)
                 except Exception:
@@ -17092,11 +17149,8 @@ class App:
                 old_entry = equipped_weapons[cur_idx]if 0 <=cur_idx <len(equipped_weapons)else None
                 new_entry = equipped_weapons[new_idx]
 
-                old_parent = _parent_slot_from_entry(old_entry)if old_entry else None
-                new_parent = _parent_slot_from_entry(new_entry)
-
-                old_type = _container_type(old_parent)
-                new_type = _container_type(new_parent)
+                old_type = _container_type_from_entry(old_entry)
+                new_type = _container_type_from_entry(new_entry)
 
                 if old_type in("sling", "waistband"):
                     self._safe_sound_play("", "sounds/firearms/universal/slingunequip.ogg", block = True)
@@ -17130,37 +17184,11 @@ class App:
 
                 new_idx =(combat_state["current_weapon_index"]+1)%len(equipped_weapons)
 
-                def _parent_slot_from_entry(entry):
-                    slot = entry.get("slot", "")
-                    if slot =="Hands":
-                        return None
-                    if "->"in slot:
-                        return slot.split("->")[0].strip()
-                    return slot
-
-                def _container_type(parent_slot):
-                    if parent_slot is None:
-                        return "hands"
-                    if parent_slot =="waistband":
-                        return "waistband"
-                    parent = save_data.get("equipment", {}).get(parent_slot)
-                    if parent and isinstance(parent, dict):
-                        pname = parent.get("name", "").lower()
-                        ptypes =[pt.lower()for pt in parent.get("weapon_types", [])if isinstance(pt, str)]
-                        if "pistol"in ptypes or "holster"in pname:
-                            return "holster"
-                        if parent.get("holster_sling"):
-                            return "sling"
-                    return "unknown"
-
                 old_entry = equipped_weapons[cur_idx]if 0 <=cur_idx <len(equipped_weapons)else None
                 new_entry = equipped_weapons[new_idx]
 
-                old_parent = _parent_slot_from_entry(old_entry)if old_entry else None
-                new_parent = _parent_slot_from_entry(new_entry)
-
-                old_type = _container_type(old_parent)
-                new_type = _container_type(new_parent)
+                old_type = _container_type_from_entry(old_entry)
+                new_type = _container_type_from_entry(new_entry)
 
                 if old_type in("sling", "waistband"):
                     self._safe_sound_play("", "sounds/firearms/universal/slingunequip.ogg", block = True)
@@ -22711,8 +22739,9 @@ class App:
             width = 120,
             height = 40,
             font = customtkinter.CTkFont(size = 12),
+            state = "disabled",
             fg_color = "#8B4513",
-            hover_color = "#A0522D"
+            hover_color = "#A0522D",
             ).pack(side = "left", padx = 5, pady = 10)
 
             self._create_sound_button(
@@ -26341,6 +26370,9 @@ class App:
             logging.exception("Underbarrel reload handler check failed")
 
         if weapon.get("infinite_ammo"):
+            inf_mag_type = str(weapon.get("magazinetype", "")or "").lower()
+            if any(k in inf_mag_type for k in("internal", "tube", "cylinder")):
+                return self._reload_internal_magazine(weapon, save_data, inf_mag_type)
             return self._reload_infinite_ammo_weapon(weapon, save_data)
 
         magazine_type = weapon.get("magazinetype", "")or ""
@@ -27228,28 +27260,28 @@ class App:
                         self._play_weapon_action_sound(weapon, "boltforward")
 
             weapon["rounds"]= current_rounds
-        try:
-            sd_ref = save_data if isinstance(save_data, dict)else globals().get('save_data')or getattr(self, '_current_save_data', None)
-            if isinstance(sd_ref, dict):
-                ts = sd_ref.setdefault('tracked_stats', {})
-                if isinstance(ts, dict):
-                    ts['mags_reloaded_total']= int(ts.get('mags_reloaded_total', 0))+1
-                    try:
-                        added = int(ammo_loaded)
-                    except Exception:
-                        added = 0
-                    ts['bullets_loaded_total']= int(ts.get('bullets_loaded_total', 0))+added
-                    bh = ts.setdefault('bullets_loaded_history', [])
-                    try:
-                        bh.append({'weapon_id':str(weapon.get('id', 'unknown')), 'count':added, 'time':time.time()})
-                    except Exception:
-                        pass
-        except Exception:
-            logging.exception('Failed updating tracked_stats after internal reload')
-        try:
-            self._update_session_reload_stats(save_data, int(ammo_loaded))
-        except Exception:
-            logging.exception('Failed updating session reload stats after internal reload')
+            try:
+                sd_ref = save_data if isinstance(save_data, dict)else globals().get('save_data')or getattr(self, '_current_save_data', None)
+                if isinstance(sd_ref, dict):
+                    ts = sd_ref.setdefault('tracked_stats', {})
+                    if isinstance(ts, dict):
+                        ts['mags_reloaded_total']= int(ts.get('mags_reloaded_total', 0))+1
+                        try:
+                            added = int(ammo_loaded)
+                        except Exception:
+                            added = 0
+                        ts['bullets_loaded_total']= int(ts.get('bullets_loaded_total', 0))+added
+                        bh = ts.setdefault('bullets_loaded_history', [])
+                        try:
+                            bh.append({'weapon_id':str(weapon.get('id', 'unknown')), 'count':added, 'time':time.time()})
+                        except Exception:
+                            pass
+            except Exception:
+                logging.exception('Failed updating tracked_stats after internal reload')
+            try:
+                self._update_session_reload_stats(save_data, int(ammo_loaded))
+            except Exception:
+                logging.exception('Failed updating session reload stats after internal reload')
             return f"Internal magazine reloaded with {ammo_loaded} rounds(total: {len(current_rounds)}/{capacity})"
 
         for item in save_data.get("hands", {}).get("items", []):
@@ -27267,16 +27299,6 @@ class App:
                             compatible_ammo.append((item, qty))
 
         if not compatible_ammo:
-            if weapon.get("infinite_ammo"):
-
-                ammo_needed = capacity -len(current_rounds)
-                for _ in range(ammo_needed):
-                    current_rounds.append({"name":f"{caliber} | Infinite", "caliber":caliber, "variant":"infinite"})
-
-                time.sleep(0.1)
-                self._play_weapon_action_sound(weapon, "cylinderclose")
-                weapon["rounds"]= current_rounds
-                return f"Revolver reloaded with {ammo_needed} rounds(total: {len(current_rounds)}/{capacity})"
             return "No compatible ammunition found!"
 
         ammo_needed = capacity -len(current_rounds)
@@ -27805,7 +27827,7 @@ class App:
                             if mag_is_compatible(mag)and len(mag.get("rounds", []))>0:
                                 compatible_mags.append(("equipment", mag))
 
-                    if "subslots"in item:
+                    if item.get("subslots"):
                         for subslot in item["subslots"]:
                             if subslot.get("current"):
                                 curr = subslot["current"]
@@ -28056,7 +28078,7 @@ class App:
                             if "items"in item and isinstance(item["items"], list):
                                 if mag_item in item["items"]:
                                     item["items"].remove(mag_item)
-                            if "subslots"in item:
+                            if item.get("subslots"):
                                 for subslot in item["subslots"]:
                                     if subslot.get("current"):
                                         curr = subslot["current"]
