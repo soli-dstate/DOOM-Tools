@@ -10947,7 +10947,20 @@
                 "weight": 0,
                 "id": -6,
                 "inspectable": true,
-                "inspect": "sounds/misc/dungeon/polaroid.png"
+                "inspect": "images/misc/polaroid.png"
+            },
+            {
+                "name": "Paper",
+                "value": 0,
+                "description": "",
+                "rarity": "Ethereal",
+                "random_quantity": false,
+                "weight": 0,
+                "id": -7,
+                "inspectable": true,
+                "puzzle": true,
+                "puzzle_type": "De<T5F(96%ASq",
+                "code": "2)%!D3<"
             }
         ],
         "enemy_drops": [

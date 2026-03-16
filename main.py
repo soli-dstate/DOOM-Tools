@@ -1,4 +1,4 @@
-version = "1.0.10"
+version = "1.0.11"
 
 import os
 import logging
@@ -519,9 +519,9 @@ def get_current_table_path():
             return path
         ext = global_variables.get('table_extension', '.sldtbl')
         if not current_tbl.endswith(ext):
-            path_with_ext = os.path.join("tables", current_tbl + ext)
+            path_with_ext = os.path.join("tables", current_tbl +ext)
             if os.path.exists(path_with_ext):
-                global_variables['current_table'] = current_tbl + ext
+                global_variables['current_table']= current_tbl +ext
                 return path_with_ext
     table_files = sorted(glob.glob(os.path.join("tables", f"*{global_variables.get('table_extension', '.sldtbl')}")))
     if table_files:
@@ -972,7 +972,7 @@ def validate_table_ids():
     table_sequence_details =[]
     ammo_errors =[]
     ammo_errors_details =[]
-    sound_warnings = []
+    sound_warnings =[]
 
     referenced_slots = set()
     referenced_slots_by_table = {}
@@ -988,15 +988,15 @@ def validate_table_ids():
 
             table_name = table_data.get("prettyname", table_file)
             try:
-                table_pretty_names[table_file] = table_name
+                table_pretty_names[table_file]= table_name
             except Exception:
                 pass
             tables = table_data.get("tables", {})
 
             try:
-                table_hardcore[table_file] = bool((table_data.get('additional_settings') or {}).get('hardcore_mode'))
+                table_hardcore[table_file]= bool((table_data.get('additional_settings')or {}).get('hardcore_mode'))
             except Exception:
-                table_hardcore[table_file] = False
+                table_hardcore[table_file]= False
 
             try:
                 magazine_items =[]
@@ -1172,21 +1172,19 @@ def validate_table_ids():
     except Exception:
         pass
 
-    # Resolve accessory `current` references that are specified as simple IDs
     try:
         import copy as _copy
-        hardcore_errors = []
-        hardcore_errors_details = []
+        hardcore_errors =[]
+        hardcore_errors_details =[]
 
         id_to_item = {}
         for it, tf, sub in all_table_items:
             try:
-                if isinstance(it, dict) and 'id' in it:
-                    id_to_item[it['id']] = it
+                if isinstance(it, dict)and 'id'in it:
+                    id_to_item[it['id']]= it
             except Exception:
                 pass
 
-        # Validate firearm parts for tables in hardcore mode
         try:
             for item, tf, sub in all_table_items:
                 try:
@@ -1197,9 +1195,9 @@ def validate_table_ids():
                     if not item.get('firearm'):
                         continue
 
-                    fname = item.get('name') or '<unnamed>'
-                    fplat = item.get('platform') or ''
-                    parts = item.get('parts') or []
+                    fname = item.get('name')or '<unnamed>'
+                    fplat = item.get('platform')or ''
+                    parts = item.get('parts')or[]
                     for p in parts:
                         try:
                             if not isinstance(p, dict):
@@ -1211,14 +1209,14 @@ def validate_table_ids():
                             target_id = None
                             if isinstance(cur, int):
                                 target_id = cur
-                            elif isinstance(cur, dict) and 'id' in cur:
+                            elif isinstance(cur, dict)and 'id'in cur:
                                 target_id = cur.get('id')
 
-                            if target_id is None or (isinstance(target_id, str) and str(target_id).strip().lower() == 'null'):
+                            if target_id is None or(isinstance(target_id, str)and str(target_id).strip().lower()=='null'):
                                 msg = f"Table '{table_pretty_names.get(tf, tf)}': Firearm '{fname}' has part '{p.get('name')}' with invalid 'current' id: {target_id}"
                                 hardcore_errors.append(msg)
                                 try:
-                                    hardcore_errors_details.append({'table': tf, 'weapon': item, 'part': p, 'reason': 'invalid_part_current_id', 'id': target_id})
+                                    hardcore_errors_details.append({'table':tf, 'weapon':item, 'part':p, 'reason':'invalid_part_current_id', 'id':target_id})
                                 except Exception:
                                     pass
                                 continue
@@ -1227,21 +1225,21 @@ def validate_table_ids():
                                 msg = f"Table '{table_pretty_names.get(tf, tf)}': Firearm '{fname}' has part '{p.get('name')}' referencing missing item ID {target_id}"
                                 hardcore_errors.append(msg)
                                 try:
-                                    hardcore_errors_details.append({'table': tf, 'weapon': item, 'part': p, 'reason': 'missing_referenced_part', 'id': target_id})
+                                    hardcore_errors_details.append({'table':tf, 'weapon':item, 'part':p, 'reason':'missing_referenced_part', 'id':target_id})
                                 except Exception:
                                     pass
                                 continue
 
-                            target = id_to_item.get(target_id) or {}
-                            tplat = (target.get('platform') or '')
+                            target = id_to_item.get(target_id)or {}
+                            tplat =(target.get('platform')or '')
                             try:
                                 lf = str(fplat).strip().lower()
                                 lt = str(tplat).strip().lower()
-                                if lf and lt and not (lf in lt or lt in lf):
+                                if lf and lt and not(lf in lt or lt in lf):
                                     msg = f"Table '{table_pretty_names.get(tf, tf)}': Firearm '{fname}' part '{p.get('name')}' references item ID {target_id} with platform '{tplat}' which does not match firearm platform '{fplat}'"
                                     hardcore_errors.append(msg)
                                     try:
-                                        hardcore_errors_details.append({'table': tf, 'weapon': item, 'part': p, 'reason': 'platform_mismatch', 'weapon_platform': fplat, 'part_platform': tplat, 'id': target_id})
+                                        hardcore_errors_details.append({'table':tf, 'weapon':item, 'part':p, 'reason':'platform_mismatch', 'weapon_platform':fplat, 'part_platform':tplat, 'id':target_id})
                                     except Exception:
                                         pass
                             except Exception:
@@ -1257,8 +1255,7 @@ def validate_table_ids():
             if not isinstance(obj, dict):
                 return
 
-            # Resolve accessories list
-            accs = obj.get('accessories') or []
+            accs = obj.get('accessories')or[]
             if isinstance(accs, list):
                 for acc in accs:
                     try:
@@ -1272,15 +1269,15 @@ def validate_table_ids():
 
                         if isinstance(cur, int):
                             target_id = cur
-                        elif isinstance(cur, dict) and 'id' in cur:
+                        elif isinstance(cur, dict)and 'id'in cur:
                             target_id = cur.get('id')
                             sub_attachment = cur.get('sub_attachment')
                             for k, v in cur.items():
-                                if k not in ('id', 'sub_attachment'):
-                                    overrides[k] = v
+                                if k not in('id', 'sub_attachment'):
+                                    overrides[k]= v
 
                         if target_id is None:
-                            # If current is already an object, recurse into it
+
                             if isinstance(cur, dict):
                                 _resolve_current(cur)
                             continue
@@ -1290,16 +1287,15 @@ def validate_table_ids():
                             continue
 
                         new_installed = _copy.deepcopy(target)
-                        # apply overrides from the compact current dict (if any)
+
                         for k, v in overrides.items():
                             try:
-                                new_installed[k] = v
+                                new_installed[k]= v
                             except Exception:
                                 pass
 
-                        acc['current'] = new_installed
+                        acc['current']= new_installed
 
-                        # handle optional sub_attachment placement
                         if sub_attachment:
                             sub_target = id_to_item.get(sub_attachment)
                             if sub_target and isinstance(new_installed.get('subslots'), list):
@@ -1307,19 +1303,18 @@ def validate_table_ids():
                                 for ss in new_installed['subslots']:
                                     try:
                                         ss_slot = ss.get('slot')
-                                        if ss_slot == sub_target.get('slot') or ss.get('current') is None:
-                                            ss['current'] = _copy.deepcopy(sub_target)
+                                        if ss_slot ==sub_target.get('slot')or ss.get('current')is None:
+                                            ss['current']= _copy.deepcopy(sub_target)
                                             placed = True
                                             break
                                     except Exception:
                                         pass
                                 if not placed:
                                     try:
-                                        new_installed['subslots'][0]['current'] = _copy.deepcopy(sub_target)
+                                        new_installed['subslots'][0]['current']= _copy.deepcopy(sub_target)
                                     except Exception:
                                         pass
 
-                        # recurse into newly installed item's own accessories/subslots
                         try:
                             _resolve_current(new_installed)
                         except Exception:
@@ -1327,21 +1322,20 @@ def validate_table_ids():
                     except Exception:
                         pass
 
-            # Resolve subslots that may have compact `current` definitions
-            subs = obj.get('subslots') or []
+            subs = obj.get('subslots')or[]
             if isinstance(subs, list):
                 for s in subs:
                     try:
                         cur = s.get('current')
                         if cur is None:
                             continue
-                        if isinstance(cur, int) or (isinstance(cur, dict) and 'id' in cur):
-                            # place via a temporary accessory wrapper to reuse logic
-                            tmp = {'accessories': [{'current': cur}]}
+                        if isinstance(cur, int)or(isinstance(cur, dict)and 'id'in cur):
+
+                            tmp = {'accessories':[{'current':cur}]}
                             _resolve_current(tmp)
-                            # pull resolved value back
+
                             try:
-                                s['current'] = tmp['accessories'][0].get('current')
+                                s['current']= tmp['accessories'][0].get('current')
                             except Exception:
                                 pass
                         elif isinstance(cur, dict):
@@ -1418,9 +1412,8 @@ def validate_table_ids():
                 duplicate_suggestions.append(f"Unable to suggest fixes for duplicate ID {dup_id}.")
 
     try:
-        missing_slots = []
+        missing_slots =[]
 
-        # Emit non-fatal warnings for firearms that have a matching weaponsound folder
         try:
             sound_root = os.path.join('sounds', 'firearms', 'weaponsounds')
             for item, tf, sub in all_table_items:
@@ -1449,52 +1442,49 @@ def validate_table_ids():
 
         def item_matches_slot(item, slot_name):
             try:
-                if isinstance(item, (list, tuple)) and item:
+                if isinstance(item, (list, tuple))and item:
                     item = item[0]
                 if not isinstance(item, dict):
                     return False
 
                 for v in item.values():
-                    if isinstance(v, str) and v.strip().lower() == slot_name.lower():
+                    if isinstance(v, str)and v.strip().lower()==slot_name.lower():
                         return True
                     if isinstance(v, (list, tuple)):
                         for e in v:
                             try:
-                                if isinstance(e, str) and e.strip().lower() == slot_name.lower():
+                                if isinstance(e, str)and e.strip().lower()==slot_name.lower():
                                     return True
                             except Exception:
                                 continue
 
-                if isinstance(item.get('slot'), str) and item.get('slot').strip().lower() == slot_name.lower():
+                if isinstance(item.get('slot'), str)and item.get('slot').strip().lower()==slot_name.lower():
                     return True
             except Exception:
                 pass
             return False
 
-        # Emit warnings per-table: only warn about slots referenced from that table
-        # which have no matching items anywhere to populate them.
         for table_file, slots in referenced_slots_by_table.items():
             try:
                 if not slots:
                     continue
                 table_pretty = None
                 try:
-                    # attempt to find pretty name from earlier loaded tables
-                    # table_name variable may not be in scope here, so derive from file
+
                     table_pretty = None
                 except Exception:
                     table_pretty = None
 
                 for slot in sorted(slots):
                     try:
-                        if isinstance(slot, str) and slot.strip().lower() == 'weapon_slot':
+                        if isinstance(slot, str)and slot.strip().lower()=='weapon_slot':
                             continue
                     except Exception:
                         pass
 
-                    found = any(item_matches_slot(it, slot) for it, tf, sub in all_table_items if tf == table_file)
+                    found = any(item_matches_slot(it, slot)for it, tf, sub in all_table_items if tf ==table_file)
                     if not found:
-                        # Prefer pretty name if available; fall back to filename
+
                         display_table = table_pretty_names.get(table_file, table_file)
                         logging.warning(f"Table '{display_table}' references slot '{slot}' but no items are available in that table to populate it.")
             except Exception:
@@ -1502,7 +1492,7 @@ def validate_table_ids():
     except Exception:
         pass
 
-    all_errors = duplicate_errors +magazine_errors +table_sequence_errors + hardcore_errors
+    all_errors = duplicate_errors +magazine_errors +table_sequence_errors +hardcore_errors
     if all_errors:
 
         for err in all_errors:
@@ -2201,7 +2191,7 @@ for user in dm_users:
 
                     if lower =='gil':
                         try:
-                            is_gil_fn = getattr(sys, '_is_gil_enabled', None) # type: ignore
+                            is_gil_fn = getattr(sys, '_is_gil_enabled', None)# type: ignore
                             if callable(is_gil_fn):
                                 try:
                                     gil_enabled = bool(is_gil_fn())
@@ -2451,9 +2441,15 @@ class App:
                 except Exception as backup_err:
                     logging.warning(f"Failed to create backup: {backup_err}")
 
+            comment_lines = []
+            if isinstance(data, dict):
+                comment_lines = data.pop("_save_comments", [])
+
             pickled = pickle.dumps(data)
             encoded = base64.b85encode(pickled).decode('utf-8')
             with open(path, 'w', encoding = 'utf-8')as f:
+                for cl in comment_lines:
+                    f.write(cl if cl.endswith("\n") else cl + "\n")
                 f.write(encoded)
             logging.info(f"Data written to {path}")
         except Exception as e:
@@ -2469,18 +2465,35 @@ class App:
             with open(path, 'r', encoding = 'utf-8')as f:
                 text = f.read()
 
+            lines = text.splitlines(True)
+            comment_lines = []
+            data_lines = []
+            for line in lines:
+                stripped = line.strip()
+                if stripped.startswith("//"):
+                    comment_lines.append(line)
+                elif stripped == "" and not data_lines:
+                    comment_lines.append(line)
+                else:
+                    data_lines.append(line)
+            payload = "".join(data_lines)
+
             try:
-                pickled = base64.b85decode(text.encode('utf-8'))
+                pickled = base64.b85decode(payload.encode('utf-8'))
                 data = pickle.loads(pickled)
                 if isinstance(data, dict):
+                    if comment_lines:
+                        data["_save_comments"] = comment_lines
                     logging.info(f"Loaded save from {path}")
                     return data
             except Exception:
                 pass
 
             try:
-                data = json.loads(text)
+                data = json.loads(payload)
                 if isinstance(data, dict):
+                    if comment_lines:
+                        data["_save_comments"] = comment_lines
                     logging.info(f"Loaded save from {path}(json)")
                     return data
             except Exception:
@@ -2665,7 +2678,7 @@ class App:
             except Exception as e:
                 logging.warning(f"Failed to normalize save data: {e}")
             try:
-                # process paychecks for this save on load
+
                 try:
                     self._award_paychecks_for_save(data, save_path)
                 except Exception:
@@ -2849,7 +2862,7 @@ class App:
             return ZoneInfo("America/Chicago")
         except Exception:
             try:
-                return timezone(timedelta(hours=-6))
+                return timezone(timedelta(hours = -6))
             except Exception:
                 return None
 
@@ -2857,8 +2870,8 @@ class App:
         try:
             if not isinstance(save_data, dict):
                 return
-            tbl_name = (save_data.get('_table') or save_data.get('table'))
-            # load table data for this save if possible
+            tbl_name =(save_data.get('_table')or save_data.get('table'))
+
             table_path = None
             if tbl_name:
                 matches = sorted(glob.glob(os.path.join('tables', f"*{global_variables.get('table_extension', '.sldtbl')}")))
@@ -2867,11 +2880,11 @@ class App:
                         b = os.path.basename(fpath)
                         name_no_ext = os.path.splitext(b)[0]
                         absf = os.path.abspath(fpath)
-                        if (
-                            b == tbl_name
-                            or name_no_ext == tbl_name
-                            or absf.endswith(tbl_name)
-                            or absf.endswith(tbl_name + global_variables.get('table_extension', '.sldtbl'))
+                        if(
+                        b ==tbl_name
+                        or name_no_ext ==tbl_name
+                        or absf.endswith(tbl_name)
+                        or absf.endswith(tbl_name +global_variables.get('table_extension', '.sldtbl'))
                         ):
                             table_path = fpath
                             break
@@ -2880,34 +2893,33 @@ class App:
             table_data = None
             if table_path and os.path.exists(table_path):
                 try:
-                    with open(table_path, 'r', encoding='utf-8') as tf:
+                    with open(table_path, 'r', encoding = 'utf-8')as tf:
                         table_data = json.load(tf)
                 except Exception:
                     table_data = None
 
-            addl = (table_data or {}).get('additional_settings', {})
+            addl =(table_data or {}).get('additional_settings', {})
             if not addl.get('paycheck'):
                 return
 
-            pay_amount = int(addl.get('paycheck_amount', 0) or 0)
-            period = (addl.get('pay_period') or '').lower()
-            if pay_amount <= 0 or period not in ('daily', 'weekly', 'biweekly', 'monthly'):
+            pay_amount = int(addl.get('paycheck_amount', 0)or 0)
+            period =(addl.get('pay_period')or '').lower()
+            if pay_amount <=0 or period not in('daily', 'weekly', 'biweekly', 'monthly'):
                 return
 
-            tz = self._get_local_central_tz() or timezone.utc
+            tz = self._get_local_central_tz()or timezone.utc
             now = datetime.now(tz)
 
-            # determine save uuid
             uuid_val = None
             try:
                 if save_path and os.path.exists(save_path):
                     parts = os.path.basename(save_path).rsplit('_', 1)
-                    if len(parts) == 2:
+                    if len(parts)==2:
                         uuid_val = parts[1].replace('.sldsv', '')
             except Exception:
                 uuid_val = None
             if not uuid_val:
-                uuid_val = save_data.get('uuid') or save_data.get('id') or save_data.get('charactername')
+                uuid_val = save_data.get('uuid')or save_data.get('id')or save_data.get('charactername')
 
             persistentdata.setdefault('paychecks', {})
             last_paid_iso = persistentdata['paychecks'].get(uuid_val)
@@ -2916,42 +2928,41 @@ class App:
                 try:
                     last_paid = datetime.fromisoformat(last_paid_iso)
                     if last_paid.tzinfo is None:
-                        last_paid = last_paid.replace(tzinfo=tz)
+                        last_paid = last_paid.replace(tzinfo = tz)
                 except Exception:
                     last_paid = None
 
-            def make_dt(year, month, day, hour=19, minute=0):
+            def make_dt(year, month, day, hour = 19, minute = 0):
                 try:
-                    return datetime(year, month, day, hour, minute, tzinfo=tz)
+                    return datetime(year, month, day, hour, minute, tzinfo = tz)
                 except Exception:
                     return None
 
             awarded = 0
 
-            # helper to write save and notify
             def _apply_payment(dt_when):
                 nonlocal awarded, save_data, save_path, pay_amount, uuid_val
                 try:
-                    save_data['money'] = int(save_data.get('money', 0)) + pay_amount
+                    save_data['money']= int(save_data.get('money', 0))+pay_amount
                 except Exception:
-                    save_data['money'] = (save_data.get('money', 0) or 0) + pay_amount
-                awarded += 1
-                persistentdata['paychecks'][uuid_val] = dt_when.isoformat()
+                    save_data['money']=(save_data.get('money', 0)or 0)+pay_amount
+                awarded +=1
+                persistentdata['paychecks'][uuid_val]= dt_when.isoformat()
                 try:
                     self._write_save_to_path(save_path, save_data)
                 except Exception:
                     try:
-                        # fallback: attempt to save via _save_file if this is the currently loaded save
+
                         if currentsave and os.path.basename(save_path).startswith(currentsave):
                             self._save_file(save_data)
                     except Exception:
                         pass
                 try:
                     title = "Paycheck Received"
-                    charname = save_data.get('charactername') or save_data.get('character_name') or 'Character'
+                    charname = save_data.get('charactername')or save_data.get('character_name')or 'Character'
                     message = f"{charname} received ${pay_amount}."
                     try:
-                        self._popup_show_info(title, message, sound='success')
+                        self._popup_show_info(title, message, sound = 'success')
                     except Exception:
                         pass
                     try:
@@ -2961,94 +2972,91 @@ class App:
                 except Exception:
                     pass
 
-            # If no last_paid -> treat as new save: give the previous scheduled payment once
             if last_paid is None:
-                # determine the most recent scheduled time before now
-                if period == 'daily':
-                    cand = now.replace(hour=19, minute=0, second=0, microsecond=0)
-                    if cand > now:
-                        cand = cand - timedelta(days=1)
-                    if cand <= now:
+
+                if period =='daily':
+                    cand = now.replace(hour = 19, minute = 0, second = 0, microsecond = 0)
+                    if cand >now:
+                        cand = cand -timedelta(days = 1)
+                    if cand <=now:
                         _apply_payment(cand)
-                elif period == 'weekly':
-                    # find most recent Friday
-                    days_back = (now.weekday() - 4) % 7
-                    cand = (now - timedelta(days=days_back)).replace(hour=19, minute=0, second=0, microsecond=0)
-                    if cand > now:
-                        cand -= timedelta(weeks=1)
-                    if cand <= now:
+                elif period =='weekly':
+
+                    days_back =(now.weekday()-4)%7
+                    cand =(now -timedelta(days = days_back)).replace(hour = 19, minute = 0, second = 0, microsecond = 0)
+                    if cand >now:
+                        cand -=timedelta(weeks = 1)
+                    if cand <=now:
                         _apply_payment(cand)
-                elif period == 'biweekly':
-                    # find most recent Friday and apply one
-                    days_back = (now.weekday() - 4) % 7
-                    cand = (now - timedelta(days=days_back)).replace(hour=19, minute=0, second=0, microsecond=0)
-                    if cand > now:
-                        cand -= timedelta(weeks=1)
-                    if cand <= now:
+                elif period =='biweekly':
+
+                    days_back =(now.weekday()-4)%7
+                    cand =(now -timedelta(days = days_back)).replace(hour = 19, minute = 0, second = 0, microsecond = 0)
+                    if cand >now:
+                        cand -=timedelta(weeks = 1)
+                    if cand <=now:
                         _apply_payment(cand)
-                elif period == 'monthly':
-                    # first of this month at 19:00; if in future, use previous month
+                elif period =='monthly':
+
                     cand = make_dt(now.year, now.month, 1)
-                    if cand and cand > now:
-                        # previous month
-                        prev_month = now.month - 1 or 12
-                        year = now.year if now.month != 1 else now.year - 1
+                    if cand and cand >now:
+
+                        prev_month = now.month -1 or 12
+                        year = now.year if now.month !=1 else now.year -1
                         cand = make_dt(year, prev_month, 1)
-                    if cand and cand <= now:
+                    if cand and cand <=now:
                         _apply_payment(cand)
             else:
-                # iterate from last_paid forward according to period
+
                 cursor = last_paid
-                # ensure tz-aware
+
                 if cursor.tzinfo is None:
-                    cursor = cursor.replace(tzinfo=tz)
-                # compute next due
-                if period == 'daily':
-                    next_due = cursor + timedelta(days=1)
-                    next_due = next_due.replace(hour=19, minute=0, second=0, microsecond=0)
-                    while next_due <= now:
+                    cursor = cursor.replace(tzinfo = tz)
+
+                if period =='daily':
+                    next_due = cursor +timedelta(days = 1)
+                    next_due = next_due.replace(hour = 19, minute = 0, second = 0, microsecond = 0)
+                    while next_due <=now:
                         _apply_payment(next_due)
-                        next_due = next_due + timedelta(days=1)
-                elif period == 'weekly':
-                    # advance by weeks until > now
-                    # align to Friday 19:00
-                    # find next Friday after cursor
+                        next_due = next_due +timedelta(days = 1)
+                elif period =='weekly':
+
                     next_due = cursor
-                    # move to next scheduled Friday
-                    next_due = next_due + timedelta(days=((4 - next_due.weekday()) % 7))
-                    next_due = next_due.replace(hour=19, minute=0, second=0, microsecond=0)
-                    if next_due <= cursor:
-                        next_due += timedelta(weeks=1)
-                    while next_due <= now:
+
+                    next_due = next_due +timedelta(days =((4 -next_due.weekday())%7))
+                    next_due = next_due.replace(hour = 19, minute = 0, second = 0, microsecond = 0)
+                    if next_due <=cursor:
+                        next_due +=timedelta(weeks = 1)
+                    while next_due <=now:
                         _apply_payment(next_due)
-                        next_due += timedelta(weeks=1)
-                elif period == 'biweekly':
-                    # add 14-day increments from last_paid
+                        next_due +=timedelta(weeks = 1)
+                elif period =='biweekly':
+
                     next_due = cursor
-                    # align to Friday
-                    next_due = next_due + timedelta(days=((4 - next_due.weekday()) % 7))
-                    next_due = next_due.replace(hour=19, minute=0, second=0, microsecond=0)
-                    if next_due <= cursor:
-                        next_due += timedelta(weeks=2)
-                    while next_due <= now:
+
+                    next_due = next_due +timedelta(days =((4 -next_due.weekday())%7))
+                    next_due = next_due.replace(hour = 19, minute = 0, second = 0, microsecond = 0)
+                    if next_due <=cursor:
+                        next_due +=timedelta(weeks = 2)
+                    while next_due <=now:
                         _apply_payment(next_due)
-                        next_due += timedelta(weeks=2)
-                elif period == 'monthly':
-                    # add months iteratively
+                        next_due +=timedelta(weeks = 2)
+                elif period =='monthly':
+
                     def add_month(dt):
-                        y = dt.year + (dt.month // 12)
-                        m = dt.month % 12 + 1
+                        y = dt.year +(dt.month //12)
+                        m = dt.month %12 +1
                         try:
-                            return dt.replace(year=y, month=m, day=1, hour=19, minute=0, second=0, microsecond=0)
+                            return dt.replace(year = y, month = m, day = 1, hour = 19, minute = 0, second = 0, microsecond = 0)
                         except Exception:
                             return None
-                    # move to first-of-month after cursor
-                    next_due = cursor.replace(day=1, hour=19, minute=0, second=0, microsecond=0)
-                    if next_due <= cursor:
+
+                    next_due = cursor.replace(day = 1, hour = 19, minute = 0, second = 0, microsecond = 0)
+                    if next_due <=cursor:
                         nd = add_month(next_due)
                         if nd:
                             next_due = nd
-                    while next_due and next_due <= now:
+                    while next_due and next_due <=now:
                         _apply_payment(next_due)
                         next_due = add_month(next_due)
 
@@ -3116,8 +3124,7 @@ class App:
                 customtkinter.set_default_color_theme("dark-blue")
         else:
             customtkinter.set_default_color_theme(theme_name)
-        # Override Tk's class-level exception reporter to suppress noisy Tcl/Tk
-        # "invalid command name" messages originating from expired `after` callbacks.
+
         try:
             import tkinter as _tk
             _orig_tk_report = getattr(_tk.Tk, 'report_callback_exception', None)
@@ -3125,7 +3132,7 @@ class App:
                 try:
                     msg = str(exc_value)
                     import re
-                    if "invalid command name" in msg and ("after" in msg or re.search(r'\d{6,}', msg)):
+                    if "invalid command name"in msg and("after"in msg or re.search(r'\d{6,}', msg)):
                         return
                 except Exception:
                     pass
@@ -3148,8 +3155,8 @@ class App:
             msg = str(exc_value)
             try:
                 import re
-                if "invalid command name" in msg:
-                    if re.search(r'"\d+(?:check_dpi_scaling|_click_animation|update)"', msg) or "after" in msg:
+                if "invalid command name"in msg:
+                    if re.search(r'"\d+(?:check_dpi_scaling|_click_animation|update)"', msg)or "after"in msg:
                         return
             except Exception:
                 pass
@@ -3247,7 +3254,7 @@ class App:
                         time.sleep(60)
                 except Exception:
                     logging.exception('Background paycheck worker exiting')
-            threading.Thread(target=_bg_pay_worker, daemon=True).start()
+            threading.Thread(target = _bg_pay_worker, daemon = True).start()
         except Exception:
             logging.exception('Failed to start background paycheck worker')
         self.root.mainloop()
@@ -4126,13 +4133,13 @@ class App:
         exitb_button.pack(pady = 10)
         settings_button = self._create_sound_button(main_frame, "Settings", self._open_settings, width = 500, height = 50, font = customtkinter.CTkFont(size = 16), state = "normal")
         settings_button.pack(pady = 10)
-        # enable combat reports button only if the active table requests it
+
         try:
             tbl_addl = globals().get('table_data', {}).get('additional_settings', {})
-            combat_reports_enabled = bool(tbl_addl.get('combat_repots') or tbl_addl.get('combat_reports'))
+            combat_reports_enabled = bool(tbl_addl.get('combat_repots')or tbl_addl.get('combat_reports'))
         except Exception:
             combat_reports_enabled = False
-        combat_reports_button = self._create_sound_button(main_frame, "Combat Reports", self._open_combat_reports_menu, width = 500, height = 50, font = customtkinter.CTkFont(size = 16), state = "normal" if combat_reports_enabled else "disabled")
+        combat_reports_button = self._create_sound_button(main_frame, "Combat Reports", self._open_combat_reports_menu, width = 500, height = 50, font = customtkinter.CTkFont(size = 16), state = "normal"if combat_reports_enabled else "disabled")
         combat_reports_button.pack(pady = 10)
         if global_variables["devmode"]["value"]:
             devtools_button = self._create_sound_button(main_frame, "Developer Tools", self._open_dev_tools, width = 500, height = 50, font = customtkinter.CTkFont(size = 16), state = "disabled"if currentsave is None else "normal")
@@ -8958,84 +8965,84 @@ class App:
         back_btn.pack(pady = 10)
 
     def _get_all_player_items_from_save(self, save_data):
-        all_items = []
+        all_items =[]
         if not save_data or not isinstance(save_data, dict):
             return all_items
 
         hands_items = save_data.get("hands", {}).get("items", [])
         for idx, item in enumerate(hands_items):
             if isinstance(item, dict):
-                all_items.append({"item": item, "location": "hands", "index": idx})
+                all_items.append({"item":item, "location":"hands", "index":idx})
 
         equipment = save_data.get("equipment", {})
         for slot_name, slot_item in equipment.items():
             if slot_item and isinstance(slot_item, dict):
-                if "items" in slot_item and "capacity" in slot_item:
+                if "items"in slot_item and "capacity"in slot_item:
                     for idx, item in enumerate(slot_item.get("items", [])):
                         if isinstance(item, dict):
-                            all_items.append({"item": item, "location": f"equipment.{slot_name}", "index": idx})
-                if "subslots" in slot_item:
+                            all_items.append({"item":item, "location":f"equipment.{slot_name}", "index":idx})
+                if "subslots"in slot_item:
                     for subslot_idx, subslot_data in enumerate(slot_item.get("subslots", [])):
                         subslot_item = subslot_data.get("current")
-                        if subslot_item and isinstance(subslot_item, dict) and "items" in subslot_item:
+                        if subslot_item and isinstance(subslot_item, dict)and "items"in subslot_item:
                             for idx, item in enumerate(subslot_item.get("items", [])):
                                 if isinstance(item, dict):
-                                    all_items.append({"item": item, "location": f"equipment.{slot_name}.subslot.{subslot_idx}", "index": idx})
+                                    all_items.append({"item":item, "location":f"equipment.{slot_name}.subslot.{subslot_idx}", "index":idx})
             elif isinstance(slot_item, list):
                 for list_idx, list_item in enumerate(slot_item):
                     if list_item and isinstance(list_item, dict):
-                        if "items" in list_item and "capacity" in list_item:
+                        if "items"in list_item and "capacity"in list_item:
                             for idx, item in enumerate(list_item.get("items", [])):
                                 if isinstance(item, dict):
-                                    all_items.append({"item": item, "location": f"equipment.{slot_name}.list.{list_idx}", "index": idx})
-                        if "subslots" in list_item:
+                                    all_items.append({"item":item, "location":f"equipment.{slot_name}.list.{list_idx}", "index":idx})
+                        if "subslots"in list_item:
                             for subslot_idx, subslot_data in enumerate(list_item.get("subslots", [])):
                                 subslot_item = subslot_data.get("current")
-                                if subslot_item and isinstance(subslot_item, dict) and "items" in subslot_item:
+                                if subslot_item and isinstance(subslot_item, dict)and "items"in subslot_item:
                                     for idx, item in enumerate(subslot_item.get("items", [])):
                                         if isinstance(item, dict):
-                                            all_items.append({"item": item, "location": f"equipment.{slot_name}.list.{list_idx}.subslot.{subslot_idx}", "index": idx})
+                                            all_items.append({"item":item, "location":f"equipment.{slot_name}.list.{list_idx}.subslot.{subslot_idx}", "index":idx})
         return all_items
 
     def _remove_item_from_save_location(self, save_data, location, index):
-        if location == "hands":
+        if location =="hands":
             items = save_data.get("hands", {}).get("items", [])
-            if 0 <= index < len(items):
+            if 0 <=index <len(items):
                 items.pop(index)
         elif location.startswith("equipment."):
             parts = location.split(".")
             slot = parts[1]
             slot_item = save_data.get("equipment", {}).get(slot)
 
-            if len(parts) == 2:
-                if slot_item and isinstance(slot_item, dict) and "items" in slot_item:
+            if len(parts)==2:
+                if slot_item and isinstance(slot_item, dict)and "items"in slot_item:
                     items = slot_item.get("items", [])
-                    if 0 <= index < len(items):
+                    if 0 <=index <len(items):
                         items.pop(index)
-            elif len(parts) >= 4 and parts[2] == "subslot":
+            elif len(parts)>=4 and parts[2]=="subslot":
                 subslot_idx = int(parts[3])
-                if slot_item and isinstance(slot_item, dict) and "subslots" in slot_item:
+                if slot_item and isinstance(slot_item, dict)and "subslots"in slot_item:
                     subslot_item = slot_item["subslots"][subslot_idx].get("current")
-                    if subslot_item and "items" in subslot_item:
+                    if subslot_item and "items"in subslot_item:
                         items = subslot_item.get("items", [])
-                        if 0 <= index < len(items):
+                        if 0 <=index <len(items):
                             items.pop(index)
-            elif len(parts) >= 4 and parts[2] == "list":
+            elif len(parts)>=4 and parts[2]=="list":
                 list_idx = int(parts[3])
-                if isinstance(slot_item, list) and 0 <= list_idx < len(slot_item):
+                if isinstance(slot_item, list)and 0 <=list_idx <len(slot_item):
                     list_item = slot_item[list_idx]
-                    if len(parts) == 4:
-                        if list_item and isinstance(list_item, dict) and "items" in list_item:
+                    if len(parts)==4:
+                        if list_item and isinstance(list_item, dict)and "items"in list_item:
                             items = list_item.get("items", [])
-                            if 0 <= index < len(items):
+                            if 0 <=index <len(items):
                                 items.pop(index)
-                    elif len(parts) >= 6 and parts[4] == "subslot":
+                    elif len(parts)>=6 and parts[4]=="subslot":
                         subslot_idx = int(parts[5])
-                        if list_item and isinstance(list_item, dict) and "subslots" in list_item:
+                        if list_item and isinstance(list_item, dict)and "subslots"in list_item:
                             subslot_item = list_item["subslots"][subslot_idx].get("current")
-                            if subslot_item and "items" in subslot_item:
+                            if subslot_item and "items"in subslot_item:
                                 items = subslot_item.get("items", [])
-                                if 0 <= index < len(items):
+                                if 0 <=index <len(items):
                                     items.pop(index)
 
     def _open_item_bet_dialog(self, save_data, wagered_items, on_update_cb = None):
@@ -9051,13 +9058,13 @@ class App:
 
         all_items = self._get_all_player_items_from_save(save_data)
 
-        wager_total = [sum(int(e["item"].get("value", 0)) for e in wagered_items)]
+        wager_total =[sum(int(e["item"].get("value", 0))for e in wagered_items)]
 
         status_label = customtkinter.CTkLabel(popup, text = f"Wagered Items Value: ${wager_total[0]}", font = customtkinter.CTkFont(size = 14, weight = "bold"), text_color = "gold")
-        status_label.pack(pady = (10, 5))
+        status_label.pack(pady =(10, 5))
 
-        hint_label = customtkinter.CTkLabel(popup, text = "Click items to toggle wager (green = wagered)", font = customtkinter.CTkFont(size = 11), text_color = "gray")
-        hint_label.pack(pady = (0, 5))
+        hint_label = customtkinter.CTkLabel(popup, text = "Click items to toggle wager(green = wagered)", font = customtkinter.CTkFont(size = 11), text_color = "gray")
+        hint_label.pack(pady =(0, 5))
 
         scroll_frame = customtkinter.CTkScrollableFrame(popup, width = 450, height = 400)
         scroll_frame.pack(fill = "both", expand = True, padx = 10, pady = 5)
@@ -9071,42 +9078,42 @@ class App:
                 continue
 
             item_value = int(item.get("value", 0))
-            if item_value <= 0:
+            if item_value <=0:
                 continue
 
             item_frame = customtkinter.CTkFrame(scroll_frame)
             item_frame.pack(fill = "x", pady = 3, padx = 5)
 
             cart_key = f"{location}:{item_idx}"
-            is_selected = any(f"{e['location']}:{e['index']}" == cart_key for e in wagered_items)
+            is_selected = any(f"{e['location']}:{e['index']}"==cart_key for e in wagered_items)
             if is_selected:
-                item_frame.configure(fg_color = ("green", "darkgreen"))
+                item_frame.configure(fg_color =("green", "darkgreen"))
 
             location_text = location.replace("equipment.", "").replace(".list.", " #").replace(".subslot.", " sub#")
 
-            name_label = customtkinter.CTkLabel(item_frame, text = f"{self._format_item_name(item)} (${item_value})", font = customtkinter.CTkFont(size = 11), anchor = "w")
-            name_label.pack(anchor = "w", padx = 8, pady = (5, 0))
+            name_label = customtkinter.CTkLabel(item_frame, text = f"{self._format_item_name(item)}(${item_value})", font = customtkinter.CTkFont(size = 11), anchor = "w")
+            name_label.pack(anchor = "w", padx = 8, pady =(5, 0))
 
             loc_label = customtkinter.CTkLabel(item_frame, text = f"{location_text}", font = customtkinter.CTkFont(size = 9), text_color = "gray", anchor = "w")
-            loc_label.pack(anchor = "w", padx = 8, pady = (0, 3))
+            loc_label.pack(anchor = "w", padx = 8, pady =(0, 3))
 
             def toggle_item(loc = location, i = item_idx, it = item, val = item_value, frame = item_frame):
                 cart_key = f"{loc}:{i}"
-                existing = [idx for idx, e in enumerate(wagered_items) if f"{e['location']}:{e['index']}" == cart_key]
+                existing =[idx for idx, e in enumerate(wagered_items)if f"{e['location']}:{e['index']}"==cart_key]
                 if existing:
                     wagered_items.pop(existing[0])
-                    wager_total[0] -= val
-                    frame.configure(fg_color = ("gray86", "gray17"))
+                    wager_total[0]-=val
+                    frame.configure(fg_color =("gray86", "gray17"))
                 else:
-                    wagered_items.append({"location": loc, "index": i, "item": it, "value": val})
-                    wager_total[0] += val
-                    frame.configure(fg_color = ("green", "darkgreen"))
+                    wagered_items.append({"location":loc, "index":i, "item":it, "value":val})
+                    wager_total[0]+=val
+                    frame.configure(fg_color =("green", "darkgreen"))
                 status_label.configure(text = f"Wagered Items Value: ${wager_total[0]}")
                 self._play_ui_sound("click")
 
-            item_frame.bind("<Button-1>", lambda e, f = toggle_item: f())
-            name_label.bind("<Button-1>", lambda e, f = toggle_item: f())
-            loc_label.bind("<Button-1>", lambda e, f = toggle_item: f())
+            item_frame.bind("<Button-1>", lambda e, f = toggle_item:f())
+            name_label.bind("<Button-1>", lambda e, f = toggle_item:f())
+            loc_label.bind("<Button-1>", lambda e, f = toggle_item:f())
 
         def confirm_wager():
             if on_update_cb:
@@ -9115,11 +9122,11 @@ class App:
 
         def clear_wager():
             wagered_items.clear()
-            wager_total[0] = 0
+            wager_total[0]= 0
             status_label.configure(text = f"Wagered Items Value: ${wager_total[0]}")
             for widget in scroll_frame.winfo_children():
                 try:
-                    widget.configure(fg_color = ("gray86", "gray17"))
+                    widget.configure(fg_color =("gray86", "gray17"))
                 except Exception:
                     pass
             if on_update_cb:
@@ -9138,8 +9145,8 @@ class App:
         self._play_ui_sound("click")
         popup.update_idletasks()
         w, h = 500, 550
-        x = self.root.winfo_x() + (self.root.winfo_width() // 2) - (w // 2)
-        y = self.root.winfo_y() + (self.root.winfo_height() // 2) - (h // 2)
+        x = self.root.winfo_x()+(self.root.winfo_width()//2)-(w //2)
+        y = self.root.winfo_y()+(self.root.winfo_height()//2)-(h //2)
         popup.geometry(f"{w}x{h}+{x}+{y}")
         popup.deiconify()
 
@@ -9152,11 +9159,11 @@ class App:
                 loc = entry["location"]
                 idx = entry["index"]
                 if loc not in locations_to_remove:
-                    locations_to_remove[loc] = []
+                    locations_to_remove[loc]=[]
                 locations_to_remove[loc].append(idx)
 
             for loc in locations_to_remove:
-                locations_to_remove[loc] = sorted(locations_to_remove[loc], reverse = True)
+                locations_to_remove[loc]= sorted(locations_to_remove[loc], reverse = True)
 
             for loc, indices in locations_to_remove.items():
                 for idx in indices:
@@ -9164,7 +9171,7 @@ class App:
 
             self._write_save_to_path(save_path, save_data)
 
-            item_names = [e["item"].get("name", "Unknown") for e in wagered_items]
+            item_names =[e["item"].get("name", "Unknown")for e in wagered_items]
             logging.info(f"Items lost in gambling: {item_names}")
         except Exception as e:
             logging.error(f"Failed to process item bet loss: {e}")
@@ -9211,8 +9218,8 @@ class App:
         "ui_active":True
         }
 
-        wagered_items = []
-        item_bet_value = [0]
+        wagered_items =[]
+        item_bet_value =[0]
 
         dealer_frame = customtkinter.CTkFrame(game_frame, fg_color = "transparent")
         dealer_frame.pack(pady = 10)
@@ -9357,10 +9364,10 @@ class App:
             item_lost = False
             if winnings <0 and wagered_items:
                 self._process_item_bet_loss(save_data, save_path, wagered_items)
-                item_names = [e["item"].get("name", "Unknown") for e in wagered_items]
+                item_names =[e["item"].get("name", "Unknown")for e in wagered_items]
                 item_lost = True
             elif winnings >0 and wagered_items:
-                player_money[0] += item_bet_value[0]
+                player_money[0]+=item_bet_value[0]
 
             save_money_cb()
 
@@ -9369,11 +9376,11 @@ class App:
                 item_suffix = ""
                 if item_lost:
                     item_suffix = f" | Lost {len(wagered_items)} item(s)"
-                elif winnings >0 and item_bet_value[0] >0:
+                elif winnings >0 and item_bet_value[0]>0:
                     item_suffix = f" | +${item_bet_value[0]} from items"
 
                 if winnings >0:
-                    total_display = winnings + (item_bet_value[0] if wagered_items else 0)
+                    total_display = winnings +(item_bet_value[0]if wagered_items else 0)
                     result_label.configure(text = f"{result_text}(+${total_display}){item_suffix}", text_color = color)
                 elif winnings <0:
                     result_label.configure(text = f"{result_text}(-${abs(winnings)}){item_suffix}", text_color = color)
@@ -9381,7 +9388,7 @@ class App:
                     result_label.configure(text = result_text, text_color = color)
 
                 wagered_items.clear()
-                item_bet_value[0] = 0
+                item_bet_value[0]= 0
                 try:
                     item_wager_label.configure(text = "Items Wagered: None")
                 except Exception:
@@ -9527,10 +9534,10 @@ class App:
                 drawn_cards.append(game_state["deck"].pop())
 
             deal_plan =[
-                (player_cards_frame, drawn_cards[0], "player", True),
-                (dealer_cards_frame, drawn_cards[1], "dealer", False),
-                (player_cards_frame, drawn_cards[2], "player", True),
-                (dealer_cards_frame, drawn_cards[3], "dealer", True),
+            (player_cards_frame, drawn_cards[0], "player", True),
+            (dealer_cards_frame, drawn_cards[1], "dealer", False),
+            (player_cards_frame, drawn_cards[2], "player", True),
+            (dealer_cards_frame, drawn_cards[3], "dealer", True),
             ]
 
             def animate_deal(step = 0):
@@ -9605,10 +9612,10 @@ class App:
             item_wager_label.pack(side = "left", padx = 10)
 
             def update_item_wager_display():
-                total = sum(int(e["item"].get("value", 0)) for e in wagered_items)
-                item_bet_value[0] = total
+                total = sum(int(e["item"].get("value", 0))for e in wagered_items)
+                item_bet_value[0]= total
                 if wagered_items:
-                    item_wager_label.configure(text = f"Items Wagered: {len(wagered_items)} (${total})", text_color = "gold")
+                    item_wager_label.configure(text = f"Items Wagered: {len(wagered_items)}(${total})", text_color = "gold")
                 else:
                     item_wager_label.configure(text = "Items Wagered: None", text_color = "gray")
 
@@ -9750,8 +9757,8 @@ class App:
         "ui_valid":True
         }
 
-        wagered_items = []
-        item_bet_value = [0]
+        wagered_items =[]
+        item_bet_value =[0]
 
         scroll_frame = customtkinter.CTkScrollableFrame(game_frame)
         scroll_frame.pack(fill = "both", expand = True, padx = 5, pady = 5)
@@ -10245,7 +10252,7 @@ class App:
                 self._process_item_bet_loss(save_data, save_path, wagered_items)
                 item_suffix = f" | Lost {len(wagered_items)} item(s)"
                 wagered_items.clear()
-                item_bet_value[0] = 0
+                item_bet_value[0]= 0
                 try:
                     item_wager_label.configure(text = "Items Wagered: None", text_color = "gray")
                 except Exception:
@@ -10257,7 +10264,7 @@ class App:
             if active_npcs:
                 for npc_name in npc_names:
                     display_npc_hand(npc_name, reveal = True)
-                result_label.configure(text = f"You folded. {active_npcs[0]} wins the pot!{item_suffix}", text_color = "red")
+                result_label.configure(text = f"You folded.{active_npcs[0]} wins the pot!{item_suffix}", text_color = "red")
             else:
                 result_label.configure(text = f"Everyone folded!{item_suffix}", text_color = "orange")
 
@@ -10290,13 +10297,13 @@ class App:
                 winnings = pot -game_state["current_bet"]
                 player_money[0]+=winnings
                 if wagered_items:
-                    player_money[0] += item_bet_value[0]
+                    player_money[0]+=item_bet_value[0]
                 if record_game_cb:
                     record_game_cb(winnings)
                 item_suffix = ""
-                if item_bet_value[0] > 0 and wagered_items:
+                if item_bet_value[0]>0 and wagered_items:
                     item_suffix = f" | +${item_bet_value[0]} from items"
-                result_label.configure(text = f"You win with {winner_hand}! +${winnings + (item_bet_value[0] if wagered_items else 0)}{item_suffix}", text_color = "green")
+                result_label.configure(text = f"You win with {winner_hand}! +${winnings +(item_bet_value[0]if wagered_items else 0)}{item_suffix}", text_color = "green")
             else:
                 loss = -game_state["current_bet"]
                 player_money[0]-=game_state["current_bet"]
@@ -10309,7 +10316,7 @@ class App:
                 result_label.configure(text = f"{winner_name} wins with {winner_hand}! -${game_state['current_bet']}{item_suffix}", text_color = "red")
 
             wagered_items.clear()
-            item_bet_value[0] = 0
+            item_bet_value[0]= 0
             try:
                 item_wager_label.configure(text = "Items Wagered: None", text_color = "gray")
             except Exception:
@@ -10423,15 +10430,15 @@ class App:
             item_wager_label.pack(side = "left", padx = 10)
 
             def update_item_wager_display():
-                total = sum(int(e["item"].get("value", 0)) for e in wagered_items)
-                item_bet_value[0] = total
+                total = sum(int(e["item"].get("value", 0))for e in wagered_items)
+                item_bet_value[0]= total
                 if wagered_items:
-                    item_wager_label.configure(text = f"Items Wagered: {len(wagered_items)} (${total})", text_color = "gold")
+                    item_wager_label.configure(text = f"Items Wagered: {len(wagered_items)}(${total})", text_color = "gold")
                 else:
                     item_wager_label.configure(text = "Items Wagered: None", text_color = "gray")
 
             def open_item_wager():
-                if game_state["phase"] not in ["betting", "complete"]:
+                if game_state["phase"]not in["betting", "complete"]:
                     self._popup_show_info("Game Active", "Cannot change item wager during a game.", sound = "popup")
                     return
                 self._open_item_bet_dialog(save_data, wagered_items, update_item_wager_display)
@@ -10512,8 +10519,8 @@ class App:
         "ui_valid":True
         }
 
-        wagered_items = []
-        item_bet_value = [0]
+        wagered_items =[]
+        item_bet_value =[0]
 
         instruction_label = customtkinter.CTkLabel(game_frame, text = "Guess if the next card will be Higher or Lower!", font = customtkinter.CTkFont(size = 14), text_color = "gray")
         instruction_label.pack(pady = 10)
@@ -10685,18 +10692,18 @@ class App:
             winnings = game_state["winnings"]
             player_money[0]+=winnings
             if wagered_items:
-                player_money[0] += item_bet_value[0]
+                player_money[0]+=item_bet_value[0]
             if record_game_cb:
                 record_game_cb(winnings)
             save_money_cb()
 
             game_state["game_active"]= False
             item_suffix = ""
-            if item_bet_value[0] > 0 and wagered_items:
+            if item_bet_value[0]>0 and wagered_items:
                 item_suffix = f" | +${item_bet_value[0]} from items"
-            result_label.configure(text = f"Cashed Out! +${winnings + (item_bet_value[0] if wagered_items else 0)}{item_suffix}", text_color = "green")
+            result_label.configure(text = f"Cashed Out! +${winnings +(item_bet_value[0]if wagered_items else 0)}{item_suffix}", text_color = "green")
             wagered_items.clear()
-            item_bet_value[0] = 0
+            item_bet_value[0]= 0
             try:
                 item_wager_label.configure(text = "Items Wagered: None", text_color = "gray")
             except Exception:
@@ -10718,7 +10725,7 @@ class App:
                 self._process_item_bet_loss(save_data, save_path, wagered_items)
                 item_suffix = f" | Lost {len(wagered_items)} item(s)"
                 wagered_items.clear()
-                item_bet_value[0] = 0
+                item_bet_value[0]= 0
                 try:
                     item_wager_label.configure(text = "Items Wagered: None", text_color = "gray")
                 except Exception:
@@ -10768,10 +10775,10 @@ class App:
             item_wager_label.pack(side = "left", padx = 10)
 
             def update_item_wager_display():
-                total = sum(int(e["item"].get("value", 0)) for e in wagered_items)
-                item_bet_value[0] = total
+                total = sum(int(e["item"].get("value", 0))for e in wagered_items)
+                item_bet_value[0]= total
                 if wagered_items:
-                    item_wager_label.configure(text = f"Items Wagered: {len(wagered_items)} (${total})", text_color = "gold")
+                    item_wager_label.configure(text = f"Items Wagered: {len(wagered_items)}(${total})", text_color = "gold")
                 else:
                     item_wager_label.configure(text = "Items Wagered: None", text_color = "gray")
 
@@ -10853,8 +10860,8 @@ class App:
         "ui_valid":True
         }
 
-        wagered_items = []
-        item_bet_value = [0]
+        wagered_items =[]
+        item_bet_value =[0]
 
         wheel_label = customtkinter.CTkLabel(game_frame, text = "Place Your Bet", font = customtkinter.CTkFont(size = 32, weight = "bold"))
         wheel_label.pack(pady = 20)
@@ -11043,13 +11050,13 @@ class App:
                 winnings = bet *(multiplier -1)
                 player_money[0]+=winnings
                 if wagered_items:
-                    player_money[0] += item_bet_value[0]
+                    player_money[0]+=item_bet_value[0]
                 if record_game_cb:
                     record_game_cb(winnings)
                 item_suffix = ""
-                if item_bet_value[0] > 0 and wagered_items:
+                if item_bet_value[0]>0 and wagered_items:
                     item_suffix = f" | +${item_bet_value[0]} from items"
-                result_label.configure(text = f"Winner! {number}({color}) - +${winnings + (item_bet_value[0] if wagered_items else 0)}{item_suffix}", text_color = "green")
+                result_label.configure(text = f"Winner! {number}({color}) - +${winnings +(item_bet_value[0]if wagered_items else 0)}{item_suffix}", text_color = "green")
             else:
                 player_money[0]-=bet
                 if record_game_cb:
@@ -11061,7 +11068,7 @@ class App:
                 result_label.configure(text = f"Lost! {number}({color}) - -${bet}{item_suffix}", text_color = "red")
 
             wagered_items.clear()
-            item_bet_value[0] = 0
+            item_bet_value[0]= 0
             try:
                 item_wager_label.configure(text = "Items Wagered: None", text_color = "gray")
             except Exception:
@@ -11091,10 +11098,10 @@ class App:
             item_wager_label.pack(side = "left", padx = 10)
 
             def update_item_wager_display():
-                total = sum(int(e["item"].get("value", 0)) for e in wagered_items)
-                item_bet_value[0] = total
+                total = sum(int(e["item"].get("value", 0))for e in wagered_items)
+                item_bet_value[0]= total
                 if wagered_items:
-                    item_wager_label.configure(text = f"Items Wagered: {len(wagered_items)} (${total})", text_color = "gold")
+                    item_wager_label.configure(text = f"Items Wagered: {len(wagered_items)}(${total})", text_color = "gold")
                 else:
                     item_wager_label.configure(text = "Items Wagered: None", text_color = "gray")
 
@@ -11707,7 +11714,7 @@ class App:
 
             limits_checkbox = customtkinter.CTkCheckBox(
             scrollable_frame,
-            text = "Disable Limits (Dev)",
+            text = "Disable Limits(Dev)",
             variable = disable_limits_var,
             command = on_disable_limits_toggle,
             font = customtkinter.CTkFont(size = 12)
@@ -13908,6 +13915,18 @@ class App:
                 )
                 stratagem_button.grid(row = 0, column = button_col, rowspan = 2, padx =(0, 15), pady = 10)
 
+            if item.get("inspectable"):
+                button_col +=1
+                inspect_button = self._create_sound_button(
+                item_frame,
+                "Inspect",
+                lambda it = item, loc = location:self._inspect_item(it, loc, save_data),
+                width = 100,
+                height = 35,
+                font = customtkinter.CTkFont(size = 12)
+                )
+                inspect_button.grid(row = 0, column = button_col, rowspan = 2, padx =(0, 15), pady = 10)
+
         def display_view_page(page_num):
             items = view_current_filtered[0]
             total_pages = max(1, (len(items)+ITEMS_PER_PAGE_VIEW -1)//ITEMS_PER_PAGE_VIEW)
@@ -14318,6 +14337,198 @@ class App:
         height = 40
         )
         back_button.grid(row = 2, column = 0, pady = 10)
+
+    def _inspect_item(self, item, location, save_data):
+        if item.get("puzzle"):
+            self._inspect_puzzle_item(item, location, save_data)
+            return
+
+        inspect_path = item.get("inspect")
+        if inspect_path:
+            self._inspect_image_item(item, inspect_path)
+            return
+
+        self._popup_show_info("Inspect", "Nothing to inspect.", sound = "popup")
+
+    def _inspect_image_item(self, item, image_path):
+        base_dir = os.path.dirname(__file__)
+        full_path = os.path.join(base_dir, image_path)
+        if not os.path.exists(full_path):
+            self._popup_show_info("Error", "Image file not found.", sound = "error")
+            return
+
+        try:
+            from PIL import Image
+            img = Image.open(full_path)
+            w, h = img.size
+            max_w, max_h = 800, 800
+            if w >max_w or h >max_h:
+                ratio = min(max_w /w, max_h /h)
+                w, h = int(w *ratio), int(h *ratio)
+            ctk_img = customtkinter.CTkImage(light_image = img, dark_image = img, size =(w, h))
+
+            popup = customtkinter.CTkToplevel(self.root)
+            popup.title(item.get("name", "Inspect"))
+            popup.transient(self.root)
+            self._center_popup_on_window(popup, w +40, h +80)
+            label = customtkinter.CTkLabel(popup, image = ctk_img, text = "")
+            label.pack(padx = 20, pady =(20, 10))
+            label._ctk_img_ref = ctk_img
+            close_btn = self._create_sound_button(popup, "Close", popup.destroy, width = 100, height = 30)
+            close_btn.pack(pady =(0, 15))
+            popup.update_idletasks()
+            popup.deiconify()
+            popup.grab_set()
+        except Exception as e:
+            logging.error(f"Failed to open inspect image: {e}")
+            self._popup_show_info("Error", f"Failed to open image: {e}", sound = "error")
+
+    def _inspect_puzzle_item(self, item, location, save_data):
+        try:
+            encoded_type = item.get("puzzle_type", "")
+            puzzle_type = base64.a85decode(encoded_type).decode()
+        except Exception:
+            self._popup_show_info("Error", "Unknown puzzle type.", sound = "error")
+            return
+
+        if puzzle_type =="off-screen":
+            self._inspect_offscreen_puzzle(item, location, save_data)
+        else:
+            self._popup_show_info("Error", f"Unknown puzzle type.", sound = "error")
+
+    def _inspect_offscreen_puzzle(self, item, location, save_data):
+        try:
+            code = base64.a85decode(item.get("code", "")).decode()
+        except Exception:
+            self._popup_show_info("Error", "Failed to read puzzle data.", sound = "error")
+            return
+
+        PAPER_W = 612
+        PAPER_H = 792
+        MARGIN = 40
+        FONT_SIZE = 14
+        LINE_HEIGHT = 20
+        CHAR_WIDTH = 9
+
+        cols =(PAPER_W -2 *MARGIN)//CHAR_WIDTH
+        rows =(PAPER_H -2 *MARGIN)//LINE_HEIGHT
+
+        puzzle_state = item.get("_puzzle_state")
+        if puzzle_state and puzzle_state.get("grid")and puzzle_state.get("code_positions"):
+            grid = puzzle_state["grid"]
+            code_positions = puzzle_state["code_positions"]
+        else:
+            grid =[]
+            for r in range(rows):
+                row_chars =[]
+                for c in range(cols):
+                    row_chars.append(str(random.randint(0, 9)))
+                grid.append(row_chars)
+
+            total_cells = rows *cols
+            code_digits = list(code)
+            positions = random.sample(range(total_cells), len(code_digits))
+            positions.sort()
+            code_positions =[]
+            for i, pos in enumerate(positions):
+                r = pos //cols
+                c = pos %cols
+                grid[r][c]= code_digits[i]
+                code_positions.append([r, c])
+
+            item["_puzzle_state"]= {"grid":grid, "code_positions":code_positions}
+
+            containers = save_data.get("containers", {})
+            if location in containers:
+                for idx, it in enumerate(containers[location]):
+                    if it is item:
+                        containers[location][idx]= item
+                        break
+            self._save_file(save_data)
+
+        puzzle_window = customtkinter.CTkToplevel(self.root)
+        puzzle_window.title(item.get("name", "Inspect"))
+        puzzle_window.resizable(False, False)
+        puzzle_window.configure(fg_color = "white")
+
+        canvas = _tk.Canvas(
+        puzzle_window,
+        width = PAPER_W,
+        height = PAPER_H,
+        bg = "white",
+        highlightthickness = 0
+        )
+        canvas.pack()
+
+        code_text_items =[]
+        code_pos_set = set()
+        for cp in code_positions:
+            code_pos_set.add((cp[0], cp[1]))
+
+        for r in range(len(grid)):
+            for c in range(len(grid[r])):
+                x = MARGIN +c *CHAR_WIDTH +CHAR_WIDTH //2
+                y = MARGIN +r *LINE_HEIGHT +LINE_HEIGHT //2
+                char = grid[r][c]
+                is_code =(r, c)in code_pos_set
+                tid = canvas.create_text(
+                x, y,
+                text = char,
+                font =("Courier", FONT_SIZE),
+                fill = "black"
+                )
+                if is_code:
+                    code_text_items.append({"id":tid, "x":x})
+
+        self._center_popup_on_window(puzzle_window, PAPER_W, PAPER_H)
+        puzzle_window.update_idletasks()
+
+        highlight_state = {}
+        revealed = set()
+        poll_count = [0]
+
+        def update_code_highlights():
+            try:
+                if not puzzle_window.winfo_exists():
+                    return
+                crx = canvas.winfo_rootx()
+                sw = canvas.winfo_screenwidth()
+                ww = canvas.winfo_width()
+                visible_left = max(0, -crx)
+                visible_right = min(ww, sw -crx)
+
+                poll_count[0] += 1
+                if poll_count[0] % 20 == 1:
+                    logging.debug(f"[offscreen puzzle] crx={crx} sw={sw} ww={ww} vis_left={visible_left} vis_right={visible_right} code_items={len(code_text_items)}")
+
+                for ti in code_text_items:
+                    tid = ti["id"]
+                    off = ti["x"] < visible_left or ti["x"] >= visible_right
+                    if off:
+                        revealed.add(tid)
+                    should_be_red = tid in revealed
+                    if highlight_state.get(tid) != should_be_red:
+                        highlight_state[tid] = should_be_red
+                        canvas.itemconfig(tid, fill = "red" if should_be_red else "black", font = ("Courier", FONT_SIZE, "bold") if should_be_red else ("Courier", FONT_SIZE))
+            except Exception as e:
+                logging.error(f"[offscreen puzzle] error: {e}")
+
+        def poll_highlights():
+            try:
+                if not puzzle_window.winfo_exists():
+                    return
+                update_code_highlights()
+                puzzle_window.after(100, poll_highlights)
+            except Exception as e:
+                logging.error(f"[offscreen puzzle] poll error: {e}")
+
+        logging.debug(f"[offscreen puzzle] Starting poll. code_text_items count: {len(code_text_items)}")
+        puzzle_window.after(100, poll_highlights)
+
+        puzzle_window.deiconify()
+        puzzle_window.lift()
+        puzzle_window.attributes("-topmost", True)
+        puzzle_window.after(100, lambda:puzzle_window.attributes("-topmost", False))
 
     def _open_item_equipping(self):
 
@@ -14969,8 +15180,8 @@ class App:
                     if weapon_subtype =="pistol"and "waistband"in equipment and equipment["waistband"]is None and not _slot_blocked_by_subslots("waistband"):
                         add_choice("Waistband", slot = "waistband")
 
-                    def _check_holster_sling(equipped_item, parent_slot, label_prefix=None):
-                        if not isinstance(equipped_item, dict) or not equipped_item.get("holster_sling", False):
+                    def _check_holster_sling(equipped_item, parent_slot, label_prefix = None):
+                        if not isinstance(equipped_item, dict)or not equipped_item.get("holster_sling", False):
                             return
                         compatible_types = equipped_item.get("weapon_types", [])
                         if weapon_subtype in compatible_types or weapon_melee_type in compatible_types:
@@ -14999,10 +15210,10 @@ class App:
                     for parent_slot, equipped_item in equipment.items():
                         if isinstance(equipped_item, dict):
                             _check_holster_sling(equipped_item, parent_slot)
-                            for ss in equipped_item.get("subslots", []) or []:
+                            for ss in equipped_item.get("subslots", [])or[]:
                                 cur = ss.get("current")
-                                if isinstance(cur, dict) and cur.get("holster_sling", False):
-                                    _check_holster_sling(cur, parent_slot, label_prefix=f"{parent_slot.title()} - {ss.get('name', 'Subslot')}")
+                                if isinstance(cur, dict)and cur.get("holster_sling", False):
+                                    _check_holster_sling(cur, parent_slot, label_prefix = f"{parent_slot.title()} - {ss.get('name', 'Subslot')}")
 
                     if not choices:
                         if weapon_subtype =="pistol":
@@ -15670,43 +15881,40 @@ class App:
         )
         back_button.pack(pady = 10)
 
-    # ── Combat Report System ────────────────────────────────────────────
-
     def _init_combat_session_stats(self, save_data):
-        """Initialize per-session combat tracking.  Called when combat mode opens."""
+
         try:
             ts = save_data.setdefault('tracked_stats', {})
-            ts['_session_rounds_fired'] = 0
-            ts['_session_d20_rolls'] = []
-            ts['_session_lead_rounds'] = 0
-            ts['_session_leadfree_rounds'] = 0
-            ts['_session_mags_loaded'] = 0
-            ts['_session_rounds_loaded'] = 0
-            ts['_session_start_time'] = time.time()
-            ts['_session_weapons_used'] = []
+            ts['_session_rounds_fired']= 0
+            ts['_session_d20_rolls']=[]
+            ts['_session_lead_rounds']= 0
+            ts['_session_leadfree_rounds']= 0
+            ts['_session_mags_loaded']= 0
+            ts['_session_rounds_loaded']= 0
+            ts['_session_start_time']= time.time()
+            ts['_session_weapons_used']=[]
         except Exception:
             logging.exception('Failed to init combat session stats')
 
-    def _update_session_fire_stats(self, save_data, rounds_fired, rolls, fired_round=None):
-        """Called after each fire event to update per-session counters."""
+    def _update_session_fire_stats(self, save_data, rounds_fired, rolls, fired_round = None):
+
         try:
             ts = save_data.setdefault('tracked_stats', {})
-            ts['_session_rounds_fired'] = int(ts.get('_session_rounds_fired', 0)) + int(rounds_fired)
+            ts['_session_rounds_fired']= int(ts.get('_session_rounds_fired', 0))+int(rounds_fired)
 
             session_rolls = ts.setdefault('_session_d20_rolls', [])
             if isinstance(rolls, (list, tuple)):
                 session_rolls.extend(rolls)
 
-            # Determine if the fired round contains lead
             is_lead_free = False
             if isinstance(fired_round, dict):
                 is_lead_free = bool(fired_round.get('lead_free', False))
-                # Also check variant-level lead_free
+
                 if not is_lead_free:
                     variant_data = fired_round.get('variant')
                     if isinstance(variant_data, dict):
                         is_lead_free = bool(variant_data.get('lead_free', False))
-                # Check by looking up the variant name against the table
+
                 if not is_lead_free:
                     try:
                         variant_name = None
@@ -15717,12 +15925,12 @@ class App:
                         if variant_name:
                             tbl_path = get_current_table_path()
                             if tbl_path and os.path.exists(tbl_path):
-                                with open(tbl_path, 'r', encoding='utf-8') as tf:
+                                with open(tbl_path, 'r', encoding = 'utf-8')as tf:
                                     tdata = json.load(tf)
                                     ammo_arr = tdata.get('tables', {}).get('ammunition', [])
                                     for a in ammo_arr:
-                                        for v in (a.get('variants') or []):
-                                            if isinstance(v, dict) and v.get('name') == variant_name:
+                                        for v in(a.get('variants')or[]):
+                                            if isinstance(v, dict)and v.get('name')==variant_name:
                                                 is_lead_free = bool(v.get('lead_free', False))
                                                 break
                                         if is_lead_free:
@@ -15731,58 +15939,57 @@ class App:
                         pass
 
             if is_lead_free:
-                ts['_session_leadfree_rounds'] = int(ts.get('_session_leadfree_rounds', 0)) + int(rounds_fired)
+                ts['_session_leadfree_rounds']= int(ts.get('_session_leadfree_rounds', 0))+int(rounds_fired)
             else:
-                ts['_session_lead_rounds'] = int(ts.get('_session_lead_rounds', 0)) + int(rounds_fired)
+                ts['_session_lead_rounds']= int(ts.get('_session_lead_rounds', 0))+int(rounds_fired)
         except Exception:
             logging.exception('Failed to update session fire stats')
 
     def _update_session_reload_stats(self, save_data, rounds_loaded):
-        """Called after each reload to update per-session counters."""
+
         try:
             ts = save_data.setdefault('tracked_stats', {})
-            ts['_session_mags_loaded'] = int(ts.get('_session_mags_loaded', 0)) + 1
-            ts['_session_rounds_loaded'] = int(ts.get('_session_rounds_loaded', 0)) + int(rounds_loaded)
+            ts['_session_mags_loaded']= int(ts.get('_session_mags_loaded', 0))+1
+            ts['_session_rounds_loaded']= int(ts.get('_session_rounds_loaded', 0))+int(rounds_loaded)
         except Exception:
             logging.exception('Failed to update session reload stats')
 
     def _generate_combat_report_data(self, save_data):
-        """Collect all session data into a report dict."""
+
         try:
-            ts = save_data.get('tracked_stats', {}) or {}
+            ts = save_data.get('tracked_stats', {})or {}
             character_name = save_data.get('charactername', 'Unknown')
 
-            session_rolls = ts.get('_session_d20_rolls', []) or []
+            session_rolls = ts.get('_session_d20_rolls', [])or[]
             total_rolls = len(session_rolls)
-            avg_roll = (sum(session_rolls) / total_rolls) if total_rolls > 0 else 0.0
-            nat20s = sum(1 for r in session_rolls if r == 20)
-            nat1s = sum(1 for r in session_rolls if r == 1)
+            avg_roll =(sum(session_rolls)/total_rolls)if total_rolls >0 else 0.0
+            nat20s = sum(1 for r in session_rolls if r ==20)
+            nat1s = sum(1 for r in session_rolls if r ==1)
 
             lead_rounds = int(ts.get('_session_lead_rounds', 0))
             leadfree_rounds = int(ts.get('_session_leadfree_rounds', 0))
             total_fired = int(ts.get('_session_rounds_fired', 0))
-            used_lead = lead_rounds > 0
+            used_lead = lead_rounds >0
 
             mags_loaded = int(ts.get('_session_mags_loaded', 0))
             rounds_loaded = int(ts.get('_session_rounds_loaded', 0))
 
-            # Load lfinfo — try pulling latest from GitHub first, fall back to local
             lf_info = {}
             try:
                 lf_path = os.path.join('remotedata', 'lfinfo.json')
                 try:
                     remote_url = 'https://raw.githubusercontent.com/soli-dstate/DOOM-Tools/master/remotedata/lfinfo.json'
-                    resp = requests.get(remote_url, timeout=5)
-                    if resp.status_code == 200:
+                    resp = requests.get(remote_url, timeout = 5)
+                    if resp.status_code ==200:
                         lf_info = resp.json()
-                        os.makedirs('remotedata', exist_ok=True)
-                        with open(lf_path, 'w', encoding='utf-8') as f:
-                            json.dump(lf_info, f, indent=4)
+                        os.makedirs('remotedata', exist_ok = True)
+                        with open(lf_path, 'w', encoding = 'utf-8')as f:
+                            json.dump(lf_info, f, indent = 4)
                         logging.info('Pulled latest lfinfo.json from GitHub')
                 except Exception:
                     logging.debug('Could not fetch lfinfo.json from GitHub, using local copy')
                 if not lf_info and os.path.exists(lf_path):
-                    with open(lf_path, 'r', encoding='utf-8') as f:
+                    with open(lf_path, 'r', encoding = 'utf-8')as f:
                         lf_info = json.load(f)
             except Exception:
                 logging.exception('Failed to load lfinfo.json')
@@ -15792,44 +15999,44 @@ class App:
 
             now = datetime.now()
             report = {
-                'character': character_name,
-                'date': now.strftime('%Y-%m-%d'),
-                'time': now.strftime('%H:%M:%S'),
-                'timestamp': now.strftime('%Y%m%d_%H%M%S'),
-                'rounds_fired': total_fired,
-                'lead_rounds_fired': lead_rounds,
-                'leadfree_rounds_fired': leadfree_rounds,
-                'used_lead': used_lead,
-                'lead_free_required': lead_free_required,
-                'lead_fine': lead_fine,
-                'nat20s': nat20s,
-                'nat1s': nat1s,
-                'total_rolls': total_rolls,
-                'average_roll': round(avg_roll, 2),
-                'magazines_loaded': mags_loaded,
-                'rounds_loaded': rounds_loaded,
+            'character':character_name,
+            'date':now.strftime('%Y-%m-%d'),
+            'time':now.strftime('%H:%M:%S'),
+            'timestamp':now.strftime('%Y%m%d_%H%M%S'),
+            'rounds_fired':total_fired,
+            'lead_rounds_fired':lead_rounds,
+            'leadfree_rounds_fired':leadfree_rounds,
+            'used_lead':used_lead,
+            'lead_free_required':lead_free_required,
+            'lead_fine':lead_fine,
+            'nat20s':nat20s,
+            'nat1s':nat1s,
+            'total_rolls':total_rolls,
+            'average_roll':round(avg_roll, 2),
+            'magazines_loaded':mags_loaded,
+            'rounds_loaded':rounds_loaded,
             }
-            # If lead rounds were used while lead-free is required, apply fine to character money
+
             try:
                 if used_lead and lead_free_required and lead_fine:
-                    # allow negative balances (debt)
+
                     try:
-                        cur_money = save_data.get('money', 0) or 0
-                        new_money = int(cur_money) - int(lead_fine)
-                        save_data['money'] = new_money
-                        # persist the save
+                        cur_money = save_data.get('money', 0)or 0
+                        new_money = int(cur_money)-int(lead_fine)
+                        save_data['money']= new_money
+
                         try:
                             self._save_file(save_data)
                         except Exception:
                             logging.exception('Failed to persist save after applying lead fine')
-                        report['fine_applied'] = True
-                        report['money_after'] = save_data['money']
+                        report['fine_applied']= True
+                        report['money_after']= save_data['money']
                         logging.info('Applied lead fine of %s to %s; new balance: %s', lead_fine, character_name, save_data['money'])
                     except Exception:
                         logging.exception('Failed to apply lead fine')
                 else:
-                    report['fine_applied'] = False
-                    report['money_after'] = save_data.get('money', 0) or 0
+                    report['fine_applied']= False
+                    report['money_after']= save_data.get('money', 0)or 0
             except Exception:
                 logging.exception('Error while checking/applying lead fine')
             return report
@@ -15838,48 +16045,48 @@ class App:
             return None
 
     def _format_combat_report_lines(self, report):
-        """Turn report dict into a list of printable lines for the dot-matrix effect."""
-        if not report:
-            return ['COMBAT REPORT', '', 'No data available.']
 
-        lines = []
+        if not report:
+            return['COMBAT REPORT', '', 'No data available.']
+
+        lines =[]
         lines.append('═══════════════════════════════════')
-        lines.append('        COMBAT   REPORT')
+        lines.append(' COMBAT REPORT')
         lines.append('═══════════════════════════════════')
-        lines.append(f"  Operative: {report['character']}")
-        lines.append(f"  Date: {report['date']}  Time: {report['time']}")
+        lines.append(f" Operative: {report['character']}")
+        lines.append(f" Date: {report['date']} Time: {report['time']}")
         lines.append('───────────────────────────────────')
-        lines.append(f"  Rounds Fired: {report['rounds_fired']}")
+        lines.append(f" Rounds Fired: {report['rounds_fired']}")
 
         if report.get('used_lead'):
-            lines.append(f"  ⚠ LEAD ROUNDS USED: {report['lead_rounds_fired']}")
+            lines.append(f" ⚠ LEAD ROUNDS USED: {report['lead_rounds_fired']}")
             if report.get('lead_free_required'):
-                lines.append(f"  ⚠ LEAD-FREE REQUIRED — FINE: ${report['lead_fine']:,}")
+                lines.append(f" ⚠ LEAD-FREE REQUIRED — FINE: ${report['lead_fine']:,}")
         else:
-            lines.append('  ✓ All rounds lead-free')
+            lines.append(' ✓ All rounds lead-free')
 
-        lines.append(f"  Lead-Free Rounds: {report['leadfree_rounds_fired']}")
+        lines.append(f" Lead-Free Rounds: {report['leadfree_rounds_fired']}")
         lines.append('───────────────────────────────────')
-        lines.append(f"  D20 Rolls: {report['total_rolls']}")
-        lines.append(f"  Natural 20s: {report['nat20s']}")
-        lines.append(f"  Natural 1s: {report['nat1s']}")
-        lines.append(f"  Average Roll: {report['average_roll']}")
+        lines.append(f" D20 Rolls: {report['total_rolls']}")
+        lines.append(f" Natural 20s: {report['nat20s']}")
+        lines.append(f" Natural 1s: {report['nat1s']}")
+        lines.append(f" Average Roll: {report['average_roll']}")
         lines.append('───────────────────────────────────')
-        lines.append(f"  Magazines Loaded: {report['magazines_loaded']}")
-        lines.append(f"  Rounds Loaded: {report['rounds_loaded']}")
+        lines.append(f" Magazines Loaded: {report['magazines_loaded']}")
+        lines.append(f" Rounds Loaded: {report['rounds_loaded']}")
         lines.append('═══════════════════════════════════')
         return lines
 
     def _save_combat_report_to_file(self, report):
-        """Save the combat report as a .txt under combatreports/."""
+
         try:
-            os.makedirs('combatreports', exist_ok=True)
-            safe_name = "".join(c if c.isalnum() or c in (' ', '-', '_') else '_' for c in report.get('character', 'Unknown'))
+            os.makedirs('combatreports', exist_ok = True)
+            safe_name = "".join(c if c.isalnum()or c in(' ', '-', '_')else '_'for c in report.get('character', 'Unknown'))
             filename = f"{safe_name} _ {report['date']} _ {report['time'].replace(':', '-')}.txt"
             filepath = os.path.join('combatreports', filename)
 
             lines = self._format_combat_report_lines(report)
-            with open(filepath, 'w', encoding='utf-8') as f:
+            with open(filepath, 'w', encoding = 'utf-8')as f:
                 f.write('\n'.join(lines))
                 f.write('\n')
 
@@ -15889,113 +16096,105 @@ class App:
             logging.exception('Failed to save combat report')
             return None
 
-    def _show_combat_report_animation(self, report, on_dismiss=None):
-        """Show the animated dot-matrix combat report on a paper overlay."""
+    def _show_combat_report_animation(self, report, on_dismiss = None):
+
         try:
             lines = self._format_combat_report_lines(report)
 
-            # Save the report to file
             saved_path = self._save_combat_report_to_file(report)
 
             overlay = customtkinter.CTkFrame(
-                self.root,
-                fg_color='#1a1a1a',
-                corner_radius=0
+            self.root,
+            fg_color = '#1a1a1a',
+            corner_radius = 0
             )
-            overlay.place(relx=0, rely=0, relwidth=1, relheight=1)
+            overlay.place(relx = 0, rely = 0, relwidth = 1, relheight = 1)
 
-            root_w = self.root.winfo_width() or 1920
-            root_h = self.root.winfo_height() or 1080
+            root_w = self.root.winfo_width()or 1920
+            root_h = self.root.winfo_height()or 1080
 
-            paper_w = min(520, root_w - 80)
-            paper_h = min(680, root_h - 80)
+            paper_w = min(520, root_w -80)
+            paper_h = min(680, root_h -80)
 
             paper = customtkinter.CTkFrame(
-                overlay,
-                fg_color='#f5f0e1',
-                corner_radius=4,
-                border_width=2,
-                border_color='#c8c0a8',
-                width=paper_w,
-                height=paper_h
+            overlay,
+            fg_color = '#f5f0e1',
+            corner_radius = 4,
+            border_width = 2,
+            border_color = '#c8c0a8',
+            width = paper_w,
+            height = paper_h
             )
 
-            # Start paper off-screen at the TOP (print head above window)
-            paper_x = (root_w - paper_w) // 2
-            paper_start_y = -(paper_h + 20)
-            paper_mid_y = (root_h - paper_h) // 2
+            paper_x =(root_w -paper_w)//2
+            paper_start_y = -(paper_h +20)
+            paper_mid_y =(root_h -paper_h)//2
 
-            paper.place(x=paper_x, y=paper_start_y)
+            paper.place(x = paper_x, y = paper_start_y)
 
-            # Inner content area with padding for the "paper" feel
-            content_frame = customtkinter.CTkFrame(paper, fg_color='#f5f0e1', corner_radius=0)
-            content_frame.pack(fill='both', expand=True, padx=20, pady=20)
+            content_frame = customtkinter.CTkFrame(paper, fg_color = '#f5f0e1', corner_radius = 0)
+            content_frame.pack(fill = 'both', expand = True, padx = 20, pady = 20)
 
-            # Dot matrix font - monospace
-            dot_font = customtkinter.CTkFont(family='Courier New', size=13, weight='bold')
+            dot_font = customtkinter.CTkFont(family = 'Courier New', size = 13, weight = 'bold')
 
-            # Pre-split each line into words for word-at-a-time printing
-            line_labels = []
+            line_labels =[]
             for i, line_text in enumerate(lines):
                 lbl = customtkinter.CTkLabel(
-                    content_frame,
-                    text='',
-                    font=dot_font,
-                    text_color='#1a1a1a',
-                    anchor='w',
-                    justify='left'
+                content_frame,
+                text = '',
+                font = dot_font,
+                text_color = '#1a1a1a',
+                anchor = 'w',
+                justify = 'left'
                 )
-                lbl.pack(anchor='w', pady=1)
-                # Build word boundaries: list of end-indices for each word chunk
-                words = []
+                lbl.pack(anchor = 'w', pady = 1)
+
+                words =[]
                 pos = 0
                 in_space = True
                 for ci, ch in enumerate(line_text):
-                    if ch == ' ':
+                    if ch ==' ':
                         if not in_space:
                             words.append(ci)
                         in_space = True
                     else:
                         in_space = False
-                if line_text and (not words or words[-1] != len(line_text)):
+                if line_text and(not words or words[-1]!=len(line_text)):
                     words.append(len(line_text))
                 line_labels.append((lbl, line_text, words))
 
-            # Dismiss button (hidden until animation completes)
             dismiss_btn = self._create_sound_button(
-                paper,
-                text='Dismiss',
-                command=lambda: None,
-                width=120,
-                height=32,
-                fg_color='#444444',
-                hover_color='#666666',
-                font=customtkinter.CTkFont(size=12)
+            paper,
+            text = 'Dismiss',
+            command = lambda:None,
+            width = 120,
+            height = 32,
+            fg_color = '#444444',
+            hover_color = '#666666',
+            font = customtkinter.CTkFont(size = 12)
             )
 
-            # Saved path label
             saved_label = customtkinter.CTkLabel(
-                paper,
-                text=f'Saved: {os.path.basename(saved_path)}' if saved_path else '',
-                font=customtkinter.CTkFont(size=10),
-                text_color='#888888'
+            paper,
+            text = f'Saved: {os.path.basename(saved_path)}'if saved_path else '',
+            font = customtkinter.CTkFont(size = 10),
+            text_color = '#888888'
             )
 
-            # Pre-load printer sounds and cache durations
             printer_sounds = {}
             sound_durations = {}
             try:
-                for snd_name in ('start', 'character', 'characterloop', 'nextline', 'paperprint'):
+                for snd_name in('start', 'character', 'characterloop', 'nextline', 'paperprint'):
                     snd_path = os.path.join('sounds', 'misc', 'printer', f'{snd_name}.ogg')
                     if os.path.exists(snd_path):
                         snd = pygame.mixer.Sound(snd_path)
-                        printer_sounds[snd_name] = snd
-                        sound_durations[snd_name] = max(10, int(snd.get_length() * 1000))
+                        printer_sounds[snd_name]= snd
+                        sound_durations[snd_name]= max(10, int(snd.get_length()*1000))
             except Exception:
                 logging.debug('Failed to pre-load printer sounds')
 
             def _play_printer_sound(name):
-                """Play a printer sound effect by name."""
+
                 try:
                     snd = printer_sounds.get(name)
                     if snd:
@@ -16006,31 +16205,28 @@ class App:
                     logging.debug('Failed to play printer sound: %s', name)
 
             def _stop_all_printer_sounds():
-                """Stop all playing printer sounds."""
+
                 try:
                     for snd in printer_sounds.values():
                         snd.stop()
                 except Exception:
                     pass
 
-            def _sound_ms(name, fallback=50):
-                """Return cached duration in ms for a sound, or fallback."""
+            def _sound_ms(name, fallback = 50):
+
                 return sound_durations.get(name, fallback)
 
-            # Calculate per-line step for paper feed
             num_lines = max(len(line_labels), 1)
-            line_step = (paper_h - 40) / num_lines  # content area minus padding
+            line_step =(paper_h -40)/num_lines
 
-            # Animation state
-            # Start with paper positioned so the first line sits near the bottom of the screen
-            initial_print_y = root_h - 80  # first text line visible near bottom
+            initial_print_y = root_h -80
             anim_state = {
-                'phase': 'slide_in',
-                'current_y': float(paper_start_y),
-                'print_target_y': float(initial_print_y),
-                'line_index': 0,
-                'word_index': 0,
-                'skipped': False,
+            'phase':'slide_in',
+            'current_y':float(paper_start_y),
+            'print_target_y':float(initial_print_y),
+            'line_index':0,
+            'word_index':0,
+            'skipped':False,
             }
 
             def _dismiss():
@@ -16045,33 +16241,32 @@ class App:
                         pass
 
             def _skip():
-                """Skip to the finished state."""
-                anim_state['skipped'] = True
+
+                anim_state['skipped']= True
                 _stop_all_printer_sounds()
                 try:
                     for lbl, txt, _w in line_labels:
-                        lbl.configure(text=txt)
-                    paper.place(x=paper_x, y=int(paper_mid_y))
+                        lbl.configure(text = txt)
+                    paper.place(x = paper_x, y = int(paper_mid_y))
                     skip_btn.place_forget()
-                    dismiss_btn.pack(side='bottom', pady=(0, 8))
-                    saved_label.pack(side='bottom', pady=(0, 2))
+                    dismiss_btn.pack(side = 'bottom', pady =(0, 8))
+                    saved_label.pack(side = 'bottom', pady =(0, 2))
                 except Exception:
                     pass
 
-            dismiss_btn.configure(command=_dismiss)
+            dismiss_btn.configure(command = _dismiss)
 
-            # Skip button (visible during animation)
             skip_btn = self._create_sound_button(
-                overlay,
-                text='Skip',
-                command=_skip,
-                width=80,
-                height=28,
-                fg_color='#555555',
-                hover_color='#777777',
-                font=customtkinter.CTkFont(size=11)
+            overlay,
+            text = 'Skip',
+            command = _skip,
+            width = 80,
+            height = 28,
+            fg_color = '#555555',
+            hover_color = '#777777',
+            font = customtkinter.CTkFont(size = 11)
             )
-            skip_btn.place(relx=1.0, rely=1.0, anchor='se', x=-20, y=-20)
+            skip_btn.place(relx = 1.0, rely = 1.0, anchor = 'se', x = -20, y = -20)
 
             def _animate():
                 try:
@@ -16080,60 +16275,58 @@ class App:
 
                     phase = anim_state['phase']
 
-                    if phase == 'slide_in':
-                        # Slide paper DOWN from top
+                    if phase =='slide_in':
+
                         cur = anim_state['current_y']
                         target = anim_state['print_target_y']
-                        speed = max(12, abs(target - cur) * 0.14)
-                        new_y = cur + speed
-                        if new_y >= target:
+                        speed = max(12, abs(target -cur)*0.14)
+                        new_y = cur +speed
+                        if new_y >=target:
                             new_y = target
-                            anim_state['phase'] = 'start_sound'
-                            anim_state['current_y'] = new_y
-                            paper.place(x=paper_x, y=int(new_y))
+                            anim_state['phase']= 'start_sound'
+                            anim_state['current_y']= new_y
+                            paper.place(x = paper_x, y = int(new_y))
                             self.root.after(200, _animate)
                             return
-                        anim_state['current_y'] = new_y
-                        paper.place(x=paper_x, y=int(new_y))
+                        anim_state['current_y']= new_y
+                        paper.place(x = paper_x, y = int(new_y))
                         self.root.after(10, _animate)
 
-                    elif phase == 'start_sound':
+                    elif phase =='start_sound':
                         _play_printer_sound('start')
-                        anim_state['phase'] = 'printing'
+                        anim_state['phase']= 'printing'
                         self.root.after(_sound_ms('start', 200), _animate)
 
-                    elif phase == 'printing':
+                    elif phase =='printing':
                         idx = anim_state['line_index']
-                        if idx >= len(line_labels):
-                            anim_state['phase'] = 'pre_final'
+                        if idx >=len(line_labels):
+                            anim_state['phase']= 'pre_final'
                             self.root.after(300, _animate)
                             return
 
                         lbl, full_text, words = line_labels[idx]
                         word_idx = anim_state['word_index']
 
-                        # Trivial / empty lines
-                        if len(full_text) <= 1:
-                            lbl.configure(text=full_text)
-                            anim_state['line_index'] = idx + 1
-                            anim_state['word_index'] = 0
-                            anim_state['phase'] = 'feed_paper'
+                        if len(full_text)<=1:
+                            lbl.configure(text = full_text)
+                            anim_state['line_index']= idx +1
+                            anim_state['word_index']= 0
+                            anim_state['phase']= 'feed_paper'
                             self.root.after(10, _animate)
                             return
 
-                        if word_idx >= len(words):
-                            # Line complete — feed paper up
-                            anim_state['line_index'] = idx + 1
-                            anim_state['word_index'] = 0
-                            anim_state['phase'] = 'feed_paper'
+                        if word_idx >=len(words):
+
+                            anim_state['line_index']= idx +1
+                            anim_state['word_index']= 0
+                            anim_state['phase']= 'feed_paper'
                             self.root.after(10, _animate)
                             return
 
-                        # Ensure per-line char state is initialized
-                        if anim_state.get('current_line') != idx:
-                            anim_state['current_line'] = idx
-                            anim_state['char_pos'] = 0
-                            # ensure no lingering loop channel
+                        if anim_state.get('current_line')!=idx:
+                            anim_state['current_line']= idx
+                            anim_state['char_pos']= 0
+
                             try:
                                 lc = anim_state.pop('loop_channel', None)
                                 if lc:
@@ -16141,30 +16334,28 @@ class App:
                             except Exception:
                                 pass
 
-                        # Print characters up to the end of the current word
                         end_pos = words[word_idx]
                         char_pos = anim_state['char_pos']
 
-                        if char_pos < end_pos:
-                            # If starting a new word, begin looping the word sound
+                        if char_pos <end_pos:
+
                             if not anim_state.get('loop_channel'):
                                 try:
                                     loop_snd = printer_sounds.get('characterloop')
                                     if loop_snd:
                                         ch = pygame.mixer.find_channel()
                                         if ch:
-                                            ch.play(loop_snd, loops=-1)
-                                            anim_state['loop_channel'] = ch
+                                            ch.play(loop_snd, loops = -1)
+                                            anim_state['loop_channel']= ch
                                 except Exception:
                                     pass
 
-                            # Print next character
-                            next_pos = char_pos + 1
-                            lbl.configure(text=full_text[:next_pos])
-                            anim_state['char_pos'] = next_pos
+                            next_pos = char_pos +1
+                            lbl.configure(text = full_text[:next_pos])
+                            anim_state['char_pos']= next_pos
                             self.root.after(18, _animate)
                         else:
-                            # Word finished: stop loop, play end-character sound
+
                             try:
                                 lc = anim_state.pop('loop_channel', None)
                                 if lc:
@@ -16172,63 +16363,63 @@ class App:
                             except Exception:
                                 pass
                             _play_printer_sound('character')
-                            anim_state['word_index'] = word_idx + 1
-                            # keep char_pos at end_pos so next word continues from here
-                            self.root.after(_sound_ms('character', 30) + 40, _animate)
+                            anim_state['word_index']= word_idx +1
 
-                    elif phase == 'feed_paper':
-                        # Play nextline sound and slide paper up by one line
+                            self.root.after(_sound_ms('character', 30)+40, _animate)
+
+                    elif phase =='feed_paper':
+
                         _play_printer_sound('nextline')
-                        feed_target = anim_state['current_y'] - line_step
-                        anim_state['feed_target'] = feed_target
-                        anim_state['phase'] = 'feeding'
+                        feed_target = anim_state['current_y']-line_step
+                        anim_state['feed_target']= feed_target
+                        anim_state['phase']= 'feeding'
                         self.root.after(10, _animate)
 
-                    elif phase == 'feeding':
-                        # Smoothly move paper up to feed_target
+                    elif phase =='feeding':
+
                         cur = anim_state['current_y']
                         feed_target = anim_state['feed_target']
-                        speed = max(4, abs(cur - feed_target) * 0.35)
-                        new_y = cur - speed
-                        if new_y <= feed_target:
+                        speed = max(4, abs(cur -feed_target)*0.35)
+                        new_y = cur -speed
+                        if new_y <=feed_target:
                             new_y = feed_target
-                            anim_state['current_y'] = new_y
-                            paper.place(x=paper_x, y=int(new_y))
-                            anim_state['phase'] = 'printing'
+                            anim_state['current_y']= new_y
+                            paper.place(x = paper_x, y = int(new_y))
+                            anim_state['phase']= 'printing'
                             self.root.after(30, _animate)
                             return
-                        anim_state['current_y'] = new_y
-                        paper.place(x=paper_x, y=int(new_y))
+                        anim_state['current_y']= new_y
+                        paper.place(x = paper_x, y = int(new_y))
                         self.root.after(8, _animate)
 
-                    elif phase == 'pre_final':
-                        # Play paperprint sound while sliding paper to center
+                    elif phase =='pre_final':
+
                         _play_printer_sound('paperprint')
-                        anim_state['phase'] = 'final_slide'
+                        anim_state['phase']= 'final_slide'
                         self.root.after(10, _animate)
 
-                    elif phase == 'final_slide':
-                        # Slide paper to center over the duration of the paperprint sound
+                    elif phase =='final_slide':
+
                         cur = anim_state['current_y']
                         target = float(paper_mid_y)
-                        # initialize timing state
-                        if 'final_start' not in anim_state:
-                            anim_state['final_start'] = time.time()
-                            anim_state['final_start_y'] = cur
-                            anim_state['final_target_y'] = target
-                            anim_state['final_duration_ms'] = 1360
-                        elapsed = (time.time() - anim_state['final_start']) * 1000.0
+
+                        if 'final_start'not in anim_state:
+                            anim_state['final_start']= time.time()
+                            anim_state['final_start_y']= cur
+                            anim_state['final_target_y']= target
+                            anim_state['final_duration_ms']= 1360
+                        elapsed =(time.time()-anim_state['final_start'])*1000.0
                         dur = anim_state.get('final_duration_ms', 400)
-                        t = min(1.0, elapsed / float(dur))
-                        new_y = anim_state['final_start_y'] + (anim_state['final_target_y'] - anim_state['final_start_y']) * t
-                        anim_state['current_y'] = new_y
-                        paper.place(x=paper_x, y=int(new_y))
-                        if t >= 1.0:
-                            anim_state['phase'] = 'done'
+                        t = min(1.0, elapsed /float(dur))
+                        new_y = anim_state['final_start_y']+(anim_state['final_target_y']-anim_state['final_start_y'])*t
+                        anim_state['current_y']= new_y
+                        paper.place(x = paper_x, y = int(new_y))
+                        if t >=1.0:
+                            anim_state['phase']= 'done'
                             skip_btn.place_forget()
                             try:
-                                dismiss_btn.pack(side='bottom', pady=(0, 8))
-                                saved_label.pack(side='bottom', pady=(0, 2))
+                                dismiss_btn.pack(side = 'bottom', pady =(0, 8))
+                                saved_label.pack(side = 'bottom', pady =(0, 2))
                             except Exception:
                                 pass
                             return
@@ -16236,18 +16427,17 @@ class App:
 
                 except Exception:
                     logging.exception('Combat report animation error')
-                    # Fallback: just show everything
+
                     try:
                         for lbl, txt, _w in line_labels:
-                            lbl.configure(text=txt)
-                        paper.place(x=paper_x, y=int(paper_mid_y))
+                            lbl.configure(text = txt)
+                        paper.place(x = paper_x, y = int(paper_mid_y))
                         skip_btn.place_forget()
-                        dismiss_btn.pack(side='bottom', pady=(0, 8))
-                        saved_label.pack(side='bottom', pady=(0, 2))
+                        dismiss_btn.pack(side = 'bottom', pady =(0, 8))
+                        saved_label.pack(side = 'bottom', pady =(0, 2))
                     except Exception:
                         pass
 
-            # Kick off animation
             self.root.after(100, _animate)
 
         except Exception:
@@ -16259,133 +16449,128 @@ class App:
                     pass
 
     def _reprint_combat_report(self, filepath):
-        """Re-print a saved combat report with the dot-matrix animation."""
+
         try:
             if not os.path.exists(filepath):
-                self._popup_show_info('Error', 'Combat report file not found.', sound='error')
+                self._popup_show_info('Error', 'Combat report file not found.', sound = 'error')
                 return
 
-            with open(filepath, 'r', encoding='utf-8') as f:
+            with open(filepath, 'r', encoding = 'utf-8')as f:
                 content = f.read()
 
             lines = content.strip().split('\n')
 
-            # Build a minimal report dict for the animation by parsing the file
             report = {
-                'character': 'Unknown',
-                'date': '',
-                'time': '',
-                'rounds_fired': 0,
-                'lead_rounds_fired': 0,
-                'leadfree_rounds_fired': 0,
-                'used_lead': False,
-                'lead_free_required': False,
-                'lead_fine': 0,
-                'nat20s': 0,
-                'nat1s': 0,
-                'total_rolls': 0,
-                'average_roll': 0,
-                'magazines_loaded': 0,
-                'rounds_loaded': 0,
+            'character':'Unknown',
+            'date':'',
+            'time':'',
+            'rounds_fired':0,
+            'lead_rounds_fired':0,
+            'leadfree_rounds_fired':0,
+            'used_lead':False,
+            'lead_free_required':False,
+            'lead_fine':0,
+            'nat20s':0,
+            'nat1s':0,
+            'total_rolls':0,
+            'average_roll':0,
+            'magazines_loaded':0,
+            'rounds_loaded':0,
             }
 
-            # For re-print we use the raw lines directly
             self._show_combat_report_reprint(lines)
 
         except Exception:
             logging.exception('Failed to reprint combat report')
-            self._popup_show_info('Error', 'Failed to open combat report.', sound='error')
+            self._popup_show_info('Error', 'Failed to open combat report.', sound = 'error')
 
-    def _show_combat_report_reprint(self, lines, on_dismiss=None):
-        """Show a previously saved report with the same paper animation."""
+    def _show_combat_report_reprint(self, lines, on_dismiss = None):
+
         try:
             overlay = customtkinter.CTkFrame(
-                self.root,
-                fg_color='#1a1a1a',
-                corner_radius=0
+            self.root,
+            fg_color = '#1a1a1a',
+            corner_radius = 0
             )
-            overlay.place(relx=0, rely=0, relwidth=1, relheight=1)
+            overlay.place(relx = 0, rely = 0, relwidth = 1, relheight = 1)
 
-            root_w = self.root.winfo_width() or 1920
-            root_h = self.root.winfo_height() or 1080
+            root_w = self.root.winfo_width()or 1920
+            root_h = self.root.winfo_height()or 1080
 
-            paper_w = min(520, root_w - 80)
-            paper_h = min(680, root_h - 80)
+            paper_w = min(520, root_w -80)
+            paper_h = min(680, root_h -80)
 
             paper = customtkinter.CTkFrame(
-                overlay,
-                fg_color='#f5f0e1',
-                corner_radius=4,
-                border_width=2,
-                border_color='#c8c0a8',
-                width=paper_w,
-                height=paper_h
+            overlay,
+            fg_color = '#f5f0e1',
+            corner_radius = 4,
+            border_width = 2,
+            border_color = '#c8c0a8',
+            width = paper_w,
+            height = paper_h
             )
 
-            # Start paper off-screen at the TOP (print head above window)
-            paper_x = (root_w - paper_w) // 2
-            paper_start_y = -(paper_h + 20)
-            paper_mid_y = (root_h - paper_h) // 2
+            paper_x =(root_w -paper_w)//2
+            paper_start_y = -(paper_h +20)
+            paper_mid_y =(root_h -paper_h)//2
 
-            paper.place(x=paper_x, y=paper_start_y)
+            paper.place(x = paper_x, y = paper_start_y)
 
-            content_frame = customtkinter.CTkFrame(paper, fg_color='#f5f0e1', corner_radius=0)
-            content_frame.pack(fill='both', expand=True, padx=20, pady=20)
+            content_frame = customtkinter.CTkFrame(paper, fg_color = '#f5f0e1', corner_radius = 0)
+            content_frame.pack(fill = 'both', expand = True, padx = 20, pady = 20)
 
-            dot_font = customtkinter.CTkFont(family='Courier New', size=13, weight='bold')
+            dot_font = customtkinter.CTkFont(family = 'Courier New', size = 13, weight = 'bold')
 
-            # Pre-split each line into words for word-at-a-time printing
-            line_labels = []
+            line_labels =[]
             for line_text in lines:
                 lbl = customtkinter.CTkLabel(
-                    content_frame,
-                    text='',
-                    font=dot_font,
-                    text_color='#1a1a1a',
-                    anchor='w',
-                    justify='left'
+                content_frame,
+                text = '',
+                font = dot_font,
+                text_color = '#1a1a1a',
+                anchor = 'w',
+                justify = 'left'
                 )
-                lbl.pack(anchor='w', pady=1)
-                words = []
+                lbl.pack(anchor = 'w', pady = 1)
+                words =[]
                 pos = 0
                 in_space = True
                 for ci, ch in enumerate(line_text):
-                    if ch == ' ':
+                    if ch ==' ':
                         if not in_space:
                             words.append(ci)
                         in_space = True
                     else:
                         in_space = False
-                if line_text and (not words or words[-1] != len(line_text)):
+                if line_text and(not words or words[-1]!=len(line_text)):
                     words.append(len(line_text))
                 line_labels.append((lbl, line_text, words))
 
             dismiss_btn = self._create_sound_button(
-                paper,
-                text='Dismiss',
-                command=lambda: None,
-                width=120,
-                height=32,
-                fg_color='#444444',
-                hover_color='#666666',
-                font=customtkinter.CTkFont(size=12)
+            paper,
+            text = 'Dismiss',
+            command = lambda:None,
+            width = 120,
+            height = 32,
+            fg_color = '#444444',
+            hover_color = '#666666',
+            font = customtkinter.CTkFont(size = 12)
             )
 
-            # Pre-load printer sounds and cache durations
             printer_sounds = {}
             sound_durations = {}
             try:
-                for snd_name in ('start', 'character', 'characterloop', 'nextline', 'paperprint'):
+                for snd_name in('start', 'character', 'characterloop', 'nextline', 'paperprint'):
                     snd_path = os.path.join('sounds', 'misc', 'printer', f'{snd_name}.ogg')
                     if os.path.exists(snd_path):
                         snd = pygame.mixer.Sound(snd_path)
-                        printer_sounds[snd_name] = snd
-                        sound_durations[snd_name] = max(10, int(snd.get_length() * 1000))
+                        printer_sounds[snd_name]= snd
+                        sound_durations[snd_name]= max(10, int(snd.get_length()*1000))
             except Exception:
                 logging.debug('Failed to pre-load printer sounds')
 
             def _play_printer_sound(name):
-                """Play a printer sound effect by name."""
+
                 try:
                     snd = printer_sounds.get(name)
                     if snd:
@@ -16396,29 +16581,28 @@ class App:
                     logging.debug('Failed to play printer sound: %s', name)
 
             def _stop_all_printer_sounds():
-                """Stop all playing printer sounds."""
+
                 try:
                     for snd in printer_sounds.values():
                         snd.stop()
                 except Exception:
                     pass
 
-            def _sound_ms(name, fallback=50):
-                """Return cached duration in ms for a sound, or fallback."""
+            def _sound_ms(name, fallback = 50):
+
                 return sound_durations.get(name, fallback)
 
-            # Calculate per-line step for paper feed
             num_lines = max(len(line_labels), 1)
-            line_step = (paper_h - 40) / num_lines
+            line_step =(paper_h -40)/num_lines
 
-            initial_print_y = root_h - 80
+            initial_print_y = root_h -80
             anim_state = {
-                'phase': 'slide_in',
-                'current_y': float(paper_start_y),
-                'print_target_y': float(initial_print_y),
-                'line_index': 0,
-                'word_index': 0,
-                'skipped': False,
+            'phase':'slide_in',
+            'current_y':float(paper_start_y),
+            'print_target_y':float(initial_print_y),
+            'line_index':0,
+            'word_index':0,
+            'skipped':False,
             }
 
             def _dismiss():
@@ -16433,32 +16617,31 @@ class App:
                         pass
 
             def _skip():
-                """Skip to the finished state."""
-                anim_state['skipped'] = True
+
+                anim_state['skipped']= True
                 _stop_all_printer_sounds()
                 try:
                     for lbl, txt, _w in line_labels:
-                        lbl.configure(text=txt)
-                    paper.place(x=paper_x, y=int(paper_mid_y))
+                        lbl.configure(text = txt)
+                    paper.place(x = paper_x, y = int(paper_mid_y))
                     skip_btn.place_forget()
-                    dismiss_btn.pack(side='bottom', pady=(0, 8))
+                    dismiss_btn.pack(side = 'bottom', pady =(0, 8))
                 except Exception:
                     pass
 
-            dismiss_btn.configure(command=_dismiss)
+            dismiss_btn.configure(command = _dismiss)
 
-            # Skip button (visible during animation)
             skip_btn = self._create_sound_button(
-                overlay,
-                text='Skip',
-                command=_skip,
-                width=80,
-                height=28,
-                fg_color='#555555',
-                hover_color='#777777',
-                font=customtkinter.CTkFont(size=11)
+            overlay,
+            text = 'Skip',
+            command = _skip,
+            width = 80,
+            height = 28,
+            fg_color = '#555555',
+            hover_color = '#777777',
+            font = customtkinter.CTkFont(size = 11)
             )
-            skip_btn.place(relx=1.0, rely=1.0, anchor='se', x=-20, y=-20)
+            skip_btn.place(relx = 1.0, rely = 1.0, anchor = 'se', x = -20, y = -20)
 
             def _animate():
                 try:
@@ -16467,59 +16650,57 @@ class App:
 
                     phase = anim_state['phase']
 
-                    if phase == 'slide_in':
-                        # Slide paper DOWN from top
+                    if phase =='slide_in':
+
                         cur = anim_state['current_y']
                         target = anim_state['print_target_y']
-                        speed = max(12, abs(target - cur) * 0.14)
-                        new_y = cur + speed
-                        if new_y >= target:
+                        speed = max(12, abs(target -cur)*0.14)
+                        new_y = cur +speed
+                        if new_y >=target:
                             new_y = target
-                            anim_state['phase'] = 'start_sound'
-                            anim_state['current_y'] = new_y
-                            paper.place(x=paper_x, y=int(new_y))
+                            anim_state['phase']= 'start_sound'
+                            anim_state['current_y']= new_y
+                            paper.place(x = paper_x, y = int(new_y))
                             self.root.after(200, _animate)
                             return
-                        anim_state['current_y'] = new_y
-                        paper.place(x=paper_x, y=int(new_y))
+                        anim_state['current_y']= new_y
+                        paper.place(x = paper_x, y = int(new_y))
                         self.root.after(10, _animate)
 
-                    elif phase == 'start_sound':
+                    elif phase =='start_sound':
                         _play_printer_sound('start')
-                        anim_state['phase'] = 'printing'
+                        anim_state['phase']= 'printing'
                         self.root.after(_sound_ms('start', 200), _animate)
 
-                    elif phase == 'printing':
+                    elif phase =='printing':
                         idx = anim_state['line_index']
-                        if idx >= len(line_labels):
-                            anim_state['phase'] = 'pre_final'
+                        if idx >=len(line_labels):
+                            anim_state['phase']= 'pre_final'
                             self.root.after(300, _animate)
                             return
 
                         lbl, full_text, words = line_labels[idx]
                         word_idx = anim_state['word_index']
 
-                        # Trivial / empty lines
-                        if len(full_text) <= 1:
-                            lbl.configure(text=full_text)
-                            anim_state['line_index'] = idx + 1
-                            anim_state['word_index'] = 0
-                            anim_state['phase'] = 'feed_paper'
+                        if len(full_text)<=1:
+                            lbl.configure(text = full_text)
+                            anim_state['line_index']= idx +1
+                            anim_state['word_index']= 0
+                            anim_state['phase']= 'feed_paper'
                             self.root.after(10, _animate)
                             return
 
-                        if word_idx >= len(words):
-                            # Line complete — feed paper up
-                            anim_state['line_index'] = idx + 1
-                            anim_state['word_index'] = 0
-                            anim_state['phase'] = 'feed_paper'
+                        if word_idx >=len(words):
+
+                            anim_state['line_index']= idx +1
+                            anim_state['word_index']= 0
+                            anim_state['phase']= 'feed_paper'
                             self.root.after(10, _animate)
                             return
 
-                        # Ensure per-line char state is initialized
-                        if anim_state.get('current_line') != idx:
-                            anim_state['current_line'] = idx
-                            anim_state['char_pos'] = 0
+                        if anim_state.get('current_line')!=idx:
+                            anim_state['current_line']= idx
+                            anim_state['char_pos']= 0
                             try:
                                 lc = anim_state.pop('loop_channel', None)
                                 if lc:
@@ -16527,25 +16708,24 @@ class App:
                             except Exception:
                                 pass
 
-                        # Print characters up to the end of the current word
                         end_pos = words[word_idx]
                         char_pos = anim_state['char_pos']
 
-                        if char_pos < end_pos:
+                        if char_pos <end_pos:
                             if not anim_state.get('loop_channel'):
                                 try:
                                     loop_snd = printer_sounds.get('characterloop')
                                     if loop_snd:
                                         ch = pygame.mixer.find_channel()
                                         if ch:
-                                            ch.play(loop_snd, loops=-1)
-                                            anim_state['loop_channel'] = ch
+                                            ch.play(loop_snd, loops = -1)
+                                            anim_state['loop_channel']= ch
                                 except Exception:
                                     pass
 
-                            next_pos = char_pos + 1
-                            lbl.configure(text=full_text[:next_pos])
-                            anim_state['char_pos'] = next_pos
+                            next_pos = char_pos +1
+                            lbl.configure(text = full_text[:next_pos])
+                            anim_state['char_pos']= next_pos
                             self.root.after(18, _animate)
                         else:
                             try:
@@ -16555,58 +16735,58 @@ class App:
                             except Exception:
                                 pass
                             _play_printer_sound('character')
-                            anim_state['word_index'] = word_idx + 1
-                            self.root.after(_sound_ms('character', 30) + 40, _animate)
+                            anim_state['word_index']= word_idx +1
+                            self.root.after(_sound_ms('character', 30)+40, _animate)
 
-                    elif phase == 'feed_paper':
+                    elif phase =='feed_paper':
                         _play_printer_sound('nextline')
-                        feed_target = anim_state['current_y'] - line_step
-                        anim_state['feed_target'] = feed_target
-                        anim_state['phase'] = 'feeding'
+                        feed_target = anim_state['current_y']-line_step
+                        anim_state['feed_target']= feed_target
+                        anim_state['phase']= 'feeding'
                         self.root.after(10, _animate)
 
-                    elif phase == 'feeding':
+                    elif phase =='feeding':
                         cur = anim_state['current_y']
                         feed_target = anim_state['feed_target']
-                        speed = max(4, abs(cur - feed_target) * 0.35)
-                        new_y = cur - speed
-                        if new_y <= feed_target:
+                        speed = max(4, abs(cur -feed_target)*0.35)
+                        new_y = cur -speed
+                        if new_y <=feed_target:
                             new_y = feed_target
-                            anim_state['current_y'] = new_y
-                            paper.place(x=paper_x, y=int(new_y))
-                            anim_state['phase'] = 'printing'
+                            anim_state['current_y']= new_y
+                            paper.place(x = paper_x, y = int(new_y))
+                            anim_state['phase']= 'printing'
                             self.root.after(30, _animate)
                             return
-                        anim_state['current_y'] = new_y
-                        paper.place(x=paper_x, y=int(new_y))
+                        anim_state['current_y']= new_y
+                        paper.place(x = paper_x, y = int(new_y))
                         self.root.after(8, _animate)
 
-                    elif phase == 'pre_final':
+                    elif phase =='pre_final':
                         _play_printer_sound('paperprint')
-                        anim_state['phase'] = 'final_slide'
+                        anim_state['phase']= 'final_slide'
                         self.root.after(10, _animate)
 
-                    elif phase == 'final_slide':
-                        # Slide paper to center over the duration of the paperprint sound
+                    elif phase =='final_slide':
+
                         cur = anim_state['current_y']
                         target = float(paper_mid_y)
-                        # initialize timing state
-                        if 'final_start' not in anim_state:
-                            anim_state['final_start'] = time.time()
-                            anim_state['final_start_y'] = cur
-                            anim_state['final_target_y'] = target
-                            anim_state['final_duration_ms'] = 1360
-                        elapsed = (time.time() - anim_state['final_start']) * 1000.0
+
+                        if 'final_start'not in anim_state:
+                            anim_state['final_start']= time.time()
+                            anim_state['final_start_y']= cur
+                            anim_state['final_target_y']= target
+                            anim_state['final_duration_ms']= 1360
+                        elapsed =(time.time()-anim_state['final_start'])*1000.0
                         dur = anim_state.get('final_duration_ms', 400)
-                        t = min(1.0, elapsed / float(dur))
-                        new_y = anim_state['final_start_y'] + (anim_state['final_target_y'] - anim_state['final_start_y']) * t
-                        anim_state['current_y'] = new_y
-                        paper.place(x=paper_x, y=int(new_y))
-                        if t >= 1.0:
-                            anim_state['phase'] = 'done'
+                        t = min(1.0, elapsed /float(dur))
+                        new_y = anim_state['final_start_y']+(anim_state['final_target_y']-anim_state['final_start_y'])*t
+                        anim_state['current_y']= new_y
+                        paper.place(x = paper_x, y = int(new_y))
+                        if t >=1.0:
+                            anim_state['phase']= 'done'
                             skip_btn.place_forget()
                             try:
-                                dismiss_btn.pack(side='bottom', pady=(0, 8))
+                                dismiss_btn.pack(side = 'bottom', pady =(0, 8))
                             except Exception:
                                 pass
                             return
@@ -16616,10 +16796,10 @@ class App:
                     logging.exception('Combat report reprint animation error')
                     try:
                         for lbl, txt, _w in line_labels:
-                            lbl.configure(text=txt)
-                        paper.place(x=paper_x, y=int(paper_mid_y))
+                            lbl.configure(text = txt)
+                        paper.place(x = paper_x, y = int(paper_mid_y))
                         skip_btn.place_forget()
-                        dismiss_btn.pack(side='bottom', pady=(0, 8))
+                        dismiss_btn.pack(side = 'bottom', pady =(0, 8))
                     except Exception:
                         pass
 
@@ -16629,90 +16809,90 @@ class App:
             logging.exception('Failed to show combat report reprint animation')
 
     def _open_combat_reports_menu(self):
-        """Browse and re-print past combat reports."""
+
         logging.info('Combat Reports menu opened')
 
         self._clear_window()
         self._play_ui_sound('whoosh1')
 
         main_frame = customtkinter.CTkFrame(self.root)
-        main_frame.pack(fill='both', expand=True, padx=20, pady=20)
+        main_frame.pack(fill = 'both', expand = True, padx = 20, pady = 20)
 
         title_label = customtkinter.CTkLabel(
-            main_frame,
-            text='Combat Reports',
-            font=customtkinter.CTkFont(size=24, weight='bold')
+        main_frame,
+        text = 'Combat Reports',
+        font = customtkinter.CTkFont(size = 24, weight = 'bold')
         )
-        title_label.pack(pady=(0, 20))
+        title_label.pack(pady =(0, 20))
 
         reports_dir = 'combatreports'
-        os.makedirs(reports_dir, exist_ok=True)
+        os.makedirs(reports_dir, exist_ok = True)
 
         report_files = sorted(
-            [f for f in os.listdir(reports_dir) if f.endswith('.txt')],
-            reverse=True
+        [f for f in os.listdir(reports_dir)if f.endswith('.txt')],
+        reverse = True
         )
 
         if not report_files:
             empty_label = customtkinter.CTkLabel(
-                main_frame,
-                text='No combat reports found.',
-                font=customtkinter.CTkFont(size=14),
-                text_color='gray'
+            main_frame,
+            text = 'No combat reports found.',
+            font = customtkinter.CTkFont(size = 14),
+            text_color = 'gray'
             )
-            empty_label.pack(pady=40)
+            empty_label.pack(pady = 40)
         else:
-            scroll = customtkinter.CTkScrollableFrame(main_frame, fg_color='transparent')
-            scroll.pack(fill='both', expand=True, padx=10, pady=10)
+            scroll = customtkinter.CTkScrollableFrame(main_frame, fg_color = 'transparent')
+            scroll.pack(fill = 'both', expand = True, padx = 10, pady = 10)
 
             for report_file in report_files:
                 report_path = os.path.join(reports_dir, report_file)
                 display_name = report_file.replace('.txt', '').replace('_', ' ')
 
-                row_frame = customtkinter.CTkFrame(scroll, fg_color='transparent')
-                row_frame.pack(fill='x', pady=3, padx=5)
+                row_frame = customtkinter.CTkFrame(scroll, fg_color = 'transparent')
+                row_frame.pack(fill = 'x', pady = 3, padx = 5)
 
                 name_label = customtkinter.CTkLabel(
-                    row_frame,
-                    text=display_name,
-                    font=customtkinter.CTkFont(size=12),
-                    anchor='w'
+                row_frame,
+                text = display_name,
+                font = customtkinter.CTkFont(size = 12),
+                anchor = 'w'
                 )
-                name_label.pack(side='left', fill='x', expand=True)
+                name_label.pack(side = 'left', fill = 'x', expand = True)
 
                 reprint_btn = self._create_sound_button(
-                    row_frame,
-                    text='Re-Print',
-                    command=lambda p=report_path: self._reprint_combat_report(p),
-                    width=100,
-                    height=28,
-                    font=customtkinter.CTkFont(size=11)
+                row_frame,
+                text = 'Re-Print',
+                command = lambda p = report_path:self._reprint_combat_report(p),
+                width = 100,
+                height = 28,
+                font = customtkinter.CTkFont(size = 11)
                 )
-                reprint_btn.pack(side='right', padx=5)
+                reprint_btn.pack(side = 'right', padx = 5)
 
                 delete_btn = self._create_sound_button(
-                    row_frame,
-                    text='Delete',
-                    command=lambda p=report_path: self._delete_combat_report(p),
-                    width=80,
-                    height=28,
-                    fg_color='#8B0000',
-                    hover_color='#A52A2A',
-                    font=customtkinter.CTkFont(size=11)
+                row_frame,
+                text = 'Delete',
+                command = lambda p = report_path:self._delete_combat_report(p),
+                width = 80,
+                height = 28,
+                fg_color = '#8B0000',
+                hover_color = '#A52A2A',
+                font = customtkinter.CTkFont(size = 11)
                 )
-                delete_btn.pack(side='right', padx=2)
+                delete_btn.pack(side = 'right', padx = 2)
 
         back_button = self._create_sound_button(
-            main_frame,
-            'Back',
-            lambda: [self._clear_window(), self._build_main_menu()],
-            width=200,
-            height=40
+        main_frame,
+        'Back',
+        lambda:[self._clear_window(), self._build_main_menu()],
+        width = 200,
+        height = 40
         )
-        back_button.pack(pady=10)
+        back_button.pack(pady = 10)
 
     def _delete_combat_report(self, filepath):
-        """Delete a combat report file and refresh the menu."""
+
         try:
             if os.path.exists(filepath):
                 os.remove(filepath)
@@ -16720,7 +16900,7 @@ class App:
             self._open_combat_reports_menu()
         except Exception:
             logging.exception('Failed to delete combat report')
-            self._popup_show_info('Error', 'Failed to delete report.', sound='error')
+            self._popup_show_info('Error', 'Failed to delete report.', sound = 'error')
 
     def _open_combat_mode_tool(self):
 
@@ -16824,7 +17004,6 @@ class App:
         equipped_weapons[combat_state["current_weapon_index"]]["item"].get("name", "Unknown")if equipped_weapons else "n/a"
         )
 
-        # Initialize per-session combat tracking
         self._init_combat_session_stats(save_data)
 
         self._clear_window()
@@ -17090,26 +17269,26 @@ class App:
             slot = entry.get("slot", "")
             if slot =="Hands":
                 return "hands"
-            if "->" in slot:
-                parts = [p.strip() for p in slot.split(">")]
+            if "->"in slot:
+                parts =[p.strip()for p in slot.split(">")]
                 top_slot = parts[0].rstrip(" -")
                 parent = save_data.get("equipment", {}).get(top_slot)
                 if parent and isinstance(parent, dict):
                     if parent.get("holster_sling"):
                         pname = parent.get("name", "").lower()
-                        ptypes = [pt.lower() for pt in parent.get("weapon_types", []) if isinstance(pt, str)]
-                        if "pistol" in ptypes or "holster" in pname:
+                        ptypes =[pt.lower()for pt in parent.get("weapon_types", [])if isinstance(pt, str)]
+                        if "pistol"in ptypes or "holster"in pname:
                             return "holster"
                         return "sling"
-                    for ss in parent.get("subslots", []) or []:
+                    for ss in parent.get("subslots", [])or[]:
                         cur = ss.get("current")
-                        if isinstance(cur, dict) and cur.get("holster_sling"):
+                        if isinstance(cur, dict)and cur.get("holster_sling"):
                             cname = cur.get("name", "").lower()
-                            ctypes = [ct.lower() for ct in cur.get("weapon_types", []) if isinstance(ct, str)]
-                            if "pistol" in ctypes or "holster" in cname:
+                            ctypes =[ct.lower()for ct in cur.get("weapon_types", [])if isinstance(ct, str)]
+                            if "pistol"in ctypes or "holster"in cname:
                                 return "holster"
                             return "sling"
-                if top_slot == "waistband":
+                if top_slot =="waistband":
                     return "waistband"
                 return "unknown"
             if slot =="waistband":
@@ -19136,8 +19315,6 @@ class App:
             self._popup_show_info("Cycle Action", result)
             update_weapon_view()
 
-        # Cycle Action is exposed via the More Actions popup; toolbar button removed
-
         def _toggle_nvg():
             try:
                 nvg_item = _find_nvg_item()
@@ -19966,7 +20143,7 @@ class App:
                         next_variant_name = first_r.get("variant")or first_r.get("name")
             except Exception:
                 next_variant_name = None
-            variant_suffix = f" [{next_variant_name}]"if next_variant_name and round_count >0 else ""
+            variant_suffix = f"[{next_variant_name}]"if next_variant_name and round_count >0 else ""
 
             if ammo_label_ref:
                 if tip_color and round_count >0:
@@ -20108,7 +20285,7 @@ class App:
                     if isinstance(_nr, dict):
                         _nv = _nr.get("variant")or _nr.get("name")
                         if _nv:
-                            _next_var = f" [next: {_nv}]"
+                            _next_var = f"[next: {_nv}]"
 
                 radio_frame = customtkinter.CTkFrame(scroll_frame, fg_color = "transparent")
                 radio_frame.pack(fill = "x", pady = 5, padx = 5)
@@ -20605,15 +20782,15 @@ class App:
                 lab.pack(pady = 8)
 
                 try:
-                    wpn_mag_info = current_weapon_state.get('weapon') or {}
+                    wpn_mag_info = current_weapon_state.get('weapon')or {}
                     _loaded_mag_info = wpn_mag_info.get('loaded')
                     _mag_next_variant = None
                     if isinstance(_loaded_mag_info, dict):
                         _mag_rds = _loaded_mag_info.get('rounds', [])
-                        if _mag_rds and isinstance(_mag_rds, list) and len(_mag_rds) > 0:
+                        if _mag_rds and isinstance(_mag_rds, list)and len(_mag_rds)>0:
                             _mnr = _mag_rds[0]
                             if isinstance(_mnr, dict):
-                                _mag_next_variant = _mnr.get('variant') or _mnr.get('name')
+                                _mag_next_variant = _mnr.get('variant')or _mnr.get('name')
                     if _mag_next_variant:
                         customtkinter.CTkLabel(popup, text = f'Next round: {_mag_next_variant}', font = customtkinter.CTkFont(size = 12)).pack(pady = 2)
                 except Exception:
@@ -20901,7 +21078,7 @@ class App:
                             if isinstance(_nr, dict):
                                 _nv = _nr.get("variant")or _nr.get("name")
                                 if _nv:
-                                    _next_var = f" [next: {_nv}]"
+                                    _next_var = f"[next: {_nv}]"
 
                         radio_frame = customtkinter.CTkFrame(scroll_frame, fg_color = "transparent")
                         radio_frame.pack(fill = "x", pady = 5, padx = 5)
@@ -22069,7 +22246,7 @@ class App:
                     _add('Check Cleanliness', check_cleanliness)
                 if check_mag_btn is not None:
                     _add('Check Magazine', check_magazine)
-                # expose cycle action in More Actions as well
+
                 try:
                     _add('Cycle Action', cycle_bolt)
                 except Exception:
@@ -22946,17 +23123,16 @@ class App:
             except Exception:
                 pass
 
-            # Generate and show combat report only if enabled in the active table
             try:
                 tbl_addl = globals().get('table_data', {}).get('additional_settings', {})
-                combat_reports_enabled = bool(tbl_addl.get('combat_repots') or tbl_addl.get('combat_reports'))
+                combat_reports_enabled = bool(tbl_addl.get('combat_repots')or tbl_addl.get('combat_reports'))
             except Exception:
                 combat_reports_enabled = False
 
             if combat_reports_enabled:
                 try:
                     report = self._generate_combat_report_data(save_data)
-                    if report and report.get('rounds_fired', 0) > 0:
+                    if report and report.get('rounds_fired', 0)>0:
                         self._clear_window()
                         self._build_main_menu()
                         self._show_combat_report_animation(report)
@@ -23047,9 +23223,9 @@ class App:
                             "slot":f"{slot_name} -> {subslot['name']}",
                             "display_name":sub_cur.get("name", "Unknown Weapon")
                             })
-                        if sub_cur.get("holster_sling") and "subslots" in sub_cur:
+                        if sub_cur.get("holster_sling")and "subslots"in sub_cur:
                             for nested_ss in sub_cur["subslots"]:
-                                if nested_ss.get("current") and isinstance(nested_ss.get("current"), dict) and nested_ss["current"].get("firearm"):
+                                if nested_ss.get("current")and isinstance(nested_ss.get("current"), dict)and nested_ss["current"].get("firearm"):
                                     weapons.append({
                                     "item":nested_ss["current"],
                                     "slot":f"{slot_name} -> {subslot['name']} -> {nested_ss['name']}",
@@ -23843,7 +24019,7 @@ class App:
                                     next_variant = _nr.get("variant")or _nr.get("name")
             except Exception:
                 next_variant = None
-        variant_text = f" [{next_variant}]"if next_variant else ""
+        variant_text = f"[{next_variant}]"if next_variant else ""
 
         if is_internal or is_revolver:
 
@@ -25985,12 +26161,11 @@ class App:
             except Exception:
                 logging.exception('Failed updating tracked_stats after firing')
 
-            # Update per-session combat report stats
             try:
-                sd_ref2 = save_data if isinstance(save_data, dict) else globals().get('save_data') or getattr(self, '_current_save_data', None)
+                sd_ref2 = save_data if isinstance(save_data, dict)else globals().get('save_data')or getattr(self, '_current_save_data', None)
                 fired_round_ref = None
                 try:
-                    fired_round_ref = fired_round  # type: ignore
+                    fired_round_ref = fired_round # type: ignore
                 except Exception:
                     pass
                 if fired_round_ref is None:
@@ -25999,7 +26174,7 @@ class App:
                             fired_round_ref = chambered
                     except Exception:
                         pass
-                self._update_session_fire_stats(sd_ref2, rounds_fired, rolls, fired_round=fired_round_ref)
+                self._update_session_fire_stats(sd_ref2, rounds_fired, rolls, fired_round = fired_round_ref)
             except Exception:
                 logging.exception('Failed updating session fire stats')
 
@@ -27671,9 +27846,9 @@ class App:
         logging.info("_cycle_bolt start: name=%s", weapon.get("name", "Unknown"))
 
         actions = weapon.get("action", [])
-        magazine_type = (weapon.get("magazinetype") or "").lower()
-        is_internal = "internal" in magazine_type or "tube" in magazine_type
-        is_revolver = "revolver" in (weapon.get("platform", "") or "").lower()
+        magazine_type =(weapon.get("magazinetype")or "").lower()
+        is_internal = "internal"in magazine_type or "tube"in magazine_type
+        is_revolver = "revolver"in(weapon.get("platform", "")or "").lower()
 
         chambered = weapon.get("chambered")
         if chambered:
@@ -27683,7 +27858,7 @@ class App:
             time.sleep(0.2)
 
             weapon["chambered"]= None
-            message = "Ejected chambered round. "
+            message = "Ejected chambered round."
         else:
             message = ""
 
@@ -27692,14 +27867,14 @@ class App:
             if not internal_rounds:
                 self._play_weapon_action_sound(weapon, "boltback", block = True)
                 self._play_weapon_action_sound(weapon, "boltforward")
-                return message + "No rounds in magazine - action cycled but no round chambered."
+                return message +"No rounds in magazine - action cycled but no round chambered."
 
             self._play_weapon_action_sound(weapon, "boltback", block = True)
             next_round = internal_rounds.pop(0)
-            weapon["chambered"] = next_round
+            weapon["chambered"]= next_round
             self._play_weapon_action_sound(weapon, "boltforward")
-            next_var = next_round.get("variant") or next_round.get("name") if isinstance(next_round, dict) else str(next_round)
-            return message + f"Action cycled - chambered {next_var or 'a round'}."
+            next_var = next_round.get("variant")or next_round.get("name")if isinstance(next_round, dict)else str(next_round)
+            return message +f"Action cycled - chambered {next_var or 'a round'}."
 
         loaded_mag = weapon.get("loaded")
 
@@ -27718,7 +27893,7 @@ class App:
         next_round = rounds.pop(0)
         weapon["chambered"]= next_round
         self._play_weapon_action_sound(weapon, "boltforward")
-        next_var = next_round.get("variant") or next_round.get("name") if isinstance(next_round, dict) else str(next_round)
+        next_var = next_round.get("variant")or next_round.get("name")if isinstance(next_round, dict)else str(next_round)
         return message +f"Action cycled - chambered {next_var or 'a round'}."
 
     def _show_magazine_selection_menu(self, weapon, save_data, table_data, current_weapon_state, update_callback):
@@ -27914,12 +28089,12 @@ class App:
                 radio_text +=f" - {mag_cal_display}"
             radio_text +=f" - from {location}"
             _mag_rds_list = mag_item.get("rounds", [])
-            if _mag_rds_list and isinstance(_mag_rds_list, list) and len(_mag_rds_list) > 0:
+            if _mag_rds_list and isinstance(_mag_rds_list, list)and len(_mag_rds_list)>0:
                 _mnr = _mag_rds_list[0]
                 if isinstance(_mnr, dict):
-                    _mnv = _mnr.get("variant") or _mnr.get("name")
+                    _mnv = _mnr.get("variant")or _mnr.get("name")
                     if _mnv:
-                        radio_text += f" [next: {_mnv}]"
+                        radio_text +=f"[next: {_mnv}]"
             radio = customtkinter.CTkRadioButton(
             radio_frame,
             text = radio_text,
