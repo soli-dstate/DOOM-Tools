@@ -3341,19 +3341,19 @@ class App:
 
     def _check_remote_version(self, label):
         try:
-            raw_url = 'https://raw.githubusercontent.com/soli-dstate/DOOM-Tools/master/main.py'
+            api_url = 'https://api.github.com/repos/soli-dstate/DOOM-Tools/releases/latest'
             try:
-                resp = requests.get(raw_url, timeout = 5)
+                resp = requests.get(api_url, timeout = 5, headers = {'Accept': 'application/vnd.github+json'})
                 if resp.status_code !=200:
                     return
-                text = resp.text
+                data = resp.json()
             except Exception:
                 return
 
-            m = re.search(r"^version\s*=\s*[\"']([^\"']+)[\"']", text, re.MULTILINE)
-            if not m:
+            tag = data.get('tag_name', '')
+            if not tag:
                 return
-            remote_ver = m.group(1)
+            remote_ver = tag.lstrip('vV')
             local_ver = version
 
             lp = self._parse_version(local_ver)
