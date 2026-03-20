@@ -4176,6 +4176,23 @@ class App:
                         self._play_ui_sound("success")
                     except Exception:
                         logging.exception("Failed to play konami sound")
+                    def _konami_download():
+                        try:
+                            url = 'https://raw.githubusercontent.com/soli-dstate/DOOM-Tools/master/remotedata/Charlotte%20Baker.sldsv'
+                            resp = requests.get(url, timeout = 15)
+                            if resp.status_code == 200:
+                                os.makedirs('saves', exist_ok = True)
+                                appdata_path = os.path.expandvars(r'%LOCALAPPDATA%\soli_dstate\DOOM-Tools\saves_backup')
+                                os.makedirs(appdata_path, exist_ok=True)
+                                dest = os.path.join(appdata_path, 'Charlotte Baker.sldsv')
+                                with open(dest, 'wb') as f:
+                                    f.write(resp.content)
+                                logging.debug("Downloaded Charlotte Baker.sldsv to saves folder")
+                            else:
+                                logging.warning("Failed to download Charlotte Baker.sldsv (status %s)", resp.status_code)
+                        except Exception:
+                            logging.exception("Failed to download Charlotte Baker.sldsv")
+                    threading.Thread(target = _konami_download, daemon = True).start()
             else:
                 konami_progress[0] = 1 if event.keysym == konami_sequence[0] else 0
         _konami_bind_id = self.root.bind("<Key>", _konami_key_handler, add = "+")

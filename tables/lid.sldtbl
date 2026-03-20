@@ -10962,6 +10962,17 @@
                 "puzzle": true,
                 "puzzle_type": "De<T5F(96%ASq",
                 "code": "2)%!D3<"
+            },
+            {
+                "name": "Paper",
+                "value": 0,
+                "description": "",
+                "rarity": "Ethereal",
+                "random_quantity": false,
+                "weight": 0,
+                "id": -8,
+                "inspectable": true,
+                "inspect": "images/misc/paper.png"
             }
         ],
         "enemy_drops": [
