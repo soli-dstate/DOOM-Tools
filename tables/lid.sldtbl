@@ -10,7 +10,8 @@
         "paycheck": true,
         "paycheck_amount": 2000,
         "pay_period": "weekly",
-        "combat_repots": false
+        "combat_repots": false,
+        "hidden_code": "Hbylsph"
     },
     "rarity_weights": {
         "Common": 40,

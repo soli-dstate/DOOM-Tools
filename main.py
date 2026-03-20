@@ -4156,6 +4156,35 @@ class App:
         if currentsave is None:
             currentsave_label = customtkinter.CTkLabel(main_frame, text = "No save loaded.Please load a save to enable tools.", font = customtkinter.CTkFont(size = 14), text_color = "red")
             currentsave_label.pack(pady = 20)
+        konami_sequence = ["Up", "Up", "Down", "Down", "Left", "Right", "Left", "Right"]
+        konami_progress = [0]
+        konami_triggered = [False]
+        def _konami_key_handler(event):
+            if konami_triggered[0]:
+                return
+            if event.keysym == konami_sequence[konami_progress[0]]:
+                konami_progress[0] += 1
+                if konami_progress[0] == len(konami_sequence):
+                    konami_triggered[0] = True
+                    try:
+                        tbl = globals().get('table_data', {})
+                        code = tbl.get('additional_settings', {}).get('hidden_code', '')
+                        logging.info("Hidden code: %s", code)
+                    except Exception:
+                        logging.exception("Failed to retrieve hidden_code")
+                    try:
+                        self._play_ui_sound("success")
+                    except Exception:
+                        logging.exception("Failed to play konami sound")
+            else:
+                konami_progress[0] = 1 if event.keysym == konami_sequence[0] else 0
+        _konami_bind_id = self.root.bind("<Key>", _konami_key_handler, add = "+")
+        def _konami_cleanup(event=None):
+            try:
+                self.root.unbind("<Key>", _konami_bind_id)
+            except Exception:
+                pass
+        main_frame.bind("<Destroy>", _konami_cleanup, add = "+")
 
     def _create_dev_toolbar(self):
         try:
