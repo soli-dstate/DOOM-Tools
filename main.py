@@ -1,4 +1,4 @@
-version = "1.0.12"
+version = "1.0.13"
 
 import os
 import logging
@@ -7366,106 +7366,438 @@ class App:
                                 load_var = None
 
                             def _open_shop_magazine_editor():
+                                import tkinter as _tk_shop
                                 try:
                                     ammo_table = tables.get('ammunition', [])
                                     mag_cal = mag_copy.get('caliber')
                                     if isinstance(mag_cal, str):
-                                        mag_cal =[mag_cal]
+                                        mag_cal = [mag_cal]
 
-                                    variant_options =[]
                                     variant_map = {}
                                     for ammo_def in ammo_table:
                                         ammo_cal = ammo_def.get('caliber')
                                         if isinstance(ammo_cal, str):
-                                            ammo_cal =[ammo_cal]
+                                            ammo_cal = [ammo_cal]
                                         if mag_cal and ammo_cal and any(c in ammo_cal for c in mag_cal):
                                             for var in ammo_def.get('variants', []):
-                                                label = f"{ammo_def.get('name')} | {var.get('name')}"
-                                                variant_options.append(label)
-                                                variant_map[label]=(ammo_def, var)
+                                                vn = var.get('name')
+                                                if vn:
+                                                    variant_map[vn] = (ammo_def, var)
 
-                                    if not variant_options:
+                                    if not variant_map:
                                         self._popup_show_info('No Compatible Ammo', 'No compatible ammunition variants found for this magazine.', sound = 'error')
                                         return
 
                                     editor = customtkinter.CTkToplevel(self.root)
-                                    editor.title('Magazine Editor')
+                                    editor.title('Magazine Loader')
                                     editor.transient(self.root)
-                                    cap = int(mag_copy.get('capacity', 30)or 30)
+                                    cap = int(mag_copy.get('capacity', 30) or 30)
+                                    existing = list(mag_copy.get('rounds', []) or [])
 
-                                    scroll_h = max(300, min(1000, cap *24))
-                                    slots_frame = customtkinter.CTkScrollableFrame(editor, width = 420, height = scroll_h, fg_color = 'transparent')
-                                    slots_frame.pack(side = 'left', fill = 'both', expand = True, padx = 8, pady = 8)
+                                    vlist = sorted(variant_map.keys())
+                                    cpal = ['#c4a032', '#b87333', '#a0a0a0', '#d4af37', '#8b4513', '#cd7f32', '#e8c872', '#a08060']
+                                    vcols = {v: cpal[i % len(cpal)] for i, v in enumerate(vlist)}
 
-                                    side = customtkinter.CTkFrame(editor, fg_color = 'transparent')
-                                    side.pack(side = 'right', fill = 'y', padx = 8, pady = 8)
+                                    vtips = {}
+                                    for vn, (ad, vr) in variant_map.items():
+                                        t = vr.get('tip')
+                                        if t and isinstance(t, str) and t.startswith('#'):
+                                            vtips[vn] = t
 
-                                    slot_vars =[]
-                                    for i in range(cap):
-                                        lbl = customtkinter.CTkLabel(slots_frame, text = f'Slot {i +1}:')
-                                        lbl.pack(anchor = 'w')
-                                        sv = customtkinter.StringVar(value = variant_options[0])
-                                        opt = customtkinter.CTkOptionMenu(slots_frame, values = variant_options, variable = sv, width = 260)
-                                        opt.pack(anchor = 'w', pady = 2)
-                                        slot_vars.append(sv)
+                                    def _tip_for(vn):
+                                        return vtips.get(vn, '#e0c060')
 
-                                    bulk_var = customtkinter.StringVar(value = variant_options[0])
-                                    bulk_label = customtkinter.CTkLabel(side, text = 'Bulk set variant:', font = customtkinter.CTkFont(size = 12))
-                                    bulk_label.pack(pady =(6, 2))
-                                    bulk_menu = customtkinter.CTkOptionMenu(side, values = variant_options, variable = bulk_var, width = 180)
-                                    bulk_menu.pack(pady = 4)
-
-                                    def set_all():
-                                        v = bulk_var.get()
-                                        for sv in slot_vars:
-                                            sv.set(v)
-
-                                    set_all_btn = customtkinter.CTkButton(side, text = 'Set All', command = set_all, width = 180)
-                                    set_all_btn.pack(pady = 6)
-
-                                    def apply_editor():
+                                    def _tip_ol_for(vn):
+                                        tc = vtips.get(vn)
+                                        if not tc:
+                                            return '#aa8820'
                                         try:
-                                            rounds =[]
-                                            for sv in slot_vars:
-                                                v = sv.get()
-                                                if not v:
-                                                    continue
-                                                pair = variant_map.get(v)
-                                                if not pair:
-                                                    continue
-                                                ammo_def, var = pair
-                                                rd = {
-                                                'name':ammo_def.get('name'),
-                                                'caliber':(mag_cal[0]if mag_cal and isinstance(mag_cal, (list, tuple))else(mag_cal[0]if mag_cal else ammo_def.get('caliber'))),
-                                                'variant':var.get('name'),
-                                                'type':var.get('type'),
-                                                'pen':var.get('pen'),
-                                                'modifiers':var.get('modifiers'),
-                                                'tip':var.get('tip')
-                                                }
-                                                rounds.append(rd)
-
-                                            mag_copy['rounds']= rounds[:cap]
-                                            editor.destroy()
-
-                                            cart.append(mag_copy)
-                                            cart_points[0]+=1
-                                            update_cart_display()
-                                            self._play_ui_sound('click')
-                                            logging.info(f"Added magazine to cart: {mag_copy.get('name')}")
-                                            dlg.destroy()
-                                            return
+                                            r_v = int(tc[1:3], 16); g_v = int(tc[3:5], 16); b_v = int(tc[5:7], 16)
+                                            return f'#{max(0, r_v - 40):02x}{max(0, g_v - 40):02x}{max(0, b_v - 40):02x}'
                                         except Exception:
-                                            logging.exception('Failed to apply shop magazine editor')
+                                            return '#aa8820'
 
-                                    apply_btn = customtkinter.CTkButton(side, text = 'Apply', command = apply_editor, width = 180)
-                                    apply_btn.pack(pady = 10)
+                                    def _tip_for_round(r):
+                                        if isinstance(r, dict):
+                                            vn = r.get('variant') or r.get('name') or 'Unknown'
+                                            return _tip_for(vn)
+                                        return '#e0c060'
 
-                                    cancel_btn = customtkinter.CTkButton(side, text = 'Cancel', command = lambda:editor.destroy(), width = 180, fg_color = '#444444')
-                                    cancel_btn.pack()
+                                    def _tip_ol_for_round(r):
+                                        if isinstance(r, dict):
+                                            vn = r.get('variant') or r.get('name') or 'Unknown'
+                                            return _tip_ol_for(vn)
+                                        return '#aa8820'
 
+                                    SLOT_H = 28; SLOT_W = 260; ox_mag = 20
+                                    CHIP_W, CHIP_H, CHIP_PAD = 130, 28, 6
+                                    _cols = max(1, (SLOT_W + 40) // (CHIP_W + CHIP_PAD))
+                                    _rows_need = max(1, (len(vlist) + _cols - 1) // _cols) if vlist else 1
+                                    SEL_H = 22 + _rows_need * (CHIP_H + CHIP_PAD) + 4
+                                    HINT_H = 22
+                                    MAG_TOP = SEL_H + HINT_H
+                                    SPRING_H = 14
+                                    canvas_h = MAG_TOP + cap * SLOT_H + SPRING_H + 8
+                                    canvas_w = SLOT_W + 40
+
+                                    main_frame = customtkinter.CTkFrame(editor)
+                                    main_frame.grid(row = 0, column = 0, sticky = 'nsew', padx = 8, pady = 8)
+
+                                    effective_h = min(canvas_h, 650)
+                                    mag_canvas = _tk_shop.Canvas(main_frame, width = canvas_w, height = effective_h, bg = '#1a1a1a', highlightthickness = 1, highlightbackground = '#555555')
+                                    if canvas_h > 650:
+                                        _mc_scroll = _tk_shop.Scrollbar(main_frame, orient = 'vertical', command = mag_canvas.yview)
+                                        _mc_scroll.pack(side = 'right', fill = 'y')
+                                        mag_canvas.configure(yscrollcommand = _mc_scroll.set, scrollregion = (0, 0, canvas_w, canvas_h))
+                                    mag_canvas.pack(side = 'left', fill = 'both', expand = True)
+
+                                    side = customtkinter.CTkFrame(editor, fg_color = 'transparent', width = 180)
+                                    side.grid(row = 0, column = 1, sticky = 'ns', padx = 8, pady = 8)
+
+                                    ls = {'dragging': False, 'drag_vn': None, 'di': None, 'dt': None, 'do': None,
+                                          'added': 0, 'stoggle': 0, 'animating': False}
+                                    chip_hitboxes = {}
+
+                                    def _draw_chips():
+                                        mag_canvas.delete('chips')
+                                        mag_canvas.create_text(canvas_w // 2, 10, text = 'AVAILABLE ROUNDS', fill = '#888888', font = ('Consolas', 9, 'bold'), tags = 'chips')
+                                        if not vlist:
+                                            mag_canvas.create_text(canvas_w // 2, SEL_H // 2 + 10, text = 'No rounds available', fill = '#555555', font = ('Consolas', 9), tags = 'chips')
+                                            return
+                                        start_x = (canvas_w - min(len(vlist), _cols) * (CHIP_W + CHIP_PAD) + CHIP_PAD) // 2
+                                        for idx, vn in enumerate(vlist):
+                                            row_i = idx // _cols; col_i = idx % _cols
+                                            x1 = start_x + col_i * (CHIP_W + CHIP_PAD)
+                                            y1 = 22 + row_i * (CHIP_H + CHIP_PAD)
+                                            x2 = x1 + CHIP_W; y2 = y1 + CHIP_H
+                                            chip_hitboxes[vn] = (x1, y1, x2, y2)
+                                            c = vcols.get(vn, '#c4a032')
+                                            mag_canvas.create_rectangle(x1, y1, x2, y2, fill = c, outline = '#dddddd', width = 1, tags = 'chips')
+                                            mag_canvas.create_oval(x1 + 3, y1 + 3, x1 + 19, y2 - 3, fill = _tip_for(vn), outline = _tip_ol_for(vn), tags = 'chips')
+                                            disp = vn if len(vn) <= 11 else vn[:10] + '\u2026'
+                                            mag_canvas.create_text((x1 + x2) // 2 + 8, (y1 + y2) // 2, text = f'{disp} x\u221e', fill = '#1a1a1a', font = ('Consolas', 8, 'bold'), tags = 'chips')
+
+                                    def _draw_mag_body():
+                                        mag_canvas.delete('mag')
+                                        oy = MAG_TOP
+                                        mag_canvas.create_text(canvas_w // 2, MAG_TOP - 10, text = '\u2193 DROP INTO MAGAZINE \u2193', fill = '#555555', font = ('Consolas', 9), tags = 'mag')
+                                        mag_canvas.create_rectangle(ox_mag, oy, ox_mag + SLOT_W, oy + cap * SLOT_H, outline = '#888888', width = 2, tags = 'mag')
+                                        mag_canvas.create_line(ox_mag, oy, ox_mag - 15, oy - 8, fill = '#888888', width = 2, tags = 'mag')
+                                        mag_canvas.create_line(ox_mag + SLOT_W, oy, ox_mag + SLOT_W + 15, oy - 8, fill = '#888888', width = 2, tags = 'mag')
+                                        for i in range(cap):
+                                            sy = oy + i * SLOT_H
+                                            if i > 0:
+                                                mag_canvas.create_line(ox_mag, sy, ox_mag + SLOT_W, sy, fill = '#444444', dash = (2, 2), tags = 'mag')
+                                            if i < len(existing):
+                                                r = existing[i]
+                                                vn = r.get('variant') if isinstance(r, dict) else str(r) if r else 'Unknown'
+                                                c = vcols.get(vn, '#c4a032')
+                                                mag_canvas.create_rectangle(ox_mag + 2, sy + 2, ox_mag + SLOT_W - 2, sy + SLOT_H - 2, fill = c, outline = '#222222', tags = 'mag')
+                                                mag_canvas.create_oval(ox_mag + 4, sy + 4, ox_mag + 22, sy + SLOT_H - 4, fill = _tip_for_round(r), outline = _tip_ol_for_round(r), tags = 'mag')
+                                                mag_canvas.create_text(ox_mag + SLOT_W // 2 + 10, sy + SLOT_H // 2, text = vn, fill = '#1a1a1a', font = ('Consolas', 9, 'bold'), tags = 'mag') # type: ignore
+                                            else:
+                                                mag_canvas.create_text(ox_mag + SLOT_W // 2, sy + SLOT_H // 2, text = '[empty]', fill = '#444444', font = ('Consolas', 9), tags = 'mag')
+                                        by = oy + cap * SLOT_H
+                                        mag_canvas.create_rectangle(ox_mag, by, ox_mag + SLOT_W, by + SPRING_H, fill = '#555555', outline = '#666666', tags = 'mag')
+                                        mag_canvas.create_text(ox_mag + SLOT_W // 2, by + SPRING_H // 2, text = '\u25b2 SPRING \u25b2', fill = '#888888', font = ('Consolas', 8), tags = 'mag')
+
+                                    def _draw_all():
+                                        _draw_chips()
+                                        _draw_mag_body()
+
+                                    def _make_round(vname):
+                                        pair = variant_map.get(vname)
+                                        if not pair:
+                                            return {'name': vname, 'caliber': mag_cal[0] if mag_cal else None, 'variant': vname}
+                                        ammo_def, var = pair
+                                        cal_val = mag_cal[0] if mag_cal and isinstance(mag_cal, (list, tuple)) else (mag_cal if mag_cal else ammo_def.get('caliber'))
+                                        rd = {'name': ammo_def.get('name'), 'caliber': cal_val, 'variant': var.get('name'),
+                                              'type': var.get('type'), 'pen': var.get('pen'), 'modifiers': var.get('modifiers'), 'tip': var.get('tip')}
+                                        return rd
+
+                                    def _play_insert():
+                                        try:
+                                            sn = f"bulletinsert{ls['stoggle']}"
+                                            ls['stoggle'] = 1 - ls['stoggle']
+                                            sound_path = os.path.join('sounds', 'firearms', 'universal', f'{sn}.ogg')
+                                            if os.path.exists(sound_path):
+                                                sound = pygame.mixer.Sound(sound_path)
+                                                ch = pygame.mixer.find_channel()
+                                                if ch:
+                                                    ch.play(sound)
+                                        except Exception:
+                                            pass
+
+                                    def _do_insert_data(vname):
+                                        if len(existing) >= cap:
+                                            return False
+                                        r = _make_round(vname)
+                                        existing.insert(0, r)
+                                        ls['added'] += 1
+                                        _play_insert()
+                                        return True
+
+                                    def _hit_chip(x, y):
+                                        for vn, (x1, y1, x2, y2) in chip_hitboxes.items():
+                                            if x1 <= x <= x2 and y1 <= y <= y2:
+                                                return vn
+                                        return None
+
+                                    def _on_press(event):
+                                        if ls['animating'] or len(existing) >= cap:
+                                            return
+                                        vn = _hit_chip(event.x, event.y)
+                                        if not vn:
+                                            return
+                                        ls['dragging'] = True
+                                        ls['drag_vn'] = vn
+                                        c = vcols.get(vn, '#c4a032')
+                                        ls['di'] = mag_canvas.create_rectangle(ox_mag + 2, event.y - SLOT_H // 2, ox_mag + SLOT_W - 2, event.y + SLOT_H // 2, fill = c, outline = '#ffffff', width = 2, tags = 'drag')
+                                        ls['do'] = mag_canvas.create_oval(ox_mag + 4, event.y - SLOT_H // 2 + 2, ox_mag + 22, event.y + SLOT_H // 2 - 2, fill = _tip_for(vn), outline = _tip_ol_for(vn), tags = 'drag')
+                                        ls['dt'] = mag_canvas.create_text(ox_mag + SLOT_W // 2 + 10, event.y, text = vn, fill = '#1a1a1a', font = ('Consolas', 10, 'bold'), tags = 'drag')
+
+                                    def _on_move(event):
+                                        if not ls['dragging']:
+                                            return
+                                        y = event.y
+                                        if ls['di'] and ls['dt'] and ls['do']:
+                                            mag_canvas.coords(ls['di'], ox_mag + 2, y - SLOT_H // 2, ox_mag + SLOT_W - 2, y + SLOT_H // 2)
+                                            mag_canvas.coords(ls['do'], ox_mag + 4, y - SLOT_H // 2 + 2, ox_mag + 22, y + SLOT_H // 2 - 2)
+                                            mag_canvas.coords(ls['dt'], ox_mag + SLOT_W // 2 + 10, y)
+
+                                    def _on_release(event):
+                                        if not ls['dragging']:
+                                            return
+                                        ls['dragging'] = False
+                                        mag_canvas.delete('drag')
+                                        ls['di'] = ls['dt'] = ls['do'] = None
+                                        if len(existing) >= cap or ls['animating']:
+                                            return
+                                        vn = ls['drag_vn']
+                                        if not vn:
+                                            return
+                                        if event.y >= MAG_TOP - 15:
+                                            _animate_push_insert(vn)
+
+                                    def _animate_push_insert(vname):
+                                        ls['animating'] = True
+                                        oy = MAG_TOP
+                                        n_ex = len(existing)
+                                        c_new = vcols.get(vname, '#c4a032')
+                                        mag_canvas.delete('mag')
+                                        mag_canvas.create_text(canvas_w // 2, MAG_TOP - 10, text = '\u2193 DROP INTO MAGAZINE \u2193', fill = '#555555', font = ('Consolas', 9), tags = 'magshell')
+                                        mag_canvas.create_rectangle(ox_mag, oy, ox_mag + SLOT_W, oy + cap * SLOT_H, outline = '#888888', width = 2, tags = 'magshell')
+                                        mag_canvas.create_line(ox_mag, oy, ox_mag - 15, oy - 8, fill = '#888888', width = 2, tags = 'magshell')
+                                        mag_canvas.create_line(ox_mag + SLOT_W, oy, ox_mag + SLOT_W + 15, oy - 8, fill = '#888888', width = 2, tags = 'magshell')
+                                        for si in range(1, cap):
+                                            _sy = oy + si * SLOT_H
+                                            mag_canvas.create_line(ox_mag, _sy, ox_mag + SLOT_W, _sy, fill = '#444444', dash = (2, 2), tags = 'magshell')
+                                        _by = oy + cap * SLOT_H
+                                        mag_canvas.create_rectangle(ox_mag, _by, ox_mag + SLOT_W, _by + SPRING_H, fill = '#555555', outline = '#666666', tags = 'magshell')
+                                        mag_canvas.create_text(ox_mag + SLOT_W // 2, _by + SPRING_H // 2, text = '\u25b2 SPRING \u25b2', fill = '#888888', font = ('Consolas', 8), tags = 'magshell')
+                                        for ei in range(n_ex, cap):
+                                            _esy = oy + ei * SLOT_H
+                                            mag_canvas.create_text(ox_mag + SLOT_W // 2, _esy + SLOT_H // 2, text = '[empty]', fill = '#444444', font = ('Consolas', 9), tags = 'magshell')
+                                        anim_ids = []
+                                        for i in range(n_ex):
+                                            r = existing[i]
+                                            vn_e = r.get('variant') if isinstance(r, dict) else str(r) if r else 'Unknown'
+                                            c_e = vcols.get(vn_e, '#c4a032')
+                                            sy = oy + i * SLOT_H
+                                            _ri = mag_canvas.create_rectangle(ox_mag + 2, sy + 2, ox_mag + SLOT_W - 2, sy + SLOT_H - 2, fill = c_e, outline = '#222222', tags = 'pushanim')
+                                            _oi = mag_canvas.create_oval(ox_mag + 4, sy + 4, ox_mag + 22, sy + SLOT_H - 4, fill = _tip_for_round(r), outline = _tip_ol_for_round(r), tags = 'pushanim')
+                                            _ti = mag_canvas.create_text(ox_mag + SLOT_W // 2 + 10, sy + SLOT_H // 2, text = vn_e, fill = '#1a1a1a', font = ('Consolas', 9, 'bold'), tags = 'pushanim') # type: ignore
+                                            anim_ids.append((_ri, _oi, _ti, float(sy)))
+                                        new_start_y = float(oy - SLOT_H - 4)
+                                        new_target_y = float(oy)
+                                        _nr = mag_canvas.create_rectangle(ox_mag + 2, new_start_y + 2, ox_mag + SLOT_W - 2, new_start_y + SLOT_H - 2, fill = c_new, outline = '#ffffff', width = 2, tags = 'pushanim')
+                                        _no = mag_canvas.create_oval(ox_mag + 4, new_start_y + 4, ox_mag + 22, new_start_y + SLOT_H - 4, fill = _tip_for(vname), outline = _tip_ol_for(vname), tags = 'pushanim')
+                                        _nt = mag_canvas.create_text(ox_mag + SLOT_W // 2 + 10, new_start_y + SLOT_H // 2, text = vname, fill = '#1a1a1a', font = ('Consolas', 10, 'bold'), tags = 'pushanim')
+                                        total_steps = 10
+                                        push_per_step = float(SLOT_H) / total_steps
+                                        new_per_step = (new_target_y - new_start_y) / total_steps
+                                        def _push_step(step):
+                                            if step >= total_steps:
+                                                mag_canvas.delete('pushanim')
+                                                mag_canvas.delete('magshell')
+                                                _do_insert_data(vname)
+                                                _draw_all()
+                                                _update_side()
+                                                ls['animating'] = False
+                                                return
+                                            frac = step + 1
+                                            for _ri, _oi, _ti, base_y in anim_ids:
+                                                cy = base_y + frac * push_per_step
+                                                mag_canvas.coords(_ri, ox_mag + 2, cy + 2, ox_mag + SLOT_W - 2, cy + SLOT_H - 2)
+                                                mag_canvas.coords(_oi, ox_mag + 4, cy + 4, ox_mag + 22, cy + SLOT_H - 4)
+                                                mag_canvas.coords(_ti, ox_mag + SLOT_W // 2 + 10, cy + SLOT_H // 2)
+                                            cn = new_start_y + frac * new_per_step
+                                            mag_canvas.coords(_nr, ox_mag + 2, cn + 2, ox_mag + SLOT_W - 2, cn + SLOT_H - 2)
+                                            mag_canvas.coords(_no, ox_mag + 4, cn + 4, ox_mag + 22, cn + SLOT_H - 4)
+                                            mag_canvas.coords(_nt, ox_mag + SLOT_W // 2 + 10, cn + SLOT_H // 2)
+                                            editor.after(25, lambda: _push_step(step + 1))
+                                        _push_step(0)
+
+                                    mag_canvas.bind('<Button-1>', _on_press)
+                                    mag_canvas.bind('<B1-Motion>', _on_move)
+                                    mag_canvas.bind('<ButtonRelease-1>', _on_release)
+
+                                    _cap_lbl = customtkinter.CTkLabel(side, text = f'{len(existing)}/{cap} rounds loaded', font = customtkinter.CTkFont(size = 13, weight = 'bold'))
+                                    _cap_lbl.pack(pady = (10, 6))
+                                    customtkinter.CTkLabel(side, text = 'Click & drag a round\nfrom the top area down\ninto the magazine', font = customtkinter.CTkFont(size = 10), text_color = '#888888', wraplength = 170).pack(pady = 6)
+
+                                    def _update_side():
+                                        _cap_lbl.configure(text = f'{len(existing)}/{cap} rounds loaded')
+
+                                    _shop_reloader = {'hooked': False, 'ch': None, 'btn': None, 'unhook_btn': None}
+
+                                    def _stop_shop_reloader():
+                                        if _shop_reloader['ch']:
+                                            try:
+                                                _shop_reloader['ch'].stop()
+                                            except Exception:
+                                                pass
+                                            _shop_reloader['ch'] = None
+
+                                    def _start_shop_reloader_loop():
+                                        try:
+                                            rpath = os.path.join('sounds', 'firearms', 'universal', 'reloaderloop.ogg')
+                                            if os.path.exists(rpath):
+                                                snd = pygame.mixer.Sound(rpath)
+                                                ch = pygame.mixer.find_channel()
+                                                if ch:
+                                                    ch.play(snd, loops = -1)
+                                                    _shop_reloader['ch'] = ch
+                                        except Exception:
+                                            pass
+
+                                    def _play_shop_reloader_insert():
+                                        dur = 200
+                                        try:
+                                            rpath = os.path.join('sounds', 'firearms', 'universal', 'reloaderroundinsert.ogg')
+                                            if os.path.exists(rpath):
+                                                snd = pygame.mixer.Sound(rpath)
+                                                dur = max(int(snd.get_length() * 1000), 100)
+                                                ch = pygame.mixer.find_channel()
+                                                if ch:
+                                                    ch.play(snd)
+                                        except Exception:
+                                            pass
+                                        return dur
+
+                                    def _shop_reloader_auto_fill(vname):
+                                        if ls['animating'] or len(existing) >= cap:
+                                            return
+                                        ls['animating'] = True
+                                        _shop_reloader['hooked'] = True
+                                        if _shop_reloader.get('btn'):
+                                            try:
+                                                _shop_reloader['btn'].configure(state = 'disabled')
+                                            except Exception:
+                                                pass
+                                        insert_dur = _play_shop_reloader_insert()
+                                        def _start_loop_and_fill():
+                                            _start_shop_reloader_loop()
+                                            _shop_reloader_fill_step(vname)
+                                        editor.after(max(insert_dur, 100), _start_loop_and_fill)
+
+                                    def _shop_reloader_fill_step(vname):
+                                        if len(existing) >= cap:
+                                            _stop_shop_reloader()
+                                            ls['animating'] = False
+                                            _draw_all()
+                                            _update_side()
+                                            if _shop_reloader.get('unhook_btn'):
+                                                try:
+                                                    _shop_reloader['unhook_btn'].configure(state = 'normal')
+                                                except Exception:
+                                                    pass
+                                            return
+                                        r = _make_round(vname)
+                                        existing.insert(0, r)
+                                        ls['added'] += 1
+                                        _play_insert()
+                                        _draw_all()
+                                        _update_side()
+                                        editor.after(100, lambda: _shop_reloader_fill_step(vname))
+
+                                    def _unhook_shop_reloader():
+                                        _stop_shop_reloader()
+                                        _shop_reloader['hooked'] = False
+                                        ls['animating'] = False
+                                        if _shop_reloader.get('btn'):
+                                            try:
+                                                _shop_reloader['btn'].configure(state = 'normal')
+                                            except Exception:
+                                                pass
+                                        if _shop_reloader.get('unhook_btn'):
+                                            try:
+                                                _shop_reloader['unhook_btn'].configure(state = 'disabled')
+                                            except Exception:
+                                                pass
+                                        _play_shop_reloader_insert()
+
+                                    def _use_shop_reloader():
+                                        if ls['animating'] or _shop_reloader['hooked']:
+                                            return
+                                        if len(vlist) == 0:
+                                            return
+                                        if len(vlist) == 1:
+                                            _shop_reloader_auto_fill(vlist[0])
+                                            return
+                                        sel_popup = customtkinter.CTkToplevel(editor)
+                                        sel_popup.title('Select Round Type')
+                                        sel_popup.transient(editor)
+                                        sel_popup.grab_set()
+                                        customtkinter.CTkLabel(sel_popup, text = 'Select variant for reloader:', font = customtkinter.CTkFont(size = 12)).pack(pady = 8)
+                                        sel_var = customtkinter.StringVar(value = vlist[0])
+                                        for vn in vlist:
+                                            customtkinter.CTkRadioButton(sel_popup, text = f'{vn} (x\u221e)', variable = sel_var, value = vn).pack(anchor = 'w', padx = 16, pady = 2)
+                                        def _go():
+                                            v = sel_var.get()
+                                            sel_popup.destroy()
+                                            _shop_reloader_auto_fill(v)
+                                        customtkinter.CTkButton(sel_popup, text = 'Hook Up & Load', command = _go, width = 160).pack(pady = 8)
+                                        customtkinter.CTkButton(sel_popup, text = 'Cancel', command = sel_popup.destroy, width = 120, fg_color = '#444444').pack(pady = 4)
+                                        sel_popup.update_idletasks()
+                                        _sw = sel_popup.winfo_screenwidth(); _sh = sel_popup.winfo_screenheight()
+                                        sel_popup.geometry(f'+{_sw // 2 - 150}+{_sh // 2 - 100}')
+                                        sel_popup.lift()
+                                        self._safe_focus(sel_popup)
+
+                                    _shop_reloader['btn'] = customtkinter.CTkButton(side, text = '\u2699 Use Reloader', command = _use_shop_reloader, width = 160, height = 30, font = customtkinter.CTkFont(size = 11), fg_color = '#2a6a2a', hover_color = '#3a7a3a')
+                                    _shop_reloader['btn'].pack(pady = 4)
+                                    _shop_reloader['unhook_btn'] = customtkinter.CTkButton(side, text = '\u2716 Unhook Reloader', command = _unhook_shop_reloader, width = 160, height = 30, font = customtkinter.CTkFont(size = 11), fg_color = '#6a2a2a', hover_color = '#7a3a3a', state = 'disabled')
+                                    _shop_reloader['unhook_btn'].pack(pady = 4)
+
+                                    def _apply():
+                                        if _shop_reloader.get('hooked'):
+                                            self._popup_show_info('Reloader', 'Please unhook the reloader first!')
+                                            return
+                                        _stop_shop_reloader()
+                                        mag_copy['rounds'] = existing[:cap]
+                                        editor.destroy()
+                                        cart.append(mag_copy)
+                                        cart_points[0] += 1
+                                        update_cart_display()
+                                        self._play_ui_sound('click')
+                                        logging.info(f"Added magazine to cart: {mag_copy.get('name')}")
+                                        dlg.destroy()
+
+                                    editor.protocol('WM_DELETE_WINDOW', lambda: (self._popup_show_info('Reloader', 'Please unhook the reloader first!') if _shop_reloader.get('hooked') else editor.destroy()))
+                                    customtkinter.CTkButton(side, text = 'Apply', command = _apply, width = 160, height = 35, font = customtkinter.CTkFont(size = 12)).pack(pady = 10)
+                                    customtkinter.CTkButton(side, text = 'Cancel', command = lambda: (self._popup_show_info('Reloader', 'Please unhook the reloader first!') if _shop_reloader.get('hooked') else editor.destroy()), width = 160, height = 30, fg_color = '#444444').pack(pady = 4)
+
+                                    _draw_all()
+                                    editor.update_idletasks()
+                                    ew = max(editor.winfo_reqwidth(), 520)
+                                    eh = max(editor.winfo_reqheight(), 420)
+                                    _sw_s = editor.winfo_screenwidth(); _sh_s = editor.winfo_screenheight()
+                                    x = (_sw_s // 2) - (ew // 2); y = (_sh_s // 2) - (eh // 2)
+                                    editor.geometry(f'{ew}x{eh}+{x}+{y}')
                                     editor.grab_set()
                                     editor.lift()
+                                    self._safe_focus(editor)
                                 except Exception:
                                     logging.exception('Failed to open shop magazine editor')
 
@@ -7904,22 +8236,58 @@ class App:
             nonlocal points_used
             store_name = store.get("name", "Unknown")
             all_items = self._get_all_player_items_from_save(save_data)
-            matches =[d for d in all_items if d.get("item", {}).get("_from_armory")==store_name]
+            matches = [d for d in all_items if d.get("item", {}).get("_from_armory") == store_name]
             if not matches:
                 self._popup_show_info("No Items", "No items from this armory were found on the character.", sound = "popup")
                 return
 
-            names =[m.get("item", {}).get("name", "Unknown")for m in matches]
+            ret_popup = customtkinter.CTkToplevel(self.root)
+            ret_popup.title("Return Armory Items")
+            ret_popup.transient(self.root)
+
+            customtkinter.CTkLabel(ret_popup, text = f"Select items to return to {store_name}:", font = customtkinter.CTkFont(size = 13, weight = 'bold')).pack(pady = (10, 5), padx = 10)
+
+            scroll_frame = customtkinter.CTkScrollableFrame(ret_popup, fg_color = "transparent", width = 380, height = 300)
+            scroll_frame.pack(fill = "both", expand = True, padx = 10, pady = 5)
+
+            check_vars = []
+            for i, m in enumerate(matches):
+                item = m.get("item", {})
+                name = item.get("name", "Unknown")
+                loc = m.get("location", "unknown")
+                loc_label = loc.replace("_", " ").title() if loc else "Unknown"
+                var = customtkinter.BooleanVar(value = False)
+                check_vars.append(var)
+                customtkinter.CTkCheckBox(scroll_frame, text = f"{name}  ({loc_label})", variable = var, font = customtkinter.CTkFont(size = 11)).pack(anchor = "w", pady = 2, padx = 5)
+
+            btn_row = customtkinter.CTkFrame(ret_popup, fg_color = "transparent")
+            btn_row.pack(fill = "x", padx = 10, pady = (5, 2))
+
+            def _select_all():
+                for v in check_vars:
+                    v.set(True)
+
+            def _select_none():
+                for v in check_vars:
+                    v.set(False)
+
+            customtkinter.CTkButton(btn_row, text = "Select All", command = _select_all, width = 100, height = 28, font = customtkinter.CTkFont(size = 11)).pack(side = "left", padx = 4)
+            customtkinter.CTkButton(btn_row, text = "Select None", command = _select_none, width = 100, height = 28, font = customtkinter.CTkFont(size = 11), fg_color = "#444444").pack(side = "left", padx = 4)
+
             def do_return():
+                selected = [matches[i] for i, v in enumerate(check_vars) if v.get()]
+                if not selected:
+                    self._popup_show_info("No Selection", "No items selected to return.")
+                    return
                 try:
                     locations_to_remove = {}
-                    for m in matches:
+                    for m in selected:
                         loc = m.get("location")
                         idx = m.get("index")
                         locations_to_remove.setdefault(loc, []).append(idx)
 
                     for loc in locations_to_remove:
-                        locations_to_remove[loc]= sorted(locations_to_remove[loc], reverse = True)
+                        locations_to_remove[loc] = sorted(locations_to_remove[loc], reverse = True)
 
                     for loc, indices in locations_to_remove.items():
                         for idx in indices:
@@ -7927,25 +8295,39 @@ class App:
 
                     self._write_save_to_path(save_path, save_data)
 
-                    refund_count = len(matches)
-                    if max_points !="disabled":
-                        cur_used = self._get_armory_points_status(store_name)or 0
-                        new_used = max(cur_used -refund_count, 0)
-                        extra = max(refund_count -cur_used, 0)
-                        if extra >0:
+                    refund_count = len(selected)
+                    if max_points != "disabled":
+                        cur_used = self._get_armory_points_status(store_name) or 0
+                        new_used = max(cur_used - refund_count, 0)
+                        extra = max(refund_count - cur_used, 0)
+                        if extra > 0:
                             overflow_key = f"armory_overflow_{store_name}"
-                            persistentdata[overflow_key]=(persistentdata.get(overflow_key, 0)or 0)+extra
+                            persistentdata[overflow_key] = (persistentdata.get(overflow_key, 0) or 0) + extra
                         self._set_armory_points_used(store_name, new_used)
                         points_used = new_used
 
-                    self._popup_show_info("Return Complete", f"Returned {len(matches)} item(s) to {store_name}.Refunded {refund_count} point(s).", sound = "success")
+                    ret_popup.destroy()
+                    self._popup_show_info("Return Complete", f"Returned {len(selected)} item(s) to {store_name}. Refunded {refund_count} point(s).", sound = "success")
                     stop_ui_music()
                     self._open_business_tool()
                 except Exception as e:
                     logging.error(f"Failed to return armory items: {e}")
                     self._popup_show_info("Error", f"Failed to return items: {e}", sound = "error")
 
-            self._popup_confirm("Return Items", f"Return {len(matches)} item(s) from this armory?\n\n"+"\n".join(names[:10])+("..."if len(names)>10 else ""), do_return)
+            action_row = customtkinter.CTkFrame(ret_popup, fg_color = "transparent")
+            action_row.pack(fill = "x", padx = 10, pady = 10)
+
+            customtkinter.CTkButton(action_row, text = "Return Selected", command = do_return, width = 160, height = 35, font = customtkinter.CTkFont(size = 13)).pack(side = "left", padx = 5)
+            customtkinter.CTkButton(action_row, text = "Cancel", command = ret_popup.destroy, width = 120, height = 35, font = customtkinter.CTkFont(size = 13), fg_color = "#444444").pack(side = "left", padx = 5)
+
+            ret_popup.update_idletasks()
+            pw = max(ret_popup.winfo_reqwidth(), 440)
+            ph = max(ret_popup.winfo_reqheight(), 350)
+            sx = ret_popup.winfo_screenwidth(); sy = ret_popup.winfo_screenheight()
+            ret_popup.geometry(f"{pw}x{ph}+{sx // 2 - pw // 2}+{sy // 2 - ph // 2}")
+            ret_popup.grab_set()
+            ret_popup.lift()
+            self._safe_focus(ret_popup)
 
         return_btn = self._create_sound_button(button_frame, "Return Armory Items", return_armory_items, width = 200, height = 40, font = customtkinter.CTkFont(size = 14))
         return_btn.pack(side = "left", padx = 10)
@@ -19266,6 +19648,9 @@ class App:
 
             if wpn.get("infinite_ammo"):
                 _inf_mag_type = str(wpn.get('magazinetype', '')or '').lower()
+                if 'cylinder' in _inf_mag_type or 'revolver' in str(wpn.get('platform', '') or '').lower():
+                    _handle_cylinder_reload()
+                    return
                 if wpn.get('capacity')is not None and('internal'in _inf_mag_type or 'tube'in _inf_mag_type or 'box'in _inf_mag_type or not wpn.get('magazinesystem')):
                     _handle_internal_magazine_reload()
                     return
@@ -19279,9 +19664,7 @@ class App:
                 return
 
             if "revolver"in wpn.get("platform", "").lower()or "cylinder"in magazine_type:
-                result = self._reload_weapon(wpn, save_data)
-                self._popup_show_info("Reload Result", result)
-                update_weapon_view()
+                _handle_cylinder_reload()
                 return
 
             if not magazine_system:
@@ -21113,7 +21496,155 @@ class App:
                         def _update_side():
                             _cap_lbl.configure(text = f'{len(existing)}/{cap} rounds loaded')
 
+                        _has_reloader = self._check_for_reloader_item(save_data)
+                        _reloader_state = {'hooked': False, 'channel': None, 'sound': None, 'btn': None, 'unhook_btn': None}
+
+                        def _stop_reloader_sound():
+                            if _reloader_state['channel']:
+                                try:
+                                    _reloader_state['channel'].stop()
+                                except Exception:
+                                    pass
+                                _reloader_state['channel'] = None
+
+                        def _start_reloader_loop():
+                            try:
+                                rpath = os.path.join('sounds', 'firearms', 'universal', 'reloaderloop.ogg')
+                                if os.path.exists(rpath):
+                                    snd = pygame.mixer.Sound(rpath)
+                                    ch = pygame.mixer.find_channel()
+                                    if ch:
+                                        ch.play(snd, loops = -1)
+                                        _reloader_state['channel'] = ch
+                                        _reloader_state['sound'] = snd
+                            except Exception:
+                                pass
+
+                        def _play_reloader_insert():
+                            try:
+                                rpath = os.path.join('sounds', 'firearms', 'universal', 'reloaderroundinsert.ogg')
+                                if os.path.exists(rpath):
+                                    snd = pygame.mixer.Sound(rpath)
+                                    ch = pygame.mixer.find_channel()
+                                    if ch:
+                                        ch.play(snd)
+                                        return int(snd.get_length() * 1000)
+                            except Exception:
+                                pass
+                            return 0
+
+                        def _reloader_auto_fill(vname):
+                            if ls['animating']:
+                                return
+                            _reloader_state['hooked'] = True
+                            ls['animating'] = True
+                            if _reloader_state.get('btn'):
+                                try:
+                                    _reloader_state['btn'].configure(state = 'disabled')
+                                except Exception:
+                                    pass
+
+                            insert_dur = _play_reloader_insert()
+
+                            def _start_loop_and_fill():
+                                _start_reloader_loop()
+                                _reloader_fill_step(vname)
+
+                            editor.after(max(insert_dur, 100), _start_loop_and_fill)
+
+                        def _reloader_fill_step(vname):
+                            if len(existing) >= cap or available_by_variant.get(vname, 0) <= 0:
+                                _stop_reloader_sound()
+                                ls['animating'] = False
+                                _draw_all()
+                                _update_side()
+                                if _reloader_state.get('unhook_btn'):
+                                    try:
+                                        _reloader_state['unhook_btn'].configure(state = 'normal')
+                                    except Exception:
+                                        pass
+                                return
+                            r = _take_round(vname)
+                            if r is None:
+                                _stop_reloader_sound()
+                                ls['animating'] = False
+                                _draw_all()
+                                _update_side()
+                                if _reloader_state.get('unhook_btn'):
+                                    try:
+                                        _reloader_state['unhook_btn'].configure(state = 'normal')
+                                    except Exception:
+                                        pass
+                                return
+                            existing.insert(0, r)
+                            ls['added'] += 1
+                            if vname in available_by_variant:
+                                available_by_variant[vname] -= 1
+                                if available_by_variant[vname] <= 0:
+                                    del available_by_variant[vname]
+                            _play_insert()
+                            _draw_all()
+                            _update_side()
+                            editor.after(100, lambda: _reloader_fill_step(vname))
+
+                        def _unhook_reloader():
+                            _stop_reloader_sound()
+                            _reloader_state['hooked'] = False
+                            ls['animating'] = False
+                            if _reloader_state.get('btn'):
+                                try:
+                                    _reloader_state['btn'].configure(state = 'normal')
+                                except Exception:
+                                    pass
+                            if _reloader_state.get('unhook_btn'):
+                                try:
+                                    _reloader_state['unhook_btn'].configure(state = 'disabled')
+                                except Exception:
+                                    pass
+                            _play_reloader_insert()
+
+                        def _use_reloader():
+                            if ls['animating'] or _reloader_state['hooked']:
+                                return
+                            avail_vnames = [v for v in vlist if available_by_variant.get(v, 0) > 0]
+                            if not avail_vnames:
+                                self._popup_show_info('Reloader', 'No rounds available to load')
+                                return
+                            if len(avail_vnames) == 1:
+                                _reloader_auto_fill(avail_vnames[0])
+                                return
+                            sel_popup = customtkinter.CTkToplevel(editor)
+                            sel_popup.title('Select Round Type')
+                            sel_popup.transient(editor)
+                            sel_popup.grab_set()
+                            customtkinter.CTkLabel(sel_popup, text = 'Select variant for reloader:', font = customtkinter.CTkFont(size = 12)).pack(pady = 8)
+                            sel_var = customtkinter.StringVar(value = avail_vnames[0])
+                            for vn in avail_vnames:
+                                cnt = available_by_variant.get(vn, 0)
+                                customtkinter.CTkRadioButton(sel_popup, text = f'{vn} (x{cnt})', variable = sel_var, value = vn).pack(anchor = 'w', padx = 16, pady = 2)
+                            def _go():
+                                v = sel_var.get()
+                                sel_popup.destroy()
+                                _reloader_auto_fill(v)
+                            customtkinter.CTkButton(sel_popup, text = 'Hook Up & Load', command = _go, width = 160).pack(pady = 8)
+                            customtkinter.CTkButton(sel_popup, text = 'Cancel', command = sel_popup.destroy, width = 120, fg_color = '#444444').pack(pady = 4)
+                            sel_popup.update_idletasks()
+                            _sw = sel_popup.winfo_screenwidth(); _sh = sel_popup.winfo_screenheight()
+                            sel_popup.geometry(f'+{_sw // 2 - 150}+{_sh // 2 - 100}')
+                            sel_popup.lift()
+                            self._safe_focus(sel_popup)
+
+                        if _has_reloader:
+                            _reloader_state['btn'] = customtkinter.CTkButton(side, text = '\u2699 Use Reloader', command = _use_reloader, width = 160, height = 30, font = customtkinter.CTkFont(size = 11), fg_color = '#2a6a2a', hover_color = '#3a7a3a')
+                            _reloader_state['btn'].pack(pady = 4)
+                            _reloader_state['unhook_btn'] = customtkinter.CTkButton(side, text = '\u2716 Unhook Reloader', command = _unhook_reloader, width = 160, height = 30, font = customtkinter.CTkFont(size = 11), fg_color = '#6a2a2a', hover_color = '#7a3a3a', state = 'disabled')
+                            _reloader_state['unhook_btn'].pack(pady = 4)
+
                         def _done():
+                            if _reloader_state.get('hooked'):
+                                self._popup_show_info('Reloader', 'Please unhook the reloader first!')
+                                return
+                            _stop_reloader_sound()
                             if ls['added']>0:
                                 mag_item['rounds']= existing
                             editor.destroy()
@@ -21671,110 +22202,327 @@ class App:
                             self._popup_show_info("Unload Magazine", "Magazine is already empty")
                             return
 
-                        variants_in_mag = {}
-                        for r in mag_rounds:
-                            if isinstance(r, dict):
-                                variant = r.get('variant', 'Unknown')
-                                variants_in_mag[variant]= variants_in_mag.get(variant, 0)+1
+                        try:
+                            unload_popup.destroy()
+                        except Exception:
+                            pass
 
-                        def proceed_with_unload(selected_variant):
+                        is_loaded = (location == "loaded")
+                        _open_unload_magazine_editor(mag_item, is_loaded, wpn if is_loaded else None)
 
-                            if selected_variant and selected_variant !="All Variants":
-                                variant_count = variants_in_mag.get(selected_variant, 0)
-                            else:
-                                variant_count = current_round_count
-                                selected_variant = None
+                    def _open_unload_magazine_editor(mag_item, is_loaded, weapon_ref):
+                        import tkinter as _tk_unl
+                        try:
+                            ul_editor = customtkinter.CTkToplevel(self.root)
+                            ul_editor.title('Magazine Unloader')
+                            ul_editor.transient(self.root)
+                            cap = int(mag_item.get('capacity', 0) or 0) or 30
+                            existing = list(mag_item.get('rounds', []) or [])
 
-                            if variant_count <=0:
-                                self._popup_show_info("Unload Magazine", "No rounds to unload")
-                                return
+                            vset = set()
+                            for r in existing:
+                                if isinstance(r, dict):
+                                    vn = r.get('variant') or r.get('name') or 'Unknown'
+                                    vset.add(vn)
+                            vlist_unl = sorted(vset)
+                            cpal = ['#c4a032', '#b87333', '#a0a0a0', '#d4af37', '#8b4513', '#cd7f32', '#e8c872', '#a08060']
+                            vcols_unl = {v: cpal[i % len(cpal)] for i, v in enumerate(vlist_unl)}
 
-                            def on_amount_selected(to_unload):
-                                        if to_unload is None or to_unload <=0:
-                                            return
-
-                                        def on_unload_complete(result_msg):
-                                            self._popup_show_info("Unload Magazine", result_msg)
-                                            update_weapon_view()
-
-                                        is_loaded =(location =="loaded")
-                                        self._unload_magazine_rounds(mag_item, save_data, max_rounds = to_unload, on_complete = on_unload_complete, is_loaded_in_weapon = is_loaded, weapon = wpn if is_loaded else None, variant_filter = selected_variant)
-
-                            self._popup_ask_integer("Unload Rounds", f"Enter rounds to unload(1-{variant_count}):", initial_value = variant_count, min_value = 1, max_value = variant_count, on_result = on_amount_selected)
-
-                        if len(variants_in_mag)>1:
-
+                            vtips_unl = {}
                             try:
-                                unload_popup.destroy()
+                                _ammo_tbl = self._get_ammo_table_data()
+                                mag_cal = mag_item.get('caliber')
+                                mcal_str = mag_cal if isinstance(mag_cal, str) else (mag_cal[0] if isinstance(mag_cal, list) and mag_cal else None)
+                                for _atbl in _ammo_tbl:
+                                    _ac = _atbl.get('caliber')
+                                    _match = False
+                                    if isinstance(_ac, list):
+                                        _match = mcal_str in _ac if mcal_str else False
+                                    else:
+                                        _match = (_ac == mcal_str) if mcal_str else False
+                                    if _match:
+                                        for _av in _atbl.get('variants', []):
+                                            _atn = _av.get('name')
+                                            _att = _av.get('tip')
+                                            if _atn and _att and isinstance(_att, str) and _att.startswith('#'):
+                                                vtips_unl[_atn] = _att
+                                        break
                             except Exception:
                                 pass
-                            variant_popup = customtkinter.CTkToplevel(self.root)
-                            variant_popup.title("Select Ammo Variant")
-                            variant_popup.transient(self.root)
-                            self._center_popup_on_window(variant_popup, 400, 350)
 
-                            label = customtkinter.CTkLabel(
-                            variant_popup,
-                            text = "Multiple ammo variants in magazine.\nSelect which to unload:",
-                            font = customtkinter.CTkFont(size = 13),
-                            wraplength = 380
-                            )
-                            label.pack(pady = 10, padx = 10)
+                            def _utip(vn):
+                                return vtips_unl.get(vn, '#e0c060')
 
-                            scroll_frame = customtkinter.CTkScrollableFrame(variant_popup, fg_color = "transparent")
-                            scroll_frame.pack(fill = "both", expand = True, padx = 10, pady = 5)
+                            def _utip_ol(vn):
+                                tc = vtips_unl.get(vn)
+                                if not tc:
+                                    return '#aa8820'
+                                try:
+                                    rv = int(tc[1:3], 16); gv = int(tc[3:5], 16); bv = int(tc[5:7], 16)
+                                    return f'#{max(0, rv - 40):02x}{max(0, gv - 40):02x}{max(0, bv - 40):02x}'
+                                except Exception:
+                                    return '#aa8820'
 
-                            selected_variant_var = customtkinter.StringVar(value = "All Variants")
+                            def _utip_r(r):
+                                if isinstance(r, dict):
+                                    return _utip(r.get('variant') or r.get('name') or 'Unknown')
+                                return '#e0c060'
 
-                            radio = customtkinter.CTkRadioButton(
-                            scroll_frame,
-                            text = f"All Variants({current_round_count} rounds)",
-                            variable = selected_variant_var,
-                            value = "All Variants",
-                            font = customtkinter.CTkFont(size = 11)
-                            )
-                            radio.pack(anchor = "w", pady = 3)
+                            def _utip_ol_r(r):
+                                if isinstance(r, dict):
+                                    return _utip_ol(r.get('variant') or r.get('name') or 'Unknown')
+                                return '#aa8820'
 
-                            for variant, count in sorted(variants_in_mag.items()):
-                                radio = customtkinter.CTkRadioButton(
-                                scroll_frame,
-                                text = f"{variant}({count} rounds)",
-                                variable = selected_variant_var,
-                                value = variant,
-                                font = customtkinter.CTkFont(size = 11)
-                                )
-                                radio.pack(anchor = "w", pady = 3)
+                            SLOT_H = 28; SLOT_W = 260; ox_mag = 20
+                            SPRING_H = 14
+                            canvas_h = 30 + cap * SLOT_H + SPRING_H + 8
+                            canvas_w = SLOT_W + 40
 
-                            def on_variant_selected():
-                                variant_popup.destroy()
-                                proceed_with_unload(selected_variant_var.get())
+                            main_frame = customtkinter.CTkFrame(ul_editor)
+                            main_frame.grid(row = 0, column = 0, sticky = 'nsew', padx = 8, pady = 8)
 
-                            btn_frame = customtkinter.CTkFrame(variant_popup, fg_color = "transparent")
-                            btn_frame.pack(fill = "x", padx = 10, pady = 10)
+                            effective_h = min(canvas_h, 650)
+                            ul_canvas = _tk_unl.Canvas(main_frame, width = canvas_w, height = effective_h, bg = '#1a1a1a', highlightthickness = 1, highlightbackground = '#555555')
+                            if canvas_h > 650:
+                                _uc_scroll = _tk_unl.Scrollbar(main_frame, orient = 'vertical', command = ul_canvas.yview)
+                                _uc_scroll.pack(side = 'right', fill = 'y')
+                                ul_canvas.configure(yscrollcommand = _uc_scroll.set, scrollregion = (0, 0, canvas_w, canvas_h))
+                            ul_canvas.pack(side = 'left', fill = 'both', expand = True)
 
-                            ok_btn = customtkinter.CTkButton(btn_frame, text = "Continue", command = on_variant_selected, width = 120)
-                            ok_btn.pack(side = "left", padx = 5)
+                            side_unl = customtkinter.CTkFrame(ul_editor, fg_color = 'transparent', width = 180)
+                            side_unl.grid(row = 0, column = 1, sticky = 'ns', padx = 8, pady = 8)
 
-                            cancel_btn = customtkinter.CTkButton(btn_frame, text = "Cancel", command = variant_popup.destroy, width = 120, fg_color = "#444444")
-                            cancel_btn.pack(side = "left", padx = 5)
+                            uls = {'removed': 0, 'animating': False, 'stoggle': 0,
+                                   '_reloader_hooked': False, '_reloader_ch': None}
+                            MAG_TOP_UNL = 30
 
-                            variant_popup.update_idletasks()
-                            screen_width = variant_popup.winfo_screenwidth()
-                            screen_height = variant_popup.winfo_screenheight()
-                            x =(screen_width //2)-(200)
-                            y =(screen_height //2)-(175)
-                            variant_popup.geometry(f"+{x}+{y}")
-                            variant_popup.grab_set()
-                            variant_popup.lift()
-                            self._safe_focus(variant_popup)
-                        else:
+                            def _draw_unl_mag():
+                                ul_canvas.delete('mag')
+                                oy = MAG_TOP_UNL
+                                ul_canvas.create_text(canvas_w // 2, 12, text = '\u2191 CLICK ROUND TO REMOVE \u2191', fill = '#888888', font = ('Consolas', 9), tags = 'mag')
+                                ul_canvas.create_rectangle(ox_mag, oy, ox_mag + SLOT_W, oy + cap * SLOT_H, outline = '#888888', width = 2, tags = 'mag')
+                                ul_canvas.create_line(ox_mag, oy, ox_mag - 15, oy - 8, fill = '#888888', width = 2, tags = 'mag')
+                                ul_canvas.create_line(ox_mag + SLOT_W, oy, ox_mag + SLOT_W + 15, oy - 8, fill = '#888888', width = 2, tags = 'mag')
+                                for i in range(cap):
+                                    sy = oy + i * SLOT_H
+                                    if i > 0:
+                                        ul_canvas.create_line(ox_mag, sy, ox_mag + SLOT_W, sy, fill = '#444444', dash = (2, 2), tags = 'mag')
+                                    if i < len(existing):
+                                        r = existing[i]
+                                        vn = r.get('variant') if isinstance(r, dict) else str(r) if r else 'Unknown'
+                                        c = vcols_unl.get(vn, '#c4a032')
+                                        ul_canvas.create_rectangle(ox_mag + 2, sy + 2, ox_mag + SLOT_W - 2, sy + SLOT_H - 2, fill = c, outline = '#222222', tags = 'mag')
+                                        ul_canvas.create_oval(ox_mag + 4, sy + 4, ox_mag + 22, sy + SLOT_H - 4, fill = _utip_r(r), outline = _utip_ol_r(r), tags = 'mag')
+                                        ul_canvas.create_text(ox_mag + SLOT_W // 2 + 10, sy + SLOT_H // 2, text = vn, fill = '#1a1a1a', font = ('Consolas', 9, 'bold'), tags = 'mag') # type: ignore
+                                    else:
+                                        ul_canvas.create_text(ox_mag + SLOT_W // 2, sy + SLOT_H // 2, text = '[empty]', fill = '#444444', font = ('Consolas', 9), tags = 'mag')
+                                by = oy + cap * SLOT_H
+                                ul_canvas.create_rectangle(ox_mag, by, ox_mag + SLOT_W, by + SPRING_H, fill = '#555555', outline = '#666666', tags = 'mag')
+                                ul_canvas.create_text(ox_mag + SLOT_W // 2, by + SPRING_H // 2, text = '\u25b2 SPRING \u25b2', fill = '#888888', font = ('Consolas', 8), tags = 'mag')
 
-                            try:
-                                unload_popup.destroy()
-                            except Exception:
-                                pass
-                            variant = list(variants_in_mag.keys())[0]if variants_in_mag else None
-                            proceed_with_unload(variant)
+                            def _play_remove_sound():
+                                try:
+                                    sn = f"bulletinsert{uls['stoggle']}"
+                                    uls['stoggle'] = 1 - uls['stoggle']
+                                    sound_path = os.path.join('sounds', 'firearms', 'universal', f'{sn}.ogg')
+                                    if os.path.exists(sound_path):
+                                        snd = pygame.mixer.Sound(sound_path)
+                                        ch = pygame.mixer.find_channel()
+                                        if ch:
+                                            ch.play(snd)
+                                except Exception:
+                                    pass
+
+                            def _remove_round_at(idx):
+                                if idx < 0 or idx >= len(existing) or uls['animating']:
+                                    return
+                                removed = existing.pop(idx)
+                                uls['removed'] += 1
+                                save_data.setdefault('hands', {}).setdefault('items', [])
+                                self._add_rounds_to_container(save_data['hands']['items'], [removed])
+                                _play_remove_sound()
+                                _draw_unl_mag()
+                                _update_unl_side()
+
+                            def _hit_slot(x, y):
+                                oy = MAG_TOP_UNL
+                                if x < ox_mag or x > ox_mag + SLOT_W:
+                                    return None
+                                for i in range(len(existing)):
+                                    sy = oy + i * SLOT_H
+                                    if sy <= y <= sy + SLOT_H:
+                                        return i
+                                return None
+
+                            def _unl_on_click(event):
+                                if uls['animating']:
+                                    return
+                                idx = _hit_slot(event.x, event.y)
+                                if idx is not None:
+                                    _animate_pop(idx)
+
+                            def _animate_pop(idx):
+                                if idx < 0 or idx >= len(existing):
+                                    return
+                                uls['animating'] = True
+                                oy = MAG_TOP_UNL
+                                r = existing[idx]
+                                vn = r.get('variant') if isinstance(r, dict) else str(r) if r else 'Unknown'
+                                c = vcols_unl.get(vn, '#c4a032')
+                                sy = oy + idx * SLOT_H
+                                _pri = ul_canvas.create_rectangle(ox_mag + 2, sy + 2, ox_mag + SLOT_W - 2, sy + SLOT_H - 2, fill = c, outline = '#ffffff', width = 2, tags = 'popanim')
+                                _poi = ul_canvas.create_oval(ox_mag + 4, sy + 4, ox_mag + 22, sy + SLOT_H - 4, fill = _utip_r(r), outline = _utip_ol_r(r), tags = 'popanim')
+                                _pti = ul_canvas.create_text(ox_mag + SLOT_W // 2 + 10, sy + SLOT_H // 2, text = vn, fill = '#1a1a1a', font = ('Consolas', 9, 'bold'), tags = 'popanim') # type: ignore
+                                target_y = oy - SLOT_H - 10
+                                steps = 8
+                                def _pop_step(s):
+                                    if s >= steps:
+                                        ul_canvas.delete('popanim')
+                                        _remove_round_at(idx)
+                                        uls['animating'] = False
+                                        return
+                                    frac = (s + 1) / steps
+                                    ease = frac * frac
+                                    ny = sy + (target_y - sy) * ease
+                                    ul_canvas.coords(_pri, ox_mag + 2, ny + 2, ox_mag + SLOT_W - 2, ny + SLOT_H - 2)
+                                    ul_canvas.coords(_poi, ox_mag + 4, ny + 4, ox_mag + 22, ny + SLOT_H - 4)
+                                    ul_canvas.coords(_pti, ox_mag + SLOT_W // 2 + 10, ny + SLOT_H // 2)
+                                    ul_editor.after(20, lambda: _pop_step(s + 1))
+                                _pop_step(0)
+
+                            ul_canvas.bind('<Button-1>', _unl_on_click)
+
+                            _unl_cap_lbl = customtkinter.CTkLabel(side_unl, text = f'{len(existing)}/{cap} rounds remaining', font = customtkinter.CTkFont(size = 13, weight = 'bold'))
+                            _unl_cap_lbl.pack(pady = (10, 6))
+                            customtkinter.CTkLabel(side_unl, text = 'Click a round to remove it.\nRounds go to your hands.', font = customtkinter.CTkFont(size = 10), text_color = '#888888', wraplength = 170).pack(pady = 6)
+
+                            def _update_unl_side():
+                                _unl_cap_lbl.configure(text = f'{len(existing)}/{cap} rounds remaining')
+
+                            _has_reloader_unl = self._check_for_reloader_item(save_data)
+                            _unl_reloader = {'btn': None, 'unhook_btn': None, 'ch': None}
+
+                            def _stop_unl_reloader():
+                                if _unl_reloader['ch']:
+                                    try:
+                                        _unl_reloader['ch'].stop()
+                                    except Exception:
+                                        pass
+                                    _unl_reloader['ch'] = None
+
+                            def _start_unl_reloader_loop():
+                                try:
+                                    rpath = os.path.join('sounds', 'firearms', 'universal', 'reloaderloop.ogg')
+                                    if os.path.exists(rpath):
+                                        snd = pygame.mixer.Sound(rpath)
+                                        ch = pygame.mixer.find_channel()
+                                        if ch:
+                                            ch.play(snd, loops = -1)
+                                            _unl_reloader['ch'] = ch # type: ignore
+                                except Exception:
+                                    pass
+
+                            def _reloader_unload_all():
+                                if uls['animating'] or not existing:
+                                    return
+                                uls['animating'] = True
+                                uls['_reloader_hooked'] = True
+                                if _unl_reloader.get('btn'):
+                                    try:
+                                        _unl_reloader['btn'].configure(state = 'disabled')
+                                    except Exception:
+                                        pass
+                                try:
+                                    rpath = os.path.join('sounds', 'firearms', 'universal', 'reloaderroundinsert.ogg')
+                                    if os.path.exists(rpath):
+                                        snd = pygame.mixer.Sound(rpath)
+                                        ch = pygame.mixer.find_channel()
+                                        if ch:
+                                            ch.play(snd)
+                                except Exception:
+                                    pass
+                                def _start_loop():
+                                    _start_unl_reloader_loop()
+                                    _reloader_unload_step()
+                                ul_editor.after(200, _start_loop)
+
+                            def _reloader_unload_step():
+                                if not existing:
+                                    _stop_unl_reloader()
+                                    uls['animating'] = False
+                                    _draw_unl_mag()
+                                    _update_unl_side()
+                                    if _unl_reloader.get('unhook_btn'):
+                                        try:
+                                            _unl_reloader['unhook_btn'].configure(state = 'normal')
+                                        except Exception:
+                                            pass
+                                    return
+                                removed = existing.pop(0)
+                                uls['removed'] += 1
+                                save_data.setdefault('hands', {}).setdefault('items', [])
+                                self._add_rounds_to_container(save_data['hands']['items'], [removed])
+                                _play_remove_sound()
+                                _draw_unl_mag()
+                                _update_unl_side()
+                                ul_editor.after(100, _reloader_unload_step)
+
+                            def _unhook_unl_reloader():
+                                _stop_unl_reloader()
+                                uls['_reloader_hooked'] = False
+                                uls['animating'] = False
+                                if _unl_reloader.get('btn'):
+                                    try:
+                                        _unl_reloader['btn'].configure(state = 'normal')
+                                    except Exception:
+                                        pass
+                                if _unl_reloader.get('unhook_btn'):
+                                    try:
+                                        _unl_reloader['unhook_btn'].configure(state = 'disabled')
+                                    except Exception:
+                                        pass
+                                try:
+                                    rpath = os.path.join('sounds', 'firearms', 'universal', 'reloaderroundinsert.ogg')
+                                    if os.path.exists(rpath):
+                                        snd = pygame.mixer.Sound(rpath)
+                                        ch = pygame.mixer.find_channel()
+                                        if ch:
+                                            ch.play(snd)
+                                except Exception:
+                                    pass
+
+                            if _has_reloader_unl:
+                                _unl_reloader['btn'] = customtkinter.CTkButton(side_unl, text = '\u2699 Reloader Unload All', command = _reloader_unload_all, width = 160, height = 30, font = customtkinter.CTkFont(size = 11), fg_color = '#2a6a2a', hover_color = '#3a7a3a') # type: ignore
+                                _unl_reloader['btn'].pack(pady = 4)
+                                _unl_reloader['unhook_btn'] = customtkinter.CTkButton(side_unl, text = '\u2716 Unhook Reloader', command = _unhook_unl_reloader, width = 160, height = 30, font = customtkinter.CTkFont(size = 11), fg_color = '#6a2a2a', hover_color = '#7a3a3a', state = 'disabled') # type: ignore
+                                _unl_reloader['unhook_btn'].pack(pady = 4)
+
+                            def _unl_done():
+                                if uls.get('_reloader_hooked'):
+                                    self._popup_show_info('Reloader', 'Please unhook the reloader first!')
+                                    return
+                                _stop_unl_reloader()
+                                mag_item['rounds'] = existing
+                                ul_editor.destroy()
+                                update_weapon_view()
+                                if uls['removed'] > 0:
+                                    self._popup_show_info('Unload Magazine', f'Removed {uls["removed"]} rounds ({len(existing)}/{cap} remaining)')
+
+                            ul_editor.protocol('WM_DELETE_WINDOW', _unl_done)
+                            customtkinter.CTkButton(side_unl, text = 'Done', command = _unl_done, width = 160, height = 35, font = customtkinter.CTkFont(size = 12)).pack(pady = 10)
+
+                            _draw_unl_mag()
+                            ul_editor.update_idletasks()
+                            ew = max(ul_editor.winfo_reqwidth(), 520)
+                            eh = max(ul_editor.winfo_reqheight(), 420)
+                            _sw_s = ul_editor.winfo_screenwidth(); _sh_s = ul_editor.winfo_screenheight()
+                            x = (_sw_s // 2) - (ew // 2); y = (_sh_s // 2) - (eh // 2)
+                            ul_editor.geometry(f'{ew}x{eh}+{x}+{y}')
+                            ul_editor.grab_set()
+                            ul_editor.lift()
+                            self._safe_focus(ul_editor)
+                        except Exception:
+                            logging.exception('Failed to open unload magazine editor')
 
                     button_frame = customtkinter.CTkFrame(unload_popup, fg_color = "transparent")
                     button_frame.pack(fill = "x", padx = 10, pady = 10)
@@ -21852,6 +22600,98 @@ class App:
                     pass
             except Exception:
                 pass
+
+        def _handle_cylinder_reload():
+            try:
+                wpn = current_weapon_state.get('weapon') or {}
+                caliber_list = wpn.get('caliber', []) or []
+                if isinstance(caliber_list, str):
+                    caliber_list = [caliber_list]
+                caliber = caliber_list[0] if caliber_list else None
+                if not caliber:
+                    self._popup_show_info('Cylinder Reload', 'Weapon has no caliber defined.')
+                    return
+
+                filter_calibers = set()
+                for c in caliber_list:
+                    if c:
+                        filter_calibers.add(str(c).lower().strip())
+
+                def _get_available_rounds_by_variant_cyl():
+                    variants = {}
+                    def _caliber_matches(item_cal):
+                        if not filter_calibers:
+                            return True
+                        if not item_cal:
+                            return False
+                        return str(item_cal).lower().strip() in filter_calibers
+
+                    def _get_variant_name(itm):
+                        v = itm.get('variant')
+                        if v:
+                            return str(v)
+                        n = itm.get('name')
+                        if n:
+                            return str(n)
+                        return 'Unknown'
+
+                    def _process_item(itm):
+                        if not itm or not isinstance(itm, dict):
+                            return
+                        if itm.get('magazinesystem') or itm.get('capacity'):
+                            return
+                        itm_cal = itm.get('caliber')
+                        if not _caliber_matches(itm_cal):
+                            return
+                        rds = itm.get('rounds')
+                        if isinstance(rds, list) and rds:
+                            for r in rds:
+                                if isinstance(r, dict):
+                                    r_cal = r.get('caliber')
+                                    if not _caliber_matches(r_cal):
+                                        continue
+                                    variant = _get_variant_name(r)
+                                    variants[variant] = variants.get(variant, 0) + 1
+                            return
+                        qty = int(itm.get('quantity') or 0) if isinstance(itm.get('quantity'), (int, float)) else 0
+                        if qty > 0:
+                            variant = _get_variant_name(itm)
+                            variants[variant] = variants.get(variant, 0) + qty
+                            return
+                        if itm.get('caliber'):
+                            variant = _get_variant_name(itm)
+                            variants[variant] = variants.get(variant, 0) + 1
+
+                    for itm in save_data.get('hands', {}).get('items', []):
+                        _process_item(itm)
+                    for slot_name, eq_item in save_data.get('equipment', {}).items():
+                        if not eq_item or not isinstance(eq_item, dict):
+                            continue
+                        for itm in eq_item.get('items', []) or []:
+                            _process_item(itm)
+                        for sub in eq_item.get('subslots', []) or []:
+                            curr = sub.get('current')
+                            if curr and isinstance(curr, dict):
+                                for itm in curr.get('items', []) or []:
+                                    _process_item(itm)
+                    return variants
+
+                is_infinite = bool(wpn.get('infinite_ammo'))
+
+                if is_infinite:
+                    available_by_variant = {'Infinite': 9999}
+                else:
+                    available_by_variant = _get_available_rounds_by_variant_cyl()
+
+                total_available = sum(available_by_variant.values())
+                if total_available <= 0:
+                    self._popup_show_info('Cylinder Reload', 'No compatible ammunition found!')
+                    return
+
+                _open_cylinder_editor(wpn, available_by_variant, caliber, filter_calibers, is_infinite)
+
+            except Exception:
+                logging.exception('Failed cylinder reload')
 
         def _handle_internal_magazine_reload():
             import tkinter as _tk_int
@@ -22413,6 +23253,747 @@ class App:
                 self._safe_focus(editor)
             except Exception:
                 logging.exception('Failed to open internal box magazine loader')
+
+        def _open_cylinder_editor(wpn, available_by_variant, caliber, filter_calibers, is_infinite = False):
+            import tkinter as _tk_cy
+            import math as _math_cy
+            try:
+                editor = customtkinter.CTkToplevel(self.root)
+                editor.title('Revolver Cylinder Loader')
+                editor.transient(self.root)
+                cap = int(wpn.get('capacity', 0) or 0) or 6
+                live_rounds = list(wpn.get('rounds', []) or [])
+                n_live = len(live_rounds)
+
+                n_spent = int(wpn.get('_cylinder_spent', 0) or 0)
+                n_spent = min(n_spent, cap - n_live)
+
+                existing = []
+                for i in range(cap):
+                    if i < n_live:
+                        existing.append(live_rounds[i])
+                    elif i < n_live + n_spent:
+                        existing.append({'_spent': True, 'caliber': caliber})
+                    else:
+                        existing.append(None)
+
+                vlist = sorted(available_by_variant.keys())
+                cpal = ['#c4a032', '#b87333', '#a0a0a0', '#d4af37', '#8b4513', '#cd7f32', '#e8c872', '#a08060']
+                vcols = {v: cpal[i % len(cpal)] for i, v in enumerate(vlist)}
+
+                vtips = {}
+                try:
+                    _ammo_tbl = self._get_ammo_table_data()
+                    for _atbl in _ammo_tbl:
+                        _ac = _atbl.get('caliber')
+                        _match = False
+                        if isinstance(_ac, list):
+                            _match = caliber in _ac if caliber else False
+                        else:
+                            _match = (_ac == caliber) if caliber else False
+                        if _match:
+                            for _av in _atbl.get('variants', []):
+                                _atn = _av.get('name')
+                                _att = _av.get('tip')
+                                if _atn and _att and isinstance(_att, str) and _att.startswith('#'):
+                                    vtips[_atn] = _att
+                            break
+                except Exception:
+                    pass
+
+                def _tip_for(vn):
+                    return vtips.get(vn, '#e0c060')
+
+                def _tip_ol_for(vn):
+                    tc = vtips.get(vn)
+                    if not tc:
+                        return '#aa8820'
+                    try:
+                        r_v = int(tc[1:3], 16)
+                        g_v = int(tc[3:5], 16)
+                        b_v = int(tc[5:7], 16)
+                        return f'#{max(0, r_v - 40):02x}{max(0, g_v - 40):02x}{max(0, b_v - 40):02x}'
+                    except Exception:
+                        return '#aa8820'
+
+                def _tip_for_round(r):
+                    if isinstance(r, dict):
+                        vn = r.get('variant') or r.get('name') or 'Unknown'
+                        return _tip_for(vn)
+                    return '#e0c060'
+
+                def _tip_ol_for_round(r):
+                    if isinstance(r, dict):
+                        vn = r.get('variant') or r.get('name') or 'Unknown'
+                        return _tip_ol_for(vn)
+                    return '#aa8820'
+
+                def _is_spent(r):
+                    return isinstance(r, dict) and r.get('_spent', False)
+
+                def _is_live(r):
+                    return r is not None and isinstance(r, dict) and not r.get('_spent', False)
+
+                CYL_CX = 200
+                CYL_CY = 190
+                CYL_R = 120
+                CHAMBER_R = 18
+                ROD_X = CYL_CX
+                ROD_TOP = CYL_CY + CYL_R + 30
+                ROD_W = 10
+                ROD_H = 60
+                ROD_PUSH = 40
+                CHIP_W, CHIP_H, CHIP_PAD = 130, 28, 6
+                CHIP_AREA_W = CHIP_W + 20
+
+                canvas_w = CYL_CX * 2 + CHIP_AREA_W + 40
+                canvas_h = ROD_TOP + ROD_H + ROD_PUSH + 30
+
+                main_frame = customtkinter.CTkFrame(editor)
+                main_frame.grid(row = 0, column = 0, sticky = 'nsew', padx = 8, pady = 8)
+
+                cy_canvas = _tk_cy.Canvas(main_frame, width = canvas_w, height = canvas_h,
+                    bg = '#1a1a1a', highlightthickness = 1, highlightbackground = '#555555')
+                cy_canvas.pack(fill = 'both', expand = True)
+
+                side = customtkinter.CTkFrame(editor, fg_color = 'transparent', width = 180)
+                side.grid(row = 0, column = 1, sticky = 'ns', padx = 8, pady = 8)
+
+                ls = {'open': False, 'dragging': False, 'drag_vn': None, 'di': None,
+                      'added': 0, 'stoggle': 0, 'animating': False,
+                      'slide_offset': 0.0,
+                      '_drag_open_active': False, '_drag_open_start': 0,
+                      '_drag_close_active': False, '_drag_close_start': 0,
+                      '_rod_dragging': False, '_rod_drag_start_y': 0, '_rod_offset': 0.0,
+                      '_ejecting': False}
+
+                chip_hitboxes = {}
+
+                def _draw_chips():
+                    cy_canvas.delete('chips')
+                    chip_x = CYL_CX * 2 + 20
+                    cy_canvas.create_text(chip_x + CHIP_W // 2, 12, text = 'AVAILABLE ROUNDS',
+                        fill = '#888888', font = ('Consolas', 9, 'bold'), tags = 'chips')
+                    if not vlist:
+                        cy_canvas.create_text(chip_x + CHIP_W // 2, 50, text = 'No rounds',
+                            fill = '#555555', font = ('Consolas', 9), tags = 'chips')
+                        return
+                    for idx, vn in enumerate(vlist):
+                        cnt = available_by_variant.get(vn, 0)
+                        x1 = chip_x
+                        y1 = 28 + idx * (CHIP_H + CHIP_PAD)
+                        x2 = x1 + CHIP_W
+                        y2 = y1 + CHIP_H
+                        chip_hitboxes[vn] = (x1, y1, x2, y2)
+                        c = vcols.get(vn, '#c4a032')
+                        is_avail = cnt > 0
+                        fill = c if is_avail else '#2a2a2a'
+                        ol = '#dddddd' if is_avail else '#3a3a3a'
+                        cy_canvas.create_rectangle(x1, y1, x2, y2, fill = fill, outline = ol,
+                            width = 1, tags = 'chips')
+                        cy_canvas.create_oval(x1 + 3, y1 + 3, x1 + 19, y2 - 3,
+                            fill = _tip_for(vn) if is_avail else '#3a3a3a',
+                            outline = _tip_ol_for(vn) if is_avail else '#3a3a3a', tags = 'chips')
+                        disp = vn if len(vn) <= 11 else vn[:10] + '\u2026'
+                        cnt_str = '\u221e' if is_infinite else str(cnt)
+                        cy_canvas.create_text((x1 + x2) // 2 + 8, (y1 + y2) // 2,
+                            text = f'{disp} x{cnt_str}',
+                            fill = '#1a1a1a' if is_avail else '#555555',
+                            font = ('Consolas', 8, 'bold'), tags = 'chips')
+
+                def _draw_rod():
+                    cy_canvas.delete('rod')
+                    if not ls['open']:
+                        return
+                    off = ls['slide_offset']
+                    draw_cx = CYL_CX + off
+                    rod_y = ROD_TOP + ls['_rod_offset']
+                    has_shells = any(r is not None for r in existing)
+                    rod_color = '#888888' if has_shells else '#555555'
+                    rod_knob = '#aaaaaa' if has_shells else '#666666'
+                    cy_canvas.create_rectangle(draw_cx - ROD_W // 2, ROD_TOP - 6,
+                        draw_cx + ROD_W // 2, rod_y + ROD_H,
+                        fill = '#555555', outline = '#666666', width = 1, tags = 'rod')
+                    cy_canvas.create_rectangle(draw_cx - ROD_W // 2 + 1, rod_y,
+                        draw_cx + ROD_W // 2 - 1, rod_y + ROD_H,
+                        fill = rod_color, outline = '#999999', width = 1, tags = 'rod')
+                    cy_canvas.create_oval(draw_cx - ROD_W - 2, rod_y + ROD_H - 4,
+                        draw_cx + ROD_W + 2, rod_y + ROD_H + 8,
+                        fill = rod_knob, outline = '#bbbbbb', width = 1, tags = 'rod')
+                    if has_shells:
+                        cy_canvas.create_text(draw_cx, rod_y + ROD_H + 18,
+                            text = '\u2193 PUSH TO EJECT \u2193',
+                            fill = '#888888', font = ('Consolas', 8), tags = 'rod')
+
+                def _draw_cylinder():
+                    cy_canvas.delete('cyl')
+                    if not ls['open']:
+                        cy_canvas.create_oval(CYL_CX - CYL_R, CYL_CY - CYL_R,
+                            CYL_CX + CYL_R, CYL_CY + CYL_R,
+                            fill = '#3a3a3a', outline = '#666666', width = 3, tags = 'cyl')
+                        cy_canvas.create_oval(CYL_CX - 15, CYL_CY - 15, CYL_CX + 15, CYL_CY + 15,
+                            fill = '#222222', outline = '#555555', width = 2, tags = 'cyl')
+                        cy_canvas.create_text(CYL_CX, CYL_CY + CYL_R + 16,
+                            text = '\u2190 DRAG LEFT TO OPEN CYLINDER \u2190',
+                            fill = '#888888', font = ('Consolas', 10), tags = 'cyl')
+                        n_loaded = sum(1 for r in existing if _is_live(r))
+                        cy_canvas.create_text(CYL_CX, CYL_CY,
+                            text = f'{n_loaded}/{cap}',
+                            fill = '#888888', font = ('Consolas', 12, 'bold'), tags = 'cyl')
+                        return
+
+                    off = ls['slide_offset']
+                    draw_cx = CYL_CX + off
+
+                    cy_canvas.create_oval(draw_cx - CYL_R, CYL_CY - CYL_R,
+                        draw_cx + CYL_R, CYL_CY + CYL_R,
+                        fill = '#2e2e2e', outline = '#777777', width = 3, tags = 'cyl')
+
+                    cy_canvas.create_oval(draw_cx - 12, CYL_CY - 12, draw_cx + 12, CYL_CY + 12,
+                        fill = '#1a1a1a', outline = '#555555', width = 2, tags = 'cyl')
+
+                    positions = []
+                    for i in range(cap):
+                        angle = (2 * _math_cy.pi * i / cap) - _math_cy.pi / 2
+                        cx = draw_cx + CYL_R * 0.65 * _math_cy.cos(angle)
+                        cy = CYL_CY + CYL_R * 0.65 * _math_cy.sin(angle)
+                        positions.append((cx, cy, angle, i))
+
+                    for cx, cy, angle, idx in positions:
+                        r = existing[idx]
+                        if _is_spent(r):
+                            cy_canvas.create_oval(cx - CHAMBER_R, cy - CHAMBER_R,
+                                cx + CHAMBER_R, cy + CHAMBER_R,
+                                fill = '#2a2a2a', outline = '#555555', width = 2, tags = 'cyl')
+                            cy_canvas.create_oval(cx - CHAMBER_R + 5, cy - CHAMBER_R + 5,
+                                cx + CHAMBER_R - 5, cy + CHAMBER_R - 5,
+                                fill = '#8B7355', outline = '#6B5335',
+                                width = 1, tags = 'cyl')
+                            cy_canvas.create_oval(cx - 4, cy - 4, cx + 4, cy + 4,
+                                fill = '#5a4a3a', outline = '#4a3a2a', tags = 'cyl')
+                            cy_canvas.create_text(cx, cy + CHAMBER_R + 10,
+                                text = 'spent', fill = '#665544',
+                                font = ('Consolas', 7), tags = 'cyl')
+                        elif _is_live(r):
+                            vn = r.get('variant') or r.get('name') or 'Unknown'
+                            c = vcols.get(vn, '#c4a032')
+                            cy_canvas.create_oval(cx - CHAMBER_R, cy - CHAMBER_R,
+                                cx + CHAMBER_R, cy + CHAMBER_R,
+                                fill = '#333333', outline = '#666666', width = 2, tags = 'cyl')
+                            cy_canvas.create_oval(cx - CHAMBER_R + 4, cy - CHAMBER_R + 4,
+                                cx + CHAMBER_R - 4, cy + CHAMBER_R - 4,
+                                fill = _tip_for_round(r), outline = _tip_ol_for_round(r),
+                                width = 1, tags = 'cyl')
+                            cy_canvas.create_oval(cx - 3, cy - 3, cx + 3, cy + 3,
+                                fill = c, outline = c, tags = 'cyl')
+                            disp = vn if len(vn) <= 5 else vn[:4] + '\u2026'
+                            cy_canvas.create_text(cx, cy + CHAMBER_R + 10,
+                                text = disp, fill = '#aaaaaa',
+                                font = ('Consolas', 7), tags = 'cyl')
+                        elif r is not None:
+                            cy_canvas.create_oval(cx - CHAMBER_R, cy - CHAMBER_R,
+                                cx + CHAMBER_R, cy + CHAMBER_R,
+                                fill = '#333333', outline = '#666666', width = 2, tags = 'cyl')
+                            cy_canvas.create_oval(cx - CHAMBER_R + 4, cy - CHAMBER_R + 4,
+                                cx + CHAMBER_R - 4, cy + CHAMBER_R - 4,
+                                fill = '#c4a032', outline = '#aa8820',
+                                width = 1, tags = 'cyl')
+                            cy_canvas.create_text(cx, cy + CHAMBER_R + 10,
+                                text = str(idx + 1), fill = '#666666',
+                                font = ('Consolas', 7), tags = 'cyl')
+                        else:
+                            cy_canvas.create_oval(cx - CHAMBER_R, cy - CHAMBER_R,
+                                cx + CHAMBER_R, cy + CHAMBER_R,
+                                fill = '#1a1a1a', outline = '#555555', width = 2, tags = 'cyl')
+                            cy_canvas.create_text(cx, cy,
+                                text = str(idx + 1), fill = '#444444',
+                                font = ('Consolas', 9), tags = 'cyl')
+
+                    hint = 'DRAG RIGHT TO CLOSE \u2192' if not ls['animating'] else ''
+                    cy_canvas.create_text(draw_cx, CYL_CY - CYL_R - 14,
+                        text = hint,
+                        fill = '#666666', font = ('Consolas', 9), tags = 'cyl')
+
+                def _draw_all():
+                    _draw_chips()
+                    _draw_cylinder()
+                    _draw_rod()
+
+                def _take_round(vname):
+                    if is_infinite:
+                        return {'name': f'{caliber} | {vname}', 'caliber': caliber, 'variant': vname}
+                    for hi in range(len(save_data.get('hands', {}).get('items', [])) - 1, -1, -1):
+                        itm = save_data['hands']['items'][hi]
+                        try:
+                            if not itm or not isinstance(itm, dict):
+                                continue
+                            rds = itm.get('rounds')
+                            if isinstance(rds, list) and rds:
+                                for ri, r in enumerate(rds):
+                                    rv = (r.get('variant') if isinstance(r, dict) else (str(r) if r else None))
+                                    if rv == vname:
+                                        return rds.pop(ri)
+                            qty = int(itm.get('quantity') or 0) if isinstance(itm.get('quantity'), (int, float)) else 0
+                            if qty > 0:
+                                nm = itm.get('variant') or itm.get('name') or itm.get('caliber')
+                                if nm and str(nm) == vname:
+                                    itm['quantity'] = qty - 1
+                                    return {k: v for k, v in itm.items() if k != 'quantity'}
+                            if itm.get('caliber') and (itm.get('variant') or itm.get('name')) and (itm.get('variant') == vname or itm.get('name') == vname):
+                                try:
+                                    save_data['hands']['items'].pop(hi)
+                                except Exception:
+                                    pass
+                        except Exception:
+                            continue
+                    for _sn_eq, eq_item in list(save_data.get('equipment', {}).items()):
+                        if not eq_item or not isinstance(eq_item, dict):
+                            continue
+                        for cidx in range(len(eq_item.get('items', [])) - 1, -1, -1):
+                            try:
+                                itm = eq_item['items'][cidx]
+                                if not itm or not isinstance(itm, dict):
+                                    continue
+                                rds = itm.get('rounds')
+                                if isinstance(rds, list) and rds:
+                                    for ri, r in enumerate(rds):
+                                        rv = (r.get('variant') if isinstance(r, dict) else (str(r) if r else None))
+                                        if rv == vname:
+                                            return rds.pop(ri)
+                                qty = int(itm.get('quantity') or 0) if isinstance(itm.get('quantity'), (int, float)) else 0
+                                if qty > 0:
+                                    nm = itm.get('variant') or itm.get('name') or itm.get('caliber')
+                                    if nm and str(nm) == vname:
+                                        itm['quantity'] = qty - 1
+                                        return {k: v for k, v in itm.items() if k != 'quantity'}
+                            except Exception:
+                                pass
+                    return None
+
+                def _play_insert():
+                    try:
+                        sn = f"bulletinsert{ls['stoggle']}"
+                        ls['stoggle'] = 1 - ls['stoggle']
+                        self._play_cylinder_sound(wpn, sn, block = False)
+                    except Exception:
+                        pass
+
+                def _find_empty_chamber():
+                    for i in range(cap):
+                        if existing[i] is None:
+                            return i
+                    return None
+
+                def _hit_chamber(x, y):
+                    if not ls['open']:
+                        return None
+                    off = ls['slide_offset']
+                    draw_cx = CYL_CX + off
+                    for i in range(cap):
+                        angle = (2 * _math_cy.pi * i / cap) - _math_cy.pi / 2
+                        cx = draw_cx + CYL_R * 0.65 * _math_cy.cos(angle)
+                        cy = CYL_CY + CYL_R * 0.65 * _math_cy.sin(angle)
+                        dist = _math_cy.sqrt((x - cx) ** 2 + (y - cy) ** 2)
+                        if dist <= CHAMBER_R + 4:
+                            return i
+                    return None
+
+                def _hit_chip(x, y):
+                    for vn, (x1, y1, x2, y2) in chip_hitboxes.items():
+                        if x1 <= x <= x2 and y1 <= y <= y2 and available_by_variant.get(vn, 0) > 0:
+                            return vn
+                    return None
+
+                def _hit_rod(x, y):
+                    if not ls['open']:
+                        return False
+                    off = ls['slide_offset']
+                    draw_cx = CYL_CX + off
+                    rod_y = ROD_TOP + ls['_rod_offset']
+                    rx1 = draw_cx - ROD_W - 6
+                    rx2 = draw_cx + ROD_W + 6
+                    ry1 = rod_y
+                    ry2 = rod_y + ROD_H + 10
+                    return rx1 <= x <= rx2 and ry1 <= y <= ry2
+
+                def _hit_cylinder_body(x, y):
+                    if not ls['open']:
+                        return False
+                    off = ls['slide_offset']
+                    draw_cx = CYL_CX + off
+                    dist = _math_cy.sqrt((x - draw_cx) ** 2 + (y - CYL_CY) ** 2)
+                    return dist <= CYL_R + 10
+
+                def _on_press(event):
+                    if ls['animating'] or ls['_ejecting']:
+                        return
+                    if not ls['open']:
+                        ls['_drag_open_start'] = event.x
+                        ls['_drag_open_active'] = True
+                        return
+                    if _hit_rod(event.x, event.y):
+                        ls['_rod_dragging'] = True
+                        ls['_rod_drag_start_y'] = event.y
+                        ls['_rod_offset'] = 0.0
+                        return
+                    if _hit_cylinder_body(event.x, event.y):
+                        ls['_drag_close_active'] = True
+                        ls['_drag_close_start'] = event.x
+                        return
+                    vn = _hit_chip(event.x, event.y)
+                    if not vn:
+                        return
+                    ls['dragging'] = True
+                    ls['drag_vn'] = vn
+                    ls['di'] = cy_canvas.create_oval(
+                        event.x - CHAMBER_R, event.y - CHAMBER_R,
+                        event.x + CHAMBER_R, event.y + CHAMBER_R,
+                        fill = _tip_for(vn), outline = '#ffffff', width = 2, tags = 'drag')
+
+                def _on_move(event):
+                    if ls.get('_drag_open_active') and not ls['open']:
+                        return
+                    if ls.get('_drag_close_active'):
+                        return
+                    if ls.get('_rod_dragging'):
+                        dy = event.y - ls['_rod_drag_start_y']
+                        ls['_rod_offset'] = max(0.0, min(float(ROD_PUSH), float(dy)))
+                        _draw_rod()
+                        return
+                    if not ls['dragging']:
+                        return
+                    x, y = event.x, event.y
+                    if ls['di']:
+                        cy_canvas.coords(ls['di'], x - CHAMBER_R, y - CHAMBER_R,
+                            x + CHAMBER_R, y + CHAMBER_R)
+
+                def _on_release(event):
+                    if ls.get('_drag_open_active') and not ls['open']:
+                        ls['_drag_open_active'] = False
+                        dx = event.x - ls.get('_drag_open_start', event.x)
+                        if dx < -60:
+                            _animate_open()
+                        return
+                    if ls.get('_drag_close_active'):
+                        ls['_drag_close_active'] = False
+                        dx = event.x - ls.get('_drag_close_start', event.x)
+                        if dx > 60:
+                            _do_close_and_finish()
+                        return
+                    if ls.get('_rod_dragging'):
+                        ls['_rod_dragging'] = False
+                        if ls['_rod_offset'] >= ROD_PUSH * 0.7:
+                            _animate_eject()
+                        else:
+                            ls['_rod_offset'] = 0.0
+                            _draw_rod()
+                        return
+                    if not ls['dragging']:
+                        return
+                    ls['dragging'] = False
+                    cy_canvas.delete('drag')
+                    ls['di'] = None
+                    if ls['animating']:
+                        return
+                    vn = ls['drag_vn']
+                    if not vn or available_by_variant.get(vn, 0) <= 0:
+                        return
+                    chamber_idx = _hit_chamber(event.x, event.y)
+                    if chamber_idx is not None and existing[chamber_idx] is None:
+                        _do_insert(vn, chamber_idx)
+                    else:
+                        empty = _find_empty_chamber()
+                        if empty is not None:
+                            off = ls['slide_offset']
+                            draw_cx = CYL_CX + off
+                            dist_to_cyl = _math_cy.sqrt((event.x - draw_cx) ** 2 + (event.y - CYL_CY) ** 2)
+                            if dist_to_cyl <= CYL_R + 20:
+                                _do_insert(vn, empty)
+
+                def _do_insert(vname, chamber_idx):
+                    r = _take_round(vname)
+                    if r is None:
+                        return
+                    existing[chamber_idx] = r
+                    ls['added'] += 1
+                    if not is_infinite:
+                        if vname in available_by_variant:
+                            available_by_variant[vname] -= 1
+                            if available_by_variant[vname] <= 0:
+                                del available_by_variant[vname]
+                    _play_insert()
+                    _draw_all()
+                    _update_side()
+
+                def _animate_open():
+                    ls['animating'] = True
+                    try:
+                        self._play_cylinder_sound(wpn, 'cylinderopen', block = False)
+                    except Exception:
+                        pass
+                    target = -80
+                    steps = 12
+
+                    def _step(s):
+                        if s >= steps:
+                            ls['slide_offset'] = float(target)
+                            ls['open'] = True
+                            ls['animating'] = False
+                            _draw_all()
+                            return
+                        frac = (s + 1) / steps
+                        ease = 1 - (1 - frac) ** 2
+                        ls['slide_offset'] = float(target * ease)
+                        _draw_cylinder()
+                        _draw_rod()
+                        editor.after(20, lambda: _step(s + 1))
+
+                    ls['open'] = True
+                    _step(0)
+
+                def _animate_close(callback = None):
+                    ls['animating'] = True
+                    try:
+                        self._play_cylinder_sound(wpn, 'cylinderclose', block = False)
+                    except Exception:
+                        pass
+                    start_off = ls['slide_offset']
+                    steps = 10
+
+                    def _step(s):
+                        if s >= steps:
+                            ls['slide_offset'] = 0.0
+                            ls['open'] = False
+                            ls['animating'] = False
+                            _draw_all()
+                            if callback:
+                                editor.after(50, callback)
+                            return
+                        frac = (s + 1) / steps
+                        ease = frac * frac
+                        ls['slide_offset'] = float(start_off * (1 - ease))
+                        _draw_cylinder()
+                        _draw_rod()
+                        editor.after(20, lambda: _step(s + 1))
+
+                    _step(0)
+
+                def _animate_eject():
+                    ls['_ejecting'] = True
+                    ls['_rod_offset'] = float(ROD_PUSH)
+                    _draw_rod()
+                    try:
+                        self._play_cylinder_sound(wpn, 'cylinderrelease', block = False)
+                    except Exception:
+                        pass
+
+                    shells_to_drop = []
+                    off = ls['slide_offset']
+                    draw_cx = CYL_CX + off
+                    for i in range(cap):
+                        r = existing[i]
+                        if r is not None:
+                            angle = (2 * _math_cy.pi * i / cap) - _math_cy.pi / 2
+                            cx = draw_cx + CYL_R * 0.65 * _math_cy.cos(angle)
+                            cy = CYL_CY + CYL_R * 0.65 * _math_cy.sin(angle)
+                            is_sp = _is_spent(r)
+                            shell_fill = '#8B7355' if is_sp else _tip_for_round(r)
+                            shell_ol = '#6B5335' if is_sp else _tip_ol_for_round(r)
+                            oid = cy_canvas.create_oval(cx - CHAMBER_R + 3, cy - CHAMBER_R + 3,
+                                cx + CHAMBER_R - 3, cy + CHAMBER_R - 3,
+                                fill = shell_fill, outline = shell_ol, width = 1, tags = 'ejectanim')
+                            shells_to_drop.append((oid, cx, cy))
+                            existing[i] = None
+
+                    wpn['_cylinder_spent'] = 0
+                    _draw_cylinder()
+
+                    drop_steps = 14
+                    def _drop_step(s):
+                        if s >= drop_steps:
+                            cy_canvas.delete('ejectanim')
+                            ls['_rod_offset'] = 0.0
+                            ls['_ejecting'] = False
+                            _draw_all()
+                            _update_side()
+                            return
+                        frac = (s + 1) / drop_steps
+                        for oid, sx, sy in shells_to_drop:
+                            ny = sy + frac * 180
+                            nx = sx + frac * (sx - draw_cx) * 0.3
+                            cy_canvas.coords(oid, nx - CHAMBER_R + 3, ny - CHAMBER_R + 3,
+                                nx + CHAMBER_R - 3, ny + CHAMBER_R - 3)
+                        editor.after(25, lambda: _drop_step(s + 1))
+
+                    editor.after(80, lambda: _drop_step(0))
+
+                def _do_close_and_finish():
+                    if ls['animating'] or ls['_ejecting']:
+                        return
+                    final_rounds = [r for r in existing if _is_live(r)]
+                    remaining_spent = sum(1 for r in existing if _is_spent(r))
+
+                    def _finish():
+                        wpn['rounds'] = final_rounds
+                        wpn['chambered'] = None
+                        wpn['_cylinder_spent'] = remaining_spent
+
+                        action = wpn.get('action', '')
+                        if isinstance(action, (list, tuple)):
+                            action = action[0] if action else ''
+                        action = str(action).lower()
+                        if action == 'single' and final_rounds:
+                            try:
+                                self._play_cylinder_sound(wpn, 'hammerdown', block = False)
+                            except Exception:
+                                pass
+
+                        try:
+                            sd_ref = save_data if isinstance(save_data, dict) else globals().get('save_data') or getattr(self, '_current_save_data', None)
+                            if isinstance(sd_ref, dict):
+                                ts = sd_ref.setdefault('tracked_stats', {})
+                                if isinstance(ts, dict):
+                                    ts['mags_reloaded_total'] = int(ts.get('mags_reloaded_total', 0)) + 1
+                                    added = int(ls['added'])
+                                    ts['bullets_loaded_total'] = int(ts.get('bullets_loaded_total', 0)) + added
+                                    bh = ts.setdefault('bullets_loaded_history', [])
+                                    try:
+                                        bh.append({'weapon_id': str(wpn.get('id', 'unknown')), 'count': added, 'time': time.time()})
+                                    except Exception:
+                                        pass
+                        except Exception:
+                            logging.exception('Failed updating tracked_stats after cylinder reload')
+                        try:
+                            self._update_session_reload_stats(save_data, int(ls['added']))
+                        except Exception:
+                            pass
+
+                        editor.destroy()
+                        update_weapon_view()
+                        if ls['added'] > 0:
+                            self._popup_show_info('Cylinder Reload', f'Loaded {ls["added"]} rounds into cylinder ({len(final_rounds)}/{cap})')
+
+                    _animate_close(callback = _finish)
+
+                def _spin_cylinder():
+                    if ls['animating'] or not ls['open'] or ls['_ejecting']:
+                        return
+                    ls['animating'] = True
+                    try:
+                        self._play_cylinder_sound(wpn, 'cylinderspinonce', block = False)
+                    except Exception:
+                        pass
+                    import random as _rnd_cy
+                    shift = _rnd_cy.randint(1, cap - 1) if cap > 1 else 0
+                    final_existing = existing[shift:] + existing[:shift]
+                    spin_steps = 15
+
+                    def _spin_step(s):
+                        if s >= spin_steps:
+                            for i in range(cap):
+                                existing[i] = final_existing[i]
+                            ls['animating'] = False
+                            _draw_cylinder()
+                            return
+                        temp_shift = (s * shift) // spin_steps
+                        temp = existing[temp_shift:] + existing[:temp_shift]
+                        for i in range(cap):
+                            existing[i] = temp[i]
+                        _draw_cylinder()
+                        editor.after(40, lambda: _spin_step(s + 1))
+
+                    _spin_step(0)
+
+                cy_canvas.bind('<Button-1>', _on_press)
+                cy_canvas.bind('<B1-Motion>', _on_move)
+                cy_canvas.bind('<ButtonRelease-1>', _on_release)
+
+                _cap_lbl = customtkinter.CTkLabel(side,
+                    text = f'{sum(1 for r in existing if _is_live(r))}/{cap} chambers loaded',
+                    font = customtkinter.CTkFont(size = 13, weight = 'bold'))
+                _cap_lbl.pack(pady = (10, 6))
+
+                customtkinter.CTkLabel(side,
+                    text = 'Drag cylinder left to open.\nPush rod down to eject.\nDrag rounds onto chambers.\nDrag cylinder right to close.',
+                    font = customtkinter.CTkFont(size = 10), text_color = '#888888',
+                    wraplength = 170).pack(pady = 6)
+
+                def _update_side():
+                    _cap_lbl.configure(text = f'{sum(1 for r in existing if _is_live(r))}/{cap} chambers loaded')
+
+                customtkinter.CTkButton(side, text = 'Spin Cylinder', command = _spin_cylinder,
+                    width = 160, height = 30, font = customtkinter.CTkFont(size = 11),
+                    fg_color = '#2a4a6a', hover_color = '#3a5a7a').pack(pady = 4)
+
+                def _done():
+                    final_rounds = [r for r in existing if _is_live(r)]
+                    remaining_spent = sum(1 for r in existing if _is_spent(r))
+
+                    def _finish():
+                        wpn['rounds'] = final_rounds
+                        wpn['chambered'] = None
+                        wpn['_cylinder_spent'] = remaining_spent
+
+                        action = wpn.get('action', '')
+                        if isinstance(action, (list, tuple)):
+                            action = action[0] if action else ''
+                        action = str(action).lower()
+                        if action == 'single' and final_rounds:
+                            try:
+                                self._play_cylinder_sound(wpn, 'hammerdown', block = False)
+                            except Exception:
+                                pass
+
+                        try:
+                            sd_ref = save_data if isinstance(save_data, dict) else globals().get('save_data') or getattr(self, '_current_save_data', None)
+                            if isinstance(sd_ref, dict):
+                                ts = sd_ref.setdefault('tracked_stats', {})
+                                if isinstance(ts, dict):
+                                    ts['mags_reloaded_total'] = int(ts.get('mags_reloaded_total', 0)) + 1
+                                    added = int(ls['added'])
+                                    ts['bullets_loaded_total'] = int(ts.get('bullets_loaded_total', 0)) + added
+                                    bh = ts.setdefault('bullets_loaded_history', [])
+                                    try:
+                                        bh.append({'weapon_id': str(wpn.get('id', 'unknown')), 'count': added, 'time': time.time()})
+                                    except Exception:
+                                        pass
+                        except Exception:
+                            logging.exception('Failed updating tracked_stats after cylinder reload')
+                        try:
+                            self._update_session_reload_stats(save_data, int(ls['added']))
+                        except Exception:
+                            pass
+
+                        editor.destroy()
+                        update_weapon_view()
+                        if ls['added'] > 0:
+                            self._popup_show_info('Cylinder Reload', f'Loaded {ls["added"]} rounds into cylinder ({len(final_rounds)}/{cap})')
+
+                    if ls['open']:
+                        _animate_close(callback = _finish)
+                    else:
+                        _finish()
+
+                editor.protocol('WM_DELETE_WINDOW', _done)
+                customtkinter.CTkButton(side, text = 'Done', command = _done,
+                    width = 160, height = 35,
+                    font = customtkinter.CTkFont(size = 12)).pack(pady = 10)
+
+                _draw_all()
+
+                editor.update_idletasks()
+                ew = max(editor.winfo_reqwidth(), 620)
+                eh = max(editor.winfo_reqheight(), 500)
+                _sw_s = editor.winfo_screenwidth()
+                _sh_s = editor.winfo_screenheight()
+                x = (_sw_s // 2) - (ew // 2)
+                y = (_sh_s // 2) - (eh // 2)
+                editor.geometry(f'{ew}x{eh}+{x}+{y}')
+                editor.grab_set()
+                editor.lift()
+                self._safe_focus(editor)
+            except Exception:
+                logging.exception('Failed to open cylinder editor')
 
         def _open_tube_magazine_editor(wpn, available_by_variant, caliber, filter_calibers, is_infinite = False):
             import tkinter as _tk_tb
@@ -27270,6 +28851,9 @@ class App:
                         is_single_action = True
 
                     is_cylinder = "cylinder"in magazine_type
+
+                    if is_cylinder:
+                        weapon['_cylinder_spent'] = int(weapon.get('_cylinder_spent', 0)) + 1
 
                     if is_single_action and is_cylinder:
                         time.sleep(0.08)
