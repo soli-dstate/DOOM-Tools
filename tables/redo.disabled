@@ -1846,6 +1846,182 @@
                 "accessories": [
                     {"name": "Optic Mount", "slot": "awm_optic_mount", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "AWM Barrel", "slot": "awm_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "AWM Bolt", "slot": "awm_bolt", "current": {"id": null}, "durability": null, "type": "bolt"},
+                    {"name": "AWM Trigger Spring", "slot": "awm_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"}
+                ]
+            },
+            {
+                "name": "Heckler & Koch G3",
+                "value": 6000,
+                "description": "Left arm of the free world. German made battle rifle chambered in 7.62x51mm NATO, known for its reliability and performance in various combat situations. This specific rifle is an original with wood furniture.",
+                "rarity": "Legendary",
+                "random_quantity": false,
+                "weight": 4.8,
+                "id": 89,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "G3",
+                "caliber": ["7.62x51mm NATO", ".308 Winchester"],
+                "action": ["Semi", "Auto"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 600,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "G3",
+                "jamrate": 0.005,
+                "accessories": [
+                    {"name": "Optic Mount", "slot": "hk_optic_mount", "current": null},
+                    {"name": "Bayonet Lug", "slot": "g3_bayonet_lug", "current": null, "conflicts_with": ["muzzle_762"]},
+                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null, "conflicts_with": ["nato_bayonet_lug"]}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "G3 Barrel", "slot": "g3_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "G3 Trigger Spring", "slot": "g3_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
+                    {"name": "G3 Recoil Spring", "slot": "g3_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
+                    {"name": "G3 Bolt Carrier Group", "slot": "g3_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"},
+                    {"name": "G3 Gas Piston", "slot": "g3_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"}
+                ]
+            },
+            {
+                "name": "Heckler & Koch G3A1",
+                "value": 8500,
+                "description": "Rarest variant of the Heckler & Koch G3 battle rifle, featuring a side-folding skeleton stock and a wood handguard.",
+                "rarity": "Mythic",
+                "random_quantity": false,
+                "weight": 4.7,
+                "id": 90,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "G3",
+                "caliber": ["7.62x51mm NATO", ".308 Winchester"],
+                "action": ["Semi", "Auto"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 600,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "G3",
+                "jamrate": 0.005,
+                "accessories": [
+                    {"name": "Optic Mount", "slot": "hk_optic_mount", "current": null},
+                    {"name": "Bayonet Lug", "slot": "g3_bayonet_lug", "current": null, "conflicts_with": ["muzzle_762"]},
+                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null, "conflicts_with": ["nato_bayonet_lug"]}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "G3 Barrel", "slot": "g3_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "G3 Trigger Spring", "slot": "g3_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
+                    {"name": "G3 Recoil Spring", "slot": "g3_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
+                    {"name": "G3 Bolt Carrier Group", "slot": "g3_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"},
+                    {"name": "G3 Gas Piston", "slot": "g3_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"}
+                ]
+            },
+            {
+                "name": "Heckler & Koch G3A2",
+                "value": 4500,
+                "description": "Rare variant of the Heckler & Koch G3 battle rifle, this is a pivotal model in the transition from the hard-hitting early variants of the G3 to more modernized softer hitting variants. This one features wood furniture and a fixed stock.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 4.5,
+                "id": 91,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "G3",
+                "caliber": ["7.62x51mm NATO", ".308 Winchester"],
+                "action": ["Semi", "Auto"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 600,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "G3",
+                "jamrate": 0.005,
+                "accessories": [
+                    {"name": "Optic Mount", "slot": "hk_optic_mount", "current": null},
+                    {"name": "Bayonet Lug", "slot": "g3_bayonet_lug", "current": null, "conflicts_with": ["muzzle_762"]},
+                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null, "conflicts_with": ["nato_bayonet_lug"]}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "G3 Barrel", "slot": "g3_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "G3 Trigger Spring", "slot": "g3_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
+                    {"name": "G3 Recoil Spring", "slot": "g3_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
+                    {"name": "G3 Bolt Carrier Group", "slot": "g3_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"},
+                    {"name": "G3 Gas Piston", "slot": "g3_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"}
+                ]
+            },
+            {
+                "name": "Heckler & Koch G3A3",
+                "value": 4000,
+                "description": "Most common variant of the Heckler & Koch G3 battle rifle, featuring a fixed polymer stock and a polymer handguard.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 4.4,
+                "id": 92,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "G3",
+                "caliber": ["7.62x51mm NATO", ".308 Winchester"],
+                "action": ["Semi", "Auto"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 600,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "G3",
+                "jamrate": 0.005,
+                "accessories": [
+                    {"name": "Optic Mount", "slot": "hk_optic_mount", "current": null},
+                    {"name": "Bayonet Lug", "slot": "g3_bayonet_lug", "current": null, "conflicts_with": ["muzzle_762"]},
+                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null, "conflicts_with": ["nato_bayonet_lug"]}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "G3 Barrel", "slot": "g3_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "G3 Trigger Spring", "slot": "g3_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
+                    {"name": "G3 Recoil Spring", "slot": "g3_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
+                    {"name": "G3 Bolt Carrier Group", "slot": "g3_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"},
+                    {"name": "G3 Gas Piston", "slot": "g3_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"}
+                ]
+            },
+            {
+                "name": "Heckler & Koch G3KA4",
+                "value": 4500,
+                "description": "Karabiner (carbine) variant of the Heckler & Koch G3 battle rifle, featuring a shorter barrel and a retractable stock. While not the shortest in the line-up, it is the best balance between size and recoil.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 3.8,
+                "id": 93,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "G3",
+                "caliber": ["7.62x51mm NATO", ".308 Winchester"],
+                "action": ["Semi", "Auto"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 600,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "G3",
+                "jamrate": 0.005,
+                "accessories": [
+                    {"name": "Optic Mount", "slot": "hk_optic_mount", "current": null},
+                    {"name": "Bayonet Lug", "slot": "g3_bayonet_lug", "current": null, "conflicts_with": ["muzzle_762"]},
+                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null, "conflicts_with": ["nato_bayonet_lug"]}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "G3KA4 Barrel", "slot": "g3ka4_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "G3 Trigger Spring", "slot": "g3_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
+                    {"name": "G3 Recoil Spring", "slot": "g3_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
+                    {"name": "G3 Bolt Carrier Group", "slot": "g3_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"},
+                    {"name": "G3KA4 Gas Piston", "slot": "g3ka4_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"}
                 ]
             }
         ],

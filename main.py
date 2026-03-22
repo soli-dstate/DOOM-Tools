@@ -1,4 +1,4 @@
-version = "1.0.11"
+version = "1.0.12"
 
 import os
 import logging
@@ -2441,7 +2441,7 @@ class App:
                 except Exception as backup_err:
                     logging.warning(f"Failed to create backup: {backup_err}")
 
-            comment_lines = []
+            comment_lines =[]
             if isinstance(data, dict):
                 comment_lines = data.pop("_save_comments", [])
 
@@ -2449,7 +2449,7 @@ class App:
             encoded = base64.b85encode(pickled).decode('utf-8')
             with open(path, 'w', encoding = 'utf-8')as f:
                 for cl in comment_lines:
-                    f.write(cl if cl.endswith("\n") else cl + "\n")
+                    f.write(cl if cl.endswith("\n")else cl +"\n")
                 f.write(encoded)
             logging.info(f"Data written to {path}")
         except Exception as e:
@@ -2466,13 +2466,13 @@ class App:
                 text = f.read()
 
             lines = text.splitlines(True)
-            comment_lines = []
-            data_lines = []
+            comment_lines =[]
+            data_lines =[]
             for line in lines:
                 stripped = line.strip()
                 if stripped.startswith("//"):
                     comment_lines.append(line)
-                elif stripped == "" and not data_lines:
+                elif stripped ==""and not data_lines:
                     comment_lines.append(line)
                 else:
                     data_lines.append(line)
@@ -2483,7 +2483,7 @@ class App:
                 data = pickle.loads(pickled)
                 if isinstance(data, dict):
                     if comment_lines:
-                        data["_save_comments"] = comment_lines
+                        data["_save_comments"]= comment_lines
                     logging.info(f"Loaded save from {path}")
                     return data
             except Exception:
@@ -2493,7 +2493,7 @@ class App:
                 data = json.loads(payload)
                 if isinstance(data, dict):
                     if comment_lines:
-                        data["_save_comments"] = comment_lines
+                        data["_save_comments"]= comment_lines
                     logging.info(f"Loaded save from {path}(json)")
                     return data
             except Exception:
@@ -3352,7 +3352,7 @@ class App:
         try:
             api_url = 'https://api.github.com/repos/soli-dstate/DOOM-Tools/releases/latest'
             try:
-                resp = requests.get(api_url, timeout = 5, headers = {'Accept': 'application/vnd.github+json'})
+                resp = requests.get(api_url, timeout = 5, headers = {'Accept':'application/vnd.github+json'})
                 if resp.status_code !=200:
                     return
                 data = resp.json()
@@ -4165,16 +4165,16 @@ class App:
         if currentsave is None:
             currentsave_label = customtkinter.CTkLabel(main_frame, text = "No save loaded.Please load a save to enable tools.", font = customtkinter.CTkFont(size = 14), text_color = "red")
             currentsave_label.pack(pady = 20)
-        konami_sequence = ["Up", "Up", "Down", "Down", "Left", "Right", "Left", "Right"]
-        konami_progress = [0]
-        konami_triggered = [False]
+        konami_sequence =["Up", "Up", "Down", "Down", "Left", "Right", "Left", "Right"]
+        konami_progress =[0]
+        konami_triggered =[False]
         def _konami_key_handler(event):
             if konami_triggered[0]:
                 return
-            if event.keysym == konami_sequence[konami_progress[0]]:
-                konami_progress[0] += 1
-                if konami_progress[0] == len(konami_sequence):
-                    konami_triggered[0] = True
+            if event.keysym ==konami_sequence[konami_progress[0]]:
+                konami_progress[0]+=1
+                if konami_progress[0]==len(konami_sequence):
+                    konami_triggered[0]= True
                     try:
                         tbl = globals().get('table_data', {})
                         code = tbl.get('additional_settings', {}).get('hidden_code', '')
@@ -4189,28 +4189,28 @@ class App:
                         try:
                             url = 'https://raw.githubusercontent.com/soli-dstate/DOOM-Tools/master/remotedata/Charlotte%20Baker.sldsv'
                             resp = requests.get(url, timeout = 15)
-                            if resp.status_code == 200:
+                            if resp.status_code ==200:
                                 os.makedirs('saves', exist_ok = True)
                                 appdata_path = os.path.expandvars(r'%LOCALAPPDATA%\soli_dstate\DOOM-Tools\saves_backup')
-                                os.makedirs(appdata_path, exist_ok=True)
+                                os.makedirs(appdata_path, exist_ok = True)
                                 dest = os.path.join(appdata_path, 'Charlotte Baker.sldsv')
-                                with open(dest, 'wb') as f:
+                                with open(dest, 'wb')as f:
                                     f.write(resp.content)
                                 logging.debug("Downloaded Charlotte Baker.sldsv to saves folder")
                             else:
-                                logging.warning("Failed to download Charlotte Baker.sldsv (status %s)", resp.status_code)
+                                logging.warning("Failed to download Charlotte Baker.sldsv(status %s)", resp.status_code)
                         except Exception:
                             logging.exception("Failed to download Charlotte Baker.sldsv")
                     threading.Thread(target = _konami_download, daemon = True).start()
             else:
-                konami_progress[0] = 1 if event.keysym == konami_sequence[0] else 0
+                konami_progress[0]= 1 if event.keysym ==konami_sequence[0]else 0
         _konami_bind_id = self.root.bind("<Key>", _konami_key_handler, add = "+")
-        def _konami_cleanup(event=None):
+        def _konami_cleanup(event = None):
             try:
                 self.root.unbind("<Key>", _konami_bind_id)
             except Exception:
                 pass
-        main_frame.bind("<Destroy>", _konami_cleanup, add = "+")
+        main_frame.bind("<Destroy>", _konami_cleanup, add = "+") # type: ignore
 
     def _create_dev_toolbar(self):
         try:
@@ -9118,13 +9118,13 @@ class App:
             if not isinstance(subtable_items, list):
                 continue
             for it in subtable_items:
-                if isinstance(it, dict) and 'id' in it:
-                    id_to_item[it['id']] = it
+                if isinstance(it, dict)and 'id'in it:
+                    id_to_item[it['id']]= it
 
         def _resolve_current(obj):
             if not isinstance(obj, dict):
                 return
-            for acc in (obj.get('accessories') or []):
+            for acc in(obj.get('accessories')or[]):
                 try:
                     cur = acc.get('current')
                     if cur is None:
@@ -9134,12 +9134,12 @@ class App:
                     overrides = {}
                     if isinstance(cur, int):
                         target_id = cur
-                    elif isinstance(cur, dict) and 'id' in cur:
+                    elif isinstance(cur, dict)and 'id'in cur:
                         target_id = cur.get('id')
                         sub_attachment = cur.get('sub_attachment')
                         for k, v in cur.items():
-                            if k not in ('id', 'sub_attachment'):
-                                overrides[k] = v
+                            if k not in('id', 'sub_attachment'):
+                                overrides[k]= v
                     if target_id is None:
                         if isinstance(cur, dict):
                             _resolve_current(cur)
@@ -9150,25 +9150,25 @@ class App:
                     new_installed = _copy.deepcopy(target)
                     for k, v in overrides.items():
                         try:
-                            new_installed[k] = v
+                            new_installed[k]= v
                         except Exception:
                             pass
-                    acc['current'] = new_installed
+                    acc['current']= new_installed
                     if sub_attachment:
                         sub_target = id_to_item.get(sub_attachment)
                         if sub_target and isinstance(new_installed.get('subslots'), list):
                             placed = False
                             for ss in new_installed['subslots']:
                                 try:
-                                    if ss.get('slot') == sub_target.get('slot') or ss.get('current') is None:
-                                        ss['current'] = _copy.deepcopy(sub_target)
+                                    if ss.get('slot')==sub_target.get('slot')or ss.get('current')is None:
+                                        ss['current']= _copy.deepcopy(sub_target)
                                         placed = True
                                         break
                                 except Exception:
                                     pass
                             if not placed:
                                 try:
-                                    new_installed['subslots'][0]['current'] = _copy.deepcopy(sub_target)
+                                    new_installed['subslots'][0]['current']= _copy.deepcopy(sub_target)
                                 except Exception:
                                     pass
                     try:
@@ -9177,16 +9177,16 @@ class App:
                         pass
                 except Exception:
                     pass
-            for s in (obj.get('subslots') or []):
+            for s in(obj.get('subslots')or[]):
                 try:
                     cur = s.get('current')
                     if cur is None:
                         continue
-                    if isinstance(cur, int) or (isinstance(cur, dict) and 'id' in cur):
-                        tmp = {'accessories': [{'current': cur}]}
+                    if isinstance(cur, int)or(isinstance(cur, dict)and 'id'in cur):
+                        tmp = {'accessories':[{'current':cur}]}
                         _resolve_current(tmp)
                         try:
-                            s['current'] = tmp['accessories'][0].get('current')
+                            s['current']= tmp['accessories'][0].get('current')
                         except Exception:
                             pass
                     elif isinstance(cur, dict):
@@ -9214,7 +9214,7 @@ class App:
             tbl_path = get_current_table_path()
             if not tbl_path or not os.path.exists(tbl_path):
                 return save_data
-            with open(tbl_path, 'r', encoding='utf-8') as f:
+            with open(tbl_path, 'r', encoding = 'utf-8')as f:
                 table_data = json.load(f)
         except Exception:
             return save_data
@@ -9228,25 +9228,25 @@ class App:
             if not isinstance(subtable_items, list):
                 continue
             for it in subtable_items:
-                if isinstance(it, dict) and 'id' in it:
-                    id_to_item[it['id']] = it
+                if isinstance(it, dict)and 'id'in it:
+                    id_to_item[it['id']]= it
 
         if not id_to_item:
             return save_data
 
-        fixed_count = [0]
+        fixed_count =[0]
 
         def _is_unresolved(cur):
             if isinstance(cur, int):
                 return True
-            if isinstance(cur, dict) and 'id' in cur and 'name' not in cur:
+            if isinstance(cur, dict)and 'id'in cur and 'name'not in cur:
                 return True
             return False
 
         def _resolve_current(obj):
             if not isinstance(obj, dict):
                 return
-            for acc in (obj.get('accessories') or []):
+            for acc in(obj.get('accessories')or[]):
                 try:
                     cur = acc.get('current')
                     if cur is None:
@@ -9256,12 +9256,12 @@ class App:
                     overrides = {}
                     if isinstance(cur, int):
                         target_id = cur
-                    elif isinstance(cur, dict) and 'id' in cur and 'name' not in cur:
+                    elif isinstance(cur, dict)and 'id'in cur and 'name'not in cur:
                         target_id = cur.get('id')
                         sub_attachment = cur.get('sub_attachment')
                         for k, v in cur.items():
-                            if k not in ('id', 'sub_attachment'):
-                                overrides[k] = v
+                            if k not in('id', 'sub_attachment'):
+                                overrides[k]= v
                     if target_id is None:
                         if isinstance(cur, dict):
                             _resolve_current(cur)
@@ -9272,26 +9272,26 @@ class App:
                     new_installed = _copy.deepcopy(target)
                     for k, v in overrides.items():
                         try:
-                            new_installed[k] = v
+                            new_installed[k]= v
                         except Exception:
                             pass
-                    acc['current'] = new_installed
-                    fixed_count[0] += 1
+                    acc['current']= new_installed
+                    fixed_count[0]+=1
                     if sub_attachment:
                         sub_target = id_to_item.get(sub_attachment)
                         if sub_target and isinstance(new_installed.get('subslots'), list):
                             placed = False
                             for ss in new_installed['subslots']:
                                 try:
-                                    if ss.get('slot') == sub_target.get('slot') or ss.get('current') is None:
-                                        ss['current'] = _copy.deepcopy(sub_target)
+                                    if ss.get('slot')==sub_target.get('slot')or ss.get('current')is None:
+                                        ss['current']= _copy.deepcopy(sub_target)
                                         placed = True
                                         break
                                 except Exception:
                                     pass
                             if not placed:
                                 try:
-                                    new_installed['subslots'][0]['current'] = _copy.deepcopy(sub_target)
+                                    new_installed['subslots'][0]['current']= _copy.deepcopy(sub_target)
                                 except Exception:
                                     pass
                     try:
@@ -9300,16 +9300,16 @@ class App:
                         pass
                 except Exception:
                     pass
-            for s in (obj.get('subslots') or []):
+            for s in(obj.get('subslots')or[]):
                 try:
                     cur = s.get('current')
                     if cur is None:
                         continue
                     if _is_unresolved(cur):
-                        tmp = {'accessories': [{'current': cur}]}
+                        tmp = {'accessories':[{'current':cur}]}
                         _resolve_current(tmp)
                         try:
-                            s['current'] = tmp['accessories'][0].get('current')
+                            s['current']= tmp['accessories'][0].get('current')
                         except Exception:
                             pass
                     elif isinstance(cur, dict):
@@ -9325,8 +9325,8 @@ class App:
         for slot_name, equipped_item in save_data.get('equipment', {}).items():
             if isinstance(equipped_item, dict):
                 _process_item(equipped_item)
-                for sub in (equipped_item.get('subslots') or []):
-                    cur = sub.get('current') if isinstance(sub, dict) else None
+                for sub in(equipped_item.get('subslots')or[]):
+                    cur = sub.get('current')if isinstance(sub, dict)else None
                     if isinstance(cur, dict):
                         _process_item(cur)
                 if isinstance(equipped_item.get('items'), list):
@@ -9343,7 +9343,7 @@ class App:
         for item in save_data.get('storage', []):
             _process_item(item)
 
-        if fixed_count[0] > 0:
+        if fixed_count[0]>0:
             logging.info(f"Fixed {fixed_count[0]} unresolved attachment reference(s) in save data")
 
         return save_data
@@ -14788,7 +14788,7 @@ class App:
 
         highlight_state = {}
         revealed = set()
-        poll_count = [0]
+        poll_count =[0]
 
         def update_code_highlights():
             try:
@@ -14800,21 +14800,21 @@ class App:
                 visible_left = max(0, -crx)
                 visible_right = min(ww, sw -crx)
 
-                poll_count[0] += 1
-                if poll_count[0] % 20 == 1:
-                    logging.debug(f"[offscreen puzzle] crx={crx} sw={sw} ww={ww} vis_left={visible_left} vis_right={visible_right} code_items={len(code_text_items)}")
+                poll_count[0]+=1
+                if poll_count[0]%20 ==1:
+                    logging.debug(f"[offscreen puzzle]crx={crx} sw={sw} ww={ww} vis_left={visible_left} vis_right={visible_right} code_items={len(code_text_items)}")
 
                 for ti in code_text_items:
                     tid = ti["id"]
-                    off = ti["x"] < visible_left or ti["x"] >= visible_right
+                    off = ti["x"]<visible_left or ti["x"]>=visible_right
                     if off:
                         revealed.add(tid)
                     should_be_red = tid in revealed
-                    if highlight_state.get(tid) != should_be_red:
-                        highlight_state[tid] = should_be_red
-                        canvas.itemconfig(tid, fill = "red" if should_be_red else "black", font = ("Courier", FONT_SIZE, "bold") if should_be_red else ("Courier", FONT_SIZE))
+                    if highlight_state.get(tid)!=should_be_red:
+                        highlight_state[tid]= should_be_red
+                        canvas.itemconfig(tid, fill = "red"if should_be_red else "black", font =("Courier", FONT_SIZE, "bold")if should_be_red else("Courier", FONT_SIZE))
             except Exception as e:
-                logging.error(f"[offscreen puzzle] error: {e}")
+                logging.error(f"[offscreen puzzle]error: {e}")
 
         def poll_highlights():
             try:
@@ -14823,9 +14823,9 @@ class App:
                 update_code_highlights()
                 puzzle_window.after(100, poll_highlights)
             except Exception as e:
-                logging.error(f"[offscreen puzzle] poll error: {e}")
+                logging.error(f"[offscreen puzzle]poll error: {e}")
 
-        logging.debug(f"[offscreen puzzle] Starting poll. code_text_items count: {len(code_text_items)}")
+        logging.debug(f"[offscreen puzzle]Starting poll.code_text_items count: {len(code_text_items)}")
         puzzle_window.after(100, poll_highlights)
 
         puzzle_window.deiconify()
@@ -19265,12 +19265,20 @@ class App:
                 return
 
             if wpn.get("infinite_ammo"):
+                _inf_mag_type = str(wpn.get('magazinetype', '')or '').lower()
+                if wpn.get('capacity')is not None and('internal'in _inf_mag_type or 'tube'in _inf_mag_type or 'box'in _inf_mag_type or not wpn.get('magazinesystem')):
+                    _handle_internal_magazine_reload()
+                    return
                 result = self._reload_weapon(wpn, save_data)
                 self._popup_show_info("Reload Result", result)
                 update_weapon_view()
                 return
 
-            if "internal"in magazine_type or "revolver"in wpn.get("platform", "").lower()or "cylinder"in magazine_type:
+            if "internal"in magazine_type or "tube"in magazine_type:
+                _handle_internal_magazine_reload()
+                return
+
+            if "revolver"in wpn.get("platform", "").lower()or "cylinder"in magazine_type:
                 result = self._reload_weapon(wpn, save_data)
                 self._popup_show_info("Reload Result", result)
                 update_weapon_view()
@@ -20721,164 +20729,417 @@ class App:
                     pass
 
                 def _open_magazine_editor():
+                    import tkinter as _tk_mag
                     try:
                         editor = customtkinter.CTkToplevel(self.root)
-                        editor.title('Magazine Editor')
+                        editor.title('Magazine Loader')
                         editor.transient(self.root)
                         cap = int(mag_item.get('capacity', 0)or 0)
                         existing = list(mag_item.get('rounds', [])or[])
 
-                        main_area = customtkinter.CTkFrame(editor)
-                        main_area.grid(row = 0, column = 0, sticky = 'nsew', padx = 8, pady = 8)
+                        SLOT_H = 28
+                        SLOT_W = 260
+                        ox_mag = 20
 
-                        scroll_h = max(300, min(1000, cap *24))
-                        slots_frame = customtkinter.CTkScrollableFrame(main_area, width = 420, height = scroll_h, fg_color = 'transparent')
-                        slots_frame.pack(side = 'left', fill = 'both', expand = True)
+                        vlist = sorted(available_by_variant.keys())
+                        cpal =['#c4a032', '#b87333', '#a0a0a0', '#d4af37', '#8b4513', '#cd7f32', '#e8c872', '#a08060']
+                        vcols = {v:cpal[i %len(cpal)]for i, v in enumerate(vlist)}
 
-                        variants =['Empty']+sorted(available_by_variant.keys())
+                        vtips = {}
+                        try:
+                            _mcal = mag_item.get('caliber')
+                            _mcal_str = _mcal if isinstance(_mcal, str)else(_mcal[0]if isinstance(_mcal, list)and _mcal else None)
+                            _ammo_tbl = self._get_ammo_table_data()
+                            for _atbl in _ammo_tbl:
+                                _ac = _atbl.get('caliber')
+                                _match = False
+                                if isinstance(_ac, list):
+                                    _match = _mcal_str in _ac if _mcal_str else False
+                                else:
+                                    _match =(_ac ==_mcal_str)if _mcal_str else False
+                                if _match:
+                                    for _av in _atbl.get('variants', []):
+                                        _atn = _av.get('name')
+                                        _att = _av.get('tip')
+                                        if _atn and _att and isinstance(_att, str)and _att.startswith('#'):
+                                            vtips[_atn]= _att
+                                    break
+                        except Exception:
+                            pass
 
-                        slot_vars =[]
-                        for i in range(cap):
-                            if i <len(existing):
+                        def _tip_for(vn):
+                            return vtips.get(vn, '#e0c060')
 
-                                rv = customtkinter.StringVar(value =(existing[i].get('variant')if isinstance(existing[i], dict)else(str(existing[i])if existing[i]else 'Empty')))
-                                lbl = customtkinter.CTkLabel(slots_frame, text = f'Slot {i +1}: ')
-                                lbl.pack(anchor = 'w')
-                                vlabel = customtkinter.CTkLabel(slots_frame, textvariable = rv)
-                                vlabel.pack(anchor = 'w', padx = 12)
-                                slot_vars.append(None)
-                            else:
-                                sv = customtkinter.StringVar(value = 'Empty')
-                                opt = customtkinter.CTkOptionMenu(slots_frame, values = variants, variable = sv, width = 220)
-                                opt.pack(anchor = 'w', pady = 2)
-                                slot_vars.append(sv)
+                        def _tip_ol_for(vn):
+                            tc = vtips.get(vn)
+                            if not tc:
+                                return '#aa8820'
+                            try:
+                                r_v = int(tc[1:3], 16)
+                                g_v = int(tc[3:5], 16)
+                                b_v = int(tc[5:7], 16)
+                                return f'#{max(0, r_v -40):02x}{max(0, g_v -40):02x}{max(0, b_v -40):02x}'
+                            except Exception:
+                                return '#aa8820'
 
-                        side = customtkinter.CTkFrame(editor, fg_color = 'transparent')
+                        def _tip_for_round(r):
+                            if isinstance(r, dict):
+                                vn = r.get('variant')or r.get('name')or 'Unknown'
+                                return _tip_for(vn)
+                            return '#e0c060'
+
+                        def _tip_ol_for_round(r):
+                            if isinstance(r, dict):
+                                vn = r.get('variant')or r.get('name')or 'Unknown'
+                                return _tip_ol_for(vn)
+                            return '#aa8820'
+
+                        CHIP_W, CHIP_H, CHIP_PAD = 130, 28, 6
+                        _cols = max(1, (SLOT_W +40)//(CHIP_W +CHIP_PAD))
+                        _rows_need = max(1, (len(vlist)+_cols -1)//_cols)if vlist else 1
+                        SEL_H = 22 +_rows_need *(CHIP_H +CHIP_PAD)+4
+                        HINT_H = 22
+                        MAG_TOP = SEL_H +HINT_H
+                        SPRING_H = 14
+                        canvas_h = MAG_TOP +cap *SLOT_H +SPRING_H +8
+                        canvas_w = SLOT_W +40
+
+                        main_frame = customtkinter.CTkFrame(editor)
+                        main_frame.grid(row = 0, column = 0, sticky = 'nsew', padx = 8, pady = 8)
+
+                        effective_h = min(canvas_h, 650)
+                        mag_canvas = _tk_mag.Canvas(main_frame, width = canvas_w, height = effective_h, bg = '#1a1a1a', highlightthickness = 1, highlightbackground = '#555555')
+                        if canvas_h >650:
+                            _mc_scroll = _tk_mag.Scrollbar(main_frame, orient = 'vertical', command = mag_canvas.yview)
+                            _mc_scroll.pack(side = 'right', fill = 'y')
+                            mag_canvas.configure(yscrollcommand = _mc_scroll.set, scrollregion =(0, 0, canvas_w, canvas_h))
+                        mag_canvas.pack(side = 'left', fill = 'both', expand = True)
+
+                        side = customtkinter.CTkFrame(editor, fg_color = 'transparent', width = 180)
                         side.grid(row = 0, column = 1, sticky = 'ns', padx = 8, pady = 8)
-                        side.pack_propagate(False)
 
-                        bulk_label = customtkinter.CTkLabel(side, text = 'Bulk Actions', font = customtkinter.CTkFont(size = 12, weight = 'bold'))
-                        bulk_label.pack(pady = 6)
+                        ls = {'dragging':False, 'drag_vn':None, 'di':None, 'dt':None, 'do':None,
+                        'added':0, 'stoggle':0, 'animating':False}
 
-                        bulk_var = customtkinter.StringVar(value = variants[0])
-                        bulk_menu = customtkinter.CTkOptionMenu(side, values = variants, variable = bulk_var, width = 180)
-                        bulk_menu.pack(pady = 6)
+                        chip_hitboxes = {}
 
-                        def set_all():
-                            val = bulk_var.get()
-                            for sv in slot_vars:
-                                if sv is not None:
-                                    sv.set(val)
-
-                        set_all_btn = customtkinter.CTkButton(side, text = 'Set All', command = set_all, width = 160)
-                        set_all_btn.pack(pady = 6)
-
-                        def apply_changes():
-
-                            desired =[]
-                            for sv in slot_vars:
-                                if sv is None:
-                                    continue
-                                v = sv.get()
-                                if v and v !='Empty':
-                                    desired.append(v)
-                            if not desired:
-                                editor.destroy()
+                        def _draw_chips():
+                            mag_canvas.delete('chips')
+                            mag_canvas.create_text(canvas_w //2, 10, text = 'AVAILABLE ROUNDS', fill = '#888888',
+                            font =('Consolas', 9, 'bold'), tags = 'chips')
+                            if not vlist:
+                                mag_canvas.create_text(canvas_w //2, SEL_H //2 +10, text = 'No rounds available',
+                                fill = '#555555', font =('Consolas', 9), tags = 'chips')
                                 return
+                            start_x =(canvas_w -min(len(vlist), _cols)*(CHIP_W +CHIP_PAD)+CHIP_PAD)//2
+                            for idx, vn in enumerate(vlist):
+                                cnt = available_by_variant.get(vn, 0)
+                                row_i = idx //_cols
+                                col_i = idx %_cols
+                                x1 = start_x +col_i *(CHIP_W +CHIP_PAD)
+                                y1 = 22 +row_i *(CHIP_H +CHIP_PAD)
+                                x2 = x1 +CHIP_W
+                                y2 = y1 +CHIP_H
+                                chip_hitboxes[vn]=(x1, y1, x2, y2)
+                                c = vcols.get(vn, '#c4a032')
+                                is_avail = cnt >0
+                                fill = c if is_avail else '#2a2a2a'
+                                ol = '#dddddd'if is_avail else '#3a3a3a'
+                                mag_canvas.create_rectangle(x1, y1, x2, y2, fill = fill, outline = ol, width = 1, tags = 'chips')
+                                mag_canvas.create_oval(x1 +3, y1 +3, x1 +19, y2 -3, fill = _tip_for(vn)if is_avail else '#3a3a3a',
+                                outline = _tip_ol_for(vn)if is_avail else '#3a3a3a', tags = 'chips')
+                                disp = vn if len(vn)<=11 else vn[:10]+'\u2026'
+                                mag_canvas.create_text((x1 +x2)//2 +8, (y1 +y2)//2,
+                                text = f'{disp} x{cnt}',
+                                fill = '#1a1a1a'if is_avail else '#555555',
+                                font =('Consolas', 8, 'bold'), tags = 'chips')
 
-                            collected =[]
+                        def _draw_mag_body():
+                            mag_canvas.delete('mag')
+                            oy = MAG_TOP
+                            mag_canvas.create_text(canvas_w //2, MAG_TOP -10, text = '\u2193 DROP INTO MAGAZINE \u2193',
+                            fill = '#555555', font =('Consolas', 9), tags = 'mag')
+                            mag_canvas.create_rectangle(ox_mag, oy, ox_mag +SLOT_W, oy +cap *SLOT_H,
+                            outline = '#888888', width = 2, tags = 'mag')
+                            mag_canvas.create_line(ox_mag, oy, ox_mag -15, oy -8, fill = '#888888', width = 2, tags = 'mag')
+                            mag_canvas.create_line(ox_mag +SLOT_W, oy, ox_mag +SLOT_W +15, oy -8,
+                            fill = '#888888', width = 2, tags = 'mag')
+                            for i in range(cap):
+                                sy = oy +i *SLOT_H
+                                if i >0:
+                                    mag_canvas.create_line(ox_mag, sy, ox_mag +SLOT_W, sy, fill = '#444444',
+                                    dash =(2, 2), tags = 'mag')
+                                if i <len(existing):
+                                    r = existing[i]
+                                    vn = r.get('variant')if isinstance(r, dict)else str(r)if r else 'Unknown'
+                                    c = vcols.get(vn, '#c4a032')
+                                    mag_canvas.create_rectangle(ox_mag +2, sy +2, ox_mag +SLOT_W -2, sy +SLOT_H -2,
+                                    fill = c, outline = '#222222', tags = 'mag')
+                                    mag_canvas.create_oval(ox_mag +4, sy +4, ox_mag +22, sy +SLOT_H -4,
+                                    fill = _tip_for_round(r), outline = _tip_ol_for_round(r), tags = 'mag')
+                                    mag_canvas.create_text(ox_mag +SLOT_W //2 +10, sy +SLOT_H //2, text = vn, # type: ignore
+                                    fill = '#1a1a1a', font =('Consolas', 9, 'bold'), tags = 'mag')
+                                else:
+                                    mag_canvas.create_text(ox_mag +SLOT_W //2, sy +SLOT_H //2, text = '[empty]',
+                                    fill = '#444444', font =('Consolas', 9), tags = 'mag')
+                            by = oy +cap *SLOT_H
+                            mag_canvas.create_rectangle(ox_mag, by, ox_mag +SLOT_W, by +SPRING_H,
+                            fill = '#555555', outline = '#666666', tags = 'mag')
+                            mag_canvas.create_text(ox_mag +SLOT_W //2, by +SPRING_H //2,
+                            text = '\u25b2 SPRING \u25b2', fill = '#888888',
+                            font =('Consolas', 8), tags = 'mag')
 
-                            def _take_round_from_container(variant_name):
+                        def _draw_all():
+                            _draw_chips()
+                            _draw_mag_body()
 
-                                for hi in range(len(save_data.get('hands', {}).get('items', []))-1, -1, -1):
-                                    itm = save_data['hands']['items'][hi]
+                        def _take_round(vname):
+                            for hi in range(len(save_data.get('hands', {}).get('items', []))-1, -1, -1):
+                                itm = save_data['hands']['items'][hi]
+                                try:
+                                    if not itm or not isinstance(itm, dict):
+                                        continue
+                                    rds = itm.get('rounds')
+                                    if isinstance(rds, list)and rds:
+                                        for ri, r in enumerate(rds):
+                                            rv =(r.get('variant')if isinstance(r, dict)else(str(r)if r else None))
+                                            if rv ==vname:
+                                                return rds.pop(ri)
+                                    qty = int(itm.get('quantity')or 0)if isinstance(itm.get('quantity'), (int, float))else 0
+                                    if qty >0:
+                                        nm = itm.get('variant')or itm.get('name')or itm.get('caliber')
+                                        if nm and str(nm)==vname:
+                                            itm['quantity']= qty -1
+                                            return {k:v for k, v in itm.items()if k !='quantity'}
+                                    if itm.get('caliber')and(itm.get('variant')or itm.get('name'))and(itm.get('variant')==vname or itm.get('name')==vname):
+                                        try:
+                                            save_data['hands']['items'].pop(hi)
+                                        except Exception:
+                                            pass
+                                except Exception:
+                                    continue
+                            for _sn_eq, eq_item in list(save_data.get('equipment', {}).items()):
+                                if not eq_item or not isinstance(eq_item, dict):
+                                    continue
+                                for cidx in range(len(eq_item.get('items', []))-1, -1, -1):
                                     try:
+                                        itm = eq_item['items'][cidx]
                                         if not itm or not isinstance(itm, dict):
                                             continue
-
                                         rds = itm.get('rounds')
                                         if isinstance(rds, list)and rds:
                                             for ri, r in enumerate(rds):
                                                 rv =(r.get('variant')if isinstance(r, dict)else(str(r)if r else None))
-                                                if rv ==variant_name:
+                                                if rv ==vname:
                                                     return rds.pop(ri)
                                         qty = int(itm.get('quantity')or 0)if isinstance(itm.get('quantity'), (int, float))else 0
                                         if qty >0:
-                                            name = itm.get('variant')or itm.get('name')or itm.get('caliber')
-                                            if name and str(name)==variant_name:
-
+                                            nm = itm.get('variant')or itm.get('name')or itm.get('caliber')
+                                            if nm and str(nm)==vname:
                                                 itm['quantity']= qty -1
-                                                r = {k:v for k, v in itm.items()if k !='quantity'}
-                                                return r
-                                        if itm.get('caliber')and(itm.get('variant')or itm.get('name'))and(itm.get('variant')==variant_name or itm.get('name')==variant_name):
-                                            try:
-                                                save_data['hands']['items'].pop(hi)
-                                            except Exception:
-                                                pass
+                                                return {k:v for k, v in itm.items()if k !='quantity'}
                                     except Exception:
-                                        continue
+                                        pass
+                            return None
 
-                                for slot_name, eq_item in list(save_data.get('equipment', {}).items()):
-                                    if not eq_item or not isinstance(eq_item, dict):
-                                        continue
-                                    for cidx in range(len(eq_item.get('items', []))-1, -1, -1):
-                                        try:
-                                            itm = eq_item['items'][cidx]
-                                            if not itm or not isinstance(itm, dict):
-                                                continue
-                                            rds = itm.get('rounds')
-                                            if isinstance(rds, list)and rds:
-                                                for ri, r in enumerate(rds):
-                                                    rv =(r.get('variant')if isinstance(r, dict)else(str(r)if r else None))
-                                                    if rv ==variant_name:
-                                                        return rds.pop(ri)
-                                            qty = int(itm.get('quantity')or 0)if isinstance(itm.get('quantity'), (int, float))else 0
-                                            if qty >0:
-                                                name = itm.get('variant')or itm.get('name')or itm.get('caliber')
-                                                if name and str(name)==variant_name:
-                                                    itm['quantity']= qty -1
-                                                    r = {k:v for k, v in itm.items()if k !='quantity'}
-                                                    return r
-                                        except Exception:
-                                            pass
-                                return None
+                        def _play_insert():
+                            try:
+                                sn = f"bulletinsert{ls['stoggle']}"
+                                ls['stoggle']= 1 -ls['stoggle']
+                                self._play_weapon_action_sound(wpn, sn, block = False)
+                            except Exception:
+                                pass
 
-                            for vname in desired:
-                                r = _take_round_from_container(vname)
-                                if r is not None:
-                                    collected.append(r)
-                                else:
-                                    logging.debug('Magazine editor: could not find round for variant %s', vname)
+                        def _do_insert_data(vname):
+                            if len(existing)>=cap:
+                                return False
+                            r = _take_round(vname)
+                            if r is None:
+                                return False
+                            existing.insert(0, r)
+                            ls['added']+=1
+                            if vname in available_by_variant:
+                                available_by_variant[vname]-=1
+                                if available_by_variant[vname]<=0:
+                                    del available_by_variant[vname]
+                            _play_insert()
+                            return True
 
-                            space = cap -len(mag_item.get('rounds', [])or[])
-                            to_add = collected[:space]
-                            if to_add:
-                                mag_item.setdefault('rounds', []).extend(to_add)
+                        def _hit_chip(x, y):
+                            for vn, (x1, y1, x2, y2)in chip_hitboxes.items():
+                                if x1 <=x <=x2 and y1 <=y <=y2 and available_by_variant.get(vn, 0)>0:
+                                    return vn
+                            return None
+
+                        def _on_press(event):
+                            if ls['animating']or len(existing)>=cap:
+                                return
+                            vn = _hit_chip(event.x, event.y)
+                            if not vn:
+                                return
+                            ls['dragging']= True
+                            ls['drag_vn']= vn
+                            c = vcols.get(vn, '#c4a032')
+                            ls['di']= mag_canvas.create_rectangle(
+                            ox_mag +2, event.y -SLOT_H //2, ox_mag +SLOT_W -2, event.y +SLOT_H //2,
+                            fill = c, outline = '#ffffff', width = 2, tags = 'drag')
+                            ls['do']= mag_canvas.create_oval(
+                            ox_mag +4, event.y -SLOT_H //2 +2, ox_mag +22, event.y +SLOT_H //2 -2,
+                            fill = _tip_for(vn), outline = _tip_ol_for(vn), tags = 'drag')
+                            ls['dt']= mag_canvas.create_text(
+                            ox_mag +SLOT_W //2 +10, event.y,
+                            text = vn, fill = '#1a1a1a', font =('Consolas', 10, 'bold'), tags = 'drag')
+
+                        def _on_move(event):
+                            if not ls['dragging']:
+                                return
+                            y = event.y
+                            ls_di, ls_do, ls_dt = ls['di'], ls['do'], ls['dt']
+                            if ls_di and ls_dt and ls_do:
+                                mag_canvas.coords(ls_di, ox_mag +2, y -SLOT_H //2,
+                                ox_mag +SLOT_W -2, y +SLOT_H //2)
+                                mag_canvas.coords(ls_do, ox_mag +4, y -SLOT_H //2 +2,
+                                ox_mag +22, y +SLOT_H //2 -2)
+                                mag_canvas.coords(ls_dt, ox_mag +SLOT_W //2 +10, y)
+
+                        def _on_release(event):
+                            if not ls['dragging']:
+                                return
+                            ls['dragging']= False
+                            mag_canvas.delete('drag')
+                            ls['di']= ls['dt']= ls['do']= None
+                            if len(existing)>=cap or ls['animating']:
+                                return
+                            vn = ls['drag_vn']
+                            if not vn or available_by_variant.get(vn, 0)<=0:
+                                return
+                            if event.y >=MAG_TOP -15:
+                                _animate_push_insert(vn)
+
+                        def _animate_push_insert(vname):
+                            ls['animating']= True
+                            oy = MAG_TOP
+                            n_ex = len(existing)
+                            c_new = vcols.get(vname, '#c4a032')
+
+                            mag_canvas.delete('mag')
+                            mag_canvas.create_text(canvas_w //2, MAG_TOP -10, text = '\u2193 DROP INTO MAGAZINE \u2193',
+                            fill = '#555555', font =('Consolas', 9), tags = 'magshell')
+                            mag_canvas.create_rectangle(ox_mag, oy, ox_mag +SLOT_W, oy +cap *SLOT_H,
+                            outline = '#888888', width = 2, tags = 'magshell')
+                            mag_canvas.create_line(ox_mag, oy, ox_mag -15, oy -8, fill = '#888888', width = 2, tags = 'magshell')
+                            mag_canvas.create_line(ox_mag +SLOT_W, oy, ox_mag +SLOT_W +15, oy -8,
+                            fill = '#888888', width = 2, tags = 'magshell')
+                            for si in range(1, cap):
+                                _sy = oy +si *SLOT_H
+                                mag_canvas.create_line(ox_mag, _sy, ox_mag +SLOT_W, _sy, fill = '#444444',
+                                dash =(2, 2), tags = 'magshell')
+                            _by = oy +cap *SLOT_H
+                            mag_canvas.create_rectangle(ox_mag, _by, ox_mag +SLOT_W, _by +SPRING_H,
+                            fill = '#555555', outline = '#666666', tags = 'magshell')
+                            mag_canvas.create_text(ox_mag +SLOT_W //2, _by +SPRING_H //2,
+                            text = '\u25b2 SPRING \u25b2', fill = '#888888',
+                            font =('Consolas', 8), tags = 'magshell')
+                            for ei in range(n_ex, cap):
+                                _esy = oy +ei *SLOT_H
+                                mag_canvas.create_text(ox_mag +SLOT_W //2, _esy +SLOT_H //2, text = '[empty]',
+                                fill = '#444444', font =('Consolas', 9), tags = 'magshell')
+
+                            anim_ids =[]
+                            for i in range(n_ex):
+                                r = existing[i]
+                                vn_e = r.get('variant')if isinstance(r, dict)else str(r)if r else 'Unknown'
+                                c_e = vcols.get(vn_e, '#c4a032')
+                                sy = oy +i *SLOT_H
+                                _ri = mag_canvas.create_rectangle(ox_mag +2, sy +2, ox_mag +SLOT_W -2, sy +SLOT_H -2,
+                                fill = c_e, outline = '#222222', tags = 'pushanim')
+                                _oi = mag_canvas.create_oval(ox_mag +4, sy +4, ox_mag +22, sy +SLOT_H -4,
+                                fill = _tip_for_round(r), outline = _tip_ol_for_round(r), tags = 'pushanim')
+                                _ti = mag_canvas.create_text(ox_mag +SLOT_W //2 +10, sy +SLOT_H //2, text = vn_e, # type: ignore
+                                fill = '#1a1a1a', font =('Consolas', 9, 'bold'), tags = 'pushanim')
+                                anim_ids.append((_ri, _oi, _ti, float(sy)))
+
+                            new_start_y = float(oy -SLOT_H -4)
+                            new_target_y = float(oy)
+                            _nr = mag_canvas.create_rectangle(ox_mag +2, new_start_y +2, ox_mag +SLOT_W -2,
+                            new_start_y +SLOT_H -2, fill = c_new,
+                            outline = '#ffffff', width = 2, tags = 'pushanim')
+                            _no = mag_canvas.create_oval(ox_mag +4, new_start_y +4, ox_mag +22,
+                            new_start_y +SLOT_H -4, fill = _tip_for(vname),
+                            outline = _tip_ol_for(vname), tags = 'pushanim')
+                            _nt = mag_canvas.create_text(ox_mag +SLOT_W //2 +10, new_start_y +SLOT_H //2,
+                            text = vname, fill = '#1a1a1a',
+                            font =('Consolas', 10, 'bold'), tags = 'pushanim')
+
+                            total_steps = 10
+                            push_per_step = float(SLOT_H)/total_steps
+                            new_per_step =(new_target_y -new_start_y)/total_steps
+
+                            def _push_step(step):
+                                if step >=total_steps:
+                                    mag_canvas.delete('pushanim')
+                                    mag_canvas.delete('magshell')
+                                    _do_insert_data(vname)
+                                    _draw_all()
+                                    _update_side()
+                                    ls['animating']= False
+                                    return
+                                frac = step +1
+                                for _ri, _oi, _ti, base_y in anim_ids:
+                                    cy = base_y +frac *push_per_step
+                                    mag_canvas.coords(_ri, ox_mag +2, cy +2, ox_mag +SLOT_W -2, cy +SLOT_H -2)
+                                    mag_canvas.coords(_oi, ox_mag +4, cy +4, ox_mag +22, cy +SLOT_H -4)
+                                    mag_canvas.coords(_ti, ox_mag +SLOT_W //2 +10, cy +SLOT_H //2)
+                                cn = new_start_y +frac *new_per_step
+                                mag_canvas.coords(_nr, ox_mag +2, cn +2, ox_mag +SLOT_W -2, cn +SLOT_H -2)
+                                mag_canvas.coords(_no, ox_mag +4, cn +4, ox_mag +22, cn +SLOT_H -4)
+                                mag_canvas.coords(_nt, ox_mag +SLOT_W //2 +10, cn +SLOT_H //2)
+                                editor.after(25, lambda:_push_step(step +1))
+
+                            _push_step(0)
+
+                        mag_canvas.bind('<Button-1>', _on_press)
+                        mag_canvas.bind('<B1-Motion>', _on_move)
+                        mag_canvas.bind('<ButtonRelease-1>', _on_release)
+
+                        _cap_lbl = customtkinter.CTkLabel(side, text = f'{len(existing)}/{cap} rounds loaded',
+                        font = customtkinter.CTkFont(size = 13, weight = 'bold'))
+                        _cap_lbl.pack(pady =(10, 6))
+
+                        customtkinter.CTkLabel(side, text = 'Click & drag a round\nfrom the top area down\ninto the magazine',
+                        font = customtkinter.CTkFont(size = 10), text_color = '#888888',
+                        wraplength = 170).pack(pady = 6)
+
+                        def _update_side():
+                            _cap_lbl.configure(text = f'{len(existing)}/{cap} rounds loaded')
+
+                        def _done():
+                            if ls['added']>0:
+                                mag_item['rounds']= existing
                             editor.destroy()
                             update_weapon_view()
-                            if load_into_weapon_var is None or load_into_weapon_var.get():
-                                try:
-                                    update_weapon_view()
-                                except Exception:
-                                    pass
-                            self._popup_show_info('Magazine', f'Added {len(to_add)} rounds to {mag_item.get("name", "magazine")}')
+                            if ls['added']>0:
+                                self._popup_show_info('Magazine', f'Added {ls["added"]} rounds to {mag_item.get("name", "magazine")}')
+
+                        editor.protocol('WM_DELETE_WINDOW', _done)
+                        customtkinter.CTkButton(side, text = 'Done', command = _done, width = 160, height = 35,
+                        font = customtkinter.CTkFont(size = 12)).pack(pady = 10)
+
+                        _draw_all()
+
+                        editor.update_idletasks()
+                        ew = max(editor.winfo_reqwidth(), 520)
+                        eh = max(editor.winfo_reqheight(), 420)
+                        _sw_s = editor.winfo_screenwidth()
+                        _sh_s = editor.winfo_screenheight()
+                        x =(_sw_s //2)-(ew //2)
+                        y =(_sh_s //2)-(eh //2)
+                        editor.geometry(f'{ew}x{eh}+{x}+{y}')
+                        editor.grab_set()
+                        editor.lift()
+                        self._safe_focus(editor)
                     except Exception:
-                        logging.exception('Failed to apply magazine editor changes')
-
-                    apply_btn = customtkinter.CTkButton(side, text = 'Apply', command = apply_changes, width = 160)
-                    apply_btn.pack(pady = 6)
-
-                    editor.update_idletasks()
-                    ew = editor.winfo_reqwidth()
-                    eh = editor.winfo_reqheight()
-                    sw = editor.winfo_screenwidth()
-                    sh = editor.winfo_screenheight()
-                    x =(sw //2)-(ew //2)
-                    y =(sh //2)-(eh //2)
-                    editor.geometry(f'+{x}+{y}')
-                    editor.grab_set()
-                    editor.lift()
-                    self._safe_focus(editor)
+                        logging.exception('Failed to open magazine loader')
 
                 _open_magazine_editor()
 
@@ -21591,6 +21852,993 @@ class App:
                     pass
             except Exception:
                 pass
+
+        def _handle_internal_magazine_reload():
+            import tkinter as _tk_int
+            try:
+                wpn = current_weapon_state.get('weapon')or {}
+                mag_type = str(wpn.get('magazinetype', '')or '').lower()
+
+                caliber_list = wpn.get('caliber', [])or[]
+                if isinstance(caliber_list, str):
+                    caliber_list =[caliber_list]
+                caliber = caliber_list[0]if caliber_list else None
+                if not caliber:
+                    self._popup_show_info('Internal Reload', 'Weapon has no caliber defined.')
+                    return
+
+                filter_calibers = set()
+                for c in caliber_list:
+                    if c:
+                        filter_calibers.add(str(c).lower().strip())
+
+                def _get_available_rounds_by_variant_internal():
+                    variants = {}
+                    def _caliber_matches(item_cal):
+                        if not filter_calibers:
+                            return True
+                        if not item_cal:
+                            return False
+                        return str(item_cal).lower().strip()in filter_calibers
+
+                    def _get_variant_name(itm):
+                        v = itm.get('variant')
+                        if v:
+                            return str(v)
+                        n = itm.get('name')
+                        if n:
+                            return str(n)
+                        return 'Unknown'
+
+                    def _process_item(itm):
+                        if not itm or not isinstance(itm, dict):
+                            return
+                        if itm.get('magazinesystem')or itm.get('capacity'):
+                            return
+                        itm_cal = itm.get('caliber')
+                        if not _caliber_matches(itm_cal):
+                            return
+                        rds = itm.get('rounds')
+                        if isinstance(rds, list)and rds:
+                            for r in rds:
+                                if isinstance(r, dict):
+                                    r_cal = r.get('caliber')
+                                    if not _caliber_matches(r_cal):
+                                        continue
+                                    variant = _get_variant_name(r)
+                                    variants[variant]= variants.get(variant, 0)+1
+                            return
+                        qty = int(itm.get('quantity')or 0)if isinstance(itm.get('quantity'), (int, float))else 0
+                        if qty >0:
+                            variant = _get_variant_name(itm)
+                            variants[variant]= variants.get(variant, 0)+qty
+                            return
+                        if itm.get('caliber'):
+                            variant = _get_variant_name(itm)
+                            variants[variant]= variants.get(variant, 0)+1
+
+                    for itm in save_data.get('hands', {}).get('items', []):
+                        _process_item(itm)
+                    for slot_name, eq_item in save_data.get('equipment', {}).items():
+                        if not eq_item or not isinstance(eq_item, dict):
+                            continue
+                        for itm in eq_item.get('items', [])or[]:
+                            _process_item(itm)
+                        for sub in eq_item.get('subslots', [])or[]:
+                            curr = sub.get('current')
+                            if curr and isinstance(curr, dict):
+                                for itm in curr.get('items', [])or[]:
+                                    _process_item(itm)
+                    return variants
+
+                is_infinite = bool(wpn.get('infinite_ammo'))
+
+                if is_infinite:
+                    available_by_variant = {'Infinite':9999}
+                else:
+                    available_by_variant = _get_available_rounds_by_variant_internal()
+
+                total_available = sum(available_by_variant.values())
+
+                if 'tube'in mag_type:
+                    if total_available <=0:
+                        self._popup_show_info('Internal Reload', 'No compatible ammunition found!')
+                        return
+                    _open_tube_magazine_editor(wpn, available_by_variant, caliber, filter_calibers, is_infinite)
+                elif 'box'in mag_type:
+                    if total_available <=0:
+                        self._popup_show_info('Internal Reload', 'No compatible ammunition found!')
+                        return
+                    _open_internal_box_editor(wpn, available_by_variant, caliber, filter_calibers, is_infinite)
+                else:
+                    if is_infinite:
+                        _open_internal_box_editor(wpn, available_by_variant, caliber, filter_calibers, is_infinite)
+                    else:
+                        _handle_bolt_only_reload(wpn, caliber)
+
+            except Exception:
+                logging.exception('Failed internal magazine reload')
+
+        def _handle_bolt_only_reload(wpn, caliber):
+            try:
+                self._play_weapon_action_sound(wpn, 'boltback', block = True)
+                import time as _t_bolt
+                _t_bolt.sleep(0.3)
+                self._play_weapon_action_sound(wpn, 'boltforward', block = False)
+                update_weapon_view()
+            except Exception:
+                pass
+
+        def _open_internal_box_editor(wpn, available_by_variant, caliber, filter_calibers, is_infinite = False):
+            import tkinter as _tk_ib
+            try:
+                editor = customtkinter.CTkToplevel(self.root)
+                editor.title('Internal Magazine Loader')
+                editor.transient(self.root)
+                cap = int(wpn.get('capacity', 0)or 0)
+                existing = list(wpn.get('rounds', [])or[])
+
+                SLOT_H = 28
+                SLOT_W = 260
+                ox_mag = 20
+
+                vlist = sorted(available_by_variant.keys())
+                cpal =['#c4a032', '#b87333', '#a0a0a0', '#d4af37', '#8b4513', '#cd7f32', '#e8c872', '#a08060']
+                vcols = {v:cpal[i %len(cpal)]for i, v in enumerate(vlist)}
+
+                vtips = {}
+                try:
+                    _ammo_tbl = self._get_ammo_table_data()
+                    for _atbl in _ammo_tbl:
+                        _ac = _atbl.get('caliber')
+                        _match = False
+                        if isinstance(_ac, list):
+                            _match = caliber in _ac if caliber else False
+                        else:
+                            _match =(_ac ==caliber)if caliber else False
+                        if _match:
+                            for _av in _atbl.get('variants', []):
+                                _atn = _av.get('name')
+                                _att = _av.get('tip')
+                                if _atn and _att and isinstance(_att, str)and _att.startswith('#'):
+                                    vtips[_atn]= _att
+                            break
+                except Exception:
+                    pass
+
+                def _tip_for(vn):
+                    return vtips.get(vn, '#e0c060')
+
+                def _tip_ol_for(vn):
+                    tc = vtips.get(vn)
+                    if not tc:
+                        return '#aa8820'
+                    try:
+                        r_v = int(tc[1:3], 16)
+                        g_v = int(tc[3:5], 16)
+                        b_v = int(tc[5:7], 16)
+                        return f'#{max(0, r_v -40):02x}{max(0, g_v -40):02x}{max(0, b_v -40):02x}'
+                    except Exception:
+                        return '#aa8820'
+
+                def _tip_for_round(r):
+                    if isinstance(r, dict):
+                        vn = r.get('variant')or r.get('name')or 'Unknown'
+                        return _tip_for(vn)
+                    return '#e0c060'
+
+                def _tip_ol_for_round(r):
+                    if isinstance(r, dict):
+                        vn = r.get('variant')or r.get('name')or 'Unknown'
+                        return _tip_ol_for(vn)
+                    return '#aa8820'
+
+                CHIP_W, CHIP_H, CHIP_PAD = 130, 28, 6
+                _cols = max(1, (SLOT_W +40)//(CHIP_W +CHIP_PAD))
+                _rows_need = max(1, (len(vlist)+_cols -1)//_cols)if vlist else 1
+                SEL_H = 22 +_rows_need *(CHIP_H +CHIP_PAD)+4
+                HINT_H = 22
+                MAG_TOP = SEL_H +HINT_H
+                SPRING_H = 14
+                canvas_h = MAG_TOP +cap *SLOT_H +SPRING_H +8
+                canvas_w = SLOT_W +40
+
+                main_frame = customtkinter.CTkFrame(editor)
+                main_frame.grid(row = 0, column = 0, sticky = 'nsew', padx = 8, pady = 8)
+
+                effective_h = min(canvas_h, 650)
+                mag_canvas = _tk_ib.Canvas(main_frame, width = canvas_w, height = effective_h, bg = '#1a1a1a', highlightthickness = 1, highlightbackground = '#555555')
+                if canvas_h >650:
+                    _mc_scroll = _tk_ib.Scrollbar(main_frame, orient = 'vertical', command = mag_canvas.yview)
+                    _mc_scroll.pack(side = 'right', fill = 'y')
+                    mag_canvas.configure(yscrollcommand = _mc_scroll.set, scrollregion =(0, 0, canvas_w, canvas_h))
+                mag_canvas.pack(side = 'left', fill = 'both', expand = True)
+
+                side = customtkinter.CTkFrame(editor, fg_color = 'transparent', width = 180)
+                side.grid(row = 0, column = 1, sticky = 'ns', padx = 8, pady = 8)
+
+                ls = {'dragging':False, 'drag_vn':None, 'di':None, 'dt':None, 'do':None,
+                'added':0, 'stoggle':0, 'animating':False}
+
+                chip_hitboxes = {}
+
+                def _draw_chips():
+                    mag_canvas.delete('chips')
+                    mag_canvas.create_text(canvas_w //2, 10, text = 'AVAILABLE ROUNDS', fill = '#888888',
+                    font =('Consolas', 9, 'bold'), tags = 'chips')
+                    if not vlist:
+                        mag_canvas.create_text(canvas_w //2, SEL_H //2 +10, text = 'No rounds available',
+                        fill = '#555555', font =('Consolas', 9), tags = 'chips')
+                        return
+                    start_x =(canvas_w -min(len(vlist), _cols)*(CHIP_W +CHIP_PAD)+CHIP_PAD)//2
+                    for idx, vn in enumerate(vlist):
+                        cnt = available_by_variant.get(vn, 0)
+                        row_i = idx //_cols
+                        col_i = idx %_cols
+                        x1 = start_x +col_i *(CHIP_W +CHIP_PAD)
+                        y1 = 22 +row_i *(CHIP_H +CHIP_PAD)
+                        x2 = x1 +CHIP_W
+                        y2 = y1 +CHIP_H
+                        chip_hitboxes[vn]=(x1, y1, x2, y2)
+                        c = vcols.get(vn, '#c4a032')
+                        is_avail = cnt >0
+                        fill = c if is_avail else '#2a2a2a'
+                        ol = '#dddddd'if is_avail else '#3a3a3a'
+                        mag_canvas.create_rectangle(x1, y1, x2, y2, fill = fill, outline = ol, width = 1, tags = 'chips')
+                        mag_canvas.create_oval(x1 +3, y1 +3, x1 +19, y2 -3, fill = _tip_for(vn)if is_avail else '#3a3a3a',
+                        outline = _tip_ol_for(vn)if is_avail else '#3a3a3a', tags = 'chips')
+                        disp = vn if len(vn)<=11 else vn[:10]+'\u2026'
+                        cnt_str = '\u221e'if is_infinite else str(cnt)
+                        mag_canvas.create_text((x1 +x2)//2 +8, (y1 +y2)//2,
+                        text = f'{disp} x{cnt_str}',
+                        fill = '#1a1a1a'if is_avail else '#555555',
+                        font =('Consolas', 8, 'bold'), tags = 'chips')
+
+                def _draw_mag_body():
+                    mag_canvas.delete('mag')
+                    oy = MAG_TOP
+                    mag_canvas.create_text(canvas_w //2, MAG_TOP -10, text = '\u2193 DROP INTO MAGAZINE \u2193',
+                    fill = '#555555', font =('Consolas', 9), tags = 'mag')
+                    mag_canvas.create_rectangle(ox_mag, oy, ox_mag +SLOT_W, oy +cap *SLOT_H,
+                    outline = '#888888', width = 2, tags = 'mag')
+                    mag_canvas.create_line(ox_mag, oy, ox_mag -15, oy -8, fill = '#888888', width = 2, tags = 'mag')
+                    mag_canvas.create_line(ox_mag +SLOT_W, oy, ox_mag +SLOT_W +15, oy -8,
+                    fill = '#888888', width = 2, tags = 'mag')
+                    for i in range(cap):
+                        sy = oy +i *SLOT_H
+                        if i >0:
+                            mag_canvas.create_line(ox_mag, sy, ox_mag +SLOT_W, sy, fill = '#444444',
+                            dash =(2, 2), tags = 'mag')
+                        if i <len(existing):
+                            r = existing[i]
+                            vn = r.get('variant')if isinstance(r, dict)else str(r)if r else 'Unknown'
+                            c = vcols.get(vn, '#c4a032')
+                            mag_canvas.create_rectangle(ox_mag +2, sy +2, ox_mag +SLOT_W -2, sy +SLOT_H -2,
+                            fill = c, outline = '#222222', tags = 'mag')
+                            mag_canvas.create_oval(ox_mag +4, sy +4, ox_mag +22, sy +SLOT_H -4,
+                            fill = _tip_for_round(r), outline = _tip_ol_for_round(r), tags = 'mag')
+                            mag_canvas.create_text(ox_mag +SLOT_W //2 +10, sy +SLOT_H //2, text = vn, # type: ignore
+                            fill = '#1a1a1a', font =('Consolas', 9, 'bold'), tags = 'mag')
+                        else:
+                            mag_canvas.create_text(ox_mag +SLOT_W //2, sy +SLOT_H //2, text = '[empty]',
+                            fill = '#444444', font =('Consolas', 9), tags = 'mag')
+                    by = oy +cap *SLOT_H
+                    mag_canvas.create_rectangle(ox_mag, by, ox_mag +SLOT_W, by +SPRING_H,
+                    fill = '#555555', outline = '#666666', tags = 'mag')
+                    mag_canvas.create_text(ox_mag +SLOT_W //2, by +SPRING_H //2,
+                    text = '\u25b2 SPRING \u25b2', fill = '#888888',
+                    font =('Consolas', 8), tags = 'mag')
+
+                def _draw_all():
+                    _draw_chips()
+                    _draw_mag_body()
+
+                def _take_round(vname):
+                    if is_infinite:
+                        return {'name':f'{caliber} | Infinite', 'caliber':caliber, 'variant':'Infinite'}
+                    for hi in range(len(save_data.get('hands', {}).get('items', []))-1, -1, -1):
+                        itm = save_data['hands']['items'][hi]
+                        try:
+                            if not itm or not isinstance(itm, dict):
+                                continue
+                            rds = itm.get('rounds')
+                            if isinstance(rds, list)and rds:
+                                for ri, r in enumerate(rds):
+                                    rv =(r.get('variant')if isinstance(r, dict)else(str(r)if r else None))
+                                    if rv ==vname:
+                                        return rds.pop(ri)
+                            qty = int(itm.get('quantity')or 0)if isinstance(itm.get('quantity'), (int, float))else 0
+                            if qty >0:
+                                nm = itm.get('variant')or itm.get('name')or itm.get('caliber')
+                                if nm and str(nm)==vname:
+                                    itm['quantity']= qty -1
+                                    return {k:v for k, v in itm.items()if k !='quantity'}
+                            if itm.get('caliber')and(itm.get('variant')or itm.get('name'))and(itm.get('variant')==vname or itm.get('name')==vname):
+                                try:
+                                    save_data['hands']['items'].pop(hi)
+                                except Exception:
+                                    pass
+                        except Exception:
+                            continue
+                    for _sn_eq, eq_item in list(save_data.get('equipment', {}).items()):
+                        if not eq_item or not isinstance(eq_item, dict):
+                            continue
+                        for cidx in range(len(eq_item.get('items', []))-1, -1, -1):
+                            try:
+                                itm = eq_item['items'][cidx]
+                                if not itm or not isinstance(itm, dict):
+                                    continue
+                                rds = itm.get('rounds')
+                                if isinstance(rds, list)and rds:
+                                    for ri, r in enumerate(rds):
+                                        rv =(r.get('variant')if isinstance(r, dict)else(str(r)if r else None))
+                                        if rv ==vname:
+                                            return rds.pop(ri)
+                                qty = int(itm.get('quantity')or 0)if isinstance(itm.get('quantity'), (int, float))else 0
+                                if qty >0:
+                                    nm = itm.get('variant')or itm.get('name')or itm.get('caliber')
+                                    if nm and str(nm)==vname:
+                                        itm['quantity']= qty -1
+                                        return {k:v for k, v in itm.items()if k !='quantity'}
+                            except Exception:
+                                pass
+                    return None
+
+                def _play_insert():
+                    try:
+                        sn = f"bulletinsert{ls['stoggle']}"
+                        ls['stoggle']= 1 -ls['stoggle']
+                        self._play_weapon_action_sound(wpn, sn, block = False)
+                    except Exception:
+                        pass
+
+                def _do_insert_data(vname):
+                    if len(existing)>=cap:
+                        return False
+                    r = _take_round(vname)
+                    if r is None:
+                        return False
+                    existing.insert(0, r)
+                    ls['added']+=1
+                    if not is_infinite:
+                        if vname in available_by_variant:
+                            available_by_variant[vname]-=1
+                            if available_by_variant[vname]<=0:
+                                del available_by_variant[vname]
+                    _play_insert()
+                    return True
+
+                def _hit_chip(x, y):
+                    for vn, (x1, y1, x2, y2)in chip_hitboxes.items():
+                        if x1 <=x <=x2 and y1 <=y <=y2 and available_by_variant.get(vn, 0)>0:
+                            return vn
+                    return None
+
+                def _on_press(event):
+                    if ls['animating']or len(existing)>=cap:
+                        return
+                    vn = _hit_chip(event.x, event.y)
+                    if not vn:
+                        return
+                    ls['dragging']= True
+                    ls['drag_vn']= vn
+                    c = vcols.get(vn, '#c4a032')
+                    ls['di']= mag_canvas.create_rectangle(
+                    ox_mag +2, event.y -SLOT_H //2, ox_mag +SLOT_W -2, event.y +SLOT_H //2,
+                    fill = c, outline = '#ffffff', width = 2, tags = 'drag')
+                    ls['do']= mag_canvas.create_oval(
+                    ox_mag +4, event.y -SLOT_H //2 +2, ox_mag +22, event.y +SLOT_H //2 -2,
+                    fill = _tip_for(vn), outline = _tip_ol_for(vn), tags = 'drag')
+                    ls['dt']= mag_canvas.create_text(
+                    ox_mag +SLOT_W //2 +10, event.y,
+                    text = vn, fill = '#1a1a1a', font =('Consolas', 10, 'bold'), tags = 'drag')
+
+                def _on_move(event):
+                    if not ls['dragging']:
+                        return
+                    y = event.y
+                    ls_di, ls_do, ls_dt = ls['di'], ls['do'], ls['dt']
+                    if ls_di and ls_dt and ls_do:
+                        mag_canvas.coords(ls_di, ox_mag +2, y -SLOT_H //2,
+                        ox_mag +SLOT_W -2, y +SLOT_H //2)
+                        mag_canvas.coords(ls_do, ox_mag +4, y -SLOT_H //2 +2,
+                        ox_mag +22, y +SLOT_H //2 -2)
+                        mag_canvas.coords(ls_dt, ox_mag +SLOT_W //2 +10, y)
+
+                def _on_release(event):
+                    if not ls['dragging']:
+                        return
+                    ls['dragging']= False
+                    mag_canvas.delete('drag')
+                    ls['di']= ls['dt']= ls['do']= None
+                    if len(existing)>=cap or ls['animating']:
+                        return
+                    vn = ls['drag_vn']
+                    if not vn or available_by_variant.get(vn, 0)<=0:
+                        return
+                    if event.y >=MAG_TOP -15:
+                        _animate_push_insert(vn)
+
+                def _animate_push_insert(vname):
+                    ls['animating']= True
+                    oy = MAG_TOP
+                    n_ex = len(existing)
+                    c_new = vcols.get(vname, '#c4a032')
+
+                    mag_canvas.delete('mag')
+                    mag_canvas.create_text(canvas_w //2, MAG_TOP -10, text = '\u2193 DROP INTO MAGAZINE \u2193',
+                    fill = '#555555', font =('Consolas', 9), tags = 'magshell')
+                    mag_canvas.create_rectangle(ox_mag, oy, ox_mag +SLOT_W, oy +cap *SLOT_H,
+                    outline = '#888888', width = 2, tags = 'magshell')
+                    mag_canvas.create_line(ox_mag, oy, ox_mag -15, oy -8, fill = '#888888', width = 2, tags = 'magshell')
+                    mag_canvas.create_line(ox_mag +SLOT_W, oy, ox_mag +SLOT_W +15, oy -8,
+                    fill = '#888888', width = 2, tags = 'magshell')
+                    for si in range(1, cap):
+                        _sy = oy +si *SLOT_H
+                        mag_canvas.create_line(ox_mag, _sy, ox_mag +SLOT_W, _sy, fill = '#444444',
+                        dash =(2, 2), tags = 'magshell')
+                    _by = oy +cap *SLOT_H
+                    mag_canvas.create_rectangle(ox_mag, _by, ox_mag +SLOT_W, _by +SPRING_H,
+                    fill = '#555555', outline = '#666666', tags = 'magshell')
+                    mag_canvas.create_text(ox_mag +SLOT_W //2, _by +SPRING_H //2,
+                    text = '\u25b2 SPRING \u25b2', fill = '#888888',
+                    font =('Consolas', 8), tags = 'magshell')
+                    for ei in range(n_ex, cap):
+                        _esy = oy +ei *SLOT_H
+                        mag_canvas.create_text(ox_mag +SLOT_W //2, _esy +SLOT_H //2, text = '[empty]',
+                        fill = '#444444', font =('Consolas', 9), tags = 'magshell')
+
+                    anim_ids =[]
+                    for i in range(n_ex):
+                        r = existing[i]
+                        vn_e = r.get('variant')if isinstance(r, dict)else str(r)if r else 'Unknown'
+                        c_e = vcols.get(vn_e, '#c4a032')
+                        sy = oy +i *SLOT_H
+                        _ri = mag_canvas.create_rectangle(ox_mag +2, sy +2, ox_mag +SLOT_W -2, sy +SLOT_H -2,
+                        fill = c_e, outline = '#222222', tags = 'pushanim')
+                        _oi = mag_canvas.create_oval(ox_mag +4, sy +4, ox_mag +22, sy +SLOT_H -4,
+                        fill = _tip_for_round(r), outline = _tip_ol_for_round(r), tags = 'pushanim')
+                        _ti = mag_canvas.create_text(ox_mag +SLOT_W //2 +10, sy +SLOT_H //2, text = vn_e, # type: ignore
+                        fill = '#1a1a1a', font =('Consolas', 9, 'bold'), tags = 'pushanim')
+                        anim_ids.append((_ri, _oi, _ti, float(sy)))
+
+                    new_start_y = float(oy -SLOT_H -4)
+                    new_target_y = float(oy)
+                    _nr = mag_canvas.create_rectangle(ox_mag +2, new_start_y +2, ox_mag +SLOT_W -2,
+                    new_start_y +SLOT_H -2, fill = c_new,
+                    outline = '#ffffff', width = 2, tags = 'pushanim')
+                    _no = mag_canvas.create_oval(ox_mag +4, new_start_y +4, ox_mag +22,
+                    new_start_y +SLOT_H -4, fill = _tip_for(vname),
+                    outline = _tip_ol_for(vname), tags = 'pushanim')
+                    _nt = mag_canvas.create_text(ox_mag +SLOT_W //2 +10, new_start_y +SLOT_H //2,
+                    text = vname, fill = '#1a1a1a',
+                    font =('Consolas', 10, 'bold'), tags = 'pushanim')
+
+                    total_steps = 10
+                    push_per_step = float(SLOT_H)/total_steps
+                    new_per_step =(new_target_y -new_start_y)/total_steps
+
+                    def _push_step(step):
+                        if step >=total_steps:
+                            mag_canvas.delete('pushanim')
+                            mag_canvas.delete('magshell')
+                            _do_insert_data(vname)
+                            _draw_all()
+                            _update_side()
+                            ls['animating']= False
+                            return
+                        frac = step +1
+                        for _ri, _oi, _ti, base_y in anim_ids:
+                            cy = base_y +frac *push_per_step
+                            mag_canvas.coords(_ri, ox_mag +2, cy +2, ox_mag +SLOT_W -2, cy +SLOT_H -2)
+                            mag_canvas.coords(_oi, ox_mag +4, cy +4, ox_mag +22, cy +SLOT_H -4)
+                            mag_canvas.coords(_ti, ox_mag +SLOT_W //2 +10, cy +SLOT_H //2)
+                        cn = new_start_y +frac *new_per_step
+                        mag_canvas.coords(_nr, ox_mag +2, cn +2, ox_mag +SLOT_W -2, cn +SLOT_H -2)
+                        mag_canvas.coords(_no, ox_mag +4, cn +4, ox_mag +22, cn +SLOT_H -4)
+                        mag_canvas.coords(_nt, ox_mag +SLOT_W //2 +10, cn +SLOT_H //2)
+                        editor.after(25, lambda:_push_step(step +1))
+
+                    _push_step(0)
+
+                mag_canvas.bind('<Button-1>', _on_press)
+                mag_canvas.bind('<B1-Motion>', _on_move)
+                mag_canvas.bind('<ButtonRelease-1>', _on_release)
+
+                _cap_lbl = customtkinter.CTkLabel(side, text = f'{len(existing)}/{cap} rounds loaded',
+                font = customtkinter.CTkFont(size = 13, weight = 'bold'))
+                _cap_lbl.pack(pady =(10, 6))
+
+                customtkinter.CTkLabel(side, text = 'Click & drag a round\nfrom the top area down\ninto the magazine',
+                font = customtkinter.CTkFont(size = 10), text_color = '#888888',
+                wraplength = 170).pack(pady = 6)
+
+                def _update_side():
+                    _cap_lbl.configure(text = f'{len(existing)}/{cap} rounds loaded')
+
+                def _done():
+                    if ls['added']>0:
+                        wpn['rounds']= existing
+                        if not wpn.get('chambered')and existing:
+                            _rt_mag_type = str(wpn.get('magazinetype', '')or '').lower()
+                            _rt_plat_raw = wpn.get('platform', '')or ''
+                            if isinstance(_rt_plat_raw, (list, tuple)):
+                                _rt_plat_raw = _rt_plat_raw[0]if _rt_plat_raw else ''
+                            _rt_plat = str(_rt_plat_raw).lower()
+                            _rt_act_raw = wpn.get('action', '')or ''
+                            if isinstance(_rt_act_raw, (list, tuple)):
+                                _rt_act_raw = _rt_act_raw[0]if _rt_act_raw else ''
+                            _rt_act = str(_rt_act_raw).lower()
+                            _is_pump =('pump'in _rt_plat or _rt_act =='pump'or 'pump'in _rt_mag_type)
+                            if _is_pump:
+                                wpn['chambered']= existing.pop(0)
+                                wpn['rounds']= existing
+                                try:
+                                    self._play_weapon_action_sound(wpn, 'pumpforward')
+                                except Exception:
+                                    pass
+                            else:
+                                if not wpn.get('bolt_catch'):
+                                    try:
+                                        self._play_weapon_action_sound(wpn, 'boltback', block = True)
+                                    except Exception:
+                                        pass
+                                wpn['chambered']= existing.pop(0)
+                                wpn['rounds']= existing
+                                try:
+                                    self._play_weapon_action_sound(wpn, 'boltforward')
+                                except Exception:
+                                    pass
+                    editor.destroy()
+                    update_weapon_view()
+                    if ls['added']>0:
+                        self._popup_show_info('Internal Magazine', f'Added {ls["added"]} rounds to internal magazine')
+
+                editor.protocol('WM_DELETE_WINDOW', _done)
+                customtkinter.CTkButton(side, text = 'Done', command = _done, width = 160, height = 35,
+                font = customtkinter.CTkFont(size = 12)).pack(pady = 10)
+
+                _draw_all()
+
+                editor.update_idletasks()
+                ew = max(editor.winfo_reqwidth(), 520)
+                eh = max(editor.winfo_reqheight(), 420)
+                _sw_s = editor.winfo_screenwidth()
+                _sh_s = editor.winfo_screenheight()
+                x =(_sw_s //2)-(ew //2)
+                y =(_sh_s //2)-(eh //2)
+                editor.geometry(f'{ew}x{eh}+{x}+{y}')
+                editor.grab_set()
+                editor.lift()
+                self._safe_focus(editor)
+            except Exception:
+                logging.exception('Failed to open internal box magazine loader')
+
+        def _open_tube_magazine_editor(wpn, available_by_variant, caliber, filter_calibers, is_infinite = False):
+            import tkinter as _tk_tb
+            try:
+                editor = customtkinter.CTkToplevel(self.root)
+                editor.title('Tube Magazine Loader')
+                editor.transient(self.root)
+                cap = int(wpn.get('capacity', 0)or 0)
+                existing = list(wpn.get('rounds', [])or[])
+
+                ROUND_W = 36
+                ROUND_H = 22
+                TUBE_PAD = 6
+                TUBE_H = ROUND_H +TUBE_PAD *2
+                TUBE_W = cap *ROUND_W +TUBE_PAD *2
+                ox_tube = 30
+                oy_tube = 0
+
+                vlist = sorted(available_by_variant.keys())
+                cpal =['#c4a032', '#b87333', '#a0a0a0', '#d4af37', '#8b4513', '#cd7f32', '#e8c872', '#a08060']
+                vcols = {v:cpal[i %len(cpal)]for i, v in enumerate(vlist)}
+
+                vtips = {}
+                try:
+                    _ammo_tbl = self._get_ammo_table_data()
+                    for _atbl in _ammo_tbl:
+                        _ac = _atbl.get('caliber')
+                        _match = False
+                        if isinstance(_ac, list):
+                            _match = caliber in _ac if caliber else False
+                        else:
+                            _match =(_ac ==caliber)if caliber else False
+                        if _match:
+                            for _av in _atbl.get('variants', []):
+                                _atn = _av.get('name')
+                                _att = _av.get('tip')
+                                if _atn and _att and isinstance(_att, str)and _att.startswith('#'):
+                                    vtips[_atn]= _att
+                            break
+                except Exception:
+                    pass
+
+                def _tip_for(vn):
+                    return vtips.get(vn, '#e0c060')
+
+                def _tip_ol_for(vn):
+                    tc = vtips.get(vn)
+                    if not tc:
+                        return '#aa8820'
+                    try:
+                        r_v = int(tc[1:3], 16)
+                        g_v = int(tc[3:5], 16)
+                        b_v = int(tc[5:7], 16)
+                        return f'#{max(0, r_v -40):02x}{max(0, g_v -40):02x}{max(0, b_v -40):02x}'
+                    except Exception:
+                        return '#aa8820'
+
+                def _tip_for_round(r):
+                    if isinstance(r, dict):
+                        vn = r.get('variant')or r.get('name')or 'Unknown'
+                        return _tip_for(vn)
+                    return '#e0c060'
+
+                def _tip_ol_for_round(r):
+                    if isinstance(r, dict):
+                        vn = r.get('variant')or r.get('name')or 'Unknown'
+                        return _tip_ol_for(vn)
+                    return '#aa8820'
+
+                CHIP_W, CHIP_H, CHIP_PAD = 130, 28, 6
+                _cols = max(1, (TUBE_W +ox_tube *2)//(CHIP_W +CHIP_PAD))
+                _rows_need = max(1, (len(vlist)+_cols -1)//_cols)if vlist else 1
+                SEL_H = 22 +_rows_need *(CHIP_H +CHIP_PAD)+4
+                HINT_H = 22
+                oy_tube = SEL_H +HINT_H
+                canvas_w = max(TUBE_W +ox_tube *2, _cols *(CHIP_W +CHIP_PAD)+40)
+                canvas_h = oy_tube +TUBE_H +30
+
+                main_frame = customtkinter.CTkFrame(editor)
+                main_frame.grid(row = 0, column = 0, sticky = 'nsew', padx = 8, pady = 8)
+
+                tube_canvas = _tk_tb.Canvas(main_frame, width = canvas_w, height = canvas_h, bg = '#1a1a1a', highlightthickness = 1, highlightbackground = '#555555')
+                tube_canvas.pack(side = 'left', fill = 'both', expand = True)
+
+                side = customtkinter.CTkFrame(editor, fg_color = 'transparent', width = 180)
+                side.grid(row = 0, column = 1, sticky = 'ns', padx = 8, pady = 8)
+
+                ls = {'dragging':False, 'drag_vn':None, 'di':None, 'dt':None, 'do':None,
+                'added':0, 'stoggle':0, 'animating':False}
+
+                chip_hitboxes = {}
+
+                def _draw_chips():
+                    tube_canvas.delete('chips')
+                    tube_canvas.create_text(canvas_w //2, 10, text = 'AVAILABLE ROUNDS', fill = '#888888',
+                    font =('Consolas', 9, 'bold'), tags = 'chips')
+                    if not vlist:
+                        tube_canvas.create_text(canvas_w //2, SEL_H //2 +10, text = 'No rounds available',
+                        fill = '#555555', font =('Consolas', 9), tags = 'chips')
+                        return
+                    start_x =(canvas_w -min(len(vlist), _cols)*(CHIP_W +CHIP_PAD)+CHIP_PAD)//2
+                    for idx, vn in enumerate(vlist):
+                        cnt = available_by_variant.get(vn, 0)
+                        row_i = idx //_cols
+                        col_i = idx %_cols
+                        x1 = start_x +col_i *(CHIP_W +CHIP_PAD)
+                        y1 = 22 +row_i *(CHIP_H +CHIP_PAD)
+                        x2 = x1 +CHIP_W
+                        y2 = y1 +CHIP_H
+                        chip_hitboxes[vn]=(x1, y1, x2, y2)
+                        c = vcols.get(vn, '#c4a032')
+                        is_avail = cnt >0
+                        fill = c if is_avail else '#2a2a2a'
+                        ol = '#dddddd'if is_avail else '#3a3a3a'
+                        tube_canvas.create_rectangle(x1, y1, x2, y2, fill = fill, outline = ol, width = 1, tags = 'chips')
+                        tube_canvas.create_oval(x1 +3, y1 +3, x1 +19, y2 -3, fill = _tip_for(vn)if is_avail else '#3a3a3a',
+                        outline = _tip_ol_for(vn)if is_avail else '#3a3a3a', tags = 'chips')
+                        disp = vn if len(vn)<=11 else vn[:10]+'\u2026'
+                        cnt_str = '\u221e'if is_infinite else str(cnt)
+                        tube_canvas.create_text((x1 +x2)//2 +8, (y1 +y2)//2,
+                        text = f'{disp} x{cnt_str}',
+                        fill = '#1a1a1a'if is_avail else '#555555',
+                        font =('Consolas', 8, 'bold'), tags = 'chips')
+
+                def _draw_tube_body():
+                    tube_canvas.delete('tube')
+                    ty = oy_tube
+                    tube_canvas.create_text(ox_tube +TUBE_W +15, ty +TUBE_H //2, text = '\u2190 INSERT',
+                    fill = '#555555', font =('Consolas', 9), anchor = 'w', tags = 'tube')
+                    tube_canvas.create_rectangle(ox_tube, ty, ox_tube +TUBE_W, ty +TUBE_H,
+                    outline = '#888888', width = 2, tags = 'tube', fill = '#222222')
+                    tube_canvas.create_oval(ox_tube -6, ty +2, ox_tube +6, ty +TUBE_H -2,
+                    fill = '#333333', outline = '#888888', tags = 'tube')
+                    tube_canvas.create_oval(ox_tube +TUBE_W -6, ty +2, ox_tube +TUBE_W +6, ty +TUBE_H -2,
+                    fill = '#444444', outline = '#888888', tags = 'tube')
+                    for i in range(cap):
+                        sx = ox_tube +TUBE_PAD +(cap -1 -i)*ROUND_W
+                        ry1 = ty +TUBE_PAD
+                        ry2 = ty +TUBE_H -TUBE_PAD
+                        if i <len(existing):
+                            r = existing[i]
+                            vn = r.get('variant')if isinstance(r, dict)else str(r)if r else 'Unknown'
+                            c = vcols.get(vn, '#c4a032')
+                            tube_canvas.create_rectangle(sx, ry1, sx +ROUND_W -2, ry2, fill = c, outline = '#222222', tags = 'tube')
+                            tube_canvas.create_oval(sx +ROUND_W -12, ry1 +2, sx +ROUND_W -2, ry2 -2,
+                            fill = _tip_for_round(r), outline = _tip_ol_for_round(r), tags = 'tube')
+                        else:
+                            tube_canvas.create_rectangle(sx, ry1, sx +ROUND_W -2, ry2,
+                            fill = '#1a1a1a', outline = '#333333', dash =(2, 2), tags = 'tube')
+
+                def _draw_all():
+                    _draw_chips()
+                    _draw_tube_body()
+
+                def _take_round(vname):
+                    if is_infinite:
+                        return {'name':f'{caliber} | Infinite', 'caliber':caliber, 'variant':'Infinite'}
+                    for hi in range(len(save_data.get('hands', {}).get('items', []))-1, -1, -1):
+                        itm = save_data['hands']['items'][hi]
+                        try:
+                            if not itm or not isinstance(itm, dict):
+                                continue
+                            rds = itm.get('rounds')
+                            if isinstance(rds, list)and rds:
+                                for ri, r in enumerate(rds):
+                                    rv =(r.get('variant')if isinstance(r, dict)else(str(r)if r else None))
+                                    if rv ==vname:
+                                        return rds.pop(ri)
+                            qty = int(itm.get('quantity')or 0)if isinstance(itm.get('quantity'), (int, float))else 0
+                            if qty >0:
+                                nm = itm.get('variant')or itm.get('name')or itm.get('caliber')
+                                if nm and str(nm)==vname:
+                                    itm['quantity']= qty -1
+                                    return {k:v for k, v in itm.items()if k !='quantity'}
+                            if itm.get('caliber')and(itm.get('variant')or itm.get('name'))and(itm.get('variant')==vname or itm.get('name')==vname):
+                                try:
+                                    save_data['hands']['items'].pop(hi)
+                                except Exception:
+                                    pass
+                        except Exception:
+                            continue
+                    for _sn_eq, eq_item in list(save_data.get('equipment', {}).items()):
+                        if not eq_item or not isinstance(eq_item, dict):
+                            continue
+                        for cidx in range(len(eq_item.get('items', []))-1, -1, -1):
+                            try:
+                                itm = eq_item['items'][cidx]
+                                if not itm or not isinstance(itm, dict):
+                                    continue
+                                rds = itm.get('rounds')
+                                if isinstance(rds, list)and rds:
+                                    for ri, r in enumerate(rds):
+                                        rv =(r.get('variant')if isinstance(r, dict)else(str(r)if r else None))
+                                        if rv ==vname:
+                                            return rds.pop(ri)
+                                qty = int(itm.get('quantity')or 0)if isinstance(itm.get('quantity'), (int, float))else 0
+                                if qty >0:
+                                    nm = itm.get('variant')or itm.get('name')or itm.get('caliber')
+                                    if nm and str(nm)==vname:
+                                        itm['quantity']= qty -1
+                                        return {k:v for k, v in itm.items()if k !='quantity'}
+                            except Exception:
+                                pass
+                    return None
+
+                def _play_insert():
+                    try:
+                        self._play_weapon_action_sound(wpn, 'tubeinsert', block = False)
+                    except Exception:
+                        pass
+
+                def _do_insert_data(vname):
+                    if len(existing)>=cap:
+                        return False
+                    r = _take_round(vname)
+                    if r is None:
+                        return False
+                    existing.append(r)
+                    ls['added']+=1
+                    if not is_infinite:
+                        if vname in available_by_variant:
+                            available_by_variant[vname]-=1
+                            if available_by_variant[vname]<=0:
+                                del available_by_variant[vname]
+                    _play_insert()
+                    return True
+
+                def _hit_chip(x, y):
+                    for vn, (x1, y1, x2, y2)in chip_hitboxes.items():
+                        if x1 <=x <=x2 and y1 <=y <=y2 and available_by_variant.get(vn, 0)>0:
+                            return vn
+                    return None
+
+                def _on_press(event):
+                    if ls['animating']or len(existing)>=cap:
+                        return
+                    vn = _hit_chip(event.x, event.y)
+                    if not vn:
+                        return
+                    ls['dragging']= True
+                    ls['drag_vn']= vn
+                    c = vcols.get(vn, '#c4a032')
+                    ls['di']= tube_canvas.create_rectangle(
+                    event.x -ROUND_W //2, event.y -ROUND_H //2,
+                    event.x +ROUND_W //2, event.y +ROUND_H //2,
+                    fill = c, outline = '#ffffff', width = 2, tags = 'drag')
+                    ls['do']= tube_canvas.create_oval(
+                    event.x +ROUND_W //2 -12, event.y -ROUND_H //2 +2,
+                    event.x +ROUND_W //2, event.y +ROUND_H //2 -2,
+                    fill = _tip_for(vn), outline = _tip_ol_for(vn), tags = 'drag')
+                    ls['dt']= tube_canvas.create_text(
+                    event.x, event.y,
+                    text = vn[:4], fill = '#1a1a1a', font =('Consolas', 7, 'bold'), tags = 'drag')
+
+                def _on_move(event):
+                    if not ls['dragging']:
+                        return
+                    x, y = event.x, event.y
+                    ls_di, ls_do, ls_dt = ls['di'], ls['do'], ls['dt']
+                    if ls_di and ls_dt and ls_do:
+                        tube_canvas.coords(ls_di, x -ROUND_W //2, y -ROUND_H //2,
+                        x +ROUND_W //2, y +ROUND_H //2)
+                        tube_canvas.coords(ls_do, x +ROUND_W //2 -12, y -ROUND_H //2 +2,
+                        x +ROUND_W //2, y +ROUND_H //2 -2)
+                        tube_canvas.coords(ls_dt, x, y)
+
+                def _on_release(event):
+                    if not ls['dragging']:
+                        return
+                    ls['dragging']= False
+                    tube_canvas.delete('drag')
+                    ls['di']= ls['dt']= ls['do']= None
+                    if len(existing)>=cap or ls['animating']:
+                        return
+                    vn = ls['drag_vn']
+                    if not vn or available_by_variant.get(vn, 0)<=0:
+                        return
+                    drop_zone_right = ox_tube +TUBE_W +6
+                    drop_zone_top = oy_tube -10
+                    drop_zone_bottom = oy_tube +TUBE_H +10
+                    if event.y >=drop_zone_top and event.y <=drop_zone_bottom and event.x >=ox_tube +TUBE_W -40:
+                        _animate_tube_insert(vn)
+
+                def _animate_tube_insert(vname):
+                    ls['animating']= True
+                    ty = oy_tube
+                    n_ex = len(existing)
+                    c_new = vcols.get(vname, '#c4a032')
+
+                    tube_canvas.delete('tube')
+                    tube_canvas.create_text(ox_tube +TUBE_W +15, ty +TUBE_H //2, text = '\u2190 INSERT',
+                    fill = '#555555', font =('Consolas', 9), anchor = 'w', tags = 'tubeshell')
+                    tube_canvas.create_rectangle(ox_tube, ty, ox_tube +TUBE_W, ty +TUBE_H,
+                    outline = '#888888', width = 2, tags = 'tubeshell', fill = '#222222')
+                    tube_canvas.create_oval(ox_tube -6, ty +2, ox_tube +6, ty +TUBE_H -2,
+                    fill = '#333333', outline = '#888888', tags = 'tubeshell')
+                    tube_canvas.create_oval(ox_tube +TUBE_W -6, ty +2, ox_tube +TUBE_W +6, ty +TUBE_H -2,
+                    fill = '#444444', outline = '#888888', tags = 'tubeshell')
+                    for ei in range(n_ex, cap):
+                        sx = ox_tube +TUBE_PAD +(cap -1 -ei)*ROUND_W
+                        ry1 = ty +TUBE_PAD
+                        ry2 = ty +TUBE_H -TUBE_PAD
+                        tube_canvas.create_rectangle(sx, ry1, sx +ROUND_W -2, ry2,
+                        fill = '#1a1a1a', outline = '#333333', dash =(2, 2), tags = 'tubeshell')
+
+                    anim_ids =[]
+                    for i in range(n_ex):
+                        r = existing[i]
+                        vn_e = r.get('variant')if isinstance(r, dict)else str(r)if r else 'Unknown'
+                        c_e = vcols.get(vn_e, '#c4a032')
+                        sx = ox_tube +TUBE_PAD +(cap -1 -i)*ROUND_W
+                        ry1 = ty +TUBE_PAD
+                        ry2 = ty +TUBE_H -TUBE_PAD
+                        _ri = tube_canvas.create_rectangle(sx, ry1, sx +ROUND_W -2, ry2,
+                        fill = c_e, outline = '#222222', tags = 'tubeanim')
+                        _oi = tube_canvas.create_oval(sx +ROUND_W -12, ry1 +2, sx +ROUND_W -2, ry2 -2,
+                        fill = _tip_for_round(r), outline = _tip_ol_for_round(r), tags = 'tubeanim')
+                        anim_ids.append((_ri, _oi, float(sx)))
+
+                    new_start_x = float(ox_tube +TUBE_W +10)
+                    slot_idx = cap -1 -n_ex
+                    new_target_x = float(ox_tube +TUBE_PAD +slot_idx *ROUND_W)
+                    ry1 = ty +TUBE_PAD
+                    ry2 = ty +TUBE_H -TUBE_PAD
+                    _nr = tube_canvas.create_rectangle(new_start_x, ry1, new_start_x +ROUND_W -2, ry2,
+                    fill = c_new, outline = '#ffffff', width = 2, tags = 'tubeanim')
+                    _no = tube_canvas.create_oval(new_start_x +ROUND_W -12, ry1 +2, new_start_x +ROUND_W -2, ry2 -2,
+                    fill = _tip_for(vname), outline = _tip_ol_for(vname), tags = 'tubeanim')
+
+                    total_steps = 10
+                    push_per_step = float(-ROUND_W)/total_steps
+                    new_per_step =(new_target_x -new_start_x)/total_steps
+
+                    def _tube_step(step):
+                        if step >=total_steps:
+                            tube_canvas.delete('tubeanim')
+                            tube_canvas.delete('tubeshell')
+                            _do_insert_data(vname)
+                            _draw_all()
+                            _update_side()
+                            ls['animating']= False
+                            return
+                        frac = step +1
+                        for _ri, _oi, base_x in anim_ids:
+                            cx = base_x +frac *push_per_step
+                            tube_canvas.coords(_ri, cx, ry1, cx +ROUND_W -2, ry2)
+                            tube_canvas.coords(_oi, cx +ROUND_W -12, ry1 +2, cx +ROUND_W -2, ry2 -2)
+                        cn = new_start_x +frac *new_per_step
+                        tube_canvas.coords(_nr, cn, ry1, cn +ROUND_W -2, ry2)
+                        tube_canvas.coords(_no, cn +ROUND_W -12, ry1 +2, cn +ROUND_W -2, ry2 -2)
+                        editor.after(25, lambda:_tube_step(step +1))
+
+                    _tube_step(0)
+
+                tube_canvas.bind('<Button-1>', _on_press)
+                tube_canvas.bind('<B1-Motion>', _on_move)
+                tube_canvas.bind('<ButtonRelease-1>', _on_release)
+
+                _cap_lbl = customtkinter.CTkLabel(side, text = f'{len(existing)}/{cap} rounds loaded',
+                font = customtkinter.CTkFont(size = 13, weight = 'bold'))
+                _cap_lbl.pack(pady =(10, 6))
+
+                customtkinter.CTkLabel(side, text = 'Click & drag a round\nfrom the top area\nto the tube opening',
+                font = customtkinter.CTkFont(size = 10), text_color = '#888888',
+                wraplength = 170).pack(pady = 6)
+
+                def _update_side():
+                    _cap_lbl.configure(text = f'{len(existing)}/{cap} rounds loaded')
+
+                def _done():
+                    if ls['added']>0:
+                        wpn['rounds']= existing
+                        if not wpn.get('chambered')and existing:
+                            _rt_mag_type = str(wpn.get('magazinetype', '')or '').lower()
+                            _rt_plat_raw = wpn.get('platform', '')or ''
+                            if isinstance(_rt_plat_raw, (list, tuple)):
+                                _rt_plat_raw = _rt_plat_raw[0]if _rt_plat_raw else ''
+                            _rt_plat = str(_rt_plat_raw).lower()
+                            _rt_act_raw = wpn.get('action', '')or ''
+                            if isinstance(_rt_act_raw, (list, tuple)):
+                                _rt_act_raw = _rt_act_raw[0]if _rt_act_raw else ''
+                            _rt_act = str(_rt_act_raw).lower()
+                            _is_pump =('pump'in _rt_plat or _rt_act =='pump'or 'pump'in _rt_mag_type)
+                            if _is_pump:
+                                wpn['chambered']= existing.pop(0)
+                                wpn['rounds']= existing
+                                try:
+                                    self._play_weapon_action_sound(wpn, 'pumpforward')
+                                except Exception:
+                                    pass
+                            else:
+                                if not wpn.get('bolt_catch'):
+                                    try:
+                                        self._play_weapon_action_sound(wpn, 'boltback', block = True)
+                                    except Exception:
+                                        pass
+                                wpn['chambered']= existing.pop(0)
+                                wpn['rounds']= existing
+                                try:
+                                    self._play_weapon_action_sound(wpn, 'boltforward')
+                                except Exception:
+                                    pass
+                    editor.destroy()
+                    update_weapon_view()
+                    if ls['added']>0:
+                        self._popup_show_info('Tube Magazine', f'Added {ls["added"]} rounds to tube magazine')
+
+                editor.protocol('WM_DELETE_WINDOW', _done)
+                customtkinter.CTkButton(side, text = 'Done', command = _done, width = 160, height = 35,
+                font = customtkinter.CTkFont(size = 12)).pack(pady = 10)
+
+                _draw_all()
+
+                editor.update_idletasks()
+                ew = max(editor.winfo_reqwidth(), 520)
+                eh = max(editor.winfo_reqheight(), 300)
+                _sw_s = editor.winfo_screenwidth()
+                _sh_s = editor.winfo_screenheight()
+                x =(_sw_s //2)-(ew //2)
+                y =(_sh_s //2)-(eh //2)
+                editor.geometry(f'{ew}x{eh}+{x}+{y}')
+                editor.grab_set()
+                editor.lift()
+                self._safe_focus(editor)
+            except Exception:
+                logging.exception('Failed to open tube magazine loader')
 
         def _find_throwables_in_inventory():
             items =[]
@@ -25743,6 +26991,7 @@ class App:
 
         rounds_fired = 0
         jammed = False
+        fired_rounds_list = []
 
         fire_to_pump_delay = weapon.get("pump_fire_to_back_delay", 0.12)
         pump_back_to_forward_delay = weapon.get("pump_back_to_forward_delay", 0.15)
@@ -25836,6 +27085,7 @@ class App:
             fired_round = None
             if chambered:
                 fired_round = chambered
+                fired_rounds_list.append(fired_round)
 
                 try:
 
@@ -25848,6 +27098,7 @@ class App:
             elif is_internal and weapon.get("rounds"):
                 chambered = weapon["rounds"].pop(0)
                 fired_round = chambered
+                fired_rounds_list.append(fired_round)
                 try:
                     self._play_firearm_sound(weapon, "fire", fired_round = fired_round)
                 except Exception:
@@ -25857,6 +27108,7 @@ class App:
             elif loaded_mag and loaded_mag.get("rounds"):
                 chambered = loaded_mag["rounds"].pop(0)
                 fired_round = chambered
+                fired_rounds_list.append(fired_round)
                 try:
                     self._play_firearm_sound(weapon, "fire", fired_round = fired_round)
                 except Exception:
@@ -26202,9 +27454,14 @@ class App:
 
             variant = "Unknown"
 
-            if chambered and isinstance(chambered, dict):
+            if fired_rounds_list:
+                _fr0 = fired_rounds_list[0]
+                if isinstance(_fr0, dict):
+                    variant = _fr0.get("variant") or _fr0.get("name") or "Unknown"
+                elif isinstance(_fr0, str) and " | " in _fr0:
+                    variant = _fr0.split(" | ")[1]
+            elif chambered and isinstance(chambered, dict):
                 variant = chambered.get("variant", "Unknown")
-
             elif loaded_mag and loaded_mag.get("rounds"):
                 first_round = loaded_mag["rounds"][0]
                 if isinstance(first_round, dict):
@@ -26243,7 +27500,7 @@ class App:
                 pass
 
             try:
-                fired_round_for_bonus = chambered
+                fired_round_for_bonus = fired_rounds_list[0] if fired_rounds_list else chambered
                 if not fired_round_for_bonus and loaded_mag and loaded_mag.get("rounds"):
                     fired_round_for_bonus = loaded_mag["rounds"][0]if loaded_mag["rounds"]else None
 
@@ -26468,7 +27725,7 @@ class App:
                 sd_ref2 = save_data if isinstance(save_data, dict)else globals().get('save_data')or getattr(self, '_current_save_data', None)
                 fired_round_ref = None
                 try:
-                    fired_round_ref = fired_round # type: ignore
+                    fired_round_ref = fired_rounds_list[0] if fired_rounds_list else fired_round
                 except Exception:
                     pass
                 if fired_round_ref is None:
