@@ -2667,6 +2667,11 @@ class App:
 
             data = populate_equipment_with_subslots(data)
 
+            try:
+                data = self._fix_save_item_references(data)
+            except Exception:
+                logging.exception("Failed to fix save item references")
+
             data = update_item_keys_from_table(data)
 
             try:
@@ -2862,9 +2867,13 @@ class App:
             return ZoneInfo("America/Chicago")
         except Exception:
             try:
-                return timezone(timedelta(hours = -6))
+                import pytz
+                return pytz.timezone("America/Chicago")
             except Exception:
-                return None
+                try:
+                    return timezone(timedelta(hours = -6))
+                except Exception:
+                    return None
 
     def _award_paychecks_for_save(self, save_data, save_path):
         try:
@@ -6372,6 +6381,11 @@ class App:
             with open(tbl_path, 'r')as f:
                 table_data = json.load(f)
 
+            try:
+                self._resolve_table_id_references(table_data)
+            except Exception:
+                logging.exception("Failed to resolve table ID references for business tool")
+
             stores = table_data.get("tables", {}).get("stores", [])
 
             stores =[s for s in stores if s.get("display_in_program", True)]
@@ -7889,7 +7903,7 @@ class App:
         def return_armory_items():
             nonlocal points_used
             store_name = store.get("name", "Unknown")
-            all_items = get_all_player_items()
+            all_items = self._get_all_player_items_from_save(save_data)
             matches =[d for d in all_items if d.get("item", {}).get("_from_armory")==store_name]
             if not matches:
                 self._popup_show_info("No Items", "No items from this armory were found on the character.", sound = "popup")
@@ -7909,7 +7923,7 @@ class App:
 
                     for loc, indices in locations_to_remove.items():
                         for idx in indices:
-                            remove_item_from_location(loc, idx)
+                            self._remove_item_from_save_location(save_data, loc, idx)
 
                     self._write_save_to_path(save_path, save_data)
 
@@ -9090,6 +9104,249 @@ class App:
                                 items = subslot_item.get("items", [])
                                 if 0 <=index <len(items):
                                     items.pop(index)
+
+    def _resolve_table_id_references(self, table_data):
+        import copy as _copy
+        if not isinstance(table_data, dict):
+            return table_data
+        tables = table_data.get('tables', {})
+        if not isinstance(tables, dict):
+            return table_data
+
+        id_to_item = {}
+        for subtable_items in tables.values():
+            if not isinstance(subtable_items, list):
+                continue
+            for it in subtable_items:
+                if isinstance(it, dict) and 'id' in it:
+                    id_to_item[it['id']] = it
+
+        def _resolve_current(obj):
+            if not isinstance(obj, dict):
+                return
+            for acc in (obj.get('accessories') or []):
+                try:
+                    cur = acc.get('current')
+                    if cur is None:
+                        continue
+                    target_id = None
+                    sub_attachment = None
+                    overrides = {}
+                    if isinstance(cur, int):
+                        target_id = cur
+                    elif isinstance(cur, dict) and 'id' in cur:
+                        target_id = cur.get('id')
+                        sub_attachment = cur.get('sub_attachment')
+                        for k, v in cur.items():
+                            if k not in ('id', 'sub_attachment'):
+                                overrides[k] = v
+                    if target_id is None:
+                        if isinstance(cur, dict):
+                            _resolve_current(cur)
+                        continue
+                    target = id_to_item.get(target_id)
+                    if not target:
+                        continue
+                    new_installed = _copy.deepcopy(target)
+                    for k, v in overrides.items():
+                        try:
+                            new_installed[k] = v
+                        except Exception:
+                            pass
+                    acc['current'] = new_installed
+                    if sub_attachment:
+                        sub_target = id_to_item.get(sub_attachment)
+                        if sub_target and isinstance(new_installed.get('subslots'), list):
+                            placed = False
+                            for ss in new_installed['subslots']:
+                                try:
+                                    if ss.get('slot') == sub_target.get('slot') or ss.get('current') is None:
+                                        ss['current'] = _copy.deepcopy(sub_target)
+                                        placed = True
+                                        break
+                                except Exception:
+                                    pass
+                            if not placed:
+                                try:
+                                    new_installed['subslots'][0]['current'] = _copy.deepcopy(sub_target)
+                                except Exception:
+                                    pass
+                    try:
+                        _resolve_current(new_installed)
+                    except Exception:
+                        pass
+                except Exception:
+                    pass
+            for s in (obj.get('subslots') or []):
+                try:
+                    cur = s.get('current')
+                    if cur is None:
+                        continue
+                    if isinstance(cur, int) or (isinstance(cur, dict) and 'id' in cur):
+                        tmp = {'accessories': [{'current': cur}]}
+                        _resolve_current(tmp)
+                        try:
+                            s['current'] = tmp['accessories'][0].get('current')
+                        except Exception:
+                            pass
+                    elif isinstance(cur, dict):
+                        _resolve_current(cur)
+                except Exception:
+                    pass
+
+        for subtable_items in tables.values():
+            if not isinstance(subtable_items, list):
+                continue
+            for item in subtable_items:
+                try:
+                    _resolve_current(item)
+                except Exception:
+                    pass
+
+        return table_data
+
+    def _fix_save_item_references(self, save_data):
+        import copy as _copy
+        if not isinstance(save_data, dict):
+            return save_data
+
+        try:
+            tbl_path = get_current_table_path()
+            if not tbl_path or not os.path.exists(tbl_path):
+                return save_data
+            with open(tbl_path, 'r', encoding='utf-8') as f:
+                table_data = json.load(f)
+        except Exception:
+            return save_data
+
+        tables = table_data.get('tables', {})
+        if not isinstance(tables, dict):
+            return save_data
+
+        id_to_item = {}
+        for subtable_items in tables.values():
+            if not isinstance(subtable_items, list):
+                continue
+            for it in subtable_items:
+                if isinstance(it, dict) and 'id' in it:
+                    id_to_item[it['id']] = it
+
+        if not id_to_item:
+            return save_data
+
+        fixed_count = [0]
+
+        def _is_unresolved(cur):
+            if isinstance(cur, int):
+                return True
+            if isinstance(cur, dict) and 'id' in cur and 'name' not in cur:
+                return True
+            return False
+
+        def _resolve_current(obj):
+            if not isinstance(obj, dict):
+                return
+            for acc in (obj.get('accessories') or []):
+                try:
+                    cur = acc.get('current')
+                    if cur is None:
+                        continue
+                    target_id = None
+                    sub_attachment = None
+                    overrides = {}
+                    if isinstance(cur, int):
+                        target_id = cur
+                    elif isinstance(cur, dict) and 'id' in cur and 'name' not in cur:
+                        target_id = cur.get('id')
+                        sub_attachment = cur.get('sub_attachment')
+                        for k, v in cur.items():
+                            if k not in ('id', 'sub_attachment'):
+                                overrides[k] = v
+                    if target_id is None:
+                        if isinstance(cur, dict):
+                            _resolve_current(cur)
+                        continue
+                    target = id_to_item.get(target_id)
+                    if not target:
+                        continue
+                    new_installed = _copy.deepcopy(target)
+                    for k, v in overrides.items():
+                        try:
+                            new_installed[k] = v
+                        except Exception:
+                            pass
+                    acc['current'] = new_installed
+                    fixed_count[0] += 1
+                    if sub_attachment:
+                        sub_target = id_to_item.get(sub_attachment)
+                        if sub_target and isinstance(new_installed.get('subslots'), list):
+                            placed = False
+                            for ss in new_installed['subslots']:
+                                try:
+                                    if ss.get('slot') == sub_target.get('slot') or ss.get('current') is None:
+                                        ss['current'] = _copy.deepcopy(sub_target)
+                                        placed = True
+                                        break
+                                except Exception:
+                                    pass
+                            if not placed:
+                                try:
+                                    new_installed['subslots'][0]['current'] = _copy.deepcopy(sub_target)
+                                except Exception:
+                                    pass
+                    try:
+                        _resolve_current(new_installed)
+                    except Exception:
+                        pass
+                except Exception:
+                    pass
+            for s in (obj.get('subslots') or []):
+                try:
+                    cur = s.get('current')
+                    if cur is None:
+                        continue
+                    if _is_unresolved(cur):
+                        tmp = {'accessories': [{'current': cur}]}
+                        _resolve_current(tmp)
+                        try:
+                            s['current'] = tmp['accessories'][0].get('current')
+                        except Exception:
+                            pass
+                    elif isinstance(cur, dict):
+                        _resolve_current(cur)
+                except Exception:
+                    pass
+
+        def _process_item(item):
+            if not isinstance(item, dict):
+                return
+            _resolve_current(item)
+
+        for slot_name, equipped_item in save_data.get('equipment', {}).items():
+            if isinstance(equipped_item, dict):
+                _process_item(equipped_item)
+                for sub in (equipped_item.get('subslots') or []):
+                    cur = sub.get('current') if isinstance(sub, dict) else None
+                    if isinstance(cur, dict):
+                        _process_item(cur)
+                if isinstance(equipped_item.get('items'), list):
+                    for it in equipped_item['items']:
+                        _process_item(it)
+            elif isinstance(equipped_item, list):
+                for list_item in equipped_item:
+                    if isinstance(list_item, dict):
+                        _process_item(list_item)
+
+        for item in save_data.get('hands', {}).get('items', []):
+            _process_item(item)
+
+        for item in save_data.get('storage', []):
+            _process_item(item)
+
+        if fixed_count[0] > 0:
+            logging.info(f"Fixed {fixed_count[0]} unresolved attachment reference(s) in save data")
+
+        return save_data
 
     def _open_item_bet_dialog(self, save_data, wagered_items, on_update_cb = None):
         if not save_data:

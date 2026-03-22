@@ -11,7 +11,7 @@
         "paycheck_amount": 2000,
         "pay_period": "weekly",
         "combat_repots": false,
-        "hidden_code": "Hbylsph"
+        "hidden_code": "Mgdqxum"
     },
     "rarity_weights": {
         "Common": 40,
@@ -10973,6 +10973,64 @@
                 "id": -8,
                 "inspectable": true,
                 "inspect": "images/misc/paper.png"
+            },
+            {
+                "name": "Custom Daniel Defense MK18",
+                "value": 25000,
+                "description": "Custom-built precision shooting combat rifle based on the Daniel Defense MK18 (the civilian one), featuring a match-grade barrel, light trigger, and absolutely peppered in red anodized aluminum parts.",
+                "rarity": "Mythic",
+                "random_quantity": false,
+                "weight": 3,
+                "id": 467,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "AR-15",
+                "caliber": ["5.56x45mm NATO"],
+                "action": ["Semi", "Burst", "Auto"],
+                "bolt": "closed",
+                "bolt_catch": true,
+                "burst_count": 2,
+                "cyclic": 1100,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "STANAG 4179",
+                "jamrate": 0.005,
+                "accessories": [
+                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": {"id": 398}},
+                    {"name": "Picatinny Rail (Handguard Top)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Left)", "slot": "picatinny_rifle", "current": {"id": 194, "sub_attachment": 195}},
+                    {"name": "Picatinny Rail (Handguard Right)", "slot": "picatinny_rifle", "current": {"id": 199}},
+                    {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom", "current": {"id": 108}},
+                    {"name": "Bayonet Lug", "slot": "bayonet_mount_ar15", "current": null, "conflicts_with": ["muzzle_556"]},    
+                    {"name": "Muzzle Device", "slot": "muzzle_556", "current": {"id": 112}}
+                ],
+                "can_stack": false
+            },
+            {
+                "name": "Custom Glock 17 Gen 6",
+                "value": 10250,
+                "description": "Custom-built precision combat handgun based on the Glock 17 Gen 6, featuring a match-grade barrel, super light trigger pull, and plenty of red anodized precision manufactured CNC aluminum parts.",
+                "rarity": "Mythic",
+                "random_quantity": false,
+                "id": 468,
+                "weight": 0.95,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "pistol",
+                "platform": "Glock",
+                "caliber": ["9x19mm Parabellum"],
+                "action": ["Semi", "Auto"],
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 1200,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "Glock 9x19mm Parabellum",
+                "jamrate": 0.005,
+                "accessories": [
+                    {"name": "Pistol Picatinny Rail", "slot": "picatinny_pistol", "current": {"id": 225}},
+                    {"name": "MOS Mount", "slot": "pistol_optic_mount", "current": {"id": 223}},
+                    {"name": "Muzzle Device", "slot": "muzzle_9mm", "current": {"id": 130}}
+                ]
             }
         ],
         "enemy_drops": [

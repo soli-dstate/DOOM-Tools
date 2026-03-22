@@ -1846,6 +1846,7 @@
                 "accessories": [
                     {"name": "Optic Mount", "slot": "awm_optic_mount", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
+                ]
             }
         ],
         "parts": [
