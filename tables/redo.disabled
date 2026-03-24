@@ -90,7 +90,7 @@
                 "in_armory": true,
                 "armory_category": "Handgun",
                 "parts": [
-                    {"name": "Glock 17 Barrel", "slot": "glock_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "Glock 19 Barrel", "slot": "glock_19_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
                     {"name": "Glock 17 Trigger Spring", "slot": "glock_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
                     {"name": "Glock 17 Recoil Spring", "slot": "glock_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"}
                 ]
@@ -359,6 +359,8 @@
                 "bolt_catch": false,
                 "cyclic": 50,
                 "magazinetype": "Internal Box",
+                "accepts_clips": true,
+                "clip_type": "M1903",
                 "capacity": 5,
                 "jamrate": 0.005,
                 "accessories": [
@@ -417,6 +419,8 @@
                 "bolt_catch": false,
                 "cyclic": 50,
                 "magazinetype": "Internal Box",
+                "accepts_clips": true,
+                "clip_type": "Mauser 98",
                 "capacity": 5,
                 "jamrate": 0.005,
                 "accessories": [
@@ -447,6 +451,8 @@
                 "bolt_catch": false,
                 "cyclic": 50,
                 "magazinetype": "Internal Box",
+                "accepts_clips": true,
+                "clip_type": "Mauser 98",
                 "capacity": 5,
                 "jamrate": 0.005,
                 "accessories": [
@@ -554,6 +560,7 @@
                 "bolt": "closed",
                 "bolt_catch": false,
                 "magazinetype": "Break Action",
+                "magazinesubtype": "side-by-side",
                 "capacity": 2,
                 "jamrate": 0.001,
                 "accessories": [
@@ -582,6 +589,7 @@
                 "bolt": "closed",
                 "bolt_catch": false,
                 "magazinetype": "Break Action",
+                "magazinesubtype": "side-by-side",
                 "capacity": 2,
                 "jamrate": 0.001,
                 "accessories": [
@@ -610,6 +618,7 @@
                 "bolt": "closed",
                 "bolt_catch": false,
                 "magazinetype": "Break Action",
+                "magazinesubtype": "over-under",
                 "capacity": 2,
                 "jamrate": 0.001,
                 "accessories": [
@@ -638,6 +647,7 @@
                 "bolt": "closed",
                 "bolt_catch": false,
                 "magazinetype": "Break Action",
+                "magazinesubtype": "over-under",
                 "capacity": 2,
                 "jamrate": 0.001,
                 "accessories": [
@@ -805,7 +815,7 @@
             {
                 "name": "Heckler & Koch MR223A3",
                 "value": 3999.99,
-                "description": "German made AR-15 rifle chambered in 5.56 NATO, designed for precision and reliability in the field.",
+                "description": "German made AR-15 rifle chambered in .223 Remington, designed for precision and reliability in the field.",
                 "rarity": "Mythic",
                 "random_quantity": false,
                 "weight": 3.51,
@@ -839,6 +849,518 @@
                     {"name": "HK416 Gas Piston", "slot": "hk416_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"},
                     {"name": "HK416 Bolt Carrier Group", "slot": "hk416_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"},
                     {"name": "AR-15 Buffer Spring", "slot": "ar15_buffer_spring", "current": {"id": null}, "durability": null, "type": "buffer_spring"}
+                ]
+            },
+            {
+                "name": "Heckler & Koch HK243",
+                "value": 2495,
+                "description": "Civilian version of the G36, designed as a sporting rifle chambered in .223 Remington, with a long 16.5\" barrel and a quite frankly ugly design.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 3.2,
+                "id": 120,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "G36",
+                "caliber": ["5.56x45mm NATO", ".223 Remington"],
+                "action": ["Semi"],
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 750,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "STANAG 4179",
+                "jamrate": 0.005,
+                "accessories": [
+                    {"name": "Picatinny Rail (Frame)", "slot": "picatinny_optic", "current": null},
+                    {"name": "Heckler & Koch HKey (Handguard Left)", "slot": "hkey_rifle", "current": null},
+                    {"name": "Heckler & Koch HKey (Handguard Right)", "slot": "hkey_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom", "current": null},
+                    {"name": "Conversion Kit", "slot": "g36_conversion_kit", "current": null},
+                    {"name": "Auto Sear", "slot": "g36_auto_sear", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_556", "current": null}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "HK243 Barrel", "slot": "hk243_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "G36 Trigger Spring", "slot": "g36_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
+                    {"name": "G36 Recoil Spring", "slot": "g36_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
+                    {"name": "HK243 Gas Piston", "slot": "hk243_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"},
+                    {"name": "G36 Bolt Carrier Group", "slot": "g36_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"}
+                ]
+            },
+            {
+                "name": "Ruger Firearms 10/22 Standard",
+                "value": 349,
+                "description": "American-made sporting/hunting rifle chambered in .22 Long Rifle, renowned for its reliability, ease of use, and extensive aftermarket support.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 2.22,
+                "id": 121,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "10/22",
+                "caliber": [".22 Long Rifle"],
+                "action": ["Semi"],
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 200,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "Ruger 10/22",
+                "jamrate": 0.01,
+                "accessories": [
+                    {"name": "Picatinny Rail (Receiver)", "slot": "picatinny_optic", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_22", "current": null}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "10/22 Barrel", "slot": "ruger_10_22_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "10/22 Trigger Spring", "slot": "ruger_10_22_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
+                    {"name": "10/22 Recoil Spring", "slot": "ruger_10_22_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"}
+                ]
+            },
+            {
+                "name": "Anschutz 1782 Slimline",
+                "value": 3995,
+                "description": "German made big bore hunting rifle chambered in .30-06 Springfield, designed for precision and reliability in the field.",
+                "rarity": "Legendary",
+                "random_quantity": false,
+                "weight": 3.6,
+                "id": 122,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "1782",
+                "caliber": [".30-06 Springfield", ".30-06 NATO"],
+                "action": ["Bolt"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "magazinetype": "Internal box",
+                "accepts_clips": true,
+                "clip_type": "M1903",
+                "capacity": 5,
+                "jamrate": 0.005,
+                "accessories": [
+                    {"name": "Scope Mount", "slot": "scope_mount", "current": null}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "1782 Slimline Barrel", "slot": "1782_slimline_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "1782 Slimline Trigger Spring", "slot": "1782_slimline_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
+                    {"name": "1782 Slimline Bolt", "slot": "1782_slimline_bolt", "current": {"id": null}, "durability": null, "type": "bolt"}
+                ]
+            },
+            {
+                "name": "Anschutz 1771 \"170 Years\" Edition",
+                "value": 4000,
+                "description": "German made medium caliber hunting rifle chambered in .223 Remington, designed for precision and reliability in the field.",
+                "rarity": "Legendary",
+                "random_quantity": false,
+                "weight": 3.4,
+                "id": 123,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "1771",
+                "caliber": ["5.56x45mm NATO", ".223 Remington"],
+                "action": ["Bolt"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "Anschutz 1771",
+                "jamrate": 0.005,
+                "accessories": [
+                    {"name": "Picatinny Rail (Frame)", "slot": "picatinny_optic", "current": null}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "1771 Barrel", "slot": "1771_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "1771 Trigger Spring", "slot": "1771_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
+                    {"name": "1771 Bolt", "slot": "1771_bolt", "current": {"id": null}, "durability": null, "type": "bolt"}
+                ]
+            },
+            {
+                "name": "Anschutz 1761 WHISPER Classic",
+                "value": 2400,
+                "description": "German made integrally suppressed sporting/hunting rifle chambered in .22 Long Rifle. About the most reliable suppressed firearm you could get.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 3.1,
+                "id": 124,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "1761",
+                "caliber": [".22 Long Rifle"],
+                "action": ["Bolt"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "Anschutz 1761",
+                "jamrate": 0.005,
+                "integrally_suppressed": true,
+                "accessories": [
+                    {"name": "Weaver Rail", "slot": "weaver_optic", "current": null}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "1761 WHISPER Classic Barrel", "slot": "1761_whisper_classic_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "1761 WHISPER Classic Trigger Spring", "slot": "1761_whisper_classic_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
+                    {"name": "1761 WHISPER Classic Bolt", "slot": "1761_whisper_classic_bolt", "current": {"id": null}, "durability": null, "type": "bolt"}
+                ]
+            },
+            {
+                "name": "J.P. Sauer & Sohn Sauer 505 Mini",
+                "value": 3100,
+                "description": "Intermediate cartridge hunting rifle chambered in .223 Remington, Germany's oldest firearm manufacturer's classic hunting rifle platform.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 3.45,
+                "id": 125,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "Sauer 505",
+                "caliber": ["5.56x45mm NATO", ".223 Remington"],
+                "action": ["Bolt"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "Sauer 505 Mini",
+                "jamrate": 0.005,
+                "accessories": [
+                    {"name": "Scope Mount", "slot": "scope_mount", "current": null}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "Sauer 505 Mini Barrel", "slot": "sauer_505_mini_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "Sauer 505 Mini Trigger Spring", "slot": "sauer_505_mini_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
+                    {"name": "Sauer 505 Mini Bolt", "slot": "sauer_505_mini_bolt", "current": {"id": null}, "durability": null, "type": "bolt"}
+                ]
+            },
+            {
+                "name": "J.P. Sauer & Sohn Sauer 505 Medium",
+                "value": 3200,
+                "description": "Medium caliber hunting rifle chambered in .308 Winchester, Germany's oldest firearm manufacturer's classic hunting rifle platform.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 3.45,
+                "id": 126,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "Sauer 505",
+                "caliber": [".308 Winchester", "7.62x51mm NATO"],
+                "action": ["Bolt"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "Sauer 505 Medium",
+                "jamrate": 0.005,
+                "accessories": [
+                    {"name": "Scope Mount", "slot": "scope_mount", "current": null}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "Sauer 505 Medium Barrel", "slot": "sauer_505_medium_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "Sauer 505 Medium Trigger Spring", "slot": "sauer_505_medium_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
+                    {"name": "Sauer 505 Medium Bolt", "slot": "sauer_505_medium_bolt", "current": {"id": null}, "durability": null, "type": "bolt"}
+                ]
+            },
+            {
+                "name": "J.P. Sauer & Sohn Sauer 505 Win.",
+                "value": 3300,
+                "description": "Large caliber hunting rifle chambered in .30-06 Springfield, Germany's oldest firearm manufacturer's classic hunting rifle platform.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 3.45,
+                "id": 127,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "Sauer 505",
+                "caliber": [".30-06 Springfield", ".30-06 NATO"],
+                "action": ["Bolt"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "Sauer 505 Win.",
+                "jamrate": 0.005,
+                "accessories": [
+                    {"name": "Scope Mount", "slot": "scope_mount", "current": null}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "Sauer 505 Win. Barrel", "slot": "sauer_505_win_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "Sauer 505 Win. Trigger Spring", "slot": "sauer_505_win_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
+                    {"name": "Sauer 505 Win. Bolt", "slot": "sauer_505_win_bolt", "current": {"id": null}, "durability": null, "type": "bolt"}
+                ]
+            },
+            {
+                "name": "J.P. Sauer & Sohn Sauer 505 Magnum",
+                "value": 3500,
+                "description": "Magnum caliber hunting rifle chambered in .300 Winchester Magnum, Germany's oldest firearm manufacturer's classic hunting rifle platform.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 3.45,
+                "id": 128,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "Sauer 505",
+                "caliber": [".300 Winchester Magnum", "7.62x67mm NATO"],
+                "action": ["Bolt"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "Sauer 505 Magnum",
+                "jamrate": 0.005,
+                "accessories": [
+                    {"name": "Scope Mount", "slot": "scope_mount", "current": null}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "Sauer 505 Magnum Barrel", "slot": "sauer_505_magnum_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "Sauer 505 Magnum Trigger Spring", "slot": "sauer_505_magnum_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
+                    {"name": "Sauer 505 Magnum Bolt", "slot": "sauer_505_magnum_bolt", "current": {"id": null}, "durability": null, "type": "bolt"}
+                ]
+            },
+            {
+                "name": "Palmetto State Armory PSA AR-15 16\" 5.56 NATO Railed Rifle",
+                "value": 699,
+                "description": "Low end American manufactured AR-15, chambered in .223 Remington, with a 16\" barrel and a full-length quad rail handguard.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 3.17,
+                "id": 129,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "AR-15",
+                "caliber": ["5.56x45mm NATO", ".223 Remington"],
+                "action": ["Semi"],
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 700,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "STANAG 4179",
+                "jamrate": 0.1,
+                "accessories": [
+                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": null},
+                    {"name": "Picatinny Rail (Handguard Left)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Right)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom", "current": null},
+                    {"name": "Conversion Kit", "slot": "ar15_conversion_kit", "current": null},
+                    {"name": "Auto Sear", "slot": "ar15_auto_sear", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_556", "current": null}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "AR-15 Barrel", "slot": "ar15_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "AR-15 Trigger Spring", "slot": "ar15_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
+                    {"name": "AR-15 Recoil Spring", "slot": "ar15_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
+                    {"name": "AR-15 Gas Tube", "slot": "ar15_gas_tube", "current": {"id": null}, "durability": null, "type": "gas_tube"},
+                    {"name": "AR-15 Bolt Carrier Group", "slot": "ar15_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"},
+                    {"name": "AR-15 Buffer Spring", "slot": "ar15_buffer_spring", "current": {"id": null}, "durability": null, "type": "buffer_spring"}
+                ]
+            },
+            {
+                "name": "Palmetto State Armory PSA PA-15 Classic Stealth AR-15 Pistol 10.5\" Carbine",
+                "value": 569.99,
+                "description": "Low end American manufactured AR-15 pistol, chambered in .223 Remington, with a 10.5\" barrel and a classic-style handguard.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 2.2,
+                "id": 130,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "AR-15",
+                "caliber": ["5.56x45mm NATO", ".223 Remington"],
+                "action": ["Semi"],
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 700,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "STANAG 4179",
+                "jamrate": 0.1,
+                "accessories": [
+                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": null},
+                    {"name": "Conversion Kit", "slot": "ar15_conversion_kit", "current": null},
+                    {"name": "Auto Sear", "slot": "ar15_auto_sear", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_556", "current": null}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "AR-15 Barrel", "slot": "ar15_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "AR-15 Trigger Spring", "slot": "ar15_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
+                    {"name": "AR-15 Recoil Spring", "slot": "ar15_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
+                    {"name": "AR-15 Gas Tube", "slot": "ar15_gas_tube", "current": {"id": null}, "durability": null, "type": "gas_tube"},
+                    {"name": "AR-15 Bolt Carrier Group", "slot": "ar15_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"},
+                    {"name": "AR-15 Buffer Spring", "slot": "ar15_buffer_spring", "current": {"id": null}, "durability": null, "type": "buffer_spring"}
+                ]
+            },
+            {
+                "name": "Palmeto State Armory PSA AK-47 GF3 Forged Rifle, \"Voodoo\"",
+                "value": 799.99,
+                "description": "Low end American manufactured AK-47 clone, chambered in 7.62x39mm Soviet, with a unique wood laminate finish and hammer forged parts.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 3.5,
+                "id": 131,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "AK-47",
+                "caliber": ["7.62x39mm Soviet"],
+                "action": ["Semi"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 600,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "AK-47",
+                "jamrate": 0.001,
+                "accessories": [
+                    {"name": "Russian Dovetail Rail", "slot": "russian_optic", "current": null},
+                    {"name": "Auto Sear", "slot": "ak47_auto_sear", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "AK-47 Barrel", "slot": "ak47_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "AK-47 Trigger Spring", "slot": "ak47_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
+                    {"name": "AK-47 Gas Piston", "slot": "ak47_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"},
+                    {"name": "AK-47 Bolt Carrier Group", "slot": "ak47_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"}
+                ]
+            },
+            {
+                "name": "Palmetto State Armory PSA Dagger Full Size - S 9mm Pistol with SWRV2 RMR Slide & Threaded Barrel",
+                "value": 339.99,
+                "description": "Low end American manufactured striker-fired 9mm pistol, with a full-size frame, a slide cut for RMR optics, and a threaded barrel for suppressor use.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 0.63,
+                "id": 132,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "pistol",
+                "platform": "Dagger",
+                "caliber": ["9x19mm Parabellum", "9x19mm NATO"],
+                "action": ["Semi"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "Glock 9x19mm Parabellum",
+                "jamrate": 0.01,
+                "accessories": [
+                    {"name": "RMR Mount", "slot": "pistol_optic_mount", "current": null},
+                    {"name": "Picatinny Rail (Frame)", "slot": "picatinny_pistol", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_9mm", "current": null}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "Dagger Barrel", "slot": "dagger_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "Dagger Trigger Spring", "slot": "dagger_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
+                    {"name": "Dagger Recoil Spring", "slot": "dagger_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"}
+                ]
+            },
+            {
+                "name": "Glock 17 Gen 6",
+                "value": 745,
+                "description": "Latest generation of the most popular striker-fired 9mm pistol-dare I say the most popular pistol in general-in the world, with improved ergonomics, factory stipling, and a redesigned magwell.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 0.625,
+                "id": 134,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "pistol",
+                "platform": "Glock",
+                "caliber": ["9x19mm Parabellum", "9x19mm NATO"],
+                "action": ["Semi"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "Glock 9x19mm Parabellum",
+                "jamrate": 0.01,
+                "accessories": [
+                    {"name": "MOS Mount", "slot": "pistol_optic_mount", "current": null},
+                    {"name": "Picatinny Rail (Frame)", "slot": "picatinny_pistol", "current": null},
+                    {"name": "Auto Sear", "slot": "glock_auto_sear", "current": null},
+                    {"name": "Conversion Kit", "slot": "glock_conversion_kit", "current": null},
+                    {"name": "Muzzle Device", "slot": "glock_muzzle", "current": null}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "Glock 17 Barrel", "slot": "glock_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "Glock 17 Trigger Spring", "slot": "glock_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
+                    {"name": "Glock 17 Recoil Spring", "slot": "glock_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"}
+                ]
+            },
+            {
+                "name": "Glock 19 Gen 6",
+                "value": 725,
+                "description": "Compact version of the Glock 17 Gen 6, with the same improvements in ergonomics, factory stipling, and a redesigned magwell, but with a shorter barrel and grip for easier concealment.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 0.595,
+                "id": 135,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "pistol",
+                "platform": "Glock",
+                "caliber": ["9x19mm Parabellum", "9x19mm NATO"],
+                "action": ["Semi"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "Glock 9x19mm Parabellum",
+                "jamrate": 0.01,
+                "accessories": [
+                    {"name": "MOS Mount", "slot": "pistol_optic_mount", "current": null},
+                    {"name": "Picatinny Rail (Frame)", "slot": "picatinny_pistol", "current": null},
+                    {"name": "Auto Sear", "slot": "glock_auto_sear", "current": null},
+                    {"name": "Conversion Kit", "slot": "glock_conversion_kit", "current": null},
+                    {"name": "Muzzle Device", "slot": "glock_muzzle", "current": null}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "Glock 19 Barrel", "slot": "glock_19_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "Glock 17 Trigger Spring", "slot": "glock_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
+                    {"name": "Glock 17 Recoil Spring", "slot": "glock_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"}
+                ]
+            },
+            {
+                "name": "KelTec PR-5.7",
+                "value": 569.99,
+                "description": "A unique pistol from the mad American scientists over at KelTec, an internal box magazine 5.7x28mm pistol with a large 20 round capacity. Accepts stripper clips.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 0.393,
+                "id": 136,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "pistol",
+                "platform": "PR-5.7",
+                "caliber": ["FN 5.7x28mm", "5.7x28mm NATO"],
+                "action": ["Semi"],
+                "bolt": "closed",
+                "bolt_catch": true,
+                "magazinetype": "Internal box",
+                "accepts_clips": true,
+                "clip_type": "PR-5.7",
+                "capacity": 20,
+                "jamrate": 0.01,
+                "accessories": [
+                    {"name": "RMR Mount", "slot": "pistol_optic_mount", "current": null},
+                    {"name": "Picatinny Rail (Frame)", "slot": "picatinny_pistol", "current": null}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "PR-5.7 Barrel", "slot": "pr_5_7_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "PR-5.7 Trigger Spring", "slot": "pr_5_7_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
+                    {"name": "PR-5.7 Recoil Spring", "slot": "pr_5_7_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"}
                 ]
             }
         ],
@@ -880,7 +1402,9 @@
                     {"name": "HK416 Gas Piston", "slot": "hk416_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"},
                     {"name": "HK416 Bolt Carrier Group", "slot": "hk416_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"},
                     {"name": "AR-15 Buffer Spring", "slot": "ar15_buffer_spring", "current": {"id": null}, "durability": null, "type": "buffer_spring"}
-                ]
+                ],
+                "in_armory": true,
+                "armory_category": "Assault Rifle"
             },
             {
                 "name": "Heckler & Koch HK416A5",
@@ -919,7 +1443,9 @@
                     {"name": "HK416 Gas Piston", "slot": "hk416_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"},
                     {"name": "HK416 Bolt Carrier Group", "slot": "hk416_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"},
                     {"name": "AR-15 Buffer Spring", "slot": "ar15_buffer_spring", "current": {"id": null}, "durability": null, "type": "buffer_spring"}
-                ]
+                ],
+                "in_armory": true,
+                "armory_category": "Assault Rifle"
             },
             {
                 "name": "Heckler & Koch HK416C",
@@ -958,7 +1484,9 @@
                     {"name": "HK416 Gas Piston", "slot": "hk416_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"},
                     {"name": "HK416 Bolt Carrier Group", "slot": "hk416_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"},
                     {"name": "AR-15 Buffer Spring", "slot": "ar15_buffer_spring", "current": {"id": null}, "durability": null, "type": "buffer_spring"}
-                ]
+                ],
+                "in_armory": true,
+                "armory_category": "Assault Rifle"
             },
             {
                 "name": "Heckler & Koch HK416D",
@@ -997,7 +1525,9 @@
                     {"name": "HK416 Gas Piston", "slot": "hk416_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"},
                     {"name": "HK416 Bolt Carrier Group", "slot": "hk416_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"},
                     {"name": "AR-15 Buffer Spring", "slot": "ar15_buffer_spring", "current": {"id": null}, "durability": null, "type": "buffer_spring"}
-                ]
+                ],
+                "in_armory": true,
+                "armory_category": "Assault Rifle"
             },
             {
                 "name": "Heckler & Koch HK416N",
@@ -1036,7 +1566,9 @@
                     {"name": "HK416 Gas Piston", "slot": "hk416_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"},
                     {"name": "HK416 Bolt Carrier Group", "slot": "hk416_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"},
                     {"name": "AR-15 Buffer Spring", "slot": "ar15_buffer_spring", "current": {"id": null}, "durability": null, "type": "buffer_spring"}
-                ]
+                ],
+                "in_armory": true,
+                "armory_category": "Assault Rifle"
             },
             {
                 "name": "Heckler & Koch HK416F",
@@ -1075,7 +1607,9 @@
                     {"name": "HK416 Gas Piston", "slot": "hk416_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"},
                     {"name": "HK416 Bolt Carrier Group", "slot": "hk416_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"},
                     {"name": "AR-15 Buffer Spring", "slot": "ar15_buffer_spring", "current": {"id": null}, "durability": null, "type": "buffer_spring"}
-                ]
+                ],
+                "in_armory": true,
+                "armory_category": "Assault Rifle"
             },
             {
                 "name": "Heckler & Koch G36",
@@ -1109,7 +1643,9 @@
                     {"name": "G36 Recoil Spring", "slot": "g36_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
                     {"name": "G36 Gas Piston", "slot": "g36_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"},
                     {"name": "G36 Bolt Carrier Group", "slot": "g36_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"}
-                ]
+                ],
+                "in_armory": true,
+                "armory_category": "Assault Rifle"
             },
             {
                 "name": "Heckler & Koch G36V",
@@ -1144,7 +1680,9 @@
                     {"name": "G36 Recoil Spring", "slot": "g36_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
                     {"name": "G36 Gas Piston", "slot": "g36_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"},
                     {"name": "G36 Bolt Carrier Group", "slot": "g36_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"}
-                ]
+                ],
+                "in_armory": true,
+                "armory_category": "Assault Rifle"
             },
             {
                 "name": "Heckler & Koch G36K",
@@ -1181,7 +1719,9 @@
                     {"name": "G36 Recoil Spring", "slot": "g36_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
                     {"name": "G36 Gas Piston", "slot": "g36_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"},
                     {"name": "G36 Bolt Carrier Group", "slot": "g36_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"}
-                ]
+                ],
+                "in_armory": true,
+                "armory_category": "Assault Rifle"
             },
             {
                 "name": "Heckler & Koch G36C",
@@ -1218,7 +1758,9 @@
                     {"name": "G36 Recoil Spring", "slot": "g36_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
                     {"name": "G36 Gas Piston", "slot": "g36_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"},
                     {"name": "G36 Bolt Carrier Group", "slot": "g36_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"}
-                ]
+                ],
+                "in_armory": true,
+                "armory_category": "Assault Rifle"
             },
             {
                 "name": "Heckler & Koch G36KV",
@@ -1256,7 +1798,9 @@
                     {"name": "G36 Recoil Spring", "slot": "g36_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
                     {"name": "G36 Gas Piston", "slot": "g36_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"},
                     {"name": "G36 Bolt Carrier Group", "slot": "g36_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"}
-                ]
+                ],
+                "in_armory": true,
+                "armory_category": "Assault Rifle"
             },
             {
                 "name": "Heckler & Koch G36A4",
@@ -1294,7 +1838,9 @@
                     {"name": "G36 Recoil Spring", "slot": "g36_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
                     {"name": "G36 Gas Piston", "slot": "g36_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"},
                     {"name": "G36 Bolt Carrier Group", "slot": "g36_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"}
-                ]
+                ],
+                "in_armory": true,
+                "armory_category": "Assault Rifle"
             },
             {
                 "name": "Heckler & Koch G36KA4",
@@ -1332,7 +1878,9 @@
                     {"name": "G36 Recoil Spring", "slot": "g36_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
                     {"name": "G36 Gas Piston", "slot": "g36_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"},
                     {"name": "G36 Bolt Carrier Group", "slot": "g36_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"}
-                ]
+                ],
+                "in_armory": true,
+                "armory_category": "Assault Rifle"
             },
             {
                 "name": "Heckler & Koch USP45 Tactical",
@@ -1358,7 +1906,15 @@
                     {"name": "Iron Sights", "slot": "usp_iron_sights", "current": null},
                     {"name": "Picatinny Rail (Frame)", "slot": "picatinny_pistol", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_45acp", "current": null}
-                ]
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "USP45 Barrel", "slot": "usp45_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "USP45 Recoil Spring", "slot": "usp45_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
+                    {"name": "USP45 Trigger Spring", "slot": "usp45_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"}
+                ],
+                "in_armory": true,
+                "armory_category": "Handgun"
             },
             {
                 "name": "Heckler & Koch USP9 Tactical",
@@ -1390,7 +1946,9 @@
                     {"name": "USP9 Barrel", "slot": "usp9_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
                     {"name": "USP9 Recoil Spring", "slot": "usp9_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
                     {"name": "USP9 Trigger Spring", "slot": "usp9_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"}
-                ]
+                ],
+                "in_armory": true,
+                "armory_category": "Handgun"
             },
             {
                 "name": "Heckler & Koch P8A1",
@@ -1416,7 +1974,15 @@
                     {"name": "Iron Sights", "slot": "usp_iron_sights", "current": null},
                     {"name": "Picatinny Rail (Frame)", "slot": "picatinny_pistol", "current": null},
                     {"name": "Muzzle Device", "slot": "muzzle_9mm", "current": null}
-                ]
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "USP9 Barrel", "slot": "usp9_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "USP9 Recoil Spring", "slot": "usp9_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
+                    {"name": "USP9 Trigger Spring", "slot": "usp9_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"}
+                ],
+                "in_armory": true,
+                "armory_category": "Handgun"
             },
             {
                 "name": "Glock 17 Gen 3",
@@ -1450,7 +2016,9 @@
                     {"name": "Glock 17 Barrel", "slot": "glock_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
                     {"name": "Glock 17 Recoil Spring", "slot": "glock_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
                     {"name": "Glock 17 Trigger Spring", "slot": "glock_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"}
-                ]
+                ],
+                "in_armory": true,
+                "armory_category": "Handgun"
             },
             {
                 "name": "Glock P9M",
@@ -1484,7 +2052,9 @@
                     {"name": "Glock 17 Barrel", "slot": "glock_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
                     {"name": "Glock 17 Recoil Spring", "slot": "glock_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
                     {"name": "Glock 17 Trigger Spring", "slot": "glock_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"}
-                ]
+                ],
+                "in_armory": true,
+                "armory_category": "Handgun"
             },
             {
                 "name": "Glock 17 Gen 4",
@@ -1518,7 +2088,9 @@
                     {"name": "Glock 17 Barrel", "slot": "glock_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
                     {"name": "Glock 17 Recoil Spring", "slot": "glock_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
                     {"name": "Glock 17 Trigger Spring", "slot": "glock_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"}
-                ]
+                ],
+                "in_armory": true,
+                "armory_category": "Handgun"
             },
             {
                 "name": "Glock P9A1",
@@ -1552,7 +2124,9 @@
                     {"name": "Glock 17 Barrel", "slot": "glock_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
                     {"name": "Glock 17 Recoil Spring", "slot": "glock_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
                     {"name": "Glock 17 Trigger Spring", "slot": "glock_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"}
-                ]
+                ],
+                "in_armory": true,
+                "armory_category": "Handgun"
             },
             {
                 "name": "Heckler & Koch P12",
@@ -1584,7 +2158,9 @@
                     {"name": "USP45 Barrel", "slot": "usp45_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
                     {"name": "USP45 Recoil Spring", "slot": "usp45_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
                     {"name": "USP45 Trigger Spring", "slot": "usp45_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"}
-                ]
+                ],
+                "in_armory": true,
+                "armory_category": "Handgun"
             },
             {
                 "name": "Heckler & Koch MP5A5",
@@ -1616,7 +2192,9 @@
                     {"name": "MP5 Recoil Spring", "slot": "mp5_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
                     {"name": "MP5 Trigger Spring", "slot": "mp5_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
                     {"name": "MP5 Bolt Carrier Group", "slot": "mp5_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"}
-                ]
+                ],
+                "in_armory": true,
+                "armory_category": "Submachine Gun"
             },
             {
                 "name": "Heckler & Koch MP5K",
@@ -1628,7 +2206,7 @@
                 "id": 82,
                 "firearm": true,
                 "type": "conventional",
-                "subtype": "submachine_gun",
+                "subtype": "personal_defense_weapon",
                 "platform": "MP5",
                 "caliber": ["9x19mm Parabellum", "9x19mm NATO"],
                 "action": ["Semi", "Auto"],
@@ -1648,7 +2226,9 @@
                     {"name": "MP5K Recoil Spring", "slot": "mp5k_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
                     {"name": "MP5K Trigger Spring", "slot": "mp5k_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
                     {"name": "MP5K Bolt Carrier Group", "slot": "mp5k_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"}
-                ]
+                ],
+                "in_armory": true,
+                "armory_category": "Personal Defense Weapon"
             },
             {
                 "name": "Heckler & Koch MP5SD6",
@@ -1680,7 +2260,9 @@
                     {"name": "MP5 Recoil Spring", "slot": "mp5_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
                     {"name": "MP5 Trigger Spring", "slot": "mp5_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
                     {"name": "MP5 Bolt Carrier Group", "slot": "mp5_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"}
-                ]
+                ],
+                "in_armory": true,
+                "armory_category": "Submachine Gun"
             },
             {
                 "name": "Heckler & Koch MP7A1",
@@ -1715,7 +2297,9 @@
                     {"name": "MP7 Recoil Spring", "slot": "mp7_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
                     {"name": "MP7 Trigger Spring", "slot": "mp7_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
                     {"name": "MP7 Bolt Carrier Group", "slot": "mp7_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"}
-                ]
+                ],
+                "in_armory": true,
+                "armory_category": "Personal Defense Weapon"
             },
             {
                 "name": "Heckler & Koch HK417",
@@ -1752,7 +2336,9 @@
                     {"name": "HK417 Recoil Spring", "slot": "hk417_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
                     {"name": "HK417 Gas Piston", "slot": "hk417_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"},
                     {"name": "HK417 Bolt Carrier Group", "slot": "hk417_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"}
-                ]
+                ],
+                "in_armory": true,
+                "armory_category": "Battle Rifle"
             },
             {
                 "name": "Heckler & Koch HK417A2",
@@ -1789,7 +2375,9 @@
                     {"name": "HK417 Recoil Spring", "slot": "hk417_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
                     {"name": "HK417 Gas Piston", "slot": "hk417_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"},
                     {"name": "HK417 Bolt Carrier Group", "slot": "hk417_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"}
-                ]
+                ],
+                "in_armory": true,
+                "armory_category": "Battle Rifle"
             },
             {
                 "name": "Accuracy International AWM-F",
@@ -1820,7 +2408,9 @@
                     {"name": "AWM Barrel", "slot": "awm_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
                     {"name": "AWM Bolt", "slot": "awm_bolt", "current": {"id": null}, "durability": null, "type": "bolt"},
                     {"name": "AWM Trigger Spring", "slot": "awm_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"}
-                ]
+                ],
+                "in_armory": true,
+                "armory_category": "Long Range Rifle"
             },
             {
                 "name": "Accuracy International AWC",
@@ -1852,7 +2442,9 @@
                     {"name": "AWM Barrel", "slot": "awm_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
                     {"name": "AWM Bolt", "slot": "awm_bolt", "current": {"id": null}, "durability": null, "type": "bolt"},
                     {"name": "AWM Trigger Spring", "slot": "awm_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"}
-                ]
+                ],
+                "in_armory": true,
+                "armory_category": "Long Range Rifle"
             },
             {
                 "name": "Heckler & Koch G3",
@@ -1877,7 +2469,7 @@
                 "accessories": [
                     {"name": "Optic Mount", "slot": "hk_optic_mount", "current": null},
                     {"name": "Bayonet Lug", "slot": "g3_bayonet_lug", "current": null, "conflicts_with": ["muzzle_762"]},
-                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null, "conflicts_with": ["nato_bayonet_lug"]}
+                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null, "conflicts_with": ["g3_bayonet_lug"]}
                 ],
                 "can_stack": false,
                 "parts": [
@@ -1886,7 +2478,9 @@
                     {"name": "G3 Recoil Spring", "slot": "g3_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
                     {"name": "G3 Bolt Carrier Group", "slot": "g3_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"},
                     {"name": "G3 Gas Piston", "slot": "g3_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"}
-                ]
+                ],
+                "in_armory": true,
+                "armory_category": "Battle Rifle"
             },
             {
                 "name": "Heckler & Koch G3A1",
@@ -1911,7 +2505,7 @@
                 "accessories": [
                     {"name": "Optic Mount", "slot": "hk_optic_mount", "current": null},
                     {"name": "Bayonet Lug", "slot": "g3_bayonet_lug", "current": null, "conflicts_with": ["muzzle_762"]},
-                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null, "conflicts_with": ["nato_bayonet_lug"]}
+                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null, "conflicts_with": ["g3_bayonet_lug"]}
                 ],
                 "can_stack": false,
                 "parts": [
@@ -1920,7 +2514,9 @@
                     {"name": "G3 Recoil Spring", "slot": "g3_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
                     {"name": "G3 Bolt Carrier Group", "slot": "g3_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"},
                     {"name": "G3 Gas Piston", "slot": "g3_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"}
-                ]
+                ],
+                "in_armory": true,
+                "armory_category": "Battle Rifle"
             },
             {
                 "name": "Heckler & Koch G3A2",
@@ -1945,7 +2541,7 @@
                 "accessories": [
                     {"name": "Optic Mount", "slot": "hk_optic_mount", "current": null},
                     {"name": "Bayonet Lug", "slot": "g3_bayonet_lug", "current": null, "conflicts_with": ["muzzle_762"]},
-                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null, "conflicts_with": ["nato_bayonet_lug"]}
+                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null, "conflicts_with": ["g3_bayonet_lug"]}
                 ],
                 "can_stack": false,
                 "parts": [
@@ -1954,7 +2550,9 @@
                     {"name": "G3 Recoil Spring", "slot": "g3_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
                     {"name": "G3 Bolt Carrier Group", "slot": "g3_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"},
                     {"name": "G3 Gas Piston", "slot": "g3_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"}
-                ]
+                ],
+                "in_armory": true,
+                "armory_category": "Battle Rifle"
             },
             {
                 "name": "Heckler & Koch G3A3",
@@ -1979,7 +2577,7 @@
                 "accessories": [
                     {"name": "Optic Mount", "slot": "hk_optic_mount", "current": null},
                     {"name": "Bayonet Lug", "slot": "g3_bayonet_lug", "current": null, "conflicts_with": ["muzzle_762"]},
-                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null, "conflicts_with": ["nato_bayonet_lug"]}
+                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null, "conflicts_with": ["g3_bayonet_lug"]}
                 ],
                 "can_stack": false,
                 "parts": [
@@ -1988,7 +2586,9 @@
                     {"name": "G3 Recoil Spring", "slot": "g3_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
                     {"name": "G3 Bolt Carrier Group", "slot": "g3_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"},
                     {"name": "G3 Gas Piston", "slot": "g3_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"}
-                ]
+                ],
+                "in_armory": true,
+                "armory_category": "Battle Rifle"
             },
             {
                 "name": "Heckler & Koch G3KA4",
@@ -2013,7 +2613,7 @@
                 "accessories": [
                     {"name": "Optic Mount", "slot": "hk_optic_mount", "current": null},
                     {"name": "Bayonet Lug", "slot": "g3_bayonet_lug", "current": null, "conflicts_with": ["muzzle_762"]},
-                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null, "conflicts_with": ["nato_bayonet_lug"]}
+                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null, "conflicts_with": ["g3_bayonet_lug"]}
                 ],
                 "can_stack": false,
                 "parts": [
@@ -2022,7 +2622,1393 @@
                     {"name": "G3 Recoil Spring", "slot": "g3_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
                     {"name": "G3 Bolt Carrier Group", "slot": "g3_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"},
                     {"name": "G3KA4 Gas Piston", "slot": "g3ka4_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"}
+                ],
+                "in_armory": true,
+                "armory_category": "Battle Rifle"
+            },
+            {
+                "name": "Heckler & Koch G3KA3",
+                "value": 4500,
+                "description": "Karabiner (carbine) variant of the Heckler & Koch G3 battle rifle, this version specifically is rather confusingly named the G3KA3, despite it being a variant of the G3KA4, featuring a shorter barrel and a fixed stock.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 4,
+                "id": 94,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "G3",
+                "caliber": ["7.62x51mm NATO", ".308 Winchester"],
+                "action": ["Semi", "Auto"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 600,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "G3",
+                "jamrate": 0.005,
+                "accessories": [
+                    {"name": "Optic Mount", "slot": "hk_optic_mount", "current": null},
+                    {"name": "Bayonet Lug", "slot": "g3_bayonet_lug", "current": null, "conflicts_with": ["muzzle_762"]},
+                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null, "conflicts_with": ["g3_bayonet_lug"]}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "G3KA4 Barrel", "slot": "g3ka4_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "G3 Trigger Spring", "slot": "g3_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
+                    {"name": "G3 Recoil Spring", "slot": "g3_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
+                    {"name": "G3 Bolt Carrier Group", "slot": "g3_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"},
+                    {"name": "G3KA4 Gas Piston", "slot": "g3ka4_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"}
+                ],
+                "in_armory": true,
+                "armory_category": "Battle Rifle"
+            },
+            {
+                "name": "Heckler & Koch PSG1",
+                "value": 8000,
+                "description": "Präzisionsschützengewehr 1 (Precision Marksman Rifle 1), variant of the G3 battle rifle designed for long-range precision shooting.",
+                "rarity": "Legendary",
+                "random_quantity": false,
+                "weight": 7.2,
+                "id": 95,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "sniper_rifle",
+                "platform": "G3",
+                "caliber": ["7.62x51mm NATO", ".308 Winchester"],
+                "action": ["Semi"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 40,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "G3",
+                "jamrate": 0.001,
+                "accessories": [
+                    {"name": "Optic Mount", "slot": "hk_optic_mount", "current": null}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "PSG1 Barrel", "slot": "psg1_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "G3 Trigger Spring", "slot": "g3_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
+                    {"name": "G3 Recoil Spring", "slot": "g3_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
+                    {"name": "G3 Bolt Carrier Group", "slot": "g3_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"},
+                    {"name": "G3 Gas Piston", "slot": "g3_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"}
                 ]
+            },
+            {
+                "name": "Heckler & Koch PSG1A1",
+                "value": 8500,
+                "description": "Variant of the PGS1, which is in of itself a variant of the H&K G3. This one features a relocated charging handle and a better scope.",
+                "rarity": "Legendary",
+                "random_quantity": false,
+                "weight": 7.2,
+                "id": 96,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "sniper_rifle",
+                "platform": "G3",
+                "caliber": ["7.62x51mm NATO", ".308 Winchester"],
+                "action": ["Semi"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 40,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "G3",
+                "jamrate": 0.001,
+                "accessories": [
+                    {"name": "Optic Mount", "slot": "hk_optic_mount", "current": null}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "PSG1 Barrel", "slot": "psg1_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "G3 Trigger Spring", "slot": "g3_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
+                    {"name": "G3 Recoil Spring", "slot": "g3_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
+                    {"name": "G3 Bolt Carrier Group", "slot": "g3_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"},
+                    {"name": "G3 Gas Piston", "slot": "g3_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"}
+                ],
+                "in_armory": true,
+                "armory_category": "Sniper Rifle"
+            },
+            {
+                "name": "Heckler & Koch MSG90",
+                "value": 5000,
+                "description": "Variant of the PGS1, designed for military use rather than police use. The rifle is strengthened, lightened, and less expensive, featuring a composite handguard and stock.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 6.3,
+                "id": 97,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "sniper_rifle",
+                "platform": "G3",
+                "caliber": ["7.62x51mm NATO", ".308 Winchester"],
+                "action": ["Semi"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 40,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "G3",
+                "jamrate": 0.001,
+                "accessories": [
+                    {"name": "Weaver Rail", "slot": "weaver_optic", "current": null}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "MSG90 Barrel", "slot": "msg90_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "G3 Trigger Spring", "slot": "g3_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
+                    {"name": "G3 Recoil Spring", "slot": "g3_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
+                    {"name": "G3 Bolt Carrier Group", "slot": "g3_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"},
+                    {"name": "G3 Gas Piston", "slot": "g3_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"}
+                ],
+                "in_armory": true,
+                "armory_category": "Sniper Rifle"
+            },
+            {
+                "name": "Heckler & Koch MSG90A1",
+                "value": 5500,
+                "description": "Variant of the MSG90, featuring a threaded barrel. While the MSG90 is a variant of the PGS1, this one is a variant of the MSG90, and thus a variant of a variant of the G3.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 6.3,
+                "id": 98,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "sniper_rifle",
+                "platform": "G3",
+                "caliber": ["7.62x51mm NATO", ".308 Winchester"],
+                "action": ["Semi"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 40,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "G3",
+                "jamrate": 0.001,
+                "accessories": [
+                    {"name": "Weaver Rail", "slot": "weaver_optic", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "MSG90A1 Barrel", "slot": "msg90a1_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "G3 Trigger Spring", "slot": "g3_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
+                    {"name": "G3 Recoil Spring", "slot": "g3_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
+                    {"name": "G3 Bolt Carrier Group", "slot": "g3_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"},
+                    {"name": "G3 Gas Piston", "slot": "g3_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"}
+                ],
+                "in_armory": true,
+                "armory_category": "Sniper Rifle"
+            },
+            {
+                "name": "Heckler & Koch MSG90A2",
+                "value": 6000,
+                "description": "Variant of the MSG90, specifically designed for entry into the USMC DMR contract, but ended up being declined in favor of the United States Marine Corps Designated Marksman Rifle, a DMR based off of the M14.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 5.3,
+                "id": 99,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "sniper_rifle",
+                "platform": "G3",
+                "caliber": ["7.62x51mm NATO", ".308 Winchester"],
+                "action": ["Semi"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 40,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "G3",
+                "jamrate": 0.001,
+                "accessories": [
+                    {"name": "Weaver Rail", "slot": "weaver_optic", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "MSG90A1 Barrel", "slot": "msg90a1_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "G3 Trigger Spring", "slot": "g3_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
+                    {"name": "G3 Recoil Spring", "slot": "g3_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
+                    {"name": "G3 Bolt Carrier Group", "slot": "g3_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"},
+                    {"name": "G3 Gas Piston", "slot": "g3_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"}
+                ],
+                "in_armory": true,
+                "armory_category": "Sniper Rifle"
+            },
+            {
+                "name": "Heckler & Koch HK11 LSMG",
+                "value": 9000,
+                "description": "Historical variant of the G3, this gun is best referred to as a Squad Automatic Weapon. It's essentially just a G3 with a heavier quick-change barrel better suited for automatic fire.",
+                "rarity": "Legendary",
+                "random_quantity": false,
+                "weight": 7.05,
+                "id": 100,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "light_machine_gun",
+                "platform": "G3",
+                "caliber": ["7.62x51mm NATO", ".308 Winchester"],
+                "action": ["Semi", "Auto"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 750,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "G3",
+                "jamrate": 0.01,
+                "barrel_swap": true,
+                "accessories": [
+                    {"name": "Optic Mount", "slot": "hk_optic_mount", "current": null},
+                    {"name": "Bayonet Lug", "slot": "g3_bayonet_lug", "current": null, "conflicts_with": ["muzzle_762"]},
+                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null, "conflicts_with": ["g3_bayonet_lug"]}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "HK11 Barrel", "slot": "hk11_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "G3 Trigger Spring", "slot": "g3_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
+                    {"name": "G3 Recoil Spring", "slot": "g3_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
+                    {"name": "G3 Bolt Carrier Group", "slot": "g3_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"},
+                    {"name": "G3 Gas Piston", "slot": "g3_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"}
+                ],
+                "in_armory": true,
+                "armory_category": "Light Machine Gun"
+            },
+            {
+                "name": "Heckler & Koch HK21",
+                "value": 9000,
+                "description": "General purpose machine gun variant of the G3. Features a heavier quick-change barrel and the ability to feed from standard M13 linked belts.",
+                "rarity": "Legendary",
+                "random_quantity": false,
+                "weight": 7.92,
+                "id": 101,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "machine_gun",
+                "platform": "HK21",
+                "caliber": ["7.62x51mm NATO", ".308 Winchester"],
+                "action": ["Auto"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 900,
+                "magazinetype": "Belt",
+                "capacity": 100,
+                "jamrate": 0.02,
+                "barrel_swap": true,
+                "accessories": [
+                    {"name": "Optic Mount", "slot": "hk_optic_mount", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "HK21 Barrel", "slot": "hk21_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "HK21 Feed Tray", "slot": "hk21_feed_tray", "current": {"id": null}, "durability": null, "type": "feed_tray"},
+                    {"name": "G3 Trigger Spring", "slot": "g3_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
+                    {"name": "G3 Recoil Spring", "slot": "g3_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
+                    {"name": "HK21 Bolt Carrier Group", "slot": "hk21_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"},
+                    {"name": "HK21 Gas Piston", "slot": "hk21_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"}
+                ],
+                "in_armory": true,
+                "armory_category": "General Purpose Machine Gun"
+            },
+            {
+                "name": "Heckler & Koch HK21A1",
+                "value": 9500,
+                "description": "Simplified, heavier version of the HK21, also including polygonal rifling, a carrying handle, a hooked buttstock, and improved buffer mechanisms.",
+                "rarity": "Legendary",
+                "random_quantity": false,
+                "weight": 8.3,
+                "id": 102,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "machine_gun",
+                "platform": "HK21",
+                "caliber": ["7.62x51mm NATO", ".308 Winchester"],
+                "action": ["Auto"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 900,
+                "magazinetype": "Belt",
+                "capacity": 100,
+                "jamrate": 0.02,
+                "barrel_swap": true,
+                "accessories": [
+                    {"name": "Optic Mount", "slot": "hk_optic_mount", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "HK21A1 Barrel", "slot": "hk21a1_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "HK21 Feed Tray", "slot": "hk21_feed_tray", "current": {"id": null}, "durability": null, "type": "feed_tray"},
+                    {"name": "G3 Trigger Spring", "slot": "g3_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
+                    {"name": "G3 Recoil Spring", "slot": "g3_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
+                    {"name": "HK21 Bolt Carrier Group", "slot": "hk21_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"},
+                    {"name": "HK21 Gas Piston", "slot": "hk21_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"}
+                ],
+                "in_armory": true,
+                "armory_category": "General Purpose Machine Gun"
+            },
+            {
+                "name": "Heckler & Koch HK11E",
+                "value": 8500,
+                "description": "Modernized export variant of the HK11 LSMG, part of the modular family of export guns based on the G3 released in the 80s.",
+                "rarity": "Legendary",
+                "random_quantity": false,
+                "weight": 9.3,
+                "id": 103,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "light_machine_gun",
+                "platform": "G3",
+                "caliber": ["7.62x51mm NATO", ".308 Winchester"],
+                "action": ["Semi", "Auto"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 800,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "G3",
+                "jamrate": 0.01,
+                "barrel_swap": true,
+                "accessories": [
+                    {"name": "Optic Mount", "slot": "hk_optic_mount", "current": null},
+                    {"name": "Bayonet Lug", "slot": "g3_bayonet_lug", "current": null, "conflicts_with": ["muzzle_762"]},
+                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null, "conflicts_with": ["g3_bayonet_lug"]}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "HK11E Barrel", "slot": "hk11e_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "G3 Trigger Spring", "slot": "g3_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
+                    {"name": "G3 Recoil Spring", "slot": "g3_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
+                    {"name": "G3 Bolt Carrier Group", "slot": "g3_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"},
+                    {"name": "G3 Gas Piston", "slot": "g3_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"}
+                ],
+                "in_armory": true,
+                "armory_category": "Light Machine Gun"
+            },
+            {
+                "name": "Heckler & Koch HK13E",
+                "value": 8500,
+                "description": "Modernized export variant of the HK11 LSMG, accepting standard STANAG magazines and firing 5.56x45mm NATO instead of 7.62x51mm NATO. Part of the modular family of export guns based on the G3 released in the 80s.",
+                "rarity": "Legendary",
+                "random_quantity": false,
+                "weight": 8.5,
+                "id": 104,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "light_machine_gun",
+                "platform": "HK33",
+                "caliber": ["5.56x45mm NATO", ".223 Remington"],
+                "action": ["Semi", "Auto"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 800,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "STANAG 4179",
+                "jamrate": 0.01,
+                "barrel_swap": true,
+                "accessories": [
+                    {"name": "Optic Mount", "slot": "hk_optic_mount", "current": null},
+                    {"name": "Bayonet Lug", "slot": "g3_bayonet_lug", "current": null, "conflicts_with": ["muzzle_556"]},
+                    {"name": "Muzzle Device", "slot": "muzzle_556", "current": null, "conflicts_with": ["g3_bayonet_lug"]}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "HK13E Barrel", "slot": "hk13e_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "G3 Trigger Spring", "slot": "g3_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
+                    {"name": "G3 Recoil Spring", "slot": "g3_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
+                    {"name": "G3 Bolt Carrier Group", "slot": "g3_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"},
+                    {"name": "HK13E Gas Piston", "slot": "hk13e_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"}
+                ],
+                "in_armory": true,
+                "armory_category": "Light Machine Gun"
+            },
+            {
+                "name": "Heckler & Koch HK21E",
+                "value": 9000,
+                "description": "Modernized export variant of the HK21, part of the modular family of export guns based on the G3 released in the 80s.",
+                "rarity": "Legendary",
+                "random_quantity": false,
+                "weight": 8.5,
+                "id": 105,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "machine_gun",
+                "platform": "HK21",
+                "caliber": ["7.62x51mm NATO", ".308 Winchester"],
+                "action": ["Auto"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 900,
+                "magazinetype": "Belt",
+                "capacity": 100,
+                "jamrate": 0.02,
+                "barrel_swap": true,
+                "accessories": [
+                    {"name": "Optic Mount", "slot": "hk_optic_mount", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "HK21E Barrel", "slot": "hk21e_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "HK21 Feed Tray", "slot": "hk21_feed_tray", "current": {"id": null}, "durability": null, "type": "feed_tray"},
+                    {"name": "G3 Trigger Spring", "slot": "g3_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
+                    {"name": "G3 Recoil Spring", "slot": "g3_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
+                    {"name": "HK21 Bolt Carrier Group", "slot": "hk21_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"},
+                    {"name": "HK21 Gas Piston", "slot": "hk21_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"}
+                ],
+                "in_armory": true,
+                "armory_category": "General Purpose Machine Gun"
+            },
+            {
+                "name": "Heckler & Koch HK23E",
+                "value": 9000,
+                "description": "Modernized export variant of the HK21. This one fires 5.56x45mm NATO instead of 7.62x51mm NATO, part of the modular family of export guns based on the G3 released in the 80s.",
+                "rarity": "Legendary",
+                "random_quantity": false,
+                "weight": 8.5,
+                "id": 106,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "machine_gun",
+                "platform": "HK21",
+                "caliber": ["5.56x45mm NATO", ".223 Remington"],
+                "action": ["Auto"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 900,
+                "magazinetype": "Belt",
+                "capacity": 100,
+                "jamrate": 0.02,
+                "barrel_swap": true,
+                "accessories": [
+                    {"name": "Optic Mount", "slot": "hk_optic_mount", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_556", "current": null}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "HK23E Barrel", "slot": "hk23e_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "HK23 Feed Tray", "slot": "hk23_feed_tray", "current": {"id": null}, "durability": null, "type": "feed_tray"},
+                    {"name": "G3 Trigger Spring", "slot": "g3_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
+                    {"name": "G3 Recoil Spring", "slot": "g3_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
+                    {"name": "HK23E Bolt Carrier Group", "slot": "hk23e_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"},
+                    {"name": "HK23E Gas Piston", "slot": "hk23e_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"}
+                ],
+                "in_armory": true,
+                "armory_category": "Light Machine Gun"
+            },
+            {
+                "name": "Bill Fleming HK51",
+                "value": 10000,
+                "description": "Custom variant of the G3 made by an American gunsmith, Bill Fleming, for use by the UK's Special Air Service (SAS). 8\" barrel, collapsible stock, and an MP5-style handguard. A G3 the size of an MP5.",
+                "rarity": "Legendary",
+                "random_quantity": false,
+                "weight": 5,
+                "id": 107,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "G3",
+                "caliber": ["7.62x51mm NATO", ".308 Winchester"],
+                "action": ["Semi", "Auto"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 750,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "G3",
+                "jamrate": 0.01,
+                "barrel_swap": true,
+                "accessories": [
+                    {"name": "Optic Mount", "slot": "hk_optic_mount", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "HK51 Barrel", "slot": "hk51_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "G3 Trigger Spring", "slot": "g3_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
+                    {"name": "G3 Recoil Spring", "slot": "g3_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
+                    {"name": "HK51 Bolt Carrier Group", "slot": "hk51_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"},
+                    {"name": "HK51 Gas Piston", "slot": "hk51_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"}
+                ],
+                "in_armory": true,
+                "armory_category": "Personal Defense Weapon"
+            },
+            {
+                "name": "F.J. Vollmer HK51B",
+                "value": 25000,
+                "description": "Another custom variant on top of an already custom variant, the HK51, this one is belt fed, essentially a cut-down HK21, 8\" barrel, and a collapsible stock, and an MP5-style handguard. An HK21 the size of an MP5.",
+                "rarity": "Mythic",
+                "random_quantity": false,
+                "weight": 5.1,
+                "id": 108,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "light_machine_gun",
+                "platform": "G3",
+                "caliber": ["7.62x51mm NATO", ".308 Winchester"],
+                "action": ["Auto"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 1000,
+                "magazinetype": "Belt",
+                "capacity": 100,
+                "jamrate": 0.02,
+                "barrel_swap": true,
+                "accessories": [
+                    {"name": "Optic Mount", "slot": "hk_optic_mount", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "HK51 Barrel", "slot": "hk51_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "G3 Trigger Spring", "slot": "g3_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
+                    {"name": "G3 Recoil Spring", "slot": "g3_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
+                    {"name": "HK51B Bolt Carrier Group", "slot": "hk51b_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"},
+                    {"name": "HK51B Gas Piston", "slot": "hk51b_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"}
+                ],
+                "in_armory": true,
+                "armory_category": "Light Machine Gun"
+            },
+            {
+                "name": "Heckler & Koch HK33",
+                "value": 4000,
+                "description": "5.56x45mm NATO variant of the G3, featuring a redesigned barrel, bolt carrier group, and magazines. The HK33 is essentially a scaled-down G3, and many parts are not interchangeable between the two platforms.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 3.65,
+                "id": 109,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "HK33",
+                "caliber": ["5.56x45mm NATO", ".223 Remington"],
+                "action": ["Semi", "Auto"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 750,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "HK33",
+                "jamrate": 0.01,
+                "accessories": [
+                    {"name": "Optic Mount", "slot": "hk_optic_mount", "current": null},
+                    {"name": "Bayonet Lug", "slot": "g3_bayonet_lug", "current": null, "conflicts_with": ["muzzle_556"]},
+                    {"name": "Muzzle Device", "slot": "muzzle_556", "current": null, "conflicts_with": ["g3_bayonet_lug"]}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "HK33 Barrel", "slot": "hk33_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "HK33 Trigger Spring", "slot": "hk33_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
+                    {"name": "HK33 Recoil Spring", "slot": "hk33_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
+                    {"name": "HK33 Bolt Carrier Group", "slot": "hk33_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"},
+                    {"name": "HK33 Gas Piston", "slot": "hk33_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"}
+                ],
+                "in_armory": true,
+                "armory_category": "Assault Rifle"
+            },
+            {
+                "name": "Heckler & Koch HK33A1",
+                "value": 4500,
+                "description": "Variant of the HK33 with a retractable stock instead of the fixed stock. Otherwise identical to the original HK33.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 3.55,
+                "id": 110,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "HK33",
+                "caliber": ["5.56x45mm NATO", ".223 Remington"],
+                "action": ["Semi", "Auto"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 750,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "HK33",
+                "jamrate": 0.01,
+                "accessories": [
+                    {"name": "Optic Mount", "slot": "hk_optic_mount", "current": null},
+                    {"name": "Bayonet Lug", "slot": "g3_bayonet_lug", "current": null, "conflicts_with": ["muzzle_556"]},
+                    {"name": "Muzzle Device", "slot": "muzzle_556", "current": null, "conflicts_with": ["g3_bayonet_lug"]}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "HK33 Barrel", "slot": "hk33_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "HK33 Trigger Spring", "slot": "hk33_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
+                    {"name": "HK33 Recoil Spring", "slot": "hk33_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
+                    {"name": "HK33 Bolt Carrier Group", "slot": "hk33_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"},
+                    {"name": "HK33 Gas Piston", "slot": "hk33_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"}
+                ],
+                "in_armory": true,
+                "armory_category": "Assault Rifle"
+            },
+            {
+                "name": "Heckler & Koch HK33K",
+                "value": 5000,
+                "description": "Carbine variant of the HK33, featuring a shorter barrel and a retractable stock. Otherwise identical to the original HK33.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 3.5,
+                "id": 111,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "HK33",
+                "caliber": ["5.56x45mm NATO", ".223 Remington"],
+                "action": ["Semi", "Auto"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 750,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "HK33",
+                "jamrate": 0.01,
+                "accessories": [
+                    {"name": "Optic Mount", "slot": "hk_optic_mount", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_556", "current": null}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "HK33K Barrel", "slot": "hk33k_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "HK33 Trigger Spring", "slot": "hk33_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
+                    {"name": "HK33 Recoil Spring", "slot": "hk33_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
+                    {"name": "HK33 Bolt Carrier Group", "slot": "hk33_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"},
+                    {"name": "HK33K Gas Piston", "slot": "hk33k_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"}
+                ],
+                "in_armory": true,
+                "armory_category": "Assault Rifle"
+            },
+            {
+                "name": "Heckler & Koch HK33A2",
+                "value": 5500,
+                "description": "Improved version of the HK33, strengthened stock, and a handguard that allows a bipod to be attached.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 3.6,
+                "id": 112,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "HK33",
+                "caliber": ["5.56x45mm NATO", ".223 Remington"],
+                "action": ["Semi", "Auto"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 750,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "HK33",
+                "jamrate": 0.01,
+                "accessories": [
+                    {"name": "Optic Mount", "slot": "hk_optic_mount", "current": null},
+                    {"name": "Bayonet Lug", "slot": "g3_bayonet_lug", "current": null, "conflicts_with": ["muzzle_556"]},
+                    {"name": "Muzzle Device", "slot": "muzzle_556", "current": null, "conflicts_with": ["g3_bayonet_lug"]}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "HK33 Barrel", "slot": "hk33_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "HK33 Trigger Spring", "slot": "hk33_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
+                    {"name": "HK33 Recoil Spring", "slot": "hk33_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
+                    {"name": "HK33 Bolt Carrier Group", "slot": "hk33_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"},
+                    {"name": "HK33 Gas Piston", "slot": "hk33_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"}
+                ],
+                "in_armory": true,
+                "armory_category": "Assault Rifle"
+            },
+            {
+                "name": "Heckler & Koch HK33A3",
+                "value": 5500,
+                "description": "Variant of the HK33A2 with a telescoping stock instead of the fixed stock. Otherwise identical to the HK33A2.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 3.5,
+                "id": 113,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "HK33",
+                "caliber": ["5.56x45mm NATO", ".223 Remington"],
+                "action": ["Semi", "Auto"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 750,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "HK33",
+                "jamrate": 0.01,
+                "accessories": [
+                    {"name": "Optic Mount", "slot": "hk_optic_mount", "current": null},
+                    {"name": "Bayonet Lug", "slot": "g3_bayonet_lug", "current": null, "conflicts_with": ["muzzle_556"]},
+                    {"name": "Muzzle Device", "slot": "muzzle_556", "current": null, "conflicts_with": ["g3_bayonet_lug"]}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "HK33 Barrel", "slot": "hk33_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "HK33 Trigger Spring", "slot": "hk33_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
+                    {"name": "HK33 Recoil Spring", "slot": "hk33_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
+                    {"name": "HK33 Bolt Carrier Group", "slot": "hk33_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"},
+                    {"name": "HK33 Gas Piston", "slot": "hk33_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"}
+                ],
+                "in_armory": true,
+                "armory_category": "Assault Rifle"
+            },
+            {
+                "name": "Heckler & Koch HK33KA2",
+                "value": 6000,
+                "description": "Carbine variant of the HK33A2, featuring a shorter barrel and a fixed stock. Otherwise identical to the HK33A2.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 3.4,
+                "id": 114,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "HK33",
+                "caliber": ["5.56x45mm NATO", ".223 Remington"],
+                "action": ["Semi", "Auto"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 750,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "HK33",
+                "jamrate": 0.01,
+                "accessories": [
+                    {"name": "Optic Mount", "slot": "hk_optic_mount", "current": null},
+                    {"name": "Bayonet Lug", "slot": "g3_bayonet_lug", "current": null, "conflicts_with": ["muzzle_556"]},
+                    {"name": "Muzzle Device", "slot": "muzzle_556", "current": null, "conflicts_with": ["g3_bayonet_lug"]}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "HK33K Barrel", "slot": "hk33k_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "HK33 Trigger Spring", "slot": "hk33_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
+                    {"name": "HK33 Recoil Spring", "slot": "hk33_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
+                    {"name": "HK33 Bolt Carrier Group", "slot": "hk33_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"},
+                    {"name": "HK33 Gas Piston", "slot": "hk33_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"}
+                ],
+                "in_armory": true,
+                "armory_category": "Assault Rifle"
+            },
+            {
+                "name": "Heckler & Koch HK33KA3",
+                "value": 6500,
+                "description": "Carbine variant of the HK33A3, featuring a shorter barrel and a telescoping stock. Otherwise identical to the HK33A3.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 3.3,
+                "id": 115,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "HK33",
+                "caliber": ["5.56x45mm NATO", ".223 Remington"],
+                "action": ["Semi", "Auto"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 750,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "HK33",
+                "jamrate": 0.01,
+                "accessories": [
+                    {"name": "Optic Mount", "slot": "hk_optic_mount", "current": null},
+                    {"name": "Bayonet Lug", "slot": "g3_bayonet_lug", "current": null, "conflicts_with": ["muzzle_556"]},
+                    {"name": "Muzzle Device", "slot": "muzzle_556", "current": null, "conflicts_with": ["g3_bayonet_lug"]}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "HK33K Barrel", "slot": "hk33k_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "HK33 Trigger Spring", "slot": "hk33_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
+                    {"name": "HK33 Recoil Spring", "slot": "hk33_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
+                    {"name": "HK33 Bolt Carrier Group", "slot": "hk33_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"},
+                    {"name": "HK33 Gas Piston", "slot": "hk33_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"}
+                ],
+                "in_armory": true,
+                "armory_category": "Assault Rifle"
+            },
+            {
+                "name": "Heckler & Koch HK33E",
+                "value": 7000,
+                "description": "Modernized export variant of the HK33. Part of the modular family of export guns based on the G3 released in the 80s.",
+                "rarity": "Legendary",
+                "random_quantity": false,
+                "weight": 3.5,
+                "id": 116,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "HK33",
+                "caliber": ["5.56x45mm NATO", ".223 Remington"],
+                "action": ["Semi", "Auto"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 750,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "HK33",
+                "jamrate": 0.01,
+                "accessories": [
+                    {"name": "Optic Mount", "slot": "hk_optic_mount", "current": null},
+                    {"name": "Bayonet Lug", "slot": "g3_bayonet_lug", "current": null, "conflicts_with": ["muzzle_556"]},
+                    {"name": "Muzzle Device", "slot": "muzzle_556", "current": null, "conflicts_with": ["g3_bayonet_lug"]}
+                ],
+                "can_stack": false,
+                 "parts": [
+                    {"name": "HK33E Barrel", "slot": "hk33e_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "HK33 Trigger Spring", "slot": "hk33_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
+                    {"name": "HK33 Recoil Spring", "slot": "hk33_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
+                    {"name": "HK33E Bolt Carrier Group", "slot": "hk33e_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"},
+                    {"name": "HK33E Gas Piston", "slot": "hk33e_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"}
+                ],
+                "in_armory": true,
+                "armory_category": "Assault Rifle"
+            },
+            {
+                "name": "Heckler & Koch HK53",
+                "value": 7500,
+                "description": "Further shortened variant of the HK33, featuring a 8.3\" barrel and a retractable stock. Essentially an MP5 chambered in 5.56x45mm NATO.",
+                "rarity": "Legendary",
+                "random_quantity": false,
+                "weight": 3.05,
+                "id": 117,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "HK33",
+                "caliber": ["5.56x45mm NATO", ".223 Remington"],
+                "action": ["Semi", "Auto"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 700,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "HK33",
+                "jamrate": 0.01,
+                "accessories": [
+                    {"name": "Optic Mount", "slot": "hk_optic_mount", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_556", "current": null}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "HK53 Barrel", "slot": "hk53_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "HK33 Trigger Spring", "slot": "hk33_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
+                    {"name": "HK33 Recoil Spring", "slot": "hk33_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
+                    {"name": "HK53 Bolt Carrier Group", "slot": "hk53_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"},
+                    {"name": "HK53 Gas Piston", "slot": "hk53_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"}
+                ],
+                "in_armory": true,
+                "armory_category": "Personal Defense Weapon"
+            },
+            {
+                "name": "Heckler & Koch HK13",
+                "value": 8000,
+                "description": "Squad Automatic Weapon version of the HK33, featuring a heavier quick-change barrel, a heat guard, and a bipod adapter. Otherwise identical to the HK33.",
+                "rarity": "Legendary",
+                "random_quantity": false,
+                "weight": 4.5,
+                "id": 118,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "light_machine_gun",
+                "platform": "HK33",
+                "caliber": ["5.56x45mm NATO", ".223 Remington"],
+                "action": ["Semi", "Auto"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 750,
+                "barrel_swap": true,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "HK33",
+                "jamrate": 0.01,
+                "accessories": [
+                    {"name": "Optic Mount", "slot": "hk_optic_mount", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_556", "current": null}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "HK13 Barrel", "slot": "hk13_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "HK33 Trigger Spring", "slot": "hk33_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
+                    {"name": "HK33 Recoil Spring", "slot": "hk33_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
+                    {"name": "HK13 Bolt Carrier Group", "slot": "hk13_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"},
+                    {"name": "HK13 Gas Piston", "slot": "hk13_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"}
+                ]
+            },
+            {
+                "name": "Heckler & Koch HK23",
+                "value": 8500,
+                "description": "Light machine gun variant of the HK33, featuring a heavier barrel, a bipod, and a belt feed adapter. Otherwise identical to the HK33.",
+                "rarity": "Legendary",
+                "random_quantity": false,
+                "weight": 5.0,
+                "id": 119,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "light_machine_gun",
+                "platform": "HK21",
+                "caliber": ["5.56x45mm NATO", ".223 Remington"],
+                "action": ["Auto"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 750,
+                "barrel_swap": true,
+                "magazinetype": "Belt",
+                "capacity": 100,
+                "jamrate": 0.01,
+                "accessories": [
+                    {"name": "Optic Mount", "slot": "hk_optic_mount", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_556", "current": null}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "HK23 Barrel", "slot": "hk23_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "HK23 Feed Tray", "slot": "hk23_feed_tray", "current": {"id": null}, "durability": null, "type": "feed_tray"},
+                    {"name": "HK33 Trigger Spring", "slot": "hk33_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
+                    {"name": "HK33 Recoil Spring", "slot": "hk33_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
+                    {"name": "HK23 Bolt Carrier Group", "slot": "hk23_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"},
+                    {"name": "HK23 Gas Piston", "slot": "hk23_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"}
+                ],
+                "in_armory": true,
+                "armory_category": "Light Machine Gun"
+            },
+            {
+                "name": "Heckler & Koch HK433",
+                "value": 9000,
+                "description": "Modernized assault rifle combining all the best features of the HK416 and the G36, to make the ultimate modular assault rifle.",
+                "rarity": "Legendary",
+                "random_quantity": false,
+                "weight": 3.5,
+                "id": 133,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "AR-15",
+                "caliber": ["5.56x45mm NATO", ".223 Remington"],
+                "action": ["Semi", "Auto"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 750,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "HK433",
+                "jamrate": 0.01,
+                "accessories": [
+                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": null},
+                    {"name": "Heckler & Koch HKey (Handguard Left)", "slot": "hkey_rifle", "current": null},
+                    {"name": "Heckler & Koch HKey (Handguard Right)", "slot": "hkey_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom", "current": null},
+                    {"name": "Conversion Kit", "slot": "ar15_conversion_kit", "current": null},
+                    {"name": "Bayonet Lug", "slot": "nato_bayonet_lug", "current": null, "conflicts_with": ["muzzle_556"]},
+                    {"name": "Muzzle Device", "slot": "muzzle_556", "current": null, "conflicts_with": ["nato_bayonet_lug"]}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "HK433 Barrel", "slot": "hk433_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "HK433 Trigger Spring", "slot": "hk433_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
+                    {"name": "HK433 Recoil Spring", "slot": "hk433_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
+                    {"name": "HK433 Bolt Carrier Group", "slot": "hk433_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"},
+                    {"name": "HK433 Gas Piston", "slot": "hk433_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"}
+                ],
+                "in_armory": true,
+                "armory_category": "Assault Rifle"
+            },
+            {
+                "name": "VEB Geräte- und Werkzeugbau Wiesarbeit GmbH MPi-KM",
+                "value": 750,
+                "description": "East German variant of the AKM. Chambered in 7.62x39mm, a reliable rifle still firing decades after its introduction.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 3.1,
+                "id": 137,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "AK-47",
+                "caliber": ["7.62x39mm Soviet"],
+                "action": ["Semi", "Auto"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 600,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "AK-47",
+                "jamrate": 0.02,
+                "accessories": [
+                    {"name": "Optic Mount", "slot": "russian_optic", "current": null},
+                    {"name": "Bayonet Lug", "slot": "ak_bayonet_lug", "current": null, "conflicts_with": ["muzzle_762"]},
+                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null, "conflicts_with": ["ak_bayonet_lug"]}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "AK-47 Barrel", "slot": "ak47_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "AK-47 Trigger Spring", "slot": "ak47_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
+                    {"name": "AK-47 Gas Piston", "slot": "ak47_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"},
+                    {"name": "AK-47 Bolt Carrier Group", "slot": "ak47_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"}
+                ],
+                "in_armory": true,
+                "armory_category": "Assault Rifle"
+            },
+            {
+                "name": "VEB Geräte- und Werkzeugbau Wiesarbeit GmbH MPi-KMS-72",
+                "value": 850,
+                "description": "East German variant of the AKMS, featuring a folding stock. Chambered in 7.62x39mm, a reliable rifle still firing decades after its introduction.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 2.9,
+                "id": 138,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "AK-47",
+                "caliber": ["7.62x39mm Soviet"],
+                "action": ["Semi", "Auto"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 600,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "AK-47",
+                "jamrate": 0.02,
+                "accessories": [
+                    {"name": "Optic Mount", "slot": "russian_optic", "current": null},
+                    {"name": "Bayonet Lug", "slot": "ak_bayonet_lug", "current": null, "conflicts_with": ["muzzle_762"]},
+                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null, "conflicts_with": ["ak_bayonet_lug"]}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "AK-47 Barrel", "slot": "ak47_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "AK-47 Trigger Spring", "slot": "ak47_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
+                    {"name": "AK-47 Gas Piston", "slot": "ak47_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"},
+                    {"name": "AK-47 Bolt Carrier Group", "slot": "ak47_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"}
+                ],
+                "in_armory": true,
+                "armory_category": "Assault Rifle"
+            },
+            {
+                "name": "VEB Geräte- und Werkzeugbau Wiesarbeit GmbH MPi-AK-74N",
+                "value": 900,
+                "description": "East German variant of the AK-74N, chambered in 5.45x39mm, a reliable rifle with an intermediate cartridge still firing to this day.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 3.0,
+                "id": 139,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "AK-74",
+                "caliber": ["5.45x39mm Soviet"],
+                "action": ["Semi", "Auto"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 650,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "AK-74",
+                "jamrate": 0.02,
+                "accessories": [
+                    {"name": "Optic Mount", "slot": "russian_optic", "current": null},
+                    {"name": "Bayonet Lug", "slot": "ak_bayonet_lug", "current": null, "conflicts_with": ["muzzle_545"]},
+                    {"name": "Muzzle Device", "slot": "muzzle_545", "current": null, "conflicts_with": ["ak_bayonet_lug"]}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "AK-74 Barrel", "slot": "ak74_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "AK-74 Trigger Spring", "slot": "ak74_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
+                    {"name": "AK-74 Gas Piston", "slot": "ak74_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"},
+                    {"name": "AK-74 Bolt Carrier Group", "slot": "ak74_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"}
+                ],
+                "in_armory": true,
+                "armory_category": "Assault Rifle"
+            },
+            {
+                "name": "VEB Geräte- und Werkzeugbau Wiesarbeit GmbH MPi-AKS-74N",
+                "value": 950,
+                "description": "East German variant of the AKS-74N, featuring a folding stock. Chambered in 5.45x39mm, a reliable rifle with an intermediate cartridge still firing to this day.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 2.8,
+                "id": 140,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "AK-74",
+                "caliber": ["5.45x39mm Soviet"],
+                "action": ["Semi", "Auto"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 650,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "AK-74",
+                "jamrate": 0.02,
+                "accessories": [
+                    {"name": "Optic Mount", "slot": "russian_optic", "current": null},
+                    {"name": "Bayonet Lug", "slot": "ak_bayonet_lug", "current": null, "conflicts_with": ["muzzle_545"]},
+                    {"name": "Muzzle Device", "slot": "muzzle_545", "current": null, "conflicts_with": ["ak_bayonet_lug"]}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "AK-74 Barrel", "slot": "ak74_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "AK-74 Trigger Spring", "slot": "ak74_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
+                    {"name": "AK-74 Gas Piston", "slot": "ak74_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"},
+                    {"name": "AK-74 Bolt Carrier Group", "slot": "ak74_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"}
+                ],
+                "in_armory": true,
+                "armory_category": "Assault Rifle"
+            },
+            {
+                "name": "VEB Geräte- und Werkzeugbau Wiesarbeit GmbH MPi-AKS-74NK",
+                "value": 1000,
+                "description": "Rare East German variant of the AKS-74N, fulfilling a similar role to the AKS-74U. Chambered in 5.45x39mm with a shortened barrel, but notably lacking the muzzle booster, utilizing the standard AK-74 gas system and bolt carrier group. A reliable rifle with an intermediate cartridge still firing to this day.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 2.5,
+                "id": 141,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "AK-74",
+                "caliber": ["5.45x39mm Soviet"],
+                "action": ["Semi", "Auto"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 650,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "AK-74",
+                "jamrate": 0.02,
+                "accessories": [
+                    {"name": "Optic Mount", "slot": "russian_optic", "current": null},
+                    {"name": "Bayonet Lug", "slot": "ak_bayonet_lug", "current": null, "conflicts_with": ["muzzle_545"]},
+                    {"name": "Muzzle Device", "slot": "muzzle_545", "current": null, "conflicts_with": ["ak_bayonet_lug"]}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "MPi-AKS-74NK Barrel", "slot": "mpiaks74nk_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "AK-74 Trigger Spring", "slot": "ak74_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
+                    {"name": "AK-74 Gas Piston", "slot": "ak74_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"},
+                    {"name": "AK-74 Bolt Carrier Group", "slot": "ak74_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"}
+                ],
+                "in_armory": true,
+                "armory_category": "Personal Defense Weapon"
+            },
+            {
+                "name": "Colt's Manufacturing Company M4A1 Carbine",
+                "value": 700,
+                "description": "Standard service weapon for the US Army, USSOCOM, Navy SEALs, Delta Force, Green Berets, US Army Rangers, USMC, USAF... the list goes on. Replaced by the Sig Sauer M7 in 2022, as part of the NGSW program.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 2.92,
+                "id": 142,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "AR-15",
+                "caliber": ["5.56x45mm NATO", ".223 Remington"],
+                "action": ["Semi", "Auto"],
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 900,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "STANAG 4179",
+                "jamrate": 0.01,
+                "accessories": [
+                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": null},
+                    {"name": "Picatinny Rail (Handguard Left)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Right)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom", "current": null},
+                    {"name": "Bayonet Lug", "slot": "nato_bayonet_lug", "current": null, "conflicts_with": ["muzzle_556"]},
+                    {"name": "Muzzle Device", "slot": "muzzle_556", "current": null, "conflicts_with": ["nato_bayonet_lug"]}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "AR-15 Barrel", "slot": "ar15_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "AR-15 Trigger Spring", "slot": "ar15_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
+                    {"name": "AR-15 Recoil Spring", "slot": "ar15_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
+                    {"name": "AR-15 Bolt Carrier Group", "slot": "ar15_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"},
+                    {"name": "AR-15 Gas Piston", "slot": "ar15_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"},
+                    {"name": "AR-15 Buffer Spring", "slot": "ar15_buffer_spring", "current": {"id": null}, "durability": null, "type": "buffer_spring"}
+                ],
+                "in_armory": true,
+                "armory_category": "Assault Rifle"
+            },
+            {
+                "name": "FN Herstal M4A1 Carbine",
+                "value": 647,
+                "description": "In 2013, the USACC awarded a contract to FN Herstal to manufacture 120,000 M4A1 carbines as the contract with Colt expired, and they ended up offering a cheaper rifle. The FN M4A1 is identical to the Colt M4A1, save for the markings on the lower receiver.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 2.92,
+                "id": 143,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "AR-15",
+                "caliber": ["5.56x45mm NATO", ".223 Remington"],
+                "action": ["Semi", "Auto"],
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 900,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "STANAG 4179",
+                "jamrate": 0.01,
+                "accessories": [
+                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": null},
+                    {"name": "Picatinny Rail (Handguard Left)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Right)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom", "current": null},
+                    {"name": "Bayonet Lug", "slot": "nato_bayonet_lug", "current": null, "conflicts_with": ["muzzle_556"]},
+                    {"name": "Muzzle Device", "slot": "muzzle_556", "current": null, "conflicts_with": ["nato_bayonet_lug"]}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "AR-15 Barrel", "slot": "ar15_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "AR-15 Trigger Spring", "slot": "ar15_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
+                    {"name": "AR-15 Recoil Spring", "slot": "ar15_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
+                    {"name": "AR-15 Bolt Carrier Group", "slot": "ar15_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"},
+                    {"name": "AR-15 Gas Piston", "slot": "ar15_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"},
+                    {"name": "AR-15 Buffer Spring", "slot": "ar15_buffer_spring", "current": {"id": null}, "durability": null, "type": "buffer_spring"}
+                ],
+                "in_armory": true,
+                "armory_category": "Assault Rifle"
+            },
+            {
+                "name": "Remington Arms M4A1 Carbine",
+                "value": 647,
+                "description": "In 2013, alongside FN Herstal, Remington Arms also offered a bid to the USACC for the M4A1 production, and ended up producing 24,000 rifles, though subsequent large contracts were given out to FN and Colt instead. The Remington M4A1 is identical to the Colt M4A1, save for the markings on the lower receiver.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 2.92,
+                "id": 144,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "AR-15",
+                "caliber": ["5.56x45mm NATO", ".223 Remington"],
+                "action": ["Semi", "Auto"],
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 900,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "STANAG 4179",
+                "jamrate": 0.01,
+                "accessories": [
+                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": null},
+                    {"name": "Picatinny Rail (Handguard Left)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Right)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom", "current": null},
+                    {"name": "Bayonet Lug", "slot": "nato_bayonet_lug", "current": null, "conflicts_with": ["muzzle_556"]},
+                    {"name": "Muzzle Device", "slot": "muzzle_556", "current": null, "conflicts_with": ["nato_bayonet_lug"]}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "AR-15 Barrel", "slot": "ar15_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "AR-15 Trigger Spring", "slot": "ar15_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
+                    {"name": "AR-15 Recoil Spring", "slot": "ar15_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
+                    {"name": "AR-15 Bolt Carrier Group", "slot": "ar15_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"},
+                    {"name": "AR-15 Gas Piston", "slot": "ar15_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"},
+                    {"name": "AR-15 Buffer Spring", "slot": "ar15_buffer_spring", "current": {"id": null}, "durability": null, "type": "buffer_spring"}
+                ],
+                "in_armory": true,
+                "armory_category": "Assault Rifle"
+            },
+            {
+                "name": "FN America M249 Squad Automatic Weapon",
+                "value": 4087,
+                "description": "In the late 1970s, the US Army started trials to replace the heavy M60 machine gun with a gun that could fire the standard 5.56x45mm NATO cartridge. The FN Minimi, more commonly known as the M249 SAW, was the winner of the trial, beating out the M16 HBAR and HK23A1. The M249 is a light machine gun that can be fed from either a belt or a magazine, and is still in service with many branches of the US military, but was replaced by the MG338 in 2022.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 7.5,
+                "id": 145,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "light_machine_gun",
+                "platform": "M249",
+                "caliber": ["5.56x45mm NATO", ".223 Remington"],
+                "action": ["Semi", "Auto"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 850,
+                "magazinetype": "Belt",
+                "capacity": 200,
+                "jamrate": 0.01,
+                "accessories": [
+                    {"name": "Picatinny Rail (Belt Cover)", "slot": "picatinny_optic", "current": null},
+                    {"name": "Picatinny Rail (Handguard Left)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Right)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_556", "current": null}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "M249 Feed Tray", "slot": "m249_feed_tray", "current": {"id": null}, "durability": null, "type": "feed_tray"},
+                    {"name": "M249 Barrel", "slot": "m249_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "M249 Trigger Spring", "slot": "m249_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
+                    {"name": "M249 Recoil Spring", "slot": "m249_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
+                    {"name": "M249 Bolt Carrier Group", "slot": "m249_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"},
+                    {"name": "M249 Gas Piston", "slot": "m249_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"}
+                ],
+                "in_armory": true,
+                "armory_category": "Light Machine Gun"
+            },
+            {
+                "name": "Sig Sauer M7",
+                "value": 5000,
+                "description": "Winner of the US Army's NGSW program, the Sig Sauer M7 is a modernized assault rifle chambered in 6.8x51mm, replacing the M4A1 as the standard service weapon for the US Army in 2022, and was supposed to be used by the USMC, before they decided to stick to the M27 IAR.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 3.8,
+                "id": 146,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "MCX",
+                "caliber": [".277 Fury"],
+                "action": ["Semi", "Auto"],
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 700,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "SR-25",
+                "jamrate": 0.01,
+                "accessories": [
+                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": null},
+                    {"name": "Picatinny Rail (Handguard Top)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Magpul MLOK Rail (Handguard Left)", "slot": "mlok_rifle", "current": null},
+                    {"name": "Magpul MLOK Rail (Handguard Right)", "slot": "mlok_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_68", "current": null}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "M7 Barrel", "slot": "m7_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "M7 Trigger Spring", "slot": "m7_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
+                    {"name": "M7 Recoil Spring", "slot": "m7_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
+                    {"name": "M7 Secondary Recoil Spring", "slot": "m7_secondary_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
+                    {"name": "M7 Bolt Carrier Group", "slot": "m7_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"},
+                    {"name": "M7 Gas Piston", "slot": "m7_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"}
+                ],
+                "in_armory": true,
+                "armory_category": "Battle Rifle"
+            },
+            {
+                "name": "Sig Sauer MG338 General Purpose Machine Gun",
+                "value": 14000,
+                "description": "Winner of the US Army's NGSW program for the light machine gun category, the MG338 is a modernized machine gun chambered in .338 Norma Magnum, replacing the M249 SAW in US Army service in 2022.",
+                "rarity": "Rare",
+                "random_quantity": false,
+                "weight": 10,
+                "id": 147,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "light_machine_gun",
+                "platform": "MG338",
+                "caliber": [".338 Norma Magnum", ".338 Norma Magnum NATO"],
+                "action": ["Semi", "Auto"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 600,
+                "magazinetype": "Belt",
+                "capacity": 100,
+                "jamrate": 0.01,
+                "accessories": [
+                    {"name": "Picatinny Rail (Belt Cover)", "slot": "picatinny_optic", "current": null},
+                    {"name": "Picatinny Rail (Handguard Top)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Left)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Right)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_338", "current": null}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "MG338 Feed Tray", "slot": "mg338_feed_tray", "current": {"id": null}, "durability": null, "type": "feed_tray"},
+                    {"name": "MG338 Barrel", "slot": "mg338_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "MG338 Trigger Spring", "slot": "mg338_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"},
+                    {"name": "MG338 Recoil Spring", "slot": "mg338_recoil_spring", "current": {"id": null}, "durability": null, "type": "recoil_spring"},
+                    {"name": "MG338 Bolt Carrier Group", "slot": "mg338_bolt_carrier_group", "current": {"id": null}, "durability": null, "type": "bolt_carrier_group"},
+                    {"name": "MG338 Gas Piston", "slot": "mg338_gas_piston", "current": {"id": null}, "durability": null, "type": "gas_piston"}
+                ],
+                "in_armory": true,
+                "armory_category": "General Purpose Machine Gun"
             }
         ],
         "parts": [

@@ -19651,12 +19651,19 @@ class App:
                 if 'cylinder' in _inf_mag_type or 'revolver' in str(wpn.get('platform', '') or '').lower():
                     _handle_cylinder_reload()
                     return
+                if 'break' in _inf_mag_type:
+                    _handle_break_action_reload()
+                    return
                 if wpn.get('capacity')is not None and('internal'in _inf_mag_type or 'tube'in _inf_mag_type or 'box'in _inf_mag_type or not wpn.get('magazinesystem')):
                     _handle_internal_magazine_reload()
                     return
                 result = self._reload_weapon(wpn, save_data)
                 self._popup_show_info("Reload Result", result)
                 update_weapon_view()
+                return
+
+            if "break"in magazine_type:
+                _handle_break_action_reload()
                 return
 
             if "internal"in magazine_type or "tube"in magazine_type:
@@ -22601,6 +22608,98 @@ class App:
             except Exception:
                 pass
 
+        def _handle_break_action_reload():
+            try:
+                wpn = current_weapon_state.get('weapon') or {}
+                caliber_list = wpn.get('caliber', []) or []
+                if isinstance(caliber_list, str):
+                    caliber_list = [caliber_list]
+                caliber = caliber_list[0] if caliber_list else None
+                if not caliber:
+                    self._popup_show_info('Break Action Reload', 'Weapon has no caliber defined.')
+                    return
+
+                filter_calibers = set()
+                for c in caliber_list:
+                    if c:
+                        filter_calibers.add(str(c).lower().strip())
+
+                def _get_available_rounds_by_variant_ba():
+                    variants = {}
+                    def _caliber_matches(item_cal):
+                        if not filter_calibers:
+                            return True
+                        if not item_cal:
+                            return False
+                        return str(item_cal).lower().strip() in filter_calibers
+
+                    def _get_variant_name(itm):
+                        v = itm.get('variant')
+                        if v:
+                            return str(v)
+                        n = itm.get('name')
+                        if n:
+                            return str(n)
+                        return 'Unknown'
+
+                    def _process_item(itm):
+                        if not itm or not isinstance(itm, dict):
+                            return
+                        if itm.get('magazinesystem') or itm.get('capacity'):
+                            return
+                        itm_cal = itm.get('caliber')
+                        if not _caliber_matches(itm_cal):
+                            return
+                        rds = itm.get('rounds')
+                        if isinstance(rds, list) and rds:
+                            for r in rds:
+                                if isinstance(r, dict):
+                                    r_cal = r.get('caliber')
+                                    if not _caliber_matches(r_cal):
+                                        continue
+                                    variant = _get_variant_name(r)
+                                    variants[variant] = variants.get(variant, 0) + 1
+                            return
+                        qty = int(itm.get('quantity') or 0) if isinstance(itm.get('quantity'), (int, float)) else 0
+                        if qty > 0:
+                            variant = _get_variant_name(itm)
+                            variants[variant] = variants.get(variant, 0) + qty
+                            return
+                        if itm.get('caliber'):
+                            variant = _get_variant_name(itm)
+                            variants[variant] = variants.get(variant, 0) + 1
+
+                    for itm in save_data.get('hands', {}).get('items', []):
+                        _process_item(itm)
+                    for slot_name, eq_item in save_data.get('equipment', {}).items():
+                        if not eq_item or not isinstance(eq_item, dict):
+                            continue
+                        for itm in eq_item.get('items', []) or []:
+                            _process_item(itm)
+                        for sub in eq_item.get('subslots', []) or []:
+                            curr = sub.get('current')
+                            if curr and isinstance(curr, dict):
+                                for itm in curr.get('items', []) or []:
+                                    _process_item(itm)
+                    return variants
+
+                is_infinite = bool(wpn.get('infinite_ammo'))
+
+                if is_infinite:
+                    available_by_variant = {'Infinite': 9999}
+                else:
+                    available_by_variant = _get_available_rounds_by_variant_ba()
+
+                total_available = sum(available_by_variant.values())
+                if total_available <= 0 and not is_infinite:
+                    self._popup_show_info('Break Action Reload', 'No compatible ammunition found!')
+                    return
+
+                _open_break_action_editor(wpn, available_by_variant, caliber, filter_calibers, is_infinite)
+
+            except Exception:
+                logging.exception('Failed break action reload')
+
         def _handle_cylinder_reload():
             try:
                 wpn = current_weapon_state.get('weapon') or {}
@@ -24420,6 +24519,688 @@ class App:
                 self._safe_focus(editor)
             except Exception:
                 logging.exception('Failed to open tube magazine loader')
+
+        def _open_break_action_editor(wpn, available_by_variant, caliber, filter_calibers, is_infinite = False):
+            import tkinter as _tk_ba
+            try:
+                editor = customtkinter.CTkToplevel(self.root)
+                editor.title('Break Action Loader')
+                editor.transient(self.root)
+                cap = int(wpn.get('capacity', 0) or 0) or 2
+                existing = list(wpn.get('rounds', []) or [])
+                while len(existing) < cap:
+                    existing.append(None)
+                existing = existing[:cap]
+
+                n_spent = int(wpn.get('_break_spent', 0) or 0)
+                n_spent = min(n_spent, cap)
+                live_count = sum(1 for r in existing if r is not None)
+                if n_spent > 0 and live_count < cap:
+                    new_existing = []
+                    live_idx = 0
+                    live_list = [r for r in existing if r is not None]
+                    spent_placed = 0
+                    for i in range(cap):
+                        if live_idx < len(live_list):
+                            new_existing.append(live_list[live_idx])
+                            live_idx += 1
+                        elif spent_placed < n_spent:
+                            new_existing.append({'_spent': True, 'caliber': caliber})
+                            spent_placed += 1
+                        else:
+                            new_existing.append(None)
+                    existing = new_existing
+
+                subtype = str(wpn.get('magazinesubtype', '') or 'side-by-side').lower()
+                is_over_under = 'over' in subtype or 'under' in subtype
+
+                vlist = sorted(available_by_variant.keys())
+                cpal = ['#c4a032', '#b87333', '#a0a0a0', '#d4af37', '#8b4513', '#cd7f32', '#e8c872', '#a08060']
+                vcols = {v: cpal[i % len(cpal)] for i, v in enumerate(vlist)}
+
+                vtips = {}
+                try:
+                    _ammo_tbl = self._get_ammo_table_data()
+                    for _atbl in _ammo_tbl:
+                        _ac = _atbl.get('caliber')
+                        _match = False
+                        if isinstance(_ac, list):
+                            _match = caliber in _ac if caliber else False
+                        else:
+                            _match = (_ac == caliber) if caliber else False
+                        if _match:
+                            for _av in _atbl.get('variants', []):
+                                _atn = _av.get('name')
+                                _att = _av.get('tip')
+                                if _atn and _att and isinstance(_att, str) and _att.startswith('#'):
+                                    vtips[_atn] = _att
+                            break
+                except Exception:
+                    pass
+
+                def _tip_for(vn):
+                    return vtips.get(vn, '#e0c060')
+
+                def _tip_ol_for(vn):
+                    tc = vtips.get(vn)
+                    if not tc:
+                        return '#aa8820'
+                    try:
+                        rv = int(tc[1:3], 16); gv = int(tc[3:5], 16); bv = int(tc[5:7], 16)
+                        return f'#{max(0, rv - 40):02x}{max(0, gv - 40):02x}{max(0, bv - 40):02x}'
+                    except Exception:
+                        return '#aa8820'
+
+                def _tip_for_round(r):
+                    if isinstance(r, dict):
+                        return _tip_for(r.get('variant') or r.get('name') or 'Unknown')
+                    return '#e0c060'
+
+                def _tip_ol_for_round(r):
+                    if isinstance(r, dict):
+                        return _tip_ol_for(r.get('variant') or r.get('name') or 'Unknown')
+                    return '#aa8820'
+
+                def _is_live(r):
+                    return r is not None and isinstance(r, dict) and not r.get('_spent')
+
+                def _is_spent(r):
+                    return r is not None and isinstance(r, dict) and r.get('_spent')
+
+                BARREL_R = 38
+                BARREL_GAP = 20
+                canvas_w = 420
+                canvas_h = 480
+                HINGE_Y = 200
+                CHIP_AREA_H = 60
+
+                ls = {'open': False, 'animating': False, 'added': 0, 'stoggle': 0,
+                      'dragging': False, 'drag_vn': None, 'di': None,
+                      '_drag_open_active': False, '_drag_open_start': 0,
+                      '_drag_close_active': False, '_drag_close_start': 0,
+                      'open_angle': 0.0}
+
+                main_frame = customtkinter.CTkFrame(editor)
+                main_frame.grid(row = 0, column = 0, sticky = 'nsew', padx = 8, pady = 8)
+
+                ba_canvas = _tk_ba.Canvas(main_frame, width = canvas_w, height = canvas_h,
+                    bg = '#1a1a1a', highlightthickness = 1, highlightbackground = '#555555')
+                ba_canvas.pack(fill = 'both', expand = True)
+
+                side = customtkinter.CTkFrame(editor, fg_color = 'transparent', width = 180)
+                side.grid(row = 0, column = 1, sticky = 'ns', padx = 8, pady = 8)
+
+                chip_hitboxes = {}
+
+                def _barrel_positions():
+                    cx = canvas_w // 2
+                    if is_over_under:
+                        positions = []
+                        for i in range(cap):
+                            by = HINGE_Y + 60 + i * (BARREL_R * 2 + BARREL_GAP)
+                            positions.append((cx, by))
+                        return positions
+                    else:
+                        positions = []
+                        total_w = cap * (BARREL_R * 2) + (cap - 1) * BARREL_GAP
+                        start_x = cx - total_w // 2 + BARREL_R
+                        by = HINGE_Y + 80
+                        for i in range(cap):
+                            bx = start_x + i * (BARREL_R * 2 + BARREL_GAP)
+                            positions.append((bx, by))
+                        return positions
+
+                def _barrel_positions_open():
+                    cx = canvas_w // 2
+                    angle_frac = ls['open_angle']
+                    offset_y = int(angle_frac * 80)
+                    if is_over_under:
+                        positions = []
+                        for i in range(cap):
+                            by = HINGE_Y + 60 + i * (BARREL_R * 2 + BARREL_GAP) + offset_y
+                            positions.append((cx, by))
+                        return positions
+                    else:
+                        positions = []
+                        total_w = cap * (BARREL_R * 2) + (cap - 1) * BARREL_GAP
+                        start_x = cx - total_w // 2 + BARREL_R
+                        by = HINGE_Y + 80 + offset_y
+                        for i in range(cap):
+                            bx = start_x + i * (BARREL_R * 2 + BARREL_GAP)
+                            positions.append((bx, by))
+                        return positions
+
+                def _draw_chips():
+                    ba_canvas.delete('chips')
+                    chip_hitboxes.clear()
+                    if not ls['open']:
+                        return
+                    chip_x = 15
+                    chip_y = 10
+                    for vn in vlist:
+                        cnt = available_by_variant.get(vn, 0)
+                        if is_infinite:
+                            cnt_str = '\u221e'
+                        else:
+                            cnt_str = str(cnt)
+                        is_avail = cnt > 0 or is_infinite
+                        c = vcols.get(vn, '#c4a032')
+                        fill = c if is_avail else '#333333'
+                        ol = '#ffffff' if is_avail else '#555555'
+                        disp = vn if len(vn) <= 12 else vn[:11] + '\u2026'
+                        tw = len(disp) * 7 + 40
+                        ba_canvas.create_rectangle(chip_x, chip_y, chip_x + tw, chip_y + 22,
+                            fill = fill, outline = ol, width = 1, tags = 'chips')
+                        ba_canvas.create_oval(chip_x + 3, chip_y + 3, chip_x + 19, chip_y + 19,
+                            fill = _tip_for(vn), outline = _tip_ol_for(vn), tags = 'chips')
+                        ba_canvas.create_text(chip_x + 22, chip_y + 11,
+                            text = f'{disp} x{cnt_str}',
+                            fill = '#1a1a1a' if is_avail else '#555555',
+                            font = ('Consolas', 8, 'bold'), anchor = 'w', tags = 'chips')
+                        if is_avail:
+                            chip_hitboxes[vn] = (chip_x, chip_y, chip_x + tw, chip_y + 22)
+                        chip_x += tw + 8
+                        if chip_x > canvas_w - 40:
+                            chip_x = 15
+                            chip_y += 26
+
+                def _draw_barrels():
+                    ba_canvas.delete('barrels')
+                    cx = canvas_w // 2
+
+                    if not ls['open']:
+                        positions = _barrel_positions()
+                        ba_canvas.create_rectangle(cx - 30, HINGE_Y - 10, cx + 30, HINGE_Y + 10,
+                            fill = '#555555', outline = '#777777', width = 2, tags = 'barrels')
+                        for i, (bx, by) in enumerate(positions):
+                            ba_canvas.create_line(bx, HINGE_Y, bx, by - BARREL_R,
+                                fill = '#666666', width = 4, tags = 'barrels')
+                            ba_canvas.create_oval(bx - BARREL_R, by - BARREL_R,
+                                bx + BARREL_R, by + BARREL_R,
+                                fill = '#3a3a3a', outline = '#666666', width = 3, tags = 'barrels')
+                            r = existing[i] if i < len(existing) else None
+                            if _is_live(r):
+                                vn = r.get('variant') or r.get('name') or 'Unknown'
+                                ba_canvas.create_oval(bx - BARREL_R + 6, by - BARREL_R + 6,
+                                    bx + BARREL_R - 6, by + BARREL_R - 6,
+                                    fill = _tip_for_round(r), outline = _tip_ol_for_round(r),
+                                    width = 1, tags = 'barrels')
+                            elif _is_spent(r):
+                                ba_canvas.create_oval(bx - BARREL_R + 6, by - BARREL_R + 6,
+                                    bx + BARREL_R - 6, by + BARREL_R - 6,
+                                    fill = '#8B7355', outline = '#6B5335',
+                                    width = 1, tags = 'barrels')
+                                ba_canvas.create_oval(bx - 5, by - 5, bx + 5, by + 5,
+                                    fill = '#5a4a3a', outline = '#4a3a2a', tags = 'barrels')
+                            else:
+                                ba_canvas.create_oval(bx - 10, by - 10, bx + 10, by + 10,
+                                    fill = '#1a1a1a', outline = '#444444', width = 1, tags = 'barrels')
+                        n_loaded = sum(1 for r in existing if _is_live(r))
+                        ba_canvas.create_text(cx, HINGE_Y + 160,
+                            text = f'{n_loaded}/{cap}',
+                            fill = '#888888', font = ('Consolas', 14, 'bold'), tags = 'barrels')
+                        ba_canvas.create_text(cx, HINGE_Y - 30,
+                            text = '\u2193 DRAG DOWN TO OPEN \u2193',
+                            fill = '#888888', font = ('Consolas', 10), tags = 'barrels')
+                        return
+
+                    positions = _barrel_positions_open()
+                    ba_canvas.create_rectangle(cx - 30, HINGE_Y - 10, cx + 30, HINGE_Y + 10,
+                        fill = '#555555', outline = '#777777', width = 2, tags = 'barrels')
+                    for i, (bx, by) in enumerate(positions):
+                        ba_canvas.create_line(bx, HINGE_Y, bx, by - BARREL_R,
+                            fill = '#666666', width = 4, tags = 'barrels')
+                        ba_canvas.create_oval(bx - BARREL_R, by - BARREL_R,
+                            bx + BARREL_R, by + BARREL_R,
+                            fill = '#2e2e2e', outline = '#777777', width = 3, tags = 'barrels')
+
+                        r = existing[i] if i < len(existing) else None
+                        if _is_spent(r):
+                            ba_canvas.create_oval(bx - BARREL_R + 6, by - BARREL_R + 6,
+                                bx + BARREL_R - 6, by + BARREL_R - 6,
+                                fill = '#8B7355', outline = '#6B5335', width = 1, tags = 'barrels')
+                            ba_canvas.create_oval(bx - 5, by - 5, bx + 5, by + 5,
+                                fill = '#5a4a3a', outline = '#4a3a2a', tags = 'barrels')
+                            ba_canvas.create_text(bx, by + BARREL_R + 12,
+                                text = 'spent', fill = '#665544',
+                                font = ('Consolas', 8), tags = 'barrels')
+                        elif _is_live(r):
+                            vn = r.get('variant') or r.get('name') or 'Unknown'
+                            c = vcols.get(vn, '#c4a032')
+                            ba_canvas.create_oval(bx - BARREL_R + 4, by - BARREL_R + 4,
+                                bx + BARREL_R - 4, by + BARREL_R - 4,
+                                fill = '#333333', outline = '#666666', width = 2, tags = 'barrels')
+                            ba_canvas.create_oval(bx - BARREL_R + 8, by - BARREL_R + 8,
+                                bx + BARREL_R - 8, by + BARREL_R - 8,
+                                fill = _tip_for_round(r), outline = _tip_ol_for_round(r),
+                                width = 1, tags = 'barrels')
+                            ba_canvas.create_oval(bx - 4, by - 4, bx + 4, by + 4,
+                                fill = c, outline = c, tags = 'barrels')
+                            disp = vn if len(vn) <= 6 else vn[:5] + '\u2026'
+                            ba_canvas.create_text(bx, by + BARREL_R + 12,
+                                text = disp, fill = '#aaaaaa',
+                                font = ('Consolas', 8), tags = 'barrels')
+                        else:
+                            ba_canvas.create_oval(bx - BARREL_R + 6, by - BARREL_R + 6,
+                                bx + BARREL_R - 6, by + BARREL_R - 6,
+                                fill = '#1a1a1a', outline = '#555555', width = 2, tags = 'barrels')
+                            ba_canvas.create_text(bx, by,
+                                text = str(i + 1), fill = '#444444',
+                                font = ('Consolas', 12), tags = 'barrels')
+
+                    if not ls['animating']:
+                        ba_canvas.create_text(cx, HINGE_Y - 30,
+                            text = '\u2191 DRAG UP TO CLOSE \u2191',
+                            fill = '#666666', font = ('Consolas', 10), tags = 'barrels')
+
+                def _draw_all():
+                    _draw_chips()
+                    _draw_barrels()
+
+                def _play_ba_sound(action_name):
+                    try:
+                        spath = os.path.join('sounds', 'firearms', 'weaponsounds', 'break action', f'{action_name}.ogg')
+                        if os.path.exists(spath):
+                            snd = pygame.mixer.Sound(spath)
+                            ch = pygame.mixer.find_channel()
+                            if ch:
+                                ch.play(snd)
+                    except Exception:
+                        pass
+
+                def _play_insert():
+                    try:
+                        sn = f"bulletinsert{ls['stoggle']}"
+                        ls['stoggle'] = 1 - ls['stoggle']
+                        spath = os.path.join('sounds', 'firearms', 'universal', f'{sn}.ogg')
+                        if os.path.exists(spath):
+                            snd = pygame.mixer.Sound(spath)
+                            ch = pygame.mixer.find_channel()
+                            if ch:
+                                ch.play(snd)
+                    except Exception:
+                        pass
+
+                def _take_round(vname):
+                    if is_infinite:
+                        return {'name': f'{caliber} | {vname}', 'caliber': caliber, 'variant': vname}
+                    for hi in range(len(save_data.get('hands', {}).get('items', [])) - 1, -1, -1):
+                        itm = save_data['hands']['items'][hi]
+                        try:
+                            if not itm or not isinstance(itm, dict):
+                                continue
+                            rds = itm.get('rounds')
+                            if isinstance(rds, list) and rds:
+                                for ri, r in enumerate(rds):
+                                    rv = (r.get('variant') if isinstance(r, dict) else (str(r) if r else None))
+                                    if rv == vname:
+                                        return rds.pop(ri)
+                            qty = int(itm.get('quantity') or 0) if isinstance(itm.get('quantity'), (int, float)) else 0
+                            if qty > 0:
+                                nm = itm.get('variant') or itm.get('name') or itm.get('caliber')
+                                if nm and str(nm) == vname:
+                                    itm['quantity'] = qty - 1
+                                    return {k: v for k, v in itm.items() if k != 'quantity'}
+                            if itm.get('caliber') and (itm.get('variant') or itm.get('name')) and (itm.get('variant') == vname or itm.get('name') == vname):
+                                try:
+                                    save_data['hands']['items'].pop(hi)
+                                except Exception:
+                                    pass
+                                return itm
+                        except Exception:
+                            continue
+                    for _sn_eq, eq_item in list(save_data.get('equipment', {}).items()):
+                        if not eq_item or not isinstance(eq_item, dict):
+                            continue
+                        for cidx in range(len(eq_item.get('items', [])) - 1, -1, -1):
+                            try:
+                                itm = eq_item['items'][cidx]
+                                if not itm or not isinstance(itm, dict):
+                                    continue
+                                rds = itm.get('rounds')
+                                if isinstance(rds, list) and rds:
+                                    for ri, r in enumerate(rds):
+                                        rv = (r.get('variant') if isinstance(r, dict) else (str(r) if r else None))
+                                        if rv == vname:
+                                            return rds.pop(ri)
+                                qty = int(itm.get('quantity') or 0) if isinstance(itm.get('quantity'), (int, float)) else 0
+                                if qty > 0:
+                                    nm = itm.get('variant') or itm.get('name') or itm.get('caliber')
+                                    if nm and str(nm) == vname:
+                                        itm['quantity'] = qty - 1
+                                        return {k: v for k, v in itm.items() if k != 'quantity'}
+                            except Exception:
+                                pass
+                    return None
+
+                def _find_empty_barrel():
+                    for i in range(cap):
+                        if existing[i] is None:
+                            return i
+                    return None
+
+                def _hit_barrel(x, y):
+                    if not ls['open']:
+                        return None
+                    positions = _barrel_positions_open()
+                    for i, (bx, by) in enumerate(positions):
+                        import math as _m_ba
+                        dist = _m_ba.sqrt((x - bx) ** 2 + (y - by) ** 2)
+                        if dist <= BARREL_R + 5:
+                            return i
+                    return None
+
+                def _hit_chip(x, y):
+                    for vn, (x1, y1, x2, y2) in chip_hitboxes.items():
+                        if x1 <= x <= x2 and y1 <= y <= y2 and (available_by_variant.get(vn, 0) > 0 or is_infinite):
+                            return vn
+                    return None
+
+                def _hit_barrel_area(x, y):
+                    if ls['open']:
+                        return False
+                    positions = _barrel_positions()
+                    for bx, by in positions:
+                        import math as _m_ba2
+                        dist = _m_ba2.sqrt((x - bx) ** 2 + (y - by) ** 2)
+                        if dist <= BARREL_R + 30:
+                            return True
+                    return y > HINGE_Y - 20
+
+                def _hit_open_area(x, y):
+                    if not ls['open']:
+                        return False
+                    return y > HINGE_Y - 20
+
+                def _do_insert(vname, barrel_idx):
+                    r = _take_round(vname)
+                    if r is None:
+                        return
+                    existing[barrel_idx] = r
+                    ls['added'] += 1
+                    if not is_infinite:
+                        if vname in available_by_variant:
+                            available_by_variant[vname] -= 1
+                            if available_by_variant[vname] <= 0:
+                                del available_by_variant[vname]
+                    _play_ba_sound('insert')
+                    _draw_all()
+                    _update_side()
+
+                def _animate_open():
+                    ls['animating'] = True
+                    _play_ba_sound('open')
+                    target = 1.0
+                    steps = 12
+
+                    def _step(s):
+                        if s >= steps:
+                            ls['open_angle'] = target
+                            ls['open'] = True
+                            ls['animating'] = False
+                            _draw_all()
+                            return
+                        frac = (s + 1) / steps
+                        ease = 1 - (1 - frac) ** 2
+                        ls['open_angle'] = target * ease
+                        _draw_barrels()
+                        editor.after(20, lambda: _step(s + 1))
+
+                    ls['open'] = True
+                    _step(0)
+
+                def _animate_close(callback = None):
+                    ls['animating'] = True
+                    _play_ba_sound('close')
+                    start_angle = ls['open_angle']
+                    steps = 10
+
+                    def _step(s):
+                        if s >= steps:
+                            ls['open_angle'] = 0.0
+                            ls['open'] = False
+                            ls['animating'] = False
+                            _draw_all()
+                            if callback:
+                                editor.after(50, callback)
+                            return
+                        frac = (s + 1) / steps
+                        ease = frac * frac
+                        ls['open_angle'] = start_angle * (1 - ease)
+                        _draw_barrels()
+                        editor.after(20, lambda: _step(s + 1))
+
+                    _step(0)
+
+                def _eject_spent():
+                    if ls['animating'] or not ls['open']:
+                        return
+                    spent_indices = [i for i in range(cap) if _is_spent(existing[i])]
+                    if not spent_indices:
+                        return
+                    ls['animating'] = True
+                    positions = _barrel_positions_open()
+                    shell_anims = []
+                    for idx in spent_indices:
+                        bx, by = positions[idx]
+                        oid = ba_canvas.create_oval(bx - BARREL_R + 8, by - BARREL_R + 8,
+                            bx + BARREL_R - 8, by + BARREL_R - 8,
+                            fill = '#8B7355', outline = '#6B5335', width = 1, tags = 'ejectanim')
+                        shell_anims.append((oid, bx, by))
+                        existing[idx] = None
+                    wpn['_break_spent'] = 0
+                    _draw_barrels()
+                    drop_steps = 12
+
+                    def _drop_step(s):
+                        if s >= drop_steps:
+                            ba_canvas.delete('ejectanim')
+                            ls['animating'] = False
+                            _draw_all()
+                            _update_side()
+                            return
+                        frac = (s + 1) / drop_steps
+                        for oid, sx, sy in shell_anims:
+                            ny = sy + frac * 120
+                            ba_canvas.coords(oid, sx - BARREL_R + 8, ny - BARREL_R + 8,
+                                sx + BARREL_R - 8, ny + BARREL_R - 8)
+                        editor.after(25, lambda: _drop_step(s + 1))
+
+                    editor.after(60, lambda: _drop_step(0))
+
+                def _on_press(event):
+                    if ls['animating']:
+                        return
+                    if not ls['open']:
+                        if _hit_barrel_area(event.x, event.y):
+                            ls['_drag_open_active'] = True
+                            ls['_drag_open_start'] = event.y
+                        return
+                    if _hit_open_area(event.x, event.y):
+                        barrel_idx = _hit_barrel(event.x, event.y)
+                        if barrel_idx is None:
+                            ls['_drag_close_active'] = True
+                            ls['_drag_close_start'] = event.y
+                            return
+                    vn = _hit_chip(event.x, event.y)
+                    if not vn:
+                        return
+                    ls['dragging'] = True
+                    ls['drag_vn'] = vn
+                    ls['di'] = ba_canvas.create_oval(
+                        event.x - BARREL_R + 8, event.y - BARREL_R + 8,
+                        event.x + BARREL_R - 8, event.y + BARREL_R - 8,
+                        fill = _tip_for(vn), outline = '#ffffff', width = 2, tags = 'drag')
+
+                def _on_move(event):
+                    if ls.get('_drag_open_active') and not ls['open']:
+                        return
+                    if ls.get('_drag_close_active'):
+                        return
+                    if ls.get('dragging') and ls['di']:
+                        ba_canvas.coords(ls['di'],
+                            event.x - BARREL_R + 8, event.y - BARREL_R + 8,
+                            event.x + BARREL_R - 8, event.y + BARREL_R - 8)
+
+                def _on_release(event):
+                    if ls.get('_drag_open_active'):
+                        ls['_drag_open_active'] = False
+                        dy = event.y - ls.get('_drag_open_start', event.y)
+                        if dy > 50:
+                            _animate_open()
+                        return
+                    if ls.get('_drag_close_active'):
+                        ls['_drag_close_active'] = False
+                        dy = ls.get('_drag_close_start', event.y) - event.y
+                        if dy > 50:
+                            _do_close_and_finish()
+                        return
+                    if not ls.get('dragging'):
+                        return
+                    ls['dragging'] = False
+                    ba_canvas.delete('drag')
+                    ls['di'] = None
+                    if ls['animating']:
+                        return
+                    vn = ls['drag_vn']
+                    if not vn or (available_by_variant.get(vn, 0) <= 0 and not is_infinite):
+                        return
+                    barrel_idx = _hit_barrel(event.x, event.y)
+                    if barrel_idx is not None and (existing[barrel_idx] is None):
+                        _do_insert(vn, barrel_idx)
+                    else:
+                        empty = _find_empty_barrel()
+                        if empty is not None:
+                            positions = _barrel_positions_open()
+                            import math as _m_ba3
+                            close_enough = False
+                            for bx, by in positions:
+                                dist = _m_ba3.sqrt((event.x - bx) ** 2 + (event.y - by) ** 2)
+                                if dist <= BARREL_R * 2 + 20:
+                                    close_enough = True
+                                    break
+                            if close_enough:
+                                _do_insert(vn, empty)
+
+                ba_canvas.bind('<Button-1>', _on_press)
+                ba_canvas.bind('<B1-Motion>', _on_move)
+                ba_canvas.bind('<ButtonRelease-1>', _on_release)
+
+                _cap_lbl = customtkinter.CTkLabel(side,
+                    text = f'{sum(1 for r in existing if _is_live(r))}/{cap} barrels loaded',
+                    font = customtkinter.CTkFont(size = 13, weight = 'bold'))
+                _cap_lbl.pack(pady = (10, 6))
+
+                subtype_label = 'Over/Under' if is_over_under else 'Side-by-Side'
+                customtkinter.CTkLabel(side,
+                    text = f'{subtype_label} Break Action\n\nDrag down to open.\nDrag rounds onto barrels.\nDrag up to close.',
+                    font = customtkinter.CTkFont(size = 10), text_color = '#888888',
+                    wraplength = 170).pack(pady = 6)
+
+                def _update_side():
+                    _cap_lbl.configure(text = f'{sum(1 for r in existing if _is_live(r))}/{cap} barrels loaded')
+
+                customtkinter.CTkButton(side, text = 'Eject Spent', command = _eject_spent,
+                    width = 160, height = 30, font = customtkinter.CTkFont(size = 11),
+                    fg_color = '#6a4a2a', hover_color = '#7a5a3a').pack(pady = 4)
+
+                def _do_close_and_finish():
+                    if ls['animating']:
+                        return
+                    final_rounds = [r for r in existing if _is_live(r)]
+                    remaining_spent = sum(1 for r in existing if _is_spent(r))
+
+                    def _finish():
+                        wpn['rounds'] = final_rounds
+                        wpn['chambered'] = None
+                        wpn['_break_spent'] = remaining_spent
+
+                        try:
+                            sd_ref = save_data if isinstance(save_data, dict) else globals().get('save_data') or getattr(self, '_current_save_data', None)
+                            if isinstance(sd_ref, dict):
+                                ts = sd_ref.setdefault('tracked_stats', {})
+                                if isinstance(ts, dict):
+                                    ts['mags_reloaded_total'] = int(ts.get('mags_reloaded_total', 0)) + 1
+                                    added = int(ls['added'])
+                                    ts['bullets_loaded_total'] = int(ts.get('bullets_loaded_total', 0)) + added
+                                    bh = ts.setdefault('bullets_loaded_history', [])
+                                    try:
+                                        bh.append({'weapon_id': str(wpn.get('id', 'unknown')), 'count': added, 'time': time.time()})
+                                    except Exception:
+                                        pass
+                        except Exception:
+                            logging.exception('Failed updating tracked_stats after break action reload')
+                        try:
+                            self._update_session_reload_stats(save_data, int(ls['added']))
+                        except Exception:
+                            pass
+
+                        editor.destroy()
+                        update_weapon_view()
+                        if ls['added'] > 0:
+                            self._popup_show_info('Break Action Reload', f'Loaded {ls["added"]} rounds ({len(final_rounds)}/{cap})')
+
+                    _animate_close(callback = _finish)
+
+                def _done():
+                    final_rounds = [r for r in existing if _is_live(r)]
+                    remaining_spent = sum(1 for r in existing if _is_spent(r))
+
+                    def _finish():
+                        wpn['rounds'] = final_rounds
+                        wpn['chambered'] = None
+                        wpn['_break_spent'] = remaining_spent
+
+                        try:
+                            sd_ref = save_data if isinstance(save_data, dict) else globals().get('save_data') or getattr(self, '_current_save_data', None)
+                            if isinstance(sd_ref, dict):
+                                ts = sd_ref.setdefault('tracked_stats', {})
+                                if isinstance(ts, dict):
+                                    ts['mags_reloaded_total'] = int(ts.get('mags_reloaded_total', 0)) + 1
+                                    added = int(ls['added'])
+                                    ts['bullets_loaded_total'] = int(ts.get('bullets_loaded_total', 0)) + added
+                                    bh = ts.setdefault('bullets_loaded_history', [])
+                                    try:
+                                        bh.append({'weapon_id': str(wpn.get('id', 'unknown')), 'count': added, 'time': time.time()})
+                                    except Exception:
+                                        pass
+                        except Exception:
+                            logging.exception('Failed updating tracked_stats after break action reload')
+                        try:
+                            self._update_session_reload_stats(save_data, int(ls['added']))
+                        except Exception:
+                            pass
+
+                        editor.destroy()
+                        update_weapon_view()
+                        if ls['added'] > 0:
+                            self._popup_show_info('Break Action Reload', f'Loaded {ls["added"]} rounds ({len(final_rounds)}/{cap})')
+
+                    if ls['open']:
+                        _animate_close(callback = _finish)
+                    else:
+                        _finish()
+
+                editor.protocol('WM_DELETE_WINDOW', _done)
+                customtkinter.CTkButton(side, text = 'Done', command = _done,
+                    width = 160, height = 35,
+                    font = customtkinter.CTkFont(size = 12)).pack(pady = 10)
+
+                _draw_all()
+
+                editor.update_idletasks()
+                ew = max(editor.winfo_reqwidth(), 620)
+                eh = max(editor.winfo_reqheight(), 520)
+                _sw_s = editor.winfo_screenwidth()
+                _sh_s = editor.winfo_screenheight()
+                x = (_sw_s // 2) - (ew // 2)
+                y = (_sh_s // 2) - (eh // 2)
+                editor.geometry(f'{ew}x{eh}+{x}+{y}')
+                editor.grab_set()
+                editor.lift()
+                self._safe_focus(editor)
+            except Exception:
+                logging.exception('Failed to open break action editor')
 
         def _find_throwables_in_inventory():
             items =[]
@@ -28326,7 +29107,7 @@ class App:
             raw_platform = raw_platform[0]if raw_platform else ""
         platform = str(raw_platform)
 
-        is_internal = "internal"in magazine_type or "tube"in magazine_type or "cylinder"in magazine_type or "revolver"in platform.lower()or("belt"in magazine_type)or("m249"in platform.lower())
+        is_internal = "internal"in magazine_type or "tube"in magazine_type or "cylinder"in magazine_type or "break"in magazine_type or "revolver"in platform.lower()or("belt"in magazine_type)or("m249"in platform.lower())
 
         is_belt = False
 
@@ -28778,9 +29559,15 @@ class App:
 
                             try:
                                 if str(weapon.get("type")or "").lower()=="caseless":
-
                                     play_casing = False
+                            except Exception:
+                                pass
 
+                            try:
+                                _pc_mag_type = str(weapon.get("magazinetype", "") or "").lower()
+                                _pc_platform = str(weapon.get("platform", "") or "").lower()
+                                if "cylinder" in _pc_mag_type or "break" in _pc_mag_type or "revolver" in _pc_platform:
+                                    play_casing = False
                             except Exception:
                                 pass
 
@@ -28851,9 +29638,13 @@ class App:
                         is_single_action = True
 
                     is_cylinder = "cylinder"in magazine_type
+                    is_break_action = "break"in magazine_type
 
                     if is_cylinder:
                         weapon['_cylinder_spent'] = int(weapon.get('_cylinder_spent', 0)) + 1
+
+                    if is_break_action:
+                        weapon['_break_spent'] = int(weapon.get('_break_spent', 0)) + 1
 
                     if is_single_action and is_cylinder:
                         time.sleep(0.08)

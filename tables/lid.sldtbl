@@ -1153,6 +1153,35 @@
                     {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
                 ],
                 "can_stack": false
+            },
+            {
+                "name": "Krieghoff Arms Classic Double Rifle",
+                "value": 10000,
+                "description": "Finely crafted German double rifle chambered in .30-06 Springfield, designed for hunting.",
+                "rarity": "Legendary",
+                "random_quantity": false,
+                "weight": 3.7,
+                "id": 469,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "Break Action",
+                "caliber": ["7.62x51mm NATO"],
+                "action": ["Double"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "magazinetype": "Break Action",
+                "magazinesubtype": "side-by-side",
+                "capacity": 2,
+                "jamrate": 0.001,
+                "accessories": [
+                    {"name": "Scope Mount", "slot": "scope_mount", "current": null}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name": "Classic Double Barrel", "slot": "classic_double_barrel", "current": {"id": null}, "durability": null, "type": "barrel"},
+                    {"name": "Classic Double Trigger Spring", "slot": "classic_double_trigger_spring", "current": {"id": null}, "durability": null, "type": "trigger_spring"}
+                ]
             }
         ],
         "sniper_rifles": [
