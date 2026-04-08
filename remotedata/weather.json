@@ -1,0 +1,9 @@
+{
+    "forecast": {
+        "default": {
+            "weather": "clear",
+            "wind_severity": 0,
+            "temperature_f": 70.0
+        }
+    }
+}

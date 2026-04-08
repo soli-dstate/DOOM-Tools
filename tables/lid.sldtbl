@@ -10,8 +10,10 @@
         "paycheck": true,
         "paycheck_amount": 2000,
         "pay_period": "weekly",
-        "combat_repots": false,
-        "hidden_code": "Mgdqxum"
+        "combat_reports": false,
+        "hidden_code": "Mgdqxum",
+        "hidden_code_enabled": true,
+        "currency": "EUR"
     },
     "rarity_weights": {
         "Common": 40,
@@ -54,7 +56,7 @@
                     {"name": "Muzzle Device", "slot": "muzzle_556", "current": null}
                 ],
                 "can_stack": false,
-                "in_armory": true,
+                "in_armory": true,      
                 "armory_category": "Assault Rifle"
             },
             {
@@ -3069,7 +3071,7 @@
                 "action": ["Auto"],
                 "bolt": "closed",
                 "bolt_catch": false,
-                "cyclic": 750,
+                "cyclic": [550,750,850,950],
                 "magazinetype": "Belt",
                 "capacity": 100,
                 "jamrate": 0.0025,
@@ -11060,6 +11062,30 @@
                     {"name": "MOS Mount", "slot": "pistol_optic_mount", "current": {"id": 223}},
                     {"name": "Muzzle Device", "slot": "muzzle_9mm", "current": {"id": 130}}
                 ]
+            },
+            {
+                "name": "Hidden Gun Cane",
+                "value": 500,
+                "description": "A discreet cane with a suppressed single shot .45 ACP barrel hidden inside. Perfect for assassinations or self-defense in a pinch.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 1.5,
+                "id": 470,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "pistol",
+                "platform": "Break Action",
+                "caliber": ["9x19mm Parabellum"],
+                "action": ["Double"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "magazinetype": "Break Action",
+                "magazinesubtype": "single",
+                "capacity": 1,
+                "jamrate": 0.001,
+                "integrally_suppressed": true,
+                "accessories": null,
+                "can_stack": false
             }
         ],
         "enemy_drops": [
@@ -11474,8 +11500,7 @@
                     "sell": 1.5
                 },
                 "restock_time_minutes": 30,
-                "accepts_trades": true,
-                "display_in_program": false
+                "accepts_trades": true
             },
             {
                 "name": "Example Armory",

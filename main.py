@@ -1,4 +1,4 @@
-version = "1.0.13"
+version = "1.1.0"
 
 import os
 import logging
@@ -33,7 +33,8 @@ import distro
 
 pygame.init()
 
-pygame.mixer.init(channels = 4096)
+pygame.mixer.init(channels = 2)
+pygame.mixer.set_num_channels(134218)
 
 try:
     import platform as _platform_mod
@@ -528,6 +529,66 @@ def get_current_table_path():
         return table_files[0]
     return None
 
+_currency_cache = {"rates": {}, "last_fetched": 0, "lock": threading.Lock()}
+
+_currency_symbols = {
+    "USD": "$", "EUR": "€", "GBP": "£", "JPY": "¥", "CNY": "¥",
+    "KRW": "₩", "INR": "₹", "RUB": "₽", "BRL": "R$", "CAD": "CA$",
+    "AUD": "A$", "CHF": "CHF ", "SEK": "kr ", "NOK": "kr ", "DKK": "kr ",
+    "PLN": "zł ", "CZK": "Kč ", "HUF": "Ft ", "TRY": "₺", "MXN": "MX$",
+    "ZAR": "R ", "NZD": "NZ$", "SGD": "S$", "HKD": "HK$", "TWD": "NT$",
+    "THB": "฿", "PHP": "₱", "ILS": "₪", "AED": "د.إ ", "SAR": "﷼ ",
+}
+
+def _fetch_exchange_rates():
+    try:
+        now = time.time()
+        with _currency_cache["lock"]:
+            if _currency_cache["rates"] and (now - _currency_cache["last_fetched"]) < 3600:
+                return
+        resp = requests.get("https://open.er-api.com/v6/latest/USD", timeout=10)
+        if resp.status_code == 200:
+            data = resp.json()
+            rates = data.get("rates", {})
+            if rates:
+                with _currency_cache["lock"]:
+                    _currency_cache["rates"] = rates
+                    _currency_cache["last_fetched"] = now
+                logging.info("Fetched exchange rates: %d currencies", len(rates))
+        else:
+            logging.warning("Failed to fetch exchange rates (status %s)", resp.status_code)
+    except Exception:
+        logging.exception("Failed to fetch exchange rates")
+
+def _get_table_currency():
+    try:
+        tbl = globals().get('table_data')
+        if isinstance(tbl, dict):
+            return (tbl.get('additional_settings') or {}).get('currency', 'USD') or 'USD'
+    except Exception:
+        pass
+    return 'USD'
+
+def format_price(amount_usd):
+    try:
+        currency = _get_table_currency().upper()
+        if currency == "USD" or not currency:
+            return f"${amount_usd:,.2f}" if isinstance(amount_usd, float) else f"${amount_usd:,}"
+        with _currency_cache["lock"]:
+            rates = _currency_cache["rates"]
+        rate = rates.get(currency)
+        if rate is None:
+            return f"${amount_usd:,.2f}" if isinstance(amount_usd, float) else f"${amount_usd:,}"
+        converted = float(amount_usd) * float(rate)
+        symbol = _currency_symbols.get(currency, currency + " ")
+        if currency in ("JPY", "KRW"):
+            return f"{symbol}{converted:,.0f}"
+        return f"{symbol}{converted:,.2f}"
+    except Exception:
+        return f"${amount_usd}" if amount_usd is not None else "$0"
+
+threading.Thread(target=_fetch_exchange_rates, daemon=True).start()
+
 try:
     tfiles = sorted(glob.glob(os.path.join(os.getcwd(), 'tables', f"*{global_variables.get('table_extension', '.sldtbl')}")))
     if tfiles:
@@ -694,7 +755,9 @@ appearance_settings = {
 "borderless":False,
 "units":"imperial",
 "auto_set_units":False,
-"sound_volume":100
+"sound_volume":100,
+"weather_visual_effects":True,
+"weather_audio_effects":True
 }
 
 folders =[
@@ -1177,11 +1240,13 @@ def validate_table_ids():
         hardcore_errors =[]
         hardcore_errors_details =[]
 
-        id_to_item = {}
+        id_to_item_by_table = {}
         for it, tf, sub in all_table_items:
             try:
                 if isinstance(it, dict)and 'id'in it:
-                    id_to_item[it['id']]= it
+                    if tf not in id_to_item_by_table:
+                        id_to_item_by_table[tf]= {}
+                    id_to_item_by_table[tf][it['id']]= it
             except Exception:
                 pass
 
@@ -1221,7 +1286,8 @@ def validate_table_ids():
                                     pass
                                 continue
 
-                            if target_id not in id_to_item:
+                            table_id_map = id_to_item_by_table.get(tf, {})
+                            if target_id not in table_id_map:
                                 msg = f"Table '{table_pretty_names.get(tf, tf)}': Firearm '{fname}' has part '{p.get('name')}' referencing missing item ID {target_id}"
                                 hardcore_errors.append(msg)
                                 try:
@@ -1230,7 +1296,7 @@ def validate_table_ids():
                                     pass
                                 continue
 
-                            target = id_to_item.get(target_id)or {}
+                            target = table_id_map.get(target_id)or {}
                             tplat =(target.get('platform')or '')
                             try:
                                 lf = str(fplat).strip().lower()
@@ -1251,7 +1317,7 @@ def validate_table_ids():
         except Exception:
             pass
 
-        def _resolve_current(obj):
+        def _resolve_current(obj, id_map):
             if not isinstance(obj, dict):
                 return
 
@@ -1279,10 +1345,10 @@ def validate_table_ids():
                         if target_id is None:
 
                             if isinstance(cur, dict):
-                                _resolve_current(cur)
+                                _resolve_current(cur, id_map)
                             continue
 
-                        target = id_to_item.get(target_id)
+                        target = id_map.get(target_id)
                         if not target:
                             continue
 
@@ -1297,7 +1363,7 @@ def validate_table_ids():
                         acc['current']= new_installed
 
                         if sub_attachment:
-                            sub_target = id_to_item.get(sub_attachment)
+                            sub_target = id_map.get(sub_attachment)
                             if sub_target and isinstance(new_installed.get('subslots'), list):
                                 placed = False
                                 for ss in new_installed['subslots']:
@@ -1316,7 +1382,7 @@ def validate_table_ids():
                                         pass
 
                         try:
-                            _resolve_current(new_installed)
+                            _resolve_current(new_installed, id_map)
                         except Exception:
                             pass
                     except Exception:
@@ -1332,20 +1398,54 @@ def validate_table_ids():
                         if isinstance(cur, int)or(isinstance(cur, dict)and 'id'in cur):
 
                             tmp = {'accessories':[{'current':cur}]}
-                            _resolve_current(tmp)
+                            _resolve_current(tmp, id_map)
 
                             try:
                                 s['current']= tmp['accessories'][0].get('current')
                             except Exception:
                                 pass
                         elif isinstance(cur, dict):
-                            _resolve_current(cur)
+                            _resolve_current(cur, id_map)
+                    except Exception:
+                        pass
+
+            parts_list = obj.get('parts')or[]
+            if isinstance(parts_list, list):
+                for p in parts_list:
+                    try:
+                        if not isinstance(p, dict):
+                            continue
+                        cur = p.get('current')
+                        if cur is None:
+                            continue
+                        target_id = None
+                        overrides = {}
+                        if isinstance(cur, int):
+                            target_id = cur
+                        elif isinstance(cur, dict)and 'id'in cur and 'name'not in cur:
+                            target_id = cur.get('id')
+                            for k, v in cur.items():
+                                if k != 'id':
+                                    overrides[k]= v
+                        if target_id is None:
+                            continue
+                        target = id_map.get(target_id)
+                        if not target:
+                            continue
+                        import copy as _copy_p
+                        new_part = _copy_p.deepcopy(target)
+                        for k, v in overrides.items():
+                            try:
+                                new_part[k]= v
+                            except Exception:
+                                pass
+                        p['current']= new_part
                     except Exception:
                         pass
 
         for item, tf, sub in all_table_items:
             try:
-                _resolve_current(item)
+                _resolve_current(item, id_to_item_by_table.get(tf, {}))
             except Exception:
                 pass
     except Exception:
@@ -1979,7 +2079,7 @@ def update_item_keys_from_table(save_data):
         variable_keys = {
         "quantity", "current", "items", "subslots", "uses_left", "hits_left",
         "battery_life", "loaded", "chambered", "rounds",
-        "accessories", "attachment"
+        "accessories", "attachment", "parts", "current_durability", "spring_durability"
         }
 
         changed_any = False
@@ -2350,6 +2450,396 @@ def send_windows_notification(title:str, message:str):
         except Exception:
             pass
 
+def _resolve_effective_cyclic(weapon, combat_state=None, default=600):
+    raw = weapon.get("cyclic", default) if weapon else default
+    if isinstance(raw, list) and raw:
+        idx = 0
+        if combat_state is not None:
+            gas_settings = combat_state.get("gas_setting", {})
+            weapon_id = str(weapon.get("id", ""))
+            idx = gas_settings.get(weapon_id, 0)
+        if idx < 0 or idx >= len(raw):
+            idx = 0
+        val = raw[idx]
+        try:
+            return float(val) if val else float(default)
+        except Exception:
+            return float(default)
+    try:
+        return float(raw) if raw else float(default) # type: ignore
+    except Exception:
+        return float(default)
+
+PART_DURABILITY_MAX = 1000
+PART_DURABILITY_PER_SHOT = {
+    "barrel": 0.15,
+    "trigger_spring": 0.08,
+    "recoil_spring": 0.12,
+    "gas_piston": 0.10,
+    "bolt_carrier_group": 0.10,
+    "feed_tray": 0.06,
+    "buffer_spring": 0.10,
+    "bolt": 0.08,
+}
+PART_WRONG_AMMO_MULTIPLIER = {
+    "barrel": 8.0,
+    "bolt_carrier_group": 6.0,
+    "bolt": 5.0,
+}
+PART_WRONG_AMMO_BREAK_CHANCE = {
+    "barrel": 0.005,
+    "bolt_carrier_group": 0.008,
+    "bolt": 0.006,
+}
+
+def _get_part_by_type(weapon, part_type):
+    parts = weapon.get("parts") or []
+    for p in parts:
+        if isinstance(p, dict) and p.get("type") == part_type:
+            return p
+    return None
+
+def _check_part_status(weapon, part_type):
+    part = _get_part_by_type(weapon, part_type)
+    if part is None:
+        return "missing"
+    dur = part.get("current_durability")
+    if dur is None or dur == "null":
+        return "ok"
+    try:
+        dur = float(dur)
+    except (ValueError, TypeError):
+        return "ok"
+    if dur <= 0:
+        return "worn"
+    return "ok"
+
+def _apply_part_wear(weapon, shots_fired=1, wrong_ammo=False):
+    parts = weapon.get("parts")
+    if not parts or not isinstance(parts, list):
+        return []
+    broken_parts = []
+    for p in parts:
+        if not isinstance(p, dict):
+            continue
+        ptype = p.get("type", "")
+        dur = p.get("current_durability")
+        if dur is None or dur == "null":
+            continue
+        try:
+            dur = float(dur)
+        except (ValueError, TypeError):
+            continue
+        if dur <= 0:
+            continue
+        wear = PART_DURABILITY_PER_SHOT.get(ptype, 0.1) * shots_fired
+        if wrong_ammo:
+            mult = PART_WRONG_AMMO_MULTIPLIER.get(ptype, 1.0)
+            wear *= mult
+            break_chance = PART_WRONG_AMMO_BREAK_CHANCE.get(ptype, 0.0)
+            if break_chance > 0 and random.random() < break_chance * shots_fired:
+                p["current_durability"] = 0
+                p["broken"] = True
+                broken_parts.append(p)
+                continue
+        dur = max(0, dur - wear)
+        p["current_durability"] = dur
+        if dur <= 0:
+            broken_parts.append(p)
+    return broken_parts
+
+def _randomize_part_durability(weapon):
+    parts = weapon.get("parts")
+    if not parts or not isinstance(parts, list):
+        return
+    for p in parts:
+        if not isinstance(p, dict):
+            continue
+        dur = p.get("durability")
+        if dur == "set_by_looting":
+            p["current_durability"] = random.uniform(PART_DURABILITY_MAX * 0.15, PART_DURABILITY_MAX)
+        elif isinstance(dur, (int, float)):
+            p["current_durability"] = float(dur)
+
+def _set_full_part_durability(item):
+    parts = item.get("parts")
+    if parts and isinstance(parts, list):
+        for p in parts:
+            if not isinstance(p, dict):
+                continue
+            dur = p.get("durability")
+            if dur == "set_by_looting":
+                p["current_durability"] = float(PART_DURABILITY_MAX)
+            elif isinstance(dur, (int, float)):
+                p["current_durability"] = float(dur)
+    if item.get("spring_durability") == "set_by_looting":
+        item["spring_durability"] = float(PART_DURABILITY_MAX)
+
+def _resolve_unset_durability(save_data):
+    if not isinstance(save_data, dict):
+        return save_data
+    def _fix_item(item):
+        if not isinstance(item, dict):
+            return
+        parts = item.get("parts")
+        if parts and isinstance(parts, list):
+            for p in parts:
+                if not isinstance(p, dict):
+                    continue
+                if p.get("durability") == "set_by_looting" and p.get("current_durability") is None:
+                    p["current_durability"] = random.uniform(PART_DURABILITY_MAX * 0.15, PART_DURABILITY_MAX)
+                    logging.warning(f"Resolved unset durability for part '{p.get('name', 'Unknown')}' on '{item.get('name', 'Unknown')}' to {p['current_durability']:.1f}")
+        if item.get("spring_durability") == "set_by_looting":
+            item["spring_durability"] = random.uniform(100, PART_DURABILITY_MAX)
+            logging.warning(f"Resolved unset spring_durability for '{item.get('name', 'Unknown')}' to {item['spring_durability']:.1f}")
+    for slot_name, eq in save_data.get("equipment", {}).items():
+        if isinstance(eq, dict):
+            _fix_item(eq)
+            for sub in eq.get("subslots", []) or []:
+                if isinstance(sub, dict):
+                    for si in sub.get("items", []) or []:
+                        _fix_item(si)
+    if "hands" in save_data and "items" in save_data.get("hands", {}):
+        for item in save_data["hands"]["items"]:
+            _fix_item(item)
+    for item in save_data.get("storage", []):
+        _fix_item(item)
+    return save_data
+
+def _check_weapon_can_fire(weapon):
+    parts = weapon.get("parts")
+    if not parts or not isinstance(parts, list):
+        return True, None
+    for p in parts:
+        if not isinstance(p, dict):
+            continue
+        ptype = p.get("type", "")
+        status = _check_part_status(weapon, ptype)
+        if status == "missing":
+            if ptype in ("bolt_carrier_group", "bolt"):
+                return False, f"{ptype.replace('_', ' ').title()} is missing - weapon cannot fire!"
+        if status in ("worn", "missing"):
+            if ptype in ("trigger_spring", "bolt_carrier_group", "feed_tray", "bolt"):
+                return False, f"{p.get('name', ptype)} is {'missing' if status == 'missing' else 'worn out'} - weapon cannot fire!"
+    return True, None
+
+def _get_weapon_part_effects(weapon):
+    effects = {}
+    parts = weapon.get("parts")
+    if not parts or not isinstance(parts, list):
+        return effects
+    for p in parts:
+        if not isinstance(p, dict):
+            continue
+        ptype = p.get("type", "")
+        status = _check_part_status(weapon, ptype)
+        if status in ("worn", "missing"):
+            if ptype == "barrel":
+                if status == "missing":
+                    effects["aim_debuff"] = effects.get("aim_debuff", 0) - 8
+                else:
+                    effects["aim_debuff"] = effects.get("aim_debuff", 0) - 3
+            elif ptype == "recoil_spring":
+                effects["force_manual_action"] = True
+            elif ptype == "gas_piston":
+                effects["force_manual_action"] = True
+            elif ptype == "buffer_spring":
+                effects["inconsistent_feeding"] = True
+    return effects
+
+MAGPUL_DOT_MATRIX = {
+    "1": [[0,1,0],[1,1,0],[0,1,0],[0,1,0],[1,1,1]],
+    "2": [[1,1,0],[0,0,1],[0,1,0],[1,0,0],[1,1,1]],
+    "3": [[1,1,0],[0,0,1],[0,1,0],[0,0,1],[1,1,0]],
+    "4": [[1,0,1],[1,0,1],[1,1,1],[0,0,1],[0,0,1]],
+    "5": [[1,1,1],[1,0,0],[1,1,0],[0,0,1],[1,1,0]],
+    "6": [[0,1,1],[1,0,0],[1,1,0],[1,0,1],[0,1,0]],
+    "7": [[1,1,1],[0,0,1],[0,1,0],[0,1,0],[0,1,0]],
+    "8": [[0,1,0],[1,0,1],[0,1,0],[1,0,1],[0,1,0]],
+    "9": [[0,1,0],[1,0,1],[0,1,1],[0,0,1],[1,1,0]],
+    "0": [[0,1,0],[1,0,1],[1,0,1],[1,0,1],[0,1,0]],
+    "A": [[0,1,0],[1,0,1],[1,1,1],[1,0,1],[1,0,1]],
+    "B": [[1,1,0],[1,0,1],[1,1,0],[1,0,1],[1,1,0]],
+    "C": [[0,1,1],[1,0,0],[1,0,0],[1,0,0],[0,1,1]],
+    "D": [[1,1,0],[1,0,1],[1,0,1],[1,0,1],[1,1,0]],
+    "E": [[1,1,1],[1,0,0],[1,1,0],[1,0,0],[1,1,1]],
+    "F": [[1,1,1],[1,0,0],[1,1,0],[1,0,0],[1,0,0]],
+    "G": [[0,1,1],[1,0,0],[1,0,1],[1,0,1],[0,1,1]],
+    "H": [[1,0,1],[1,0,1],[1,1,1],[1,0,1],[1,0,1]],
+    "I": [[1,1,1],[0,1,0],[0,1,0],[0,1,0],[1,1,1]],
+    "J": [[0,0,1],[0,0,1],[0,0,1],[1,0,1],[0,1,0]],
+    "K": [[1,0,1],[1,0,1],[1,1,0],[1,0,1],[1,0,1]],
+    "L": [[1,0,0],[1,0,0],[1,0,0],[1,0,0],[1,1,1]],
+    "M": [[1,0,1],[1,1,1],[1,0,1],[1,0,1],[1,0,1]],
+    "N": [[1,0,1],[1,1,1],[1,1,1],[1,0,1],[1,0,1]],
+    "O": [[0,1,0],[1,0,1],[1,0,1],[1,0,1],[0,1,0]],
+    "P": [[1,1,0],[1,0,1],[1,1,0],[1,0,0],[1,0,0]],
+    "Q": [[0,1,0],[1,0,1],[1,0,1],[1,1,1],[0,1,1]],
+    "R": [[1,1,0],[1,0,1],[1,1,0],[1,0,1],[1,0,1]],
+    "S": [[0,1,1],[1,0,0],[0,1,0],[0,0,1],[1,1,0]],
+    "T": [[1,1,1],[0,1,0],[0,1,0],[0,1,0],[0,1,0]],
+    "U": [[1,0,1],[1,0,1],[1,0,1],[1,0,1],[0,1,0]],
+    "V": [[1,0,1],[1,0,1],[1,0,1],[0,1,0],[0,1,0]],
+    "W": [[1,0,1],[1,0,1],[1,0,1],[1,1,1],[1,0,1]],
+    "X": [[1,0,1],[1,0,1],[0,1,0],[1,0,1],[1,0,1]],
+    "Y": [[1,0,1],[1,0,1],[0,1,0],[0,1,0],[0,1,0]],
+    "Z": [[1,1,1],[0,0,1],[0,1,0],[1,0,0],[1,1,1]],
+    " ": [[0,0,0],[0,0,0],[0,0,0],[0,0,0],[0,0,0]],
+    "-": [[0,0,0],[0,0,0],[1,1,1],[0,0,0],[0,0,0]],
+    ".": [[0,0,0],[0,0,0],[0,0,0],[0,0,0],[0,1,0]],
+    "+": [[0,0,0],[0,1,0],[1,1,1],[0,1,0],[0,0,0]],
+}
+
+MARKING_COLORS = {
+    "white": "#FFFFFF",
+    "red": "#FF3333",
+    "green": "#33FF33",
+    "blue": "#3399FF",
+}
+
+def get_magazine_grid_count(weapon_subtype):
+    if weapon_subtype in ("pistol", "handgun", "revolver"):
+        return 2
+    return 4
+
+def render_dot_matrix_text(text, max_chars=4):
+    text = text.upper()[:max_chars]
+    grids = []
+    for ch in text:
+        grids.append(MAGPUL_DOT_MATRIX.get(ch, MAGPUL_DOT_MATRIX.get(" ")))
+    while len(grids) < max_chars:
+        grids.append(MAGPUL_DOT_MATRIX[" "])
+    return grids
+
+
+def _update_electronic_attachment_battery(attachment, now_ts=None):
+    if not attachment or not isinstance(attachment, dict):
+        return
+    if not attachment.get("electronic"):
+        return
+    if now_ts is None:
+        now_ts = time.time()
+
+    battery_capacity = attachment.get("battery_capacity", 0)
+    if not battery_capacity or battery_capacity <= 0:
+        return
+
+    battery_level = attachment.get("battery_level")
+    if battery_level is None:
+        attachment["battery_level"] = float(battery_capacity)
+        battery_level = float(battery_capacity)
+    try:
+        battery_level = float(battery_level)
+    except (ValueError, TypeError):
+        battery_level = float(battery_capacity)
+
+    if not attachment.get("power_on"):
+        return
+
+    power_on_ts = attachment.get("power_on_timestamp")
+    if power_on_ts is None:
+        return
+
+    try:
+        power_on_ts = float(power_on_ts)
+    except (ValueError, TypeError):
+        return
+
+    auto_off_seconds = attachment.get("auto_off_seconds")
+    if auto_off_seconds:
+        try:
+            auto_off_seconds = float(auto_off_seconds)
+        except (ValueError, TypeError):
+            auto_off_seconds = None
+
+    elapsed = max(0.0, now_ts - power_on_ts)
+
+    if auto_off_seconds and elapsed >= auto_off_seconds:
+        active_duration = auto_off_seconds
+        attachment["power_on"] = False
+        attachment.pop("power_on_timestamp", None)
+    else:
+        active_duration = elapsed
+
+    drain_rate = attachment.get("drain_rate", 0)
+    try:
+        drain_rate = float(drain_rate)
+    except (ValueError, TypeError):
+        drain_rate = 0
+
+    if drain_rate > 0 and active_duration > 0:
+        hours_active = active_duration / 3600.0
+        drained = drain_rate * hours_active
+        battery_level = max(0.0, battery_level - drained)
+        attachment["battery_level"] = round(battery_level, 4)
+
+    if battery_level <= 0:
+        attachment["power_on"] = False
+        attachment.pop("power_on_timestamp", None)
+        attachment["battery_level"] = 0.0
+
+    if attachment.get("power_on"):
+        attachment["power_on_timestamp"] = now_ts
+
+
+def _update_all_weapon_batteries(equipped_weapons, now_ts=None):
+    if now_ts is None:
+        now_ts = time.time()
+    for wpn in equipped_weapons:
+        item = wpn if isinstance(wpn, dict) and "accessories" in wpn else wpn.get("item", {}) if isinstance(wpn, dict) else {}
+        for acc in item.get("accessories", []) or []:
+            cur = acc.get("current")
+            if isinstance(cur, dict):
+                _update_electronic_attachment_battery(cur, now_ts)
+                for sub in cur.get("subslots", []) or []:
+                    sub_cur = sub.get("current") if isinstance(sub, dict) else None
+                    if isinstance(sub_cur, dict):
+                        _update_electronic_attachment_battery(sub_cur, now_ts)
+
+
+def _toggle_electronic_attachment(attachment):
+    if not attachment or not isinstance(attachment, dict):
+        return False, "No attachment"
+    if not attachment.get("electronic"):
+        return False, "Not an electronic device"
+
+    battery_capacity = attachment.get("battery_capacity", 0)
+    if not battery_capacity or battery_capacity <= 0:
+        return False, "No battery"
+
+    _update_electronic_attachment_battery(attachment)
+
+    battery_level = float(attachment.get("battery_level", 0))
+    if battery_level <= 0 and not attachment.get("power_on"):
+        return False, "Battery dead"
+
+    if attachment.get("power_on"):
+        attachment["power_on"] = False
+        attachment.pop("power_on_timestamp", None)
+        return True, "OFF"
+    else:
+        attachment["power_on"] = True
+        attachment["power_on_timestamp"] = time.time()
+        return True, "ON"
+
+
+def _get_battery_percentage(attachment):
+    if not attachment or not isinstance(attachment, dict):
+        return None
+    if not attachment.get("electronic"):
+        return None
+    cap = attachment.get("battery_capacity", 0)
+    if not cap or cap <= 0:
+        return None
+    level = attachment.get("battery_level")
+    if level is None:
+        return 100.0
+    try:
+        return max(0.0, min(100.0, float(level) / float(cap) * 100.0))
+    except (ValueError, TypeError, ZeroDivisionError):
+        return None
+
+
 class App:
 
     PLATFORM_DEFAULTS = {
@@ -2683,6 +3173,10 @@ class App:
             except Exception as e:
                 logging.warning(f"Failed to normalize save data: {e}")
             try:
+                data = _resolve_unset_durability(data)
+            except Exception:
+                logging.exception("Failed to resolve unset durability values")
+            try:
 
                 try:
                     self._award_paychecks_for_save(data, save_path)
@@ -2969,7 +3463,7 @@ class App:
                 try:
                     title = "Paycheck Received"
                     charname = save_data.get('charactername')or save_data.get('character_name')or 'Character'
-                    message = f"{charname} received ${pay_amount}."
+                    message = f"{charname} received {format_price(pay_amount)}."
                     try:
                         self._popup_show_info(title, message, sound = 'success')
                     except Exception:
@@ -3151,6 +3645,22 @@ class App:
                     except Exception:
                         pass
             _tk.Tk.report_callback_exception = _tk_suppress
+        except Exception:
+            pass
+
+        try:
+            import re as _re_stderr
+            _real_stderr = sys.stderr
+            class _TclAfterFilter:
+                def write(self, msg):
+                    if msg and "invalid command name"in msg and("after"in msg or _re_stderr.search(r'\d{6,}', msg)):
+                        return
+                    _real_stderr.write(msg)
+                def flush(self):
+                    _real_stderr.flush()
+                def __getattr__(self, name):
+                    return getattr(_real_stderr, name)
+            sys.stderr = _TclAfterFilter()
         except Exception:
             pass
 
@@ -3618,17 +4128,45 @@ class App:
                     pass
 
                 try:
-                    ch = sound.play()
-                    if ch is None:
-
-                        ch = pygame.mixer.find_channel(True)
+                    weather_ch = getattr(self, '_weather_ambient_channel', None)
+                    ch = None
+                    if weather_ch is not None:
+                        ch = pygame.mixer.find_channel()
+                        if ch is None or ch == weather_ch:
+                            ch = None
+                            for i in range(pygame.mixer.get_num_channels() - 2, -1, -1):
+                                try:
+                                    alt = pygame.mixer.Channel(i)
+                                    if not alt.get_busy() and alt != weather_ch:
+                                        ch = alt
+                                        break
+                                except Exception:
+                                    continue
+                            if ch is None:
+                                for i in range(pygame.mixer.get_num_channels() - 2, -1, -1):
+                                    try:
+                                        alt = pygame.mixer.Channel(i)
+                                        if alt != weather_ch:
+                                            ch = alt
+                                            break
+                                    except Exception:
+                                        continue
                         if ch:
                             ch.play(sound)
-                            logging.debug(f"Played sound(forced channel) file: {sound_path}")
+                            logging.debug(f"Played sound(reserved-safe channel) file: {sound_path}")
                         else:
                             logging.warning(f"No channel available to play sound: {sound_path}")
                     else:
-                        logging.debug(f"Played sound file: {sound_path}")
+                        ch = sound.play()
+                        if ch is None:
+                            ch = pygame.mixer.find_channel(True)
+                            if ch:
+                                ch.play(sound)
+                                logging.debug(f"Played sound(forced channel) file: {sound_path}")
+                            else:
+                                logging.warning(f"No channel available to play sound: {sound_path}")
+                        else:
+                            logging.debug(f"Played sound file: {sound_path}")
 
                     if block:
                         try:
@@ -3885,6 +4423,184 @@ class App:
         popup.lift()
         return {"update":update, "close":close, "popup":popup}
 
+    def _create_action_minigame_popup(self, title, cause_text, key_count = 6):
+
+        import threading as _mg_threading
+
+        completed = _mg_threading.Event()
+
+        self._play_ui_sound("popup")
+        try:
+            theme = customtkinter.ThemeManager.theme
+            toplevel_fg = theme.get("CTkToplevel", {}).get("fg_color")
+            label_text_color = theme.get("CTkLabel", {}).get("text_color")
+        except Exception:
+            toplevel_fg = None
+            label_text_color = None
+
+        if toplevel_fg:
+            popup = customtkinter.CTkToplevel(self.root, fg_color = toplevel_fg)
+        else:
+            popup = customtkinter.CTkToplevel(self.root)
+        popup.title(title)
+        popup.geometry("450x310")
+        popup.transient(self.root)
+
+        label_kwargs_base = {}
+        if label_text_color:
+            label_kwargs_base["text_color"] = label_text_color
+
+        cause_label = customtkinter.CTkLabel(
+            popup, text = cause_text, wraplength = 400,
+            font = customtkinter.CTkFont(size = 12), **label_kwargs_base
+        )
+        cause_label.pack(pady = (10, 5), padx = 20)
+
+        status_label = customtkinter.CTkLabel(
+            popup, text = "", wraplength = 400,
+            font = customtkinter.CTkFont(size = 13), **label_kwargs_base
+        )
+        status_label.pack(pady = 5, padx = 20)
+
+        progress_bar = customtkinter.CTkProgressBar(popup, width = 380, height = 14)
+        progress_bar.pack(pady = (2, 5), padx = 30)
+        progress_bar.set(0.0)
+
+        sep = customtkinter.CTkFrame(popup, height = 2, fg_color = "gray50")
+        sep.pack(fill = "x", padx = 30, pady = 5)
+
+        key_pool = ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "A", "S", "D", "F", "G", "H", "J", "K", "L", "Z", "X", "C", "V", "B", "N", "M"]
+        keys = [random.choice(key_pool) for _ in range(key_count)]
+        current_index = [0]
+
+        _button_sounds = []
+        try:
+            import os as _mg_os
+            for bn in ("button0.ogg", "button1.ogg", "button2.ogg"):
+                bp = _mg_os.path.join("sounds", "firearms", "universal", bn)
+                if _mg_os.path.exists(bp):
+                    _button_sounds.append(bp)
+        except Exception:
+            pass
+
+        mg_header = customtkinter.CTkLabel(
+            popup, text = "Press the keys in order to skip waiting:",
+            font = customtkinter.CTkFont(size = 11), **label_kwargs_base
+        )
+        mg_header.pack(pady = (5, 2))
+
+        key_display = customtkinter.CTkLabel(
+            popup, text = f"[ {keys[0]} ]",
+            font = customtkinter.CTkFont(size = 24, weight = "bold"), **label_kwargs_base
+        )
+        key_display.pack(pady = 5)
+
+        progress_parts = []
+        for i, k in enumerate(keys):
+            progress_parts.append(f"[{k}]")
+        progress_label = customtkinter.CTkLabel(
+            popup, text = " ".join(progress_parts),
+            font = customtkinter.CTkFont(size = 11), **label_kwargs_base
+        )
+        progress_label.pack(pady = 2)
+
+        def _on_minigame_key(event):
+            if completed.is_set():
+                return
+            ch = (event.char or "").upper()
+            if not ch:
+                return
+            idx = current_index[0]
+            if idx < len(keys) and ch == keys[idx]:
+                try:
+                    if _button_sounds:
+                        self._safe_sound_play("", random.choice(_button_sounds))
+                    else:
+                        self._play_ui_sound("click")
+                except Exception:
+                    pass
+                current_index[0] += 1
+                idx = current_index[0]
+                if idx >= len(keys):
+                    completed.set()
+                    try:
+                        key_display.configure(text = "Done!")
+                        progress_label.configure(text = " ".join("\u2713" for _ in keys))
+                        progress_bar.set(1.0)
+                    except Exception:
+                        pass
+                else:
+                    try:
+                        key_display.configure(text = f"[ {keys[idx]} ]")
+                        parts = []
+                        for i, k in enumerate(keys):
+                            parts.append("\u2713" if i < idx else f"[{k}]")
+                        progress_label.configure(text = " ".join(parts))
+                    except Exception:
+                        pass
+
+        popup.bind("<Key>", _on_minigame_key)
+
+        self._center_popup_on_window(popup, 450, 310)
+        popup.deiconify()
+        popup.lift()
+        try:
+            popup.focus_force()
+        except Exception:
+            pass
+
+        def update(text):
+            try:
+                status_label.configure(text = text)
+                popup.update_idletasks()
+            except Exception:
+                pass
+
+        def close():
+            try:
+                self._play_ui_sound("click")
+            except Exception:
+                pass
+            try:
+                popup.destroy()
+            except Exception:
+                pass
+
+        def set_progress(value):
+            try:
+                progress_bar.set(max(0.0, min(1.0, value)))
+            except Exception:
+                pass
+
+        return {"update": update, "close": close, "popup": popup, "completed": completed, "set_progress": set_progress}
+
+    def _interruptible_wait(self, completed_event, duration, progress_callback = None):
+
+        start_time = time.time()
+        end_time = start_time + duration
+        while time.time() < end_time:
+            if completed_event.is_set():
+                if progress_callback:
+                    try:
+                        self.root.after(0, lambda: progress_callback(1.0))
+                    except Exception:
+                        pass
+                return True
+            if progress_callback:
+                elapsed = time.time() - start_time
+                frac = min(1.0, elapsed / duration) if duration > 0 else 1.0
+                try:
+                    self.root.after(0, lambda f = frac: progress_callback(f))
+                except Exception:
+                    pass
+            time.sleep(0.05)
+        if progress_callback:
+            try:
+                self.root.after(0, lambda: progress_callback(1.0))
+            except Exception:
+                pass
+        return False
+
     def _popup_confirm(self, title, message, on_confirm):
         self._play_ui_sound("popup")
         popup = customtkinter.CTkToplevel(self.root)
@@ -3960,12 +4676,13 @@ class App:
         if iv >max_value:
             iv = max_value
 
-        value_var = customtkinter.IntVar(value = iv)
+        value_var = customtkinter.StringVar(value = str(iv))
 
         entry = customtkinter.CTkEntry(input_frame, width = 80, textvariable = value_var)
         entry.pack(side = "left", padx =(0, 10))
 
         slider = None
+        _syncing = [False]
         if max_value >min_value:
 
             steps = max_value -min_value
@@ -3974,10 +4691,37 @@ class App:
             from_ = min_value,
             to = max_value,
             number_of_steps = steps,
-            variable = value_var,
             width = 200
             )
+            slider.set(iv)
             slider.pack(side = "left", fill = "x", expand = True)
+
+            def _on_slider_change(val):
+                if _syncing[0]:
+                    return
+                _syncing[0] = True
+                try:
+                    value_var.set(str(int(round(float(val)))))
+                except Exception:
+                    pass
+                _syncing[0] = False
+            slider.configure(command = _on_slider_change)
+
+            def _on_entry_change(*_args):
+                if _syncing[0]:
+                    return
+                _syncing[0] = True
+                try:
+                    v = int(value_var.get())
+                    if v < min_value:
+                        v = min_value
+                    elif v > max_value:
+                        v = max_value
+                    slider.set(v)
+                except (ValueError, TypeError):
+                    pass
+                _syncing[0] = False
+            value_var.trace_add("write", _on_entry_change)
 
         min_label = customtkinter.CTkLabel(input_frame, text = f"({min_value}-{max_value})", font = customtkinter.CTkFont(size = 11), text_color = "gray")
         min_label.pack(side = "left", padx =(10, 0))
@@ -4145,11 +4889,19 @@ class App:
 
         try:
             tbl_addl = globals().get('table_data', {}).get('additional_settings', {})
-            combat_reports_enabled = bool(tbl_addl.get('combat_repots')or tbl_addl.get('combat_reports'))
+            combat_reports_enabled = bool(tbl_addl.get('combat_reports'))
         except Exception:
             combat_reports_enabled = False
         combat_reports_button = self._create_sound_button(main_frame, "Combat Reports", self._open_combat_reports_menu, width = 500, height = 50, font = customtkinter.CTkFont(size = 16), state = "normal"if combat_reports_enabled else "disabled")
         combat_reports_button.pack(pady = 10)
+
+        try:
+            tbl_addl = globals().get('table_data', {}).get('additional_settings', {})
+            crafting_enabled = bool(tbl_addl.get('crafting'))
+        except Exception:
+            crafting_enabled = False
+        crafting_button = self._create_sound_button(main_frame, "Crafting", self._open_crafting_menu, width = 500, height = 50, font = customtkinter.CTkFont(size = 16), state = "normal"if crafting_enabled else "disabled")
+        crafting_button.pack(pady = 10)
         if global_variables["devmode"]["value"]:
             devtools_button = self._create_sound_button(main_frame, "Developer Tools", self._open_dev_tools, width = 500, height = 50, font = customtkinter.CTkFont(size = 16), state = "disabled"if currentsave is None else "normal")
             devtools_button.pack(pady = 10)
@@ -4177,7 +4929,13 @@ class App:
                     konami_triggered[0]= True
                     try:
                         tbl = globals().get('table_data', {})
-                        code = tbl.get('additional_settings', {}).get('hidden_code', '')
+                        tbl_addl_konami = tbl.get('additional_settings', {}) if isinstance(tbl, dict) else {}
+                        if not bool(tbl_addl_konami.get('hidden_code_enabled', False)):
+                            logging.debug("Konami code entered but hidden_code_enabled is false for this table")
+                            konami_triggered[0] = False
+                            konami_progress[0] = 0
+                            return
+                        code = tbl_addl_konami.get('hidden_code', '')
                         logging.info("Hidden code: %s", code)
                     except Exception:
                         logging.exception("Failed to retrieve hidden_code")
@@ -5918,6 +6676,14 @@ class App:
                         item["loaded"]= mag_copy
                         logging.debug(f"Loaded firearm {item.get('name', 'Unknown')} with {mag_copy.get('name')}({rounds_to_load}/{capacity} rounds)")
 
+            if item.get("firearm") and item.get("parts"):
+                _randomize_part_durability(item)
+
+            if item.get("spring_durability") == "set_by_looting":
+                item["spring_durability"] = random.uniform(100, PART_DURABILITY_MAX)
+            if item.get("reliability") is None and item.get("magazinesystem") and not item.get("firearm"):
+                item["reliability"] = random.randint(70, 100)
+
         return items
 
     def _get_loot_crate_contents_preview(self, crate, table_data):
@@ -6206,7 +6972,7 @@ class App:
             if item.get("quantity", 1)>1:
                 item_info_text +=f" x{item.get('quantity')}"
             if item.get("value"):
-                item_info_text +=f"[${item.get('value')}]"
+                item_info_text +=f"[{format_price(item.get('value'))}]"
 
             item_label = customtkinter.CTkLabel(
             item_frame,
@@ -6475,7 +7241,7 @@ class App:
 
                     min_bet = store.get("min_bet", 10)
                     max_bet = store.get("max_bet", 1000)
-                    bet_label = customtkinter.CTkLabel(store_frame, text = f"Bets: ${min_bet} - ${max_bet}", font = customtkinter.CTkFont(size = 11), text_color = "gold")
+                    bet_label = customtkinter.CTkLabel(store_frame, text = f"Bets: {format_price(min_bet)} - {format_price(max_bet)}", font = customtkinter.CTkFont(size = 11), text_color = "gold")
                     bet_label.pack(anchor = "w", padx = 10)
 
                     enter_button = self._create_sound_button(store_frame, "Enter Casino", lambda s = store:self._open_casino_interface(s, table_data), width = 200, height = 40, font = customtkinter.CTkFont(size = 12))
@@ -8176,6 +8942,7 @@ class App:
                     item_copy = item.copy()
                     item_copy.pop("_table_category", None)
                     item_copy = add_subslots_to_item(item_copy)
+                    _set_full_part_durability(item_copy)
 
                     try:
                         item_copy["_from_armory"]= store.get("name", "Unknown")
@@ -8335,6 +9102,9 @@ class App:
         back_btn = self._create_sound_button(button_frame, "Leave Armory", leave_armory, width = 200, height = 40, font = customtkinter.CTkFont(size = 14))
         back_btn.pack(side = "right", padx = 10)
 
+    def _open_crafting_menu(self, store, table_data):
+        self._popup_show_info("Crafting Menu", "Crafting system is not implemented yet.", sound = "popup")
+
     def _open_store_interface(self, store, table_data):
 
         logging.info(f"Opening store: {store.get('name')}")
@@ -8374,7 +9144,7 @@ class App:
 
         player_money =[save_data.get("money", 0)]
 
-        money_label = customtkinter.CTkLabel(header_frame, text = f"Your Money: ${player_money[0]}", font = customtkinter.CTkFont(size = 16, weight = "bold"), text_color = "green")
+        money_label = customtkinter.CTkLabel(header_frame, text = f"Your Money: {format_price(player_money[0])}", font = customtkinter.CTkFont(size = 16, weight = "bold"), text_color = "green")
         money_label.pack(pady = 5)
 
         prices = store.get("prices", {"buy":1.0, "sell":1.0})
@@ -8844,40 +9614,245 @@ class App:
         if store.get("accepts_trades"):
             trade_tab = tab_view.add("Trade")
 
-        buy_scroll = customtkinter.CTkScrollableFrame(buy_tab)
-        buy_scroll.pack(fill = "both", expand = True)
-
         buy_cart =[]
         buy_total =[0]
 
         def update_buy_display():
-            money_label.configure(text = f"Your Money: ${player_money[0]} | Cart Total: ${buy_total[0]}")
+            money_label.configure(text = f"Your Money: {format_price(player_money[0])} | Cart Total: {format_price(buy_total[0])}")
 
+        shop_categories = {}
         for item in store_inventory:
-            item_frame = customtkinter.CTkFrame(buy_scroll)
-            item_frame.pack(fill = "x", pady = 5, padx = 10)
+            cat = item.get("shop_category") or item.get("armory_category") or item.get("_table_category") or "Uncategorized"
+            shop_categories.setdefault(cat, []).append(item)
 
-            base_value = item.get("value", 0)
-            buy_price = int(base_value *sell_mult)
+        if len(shop_categories) <= 1:
 
-            name_label = customtkinter.CTkLabel(item_frame, text = f"{self._format_item_name(item)} - ${buy_price}", font = customtkinter.CTkFont(size = 13, weight = "bold"), anchor = "w")
-            name_label.pack(anchor = "w", padx = 10, pady =(8, 2))
+            buy_scroll = customtkinter.CTkScrollableFrame(buy_tab)
+            buy_scroll.pack(fill = "both", expand = True)
 
-            if item.get("description"):
-                desc_label = customtkinter.CTkLabel(item_frame, text = item.get("description")[:100]+"..."if len(item.get("description", ""))>100 else item.get("description", ""), font = customtkinter.CTkFont(size = 10), text_color = "gray", wraplength = 400, justify = "left", anchor = "w")
-                desc_label.pack(anchor = "w", padx = 10, pady =(0, 5))
+            for item in store_inventory:
+                item_frame = customtkinter.CTkFrame(buy_scroll)
+                item_frame.pack(fill = "x", pady = 5, padx = 10)
 
-            def add_to_buy_cart(it = item, price = buy_price):
-                if player_money[0]-buy_total[0]<price:
-                    self._popup_show_info("Not Enough Money", f"You need ${price} but only have ${player_money[0]-buy_total[0]} remaining.", sound = "error")
-                    return
-                buy_cart.append({"item":it.copy(), "price":price})
-                buy_total[0]+=price
-                update_buy_display()
-                self._play_ui_sound("click")
+                base_value = item.get("value", 0)
+                buy_price = int(base_value *sell_mult)
 
-            add_btn = self._create_sound_button(item_frame, f"Buy(${buy_price})", add_to_buy_cart, width = 120, height = 30, font = customtkinter.CTkFont(size = 11))
-            add_btn.pack(anchor = "e", padx = 10, pady = 8)
+                name_label = customtkinter.CTkLabel(item_frame, text = f"{self._format_item_name(item)} - {format_price(buy_price)}", font = customtkinter.CTkFont(size = 13, weight = "bold"), anchor = "w")
+                name_label.pack(anchor = "w", padx = 10, pady =(8, 2))
+
+                if item.get("description"):
+                    desc_label = customtkinter.CTkLabel(item_frame, text = item.get("description")[:100]+"..."if len(item.get("description", ""))>100 else item.get("description", ""), font = customtkinter.CTkFont(size = 10), text_color = "gray", wraplength = 400, justify = "left", anchor = "w")
+                    desc_label.pack(anchor = "w", padx = 10, pady =(0, 5))
+
+                def add_to_buy_cart(it = item, price = buy_price):
+                    if player_money[0]-buy_total[0]<price:
+                        self._popup_show_info("Not Enough Money", f"You need {format_price(price)} but only have {format_price(player_money[0]-buy_total[0])} remaining.", sound = "error")
+                        return
+                    buy_cart.append({"item":it.copy(), "price":price})
+                    buy_total[0]+=price
+                    update_buy_display()
+                    self._play_ui_sound("click")
+
+                add_btn = self._create_sound_button(item_frame, f"Buy({format_price(buy_price)})", add_to_buy_cart, width = 120, height = 30, font = customtkinter.CTkFont(size = 11))
+                add_btn.pack(anchor = "e", padx = 10, pady = 8)
+
+        else:
+
+            buy_content = customtkinter.CTkFrame(buy_tab)
+            buy_content.pack(fill = "both", expand = True)
+
+            buy_content.grid_columnconfigure(0, weight = 0)
+            buy_content.grid_columnconfigure(1, weight = 1)
+            buy_content.grid_rowconfigure(0, weight = 1)
+
+            shop_cat_frame = customtkinter.CTkScrollableFrame(buy_content, width = 200)
+            shop_cat_frame.grid(row = 0, column = 0, sticky = "ns", padx =(0, 10))
+
+            shop_items_frame = customtkinter.CTkFrame(buy_content)
+            shop_items_frame.grid(row = 0, column = 1, sticky = "nsew")
+
+            shop_items_scroll = [None]
+            shop_cat_buttons = {}
+            shop_selected_cat = [None]
+
+            def render_shop_item_list(items_list, parent):
+                for item in items_list:
+                    item_frame = customtkinter.CTkFrame(parent)
+                    item_frame.pack(fill = "x", pady = 5, padx = 10)
+
+                    base_value = item.get("value", 0)
+                    buy_price = int(base_value * sell_mult)
+
+                    name_label = customtkinter.CTkLabel(item_frame, text = f"{self._format_item_name(item)} - {format_price(buy_price)}", font = customtkinter.CTkFont(size = 13, weight = "bold"), anchor = "w")
+                    name_label.pack(anchor = "w", padx = 10, pady =(8, 2))
+
+                    if item.get("description"):
+                        desc_label = customtkinter.CTkLabel(item_frame, text = item.get("description")[:100] + "..." if len(item.get("description", "")) > 100 else item.get("description", ""), font = customtkinter.CTkFont(size = 10), text_color = "gray", wraplength = 400, justify = "left", anchor = "w")
+                        desc_label.pack(anchor = "w", padx = 10, pady =(0, 5))
+
+                    info_parts = []
+                    if item.get("weight"):
+                        info_parts.append(f"Weight: {self._format_weight(item.get('weight'))}")
+                    if item.get("caliber"):
+                        cal = item.get("caliber")
+                        if isinstance(cal, list):
+                            cal = ", ".join(str(c) for c in cal)
+                        info_parts.append(f"Caliber: {cal}")
+                    if item.get("rarity"):
+                        info_parts.append(f"Rarity: {item.get('rarity')}")
+
+                    if info_parts:
+                        info_label = customtkinter.CTkLabel(item_frame, text = " | ".join(info_parts), font = customtkinter.CTkFont(size = 10), text_color = "orange")
+                        info_label.pack(anchor = "w", padx = 10, pady =(0, 5))
+
+                    def add_to_buy_cart(it = item, price = buy_price):
+                        if player_money[0] - buy_total[0] < price:
+                            self._popup_show_info("Not Enough Money", f"You need {format_price(price)} but only have {format_price(player_money[0] - buy_total[0])} remaining.", sound = "error")
+                            return
+                        buy_cart.append({"item": it.copy(), "price": price})
+                        buy_total[0] += price
+                        update_buy_display()
+                        self._play_ui_sound("click")
+
+                    add_btn = self._create_sound_button(item_frame, f"Buy({format_price(buy_price)})", add_to_buy_cart, width = 120, height = 30, font = customtkinter.CTkFont(size = 11))
+                    add_btn.pack(anchor = "e", padx = 10, pady = 8)
+
+            def show_shop_category(category_name):
+                try:
+                    if shop_items_scroll[0] is not None:
+                        try:
+                            shop_items_scroll[0].pack_forget()
+                        except Exception:
+                            pass
+                        try:
+                            shop_items_scroll[0].destroy()
+                        except Exception:
+                            pass
+                        shop_items_scroll[0] = None
+                except Exception:
+                    pass
+                try:
+                    for widget in shop_items_frame.winfo_children():
+                        try:
+                            widget.destroy()
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+
+                try:
+                    shop_selected_cat[0] = category_name
+                    for name, btn in shop_cat_buttons.items():
+                        try:
+                            if name == category_name:
+                                btn.configure(border_color = "white", border_width = 2)
+                            else:
+                                btn.configure(border_width = 0)
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+
+                cat_items = shop_categories.get(category_name, [])
+
+                subcats = {}
+                for it in cat_items:
+                    sub = it.get("shop_subcategory") or it.get("armory_subcategory") or it.get("subtype") or "General"
+                    subcats.setdefault(sub, []).append(it)
+
+                if len(subcats) <= 1:
+                    try:
+                        shop_items_scroll[0] = customtkinter.CTkScrollableFrame(shop_items_frame)
+                        shop_items_scroll[0].pack(fill = "both", expand = True)
+                    except Exception:
+                        shop_items_scroll[0] = None
+
+                    parent = shop_items_scroll[0] if shop_items_scroll[0] is not None else shop_items_frame
+
+                    cat_title = customtkinter.CTkLabel(parent, text = category_name, font = customtkinter.CTkFont(size = 18, weight = "bold"))
+                    cat_title.pack(pady =(10, 6), anchor = "w", padx = 10)
+
+                    render_shop_item_list(cat_items, parent)
+                else:
+                    shop_items_frame.grid_rowconfigure(0, weight = 1)
+                    shop_items_frame.grid_columnconfigure(0, weight = 0)
+                    shop_items_frame.grid_columnconfigure(1, weight = 1)
+
+                    subcat_scroll = customtkinter.CTkScrollableFrame(shop_items_frame, width = 160)
+                    subcat_scroll.grid(row = 0, column = 0, sticky = "ns", padx =(0, 6))
+
+                    content_right = customtkinter.CTkFrame(shop_items_frame)
+                    content_right.grid(row = 0, column = 1, sticky = "nsew")
+
+                    try:
+                        shop_items_scroll[0] = customtkinter.CTkScrollableFrame(content_right)
+                        shop_items_scroll[0].pack(fill = "both", expand = True)
+                    except Exception:
+                        shop_items_scroll[0] = None
+
+                    subcat_buttons = {}
+                    selected_subcat = [None]
+
+                    def make_subcat_btn(sname):
+                        def on_click():
+                            for w in content_right.winfo_children():
+                                w.destroy()
+                            try:
+                                shop_items_scroll[0] = customtkinter.CTkScrollableFrame(content_right)
+                                shop_items_scroll[0].pack(fill = "both", expand = True)
+                            except Exception:
+                                shop_items_scroll[0] = None
+                            sub_title = customtkinter.CTkLabel(content_right, text = sname, font = customtkinter.CTkFont(size = 16, weight = "bold"))
+                            sub_title.pack(pady =(6, 12), anchor = "w", padx = 10)
+                            render_shop_item_list(subcats.get(sname, []), shop_items_scroll[0] if shop_items_scroll[0] is not None else content_right)
+                            selected_subcat[0] = sname
+                            for nm, b in subcat_buttons.items():
+                                try:
+                                    if nm == sname:
+                                        b.configure(border_color = "white", border_width = 2)
+                                    else:
+                                        b.configure(border_width = 0)
+                                except Exception:
+                                    pass
+                        return on_click
+
+                    for sname in sorted(subcats.keys()):
+                        btn = self._create_sound_button(subcat_scroll, sname, make_subcat_btn(sname), width = 140, height = 30, font = customtkinter.CTkFont(size = 10))
+                        btn.pack(fill = "x", pady = 3, padx = 6)
+                        subcat_buttons[sname] = btn
+
+                    first_sub = sorted(subcats.keys())[0]
+                    sub_title = customtkinter.CTkLabel(content_right, text = first_sub, font = customtkinter.CTkFont(size = 16, weight = "bold"))
+                    sub_title.pack(pady =(6, 12), anchor = "w", padx = 10)
+                    render_shop_item_list(subcats.get(first_sub, []), shop_items_scroll[0] if shop_items_scroll[0] is not None else content_right)
+                    selected_subcat[0] = first_sub
+                    for nm, b in subcat_buttons.items():
+                        try:
+                            if nm == first_sub:
+                                b.configure(border_color = "white", border_width = 2)
+                            else:
+                                b.configure(border_width = 0)
+                        except Exception:
+                            pass
+
+            sorted_shop_cats = sorted(shop_categories.keys())
+
+            for cat_name in sorted_shop_cats:
+                cat_btn = self._create_sound_button(shop_cat_frame, cat_name, lambda c = cat_name: show_shop_category(c), width = 180, height = 35, font = customtkinter.CTkFont(size = 11))
+                cat_btn.pack(pady = 3, padx = 5)
+                shop_cat_buttons[cat_name] = cat_btn
+
+            if sorted_shop_cats:
+                shop_selected_cat[0] = sorted_shop_cats[0]
+                for name, btn in shop_cat_buttons.items():
+                    try:
+                        if name == shop_selected_cat[0]:
+                            btn.configure(border_color = "white", border_width = 2)
+                        else:
+                            btn.configure(border_width = 0)
+                    except Exception:
+                        pass
+                show_shop_category(sorted_shop_cats[0])
 
         sell_scroll = customtkinter.CTkScrollableFrame(sell_tab)
         sell_scroll.pack(fill = "both", expand = True)
@@ -8886,7 +9861,7 @@ class App:
         sell_total =[0]
 
         def update_sell_display():
-            money_label.configure(text = f"Your Money: ${player_money[0]} | Sell Value: ${sell_total[0]}")
+            money_label.configure(text = f"Your Money: {format_price(player_money[0])} | Sell Value: {format_price(sell_total[0])}")
 
         all_player_items = get_all_player_items()
 
@@ -8905,7 +9880,7 @@ class App:
             sell_price = int(base_value *buy_mult)
 
             location_text = location.replace("equipment.", "").replace(".list.", " #").replace(".subslot.", " sub#")
-            name_label = customtkinter.CTkLabel(item_frame, text = f"{self._format_item_name(item)} - ${sell_price}", font = customtkinter.CTkFont(size = 13, weight = "bold"), anchor = "w")
+            name_label = customtkinter.CTkLabel(item_frame, text = f"{self._format_item_name(item)} - {format_price(sell_price)}", font = customtkinter.CTkFont(size = 13, weight = "bold"), anchor = "w")
             name_label.pack(anchor = "w", padx = 10, pady =(8, 2))
 
             loc_label = customtkinter.CTkLabel(item_frame, text = f"Location: {location_text}", font = customtkinter.CTkFont(size = 10), text_color = "gray", anchor = "w")
@@ -8921,7 +9896,7 @@ class App:
                 update_sell_display()
                 self._play_ui_sound("click")
 
-            add_btn = self._create_sound_button(item_frame, f"Sell(${sell_price})", add_to_sell_cart, width = 120, height = 30, font = customtkinter.CTkFont(size = 11))
+            add_btn = self._create_sound_button(item_frame, f"Sell({format_price(sell_price)})", add_to_sell_cart, width = 120, height = 30, font = customtkinter.CTkFont(size = 11))
             add_btn.pack(anchor = "e", padx = 10, pady = 8)
 
         if store.get("accepts_trades"):
@@ -8951,7 +9926,7 @@ class App:
             trade_status_label.grid(row = 2, column = 0, columnspan = 2, pady = 10)
 
             def update_trade_display():
-                trade_status_label.configure(text = f"Your offer: ${trade_values['your_total']} | Store offer: ${trade_values['store_total']}")
+                trade_status_label.configure(text = f"Your offer: {format_price(trade_values['your_total'])} | Store offer: {format_price(trade_values['store_total'])}")
 
             for item_data in all_player_items:
                 item = item_data["item"]
@@ -8967,7 +9942,7 @@ class App:
                 trade_value = int(item.get("value", 0)*buy_mult)
                 location_text = location.replace("equipment.", "").replace(".list.", " #").replace(".subslot.", " sub#")
 
-                name_label = customtkinter.CTkLabel(item_frame, text = f"{self._format_item_name(item)}(${trade_value})", font = customtkinter.CTkFont(size = 11), anchor = "w")
+                name_label = customtkinter.CTkLabel(item_frame, text = f"{self._format_item_name(item)}({format_price(trade_value)})", font = customtkinter.CTkFont(size = 11), anchor = "w")
                 name_label.pack(anchor = "w", padx = 8, pady =(5, 0))
 
                 loc_label = customtkinter.CTkLabel(item_frame, text = f"{location_text}", font = customtkinter.CTkFont(size = 9), text_color = "gray", anchor = "w")
@@ -8997,7 +9972,7 @@ class App:
 
                 trade_value = int(item.get("value", 0)*sell_mult)
 
-                name_label = customtkinter.CTkLabel(item_frame, text = f"{self._format_item_name(item)}(${trade_value})", font = customtkinter.CTkFont(size = 11), anchor = "w")
+                name_label = customtkinter.CTkLabel(item_frame, text = f"{self._format_item_name(item)}({format_price(trade_value)})", font = customtkinter.CTkFont(size = 11), anchor = "w")
                 name_label.pack(anchor = "w", padx = 8, pady = 5)
 
                 def toggle_store_item(it = item, val = trade_value, frame = item_frame):
@@ -9025,7 +10000,7 @@ class App:
                 diff = trade_values["store_total"]-trade_values["your_total"]
 
                 if diff >player_money[0]:
-                    self._popup_show_info("Not Enough Money", f"This trade requires ${diff} extra but you only have ${player_money[0]}.", sound = "error")
+                    self._popup_show_info("Not Enough Money", f"This trade requires {format_price(diff)} extra but you only have {format_price(player_money[0])}.", sound = "error")
                     return
 
                 try:
@@ -9057,13 +10032,13 @@ class App:
 
                     your_names =[e["item"].get("name", "Unknown")for e in trade_offer["your_items"]]
                     store_names =[e["item"].get("name", "Unknown")for e in trade_offer["store_items"]]
-                    logging.info(f"Trade completed: gave {your_names}, received {store_names}, paid ${diff if diff >0 else 0}")
+                    logging.info(f"Trade completed: gave {your_names}, received {store_names}, paid {format_price(diff if diff >0 else 0)}")
 
                     msg = f"Traded {len(trade_offer['your_items'])} of your item(s) for {len(trade_offer['store_items'])} store item(s)."
                     if diff >0:
-                        msg +=f" Paid ${diff} extra."
+                        msg +=f" Paid {format_price(diff)} extra."
                     elif diff <0:
-                        msg +=f" Received ${-diff}."
+                        msg +=f" Received {format_price(-diff)}."
                     self._popup_show_info("Trade Complete", msg, sound = "success")
 
                     stop_ui_music()
@@ -9085,7 +10060,7 @@ class App:
                 return
 
             if buy_total[0]>player_money[0]:
-                self._popup_show_info("Not Enough Money", f"You need ${buy_total[0]} but only have ${player_money[0]}.", sound = "error")
+                self._popup_show_info("Not Enough Money", f"You need {format_price(buy_total[0])} but only have {format_price(player_money[0])}.", sound = "error")
                 return
 
             try:
@@ -9102,8 +10077,8 @@ class App:
                 self._write_save_to_path(save_path, save_data)
 
                 item_names =[e["item"].get("name", "Unknown")for e in buy_cart]
-                logging.info(f"Purchased items for ${buy_total[0]}: {item_names}")
-                self._popup_show_info("Purchase Complete", f"Purchased {len(buy_cart)} item(s) for ${buy_total[0]}.", sound = "success")
+                logging.info(f"Purchased items for {format_price(buy_total[0])}: {item_names}")
+                self._popup_show_info("Purchase Complete", f"Purchased {len(buy_cart)} item(s) for {format_price(buy_total[0])}.", sound = "success")
 
                 buy_cart.clear()
                 buy_total[0]= 0
@@ -9145,8 +10120,8 @@ class App:
                 save_data["money"]= player_money[0]+sell_total[0]
                 self._write_save_to_path(save_path, save_data)
 
-                logging.info(f"Sold {len(sell_cart)} items for ${sell_total[0]}")
-                self._popup_show_info("Sale Complete", f"Sold {len(sell_cart)} item(s) for ${sell_total[0]}.", sound = "success")
+                logging.info(f"Sold {len(sell_cart)} items for {format_price(sell_total[0])}")
+                self._popup_show_info("Sale Complete", f"Sold {len(sell_cart)} item(s) for {format_price(sell_total[0])}.", sound = "success")
 
                 sell_cart.clear()
                 sell_total[0]= 0
@@ -9292,7 +10267,7 @@ class App:
             }
         casino_stats =[save_data["casino_stats"][casino_name]]
 
-        money_label = customtkinter.CTkLabel(header_frame, text = f"Your Money: ${player_money[0]}", font = customtkinter.CTkFont(size = 16, weight = "bold"), text_color = "green")
+        money_label = customtkinter.CTkLabel(header_frame, text = f"Your Money: {format_price(player_money[0])}", font = customtkinter.CTkFont(size = 16, weight = "bold"), text_color = "green")
         money_label.pack(pady = 5)
 
         stats_frame = customtkinter.CTkFrame(header_frame, fg_color = "transparent")
@@ -9326,7 +10301,7 @@ class App:
 
         def update_money_display():
             try:
-                money_label.configure(text = f"Your Money: ${player_money[0]}")
+                money_label.configure(text = f"Your Money: {format_price(player_money[0])}")
             except Exception:
                 pass
 
@@ -9575,6 +10550,36 @@ class App:
                         _resolve_current(cur)
                 except Exception:
                     pass
+            for p in(obj.get('parts')or[]):
+                try:
+                    if not isinstance(p, dict):
+                        continue
+                    cur = p.get('current')
+                    if cur is None:
+                        continue
+                    target_id = None
+                    overrides = {}
+                    if isinstance(cur, int):
+                        target_id = cur
+                    elif isinstance(cur, dict)and 'id'in cur and 'name'not in cur:
+                        target_id = cur.get('id')
+                        for k, v in cur.items():
+                            if k != 'id':
+                                overrides[k]= v
+                    if target_id is None:
+                        continue
+                    target = id_to_item.get(target_id)
+                    if not target:
+                        continue
+                    new_part = _copy.deepcopy(target)
+                    for k, v in overrides.items():
+                        try:
+                            new_part[k]= v
+                        except Exception:
+                            pass
+                    p['current']= new_part
+                except Exception:
+                    pass
 
         for subtable_items in tables.values():
             if not isinstance(subtable_items, list):
@@ -9698,6 +10703,38 @@ class App:
                         _resolve_current(cur)
                 except Exception:
                     pass
+            for p in(obj.get('parts')or[]):
+                try:
+                    if not isinstance(p, dict):
+                        continue
+                    cur = p.get('current')
+                    if cur is None:
+                        continue
+                    if _is_unresolved(cur):
+                        target_id = None
+                        overrides = {}
+                        if isinstance(cur, int):
+                            target_id = cur
+                        elif isinstance(cur, dict)and 'id'in cur:
+                            target_id = cur.get('id')
+                            for k, v in cur.items():
+                                if k != 'id':
+                                    overrides[k]= v
+                        if target_id is None:
+                            continue
+                        target = id_to_item.get(target_id)
+                        if not target:
+                            continue
+                        new_part = _copy.deepcopy(target)
+                        for k, v in overrides.items():
+                            try:
+                                new_part[k]= v
+                            except Exception:
+                                pass
+                        p['current']= new_part
+                        fixed_count[0]+=1
+                except Exception:
+                    pass
 
         def _process_item(item):
             if not isinstance(item, dict):
@@ -9745,7 +10782,7 @@ class App:
 
         wager_total =[sum(int(e["item"].get("value", 0))for e in wagered_items)]
 
-        status_label = customtkinter.CTkLabel(popup, text = f"Wagered Items Value: ${wager_total[0]}", font = customtkinter.CTkFont(size = 14, weight = "bold"), text_color = "gold")
+        status_label = customtkinter.CTkLabel(popup, text = f"Wagered Items Value: {format_price(wager_total[0])}", font = customtkinter.CTkFont(size = 14, weight = "bold"), text_color = "gold")
         status_label.pack(pady =(10, 5))
 
         hint_label = customtkinter.CTkLabel(popup, text = "Click items to toggle wager(green = wagered)", font = customtkinter.CTkFont(size = 11), text_color = "gray")
@@ -9776,7 +10813,7 @@ class App:
 
             location_text = location.replace("equipment.", "").replace(".list.", " #").replace(".subslot.", " sub#")
 
-            name_label = customtkinter.CTkLabel(item_frame, text = f"{self._format_item_name(item)}(${item_value})", font = customtkinter.CTkFont(size = 11), anchor = "w")
+            name_label = customtkinter.CTkLabel(item_frame, text = f"{self._format_item_name(item)}({format_price(item_value)})", font = customtkinter.CTkFont(size = 11), anchor = "w")
             name_label.pack(anchor = "w", padx = 8, pady =(5, 0))
 
             loc_label = customtkinter.CTkLabel(item_frame, text = f"{location_text}", font = customtkinter.CTkFont(size = 9), text_color = "gray", anchor = "w")
@@ -9793,7 +10830,7 @@ class App:
                     wagered_items.append({"location":loc, "index":i, "item":it, "value":val})
                     wager_total[0]+=val
                     frame.configure(fg_color =("green", "darkgreen"))
-                status_label.configure(text = f"Wagered Items Value: ${wager_total[0]}")
+                status_label.configure(text = f"Wagered Items Value: {format_price(wager_total[0])}")
                 self._play_ui_sound("click")
 
             item_frame.bind("<Button-1>", lambda e, f = toggle_item:f())
@@ -9808,7 +10845,7 @@ class App:
         def clear_wager():
             wagered_items.clear()
             wager_total[0]= 0
-            status_label.configure(text = f"Wagered Items Value: ${wager_total[0]}")
+            status_label.configure(text = f"Wagered Items Value: {format_price(wager_total[0])}")
             for widget in scroll_frame.winfo_children():
                 try:
                     widget.configure(fg_color =("gray86", "gray17"))
@@ -9878,10 +10915,10 @@ class App:
         title_label = customtkinter.CTkLabel(header_frame, text = "Blackjack", font = customtkinter.CTkFont(size = 24, weight = "bold"))
         title_label.pack(pady =(10, 5))
 
-        money_label = customtkinter.CTkLabel(header_frame, text = f"Your Money: ${player_money[0]}", font = customtkinter.CTkFont(size = 16, weight = "bold"), text_color = "green")
+        money_label = customtkinter.CTkLabel(header_frame, text = f"Your Money: {format_price(player_money[0])}", font = customtkinter.CTkFont(size = 16, weight = "bold"), text_color = "green")
         money_label.pack(pady = 5)
 
-        bet_label = customtkinter.CTkLabel(header_frame, text = f"Bet Range: ${min_bet} - ${max_bet}", font = customtkinter.CTkFont(size = 12), text_color = "orange")
+        bet_label = customtkinter.CTkLabel(header_frame, text = f"Bet Range: {format_price(min_bet)} - {format_price(max_bet)}", font = customtkinter.CTkFont(size = 12), text_color = "orange")
         bet_label.pack()
 
         game_frame = customtkinter.CTkFrame(main_frame)
@@ -10032,7 +11069,7 @@ class App:
                 else:
                     dealer_score_label.configure(text = "")
 
-            money_label.configure(text = f"Your Money: ${player_money[0]}")
+            money_label.configure(text = f"Your Money: {format_price(player_money[0])}")
             update_money_cb()
 
         def end_game(result_text, winnings):
@@ -10062,13 +11099,13 @@ class App:
                 if item_lost:
                     item_suffix = f" | Lost {len(wagered_items)} item(s)"
                 elif winnings >0 and item_bet_value[0]>0:
-                    item_suffix = f" | +${item_bet_value[0]} from items"
+                    item_suffix = f" | +{format_price(item_bet_value[0])} from items"
 
                 if winnings >0:
                     total_display = winnings +(item_bet_value[0]if wagered_items else 0)
-                    result_label.configure(text = f"{result_text}(+${total_display}){item_suffix}", text_color = color)
+                    result_label.configure(text = f"{result_text}(+{format_price(total_display)}){item_suffix}", text_color = color)
                 elif winnings <0:
-                    result_label.configure(text = f"{result_text}(-${abs(winnings)}){item_suffix}", text_color = color)
+                    result_label.configure(text = f"{result_text}(-{format_price(abs(winnings))}){item_suffix}", text_color = color)
                 else:
                     result_label.configure(text = result_text, text_color = color)
 
@@ -10188,7 +11225,7 @@ class App:
                 return
 
             if bet <min_bet or bet >max_bet:
-                self._popup_show_info("Invalid Bet", f"Bet must be between ${min_bet} and ${max_bet}.", sound = "error")
+                self._popup_show_info("Invalid Bet", f"Bet must be between {format_price(min_bet)} and {format_price(max_bet)}.", sound = "error")
                 return
 
             if bet >player_money[0]:
@@ -10238,7 +11275,7 @@ class App:
                     visible_card = game_state["dealer_hand"][1]if len(game_state["dealer_hand"])>1 else None
                     if visible_card:
                         dealer_score_label.configure(text = f"Showing: {get_card_value(visible_card)}")
-                    money_label.configure(text = f"Your Money: ${player_money[0]}")
+                    money_label.configure(text = f"Your Money: {format_price(player_money[0])}")
                     update_money_cb()
                     update_buttons()
 
@@ -10300,7 +11337,7 @@ class App:
                 total = sum(int(e["item"].get("value", 0))for e in wagered_items)
                 item_bet_value[0]= total
                 if wagered_items:
-                    item_wager_label.configure(text = f"Items Wagered: {len(wagered_items)}(${total})", text_color = "gold")
+                    item_wager_label.configure(text = f"Items Wagered: {len(wagered_items)}({format_price(total)})", text_color = "gold")
                 else:
                     item_wager_label.configure(text = "Items Wagered: None", text_color = "gray")
 
@@ -10362,10 +11399,10 @@ class App:
         title_label = customtkinter.CTkLabel(header_frame, text = f"Poker - {variant_names.get(variant, variant)}", font = customtkinter.CTkFont(size = 24, weight = "bold"))
         title_label.pack(pady =(10, 5))
 
-        money_label = customtkinter.CTkLabel(header_frame, text = f"Your Money: ${player_money[0]}", font = customtkinter.CTkFont(size = 16, weight = "bold"), text_color = "green")
+        money_label = customtkinter.CTkLabel(header_frame, text = f"Your Money: {format_price(player_money[0])}", font = customtkinter.CTkFont(size = 16, weight = "bold"), text_color = "green")
         money_label.pack(pady = 5)
 
-        bet_label = customtkinter.CTkLabel(header_frame, text = f"Bet Range: ${min_bet} - ${max_bet}", font = customtkinter.CTkFont(size = 12), text_color = "orange")
+        bet_label = customtkinter.CTkLabel(header_frame, text = f"Bet Range: {format_price(min_bet)} - {format_price(max_bet)}", font = customtkinter.CTkFont(size = 12), text_color = "orange")
         bet_label.pack()
 
         game_frame = customtkinter.CTkFrame(main_frame)
@@ -10747,8 +11784,8 @@ class App:
             hand_name, _, _ = evaluate_hand(full_hand)
             player_score_label.configure(text = f"Current: {hand_name}")
 
-            money_label.configure(text = f"Your Money: ${player_money[0]}")
-            pot_label.configure(text = f"Pot: ${game_state['pot']}")
+            money_label.configure(text = f"Your Money: {format_price(player_money[0])}")
+            pot_label.configure(text = f"Pot: {format_price(game_state['pot'])}")
             update_money_cb()
 
         def deal_new_hand():
@@ -10762,7 +11799,7 @@ class App:
                 return
 
             if bet <min_bet or bet >max_bet:
-                self._popup_show_info("Invalid Bet", f"Bet must be between ${min_bet} and ${max_bet}.", sound = "error")
+                self._popup_show_info("Invalid Bet", f"Bet must be between {format_price(min_bet)} and {format_price(max_bet)}.", sound = "error")
                 return
 
             if bet >player_money[0]:
@@ -10954,7 +11991,7 @@ class App:
                 result_label.configure(text = f"Everyone folded!{item_suffix}", text_color = "orange")
 
             update_buttons()
-            money_label.configure(text = f"Your Money: ${player_money[0]}")
+            money_label.configure(text = f"Your Money: {format_price(player_money[0])}")
             update_money_cb()
 
         def determine_winner():
@@ -10987,8 +12024,8 @@ class App:
                     record_game_cb(winnings)
                 item_suffix = ""
                 if item_bet_value[0]>0 and wagered_items:
-                    item_suffix = f" | +${item_bet_value[0]} from items"
-                result_label.configure(text = f"You win with {winner_hand}! +${winnings +(item_bet_value[0]if wagered_items else 0)}{item_suffix}", text_color = "green")
+                    item_suffix = f" | +{format_price(item_bet_value[0])} from items"
+                result_label.configure(text = f"You win with {winner_hand}! +{format_price(winnings +(item_bet_value[0]if wagered_items else 0))}{item_suffix}", text_color = "green")
             else:
                 loss = -game_state["current_bet"]
                 player_money[0]-=game_state["current_bet"]
@@ -10998,7 +12035,7 @@ class App:
                 if wagered_items:
                     self._process_item_bet_loss(save_data, save_path, wagered_items)
                     item_suffix = f" | Lost {len(wagered_items)} item(s)"
-                result_label.configure(text = f"{winner_name} wins with {winner_hand}! -${game_state['current_bet']}{item_suffix}", text_color = "red")
+                result_label.configure(text = f"{winner_name} wins with {winner_hand}! -{format_price(game_state['current_bet'])}{item_suffix}", text_color = "red")
 
             wagered_items.clear()
             item_bet_value[0]= 0
@@ -11009,7 +12046,7 @@ class App:
 
             save_money_cb()
             game_state["phase"]= "complete"
-            money_label.configure(text = f"Your Money: ${player_money[0]}")
+            money_label.configure(text = f"Your Money: {format_price(player_money[0])}")
             update_money_cb()
 
         def update_buttons():
@@ -11118,7 +12155,7 @@ class App:
                 total = sum(int(e["item"].get("value", 0))for e in wagered_items)
                 item_bet_value[0]= total
                 if wagered_items:
-                    item_wager_label.configure(text = f"Items Wagered: {len(wagered_items)}(${total})", text_color = "gold")
+                    item_wager_label.configure(text = f"Items Wagered: {len(wagered_items)}({format_price(total)})", text_color = "gold")
                 else:
                     item_wager_label.configure(text = "Items Wagered: None", text_color = "gray")
 
@@ -11179,10 +12216,10 @@ class App:
         title_label = customtkinter.CTkLabel(header_frame, text = "High-Low", font = customtkinter.CTkFont(size = 24, weight = "bold"))
         title_label.pack(pady =(10, 5))
 
-        money_label = customtkinter.CTkLabel(header_frame, text = f"Your Money: ${player_money[0]}", font = customtkinter.CTkFont(size = 16, weight = "bold"), text_color = "green")
+        money_label = customtkinter.CTkLabel(header_frame, text = f"Your Money: {format_price(player_money[0])}", font = customtkinter.CTkFont(size = 16, weight = "bold"), text_color = "green")
         money_label.pack(pady = 5)
 
-        bet_label = customtkinter.CTkLabel(header_frame, text = f"Bet Range: ${min_bet} - ${max_bet}", font = customtkinter.CTkFont(size = 12), text_color = "orange")
+        bet_label = customtkinter.CTkLabel(header_frame, text = f"Bet Range: {format_price(min_bet)} - {format_price(max_bet)}", font = customtkinter.CTkFont(size = 12), text_color = "orange")
         bet_label.pack()
 
         game_frame = customtkinter.CTkFrame(main_frame)
@@ -11287,9 +12324,9 @@ class App:
             if not game_state["ui_valid"]:
                 return
             try:
-                money_label.configure(text = f"Your Money: ${player_money[0]}")
+                money_label.configure(text = f"Your Money: {format_price(player_money[0])}")
                 streak_label.configure(text = f"Streak: {game_state['streak']}")
-                winnings_label.configure(text = f"Current Winnings: ${game_state['winnings']}")
+                winnings_label.configure(text = f"Current Winnings: {format_price(game_state['winnings'])}")
                 update_money_cb()
             except Exception:
                 pass
@@ -11303,7 +12340,7 @@ class App:
                 return
 
             if bet <min_bet or bet >max_bet:
-                self._popup_show_info("Invalid Bet", f"Bet must be between ${min_bet} and ${max_bet}.", sound = "error")
+                self._popup_show_info("Invalid Bet", f"Bet must be between {format_price(min_bet)} and {format_price(max_bet)}.", sound = "error")
                 return
 
             if bet >player_money[0]:
@@ -11355,7 +12392,7 @@ class App:
                 multiplier = 1 +(game_state["streak"]-1)*0.5
                 round_win = int(game_state["current_bet"]*multiplier)
                 game_state["winnings"]+=round_win
-                result_label.configure(text = f"Correct! +${round_win}(Streak: {game_state['streak']}x)", text_color = "green")
+                result_label.configure(text = f"Correct! +{format_price(round_win)}(Streak: {game_state['streak']}x)", text_color = "green")
                 game_state["current_card"]= game_state["next_card"]
                 update_display()
                 self.root.after(1500, continue_or_end)
@@ -11385,8 +12422,8 @@ class App:
             game_state["game_active"]= False
             item_suffix = ""
             if item_bet_value[0]>0 and wagered_items:
-                item_suffix = f" | +${item_bet_value[0]} from items"
-            result_label.configure(text = f"Cashed Out! +${winnings +(item_bet_value[0]if wagered_items else 0)}{item_suffix}", text_color = "green")
+                item_suffix = f" | +{format_price(item_bet_value[0])} from items"
+            result_label.configure(text = f"Cashed Out! +{format_price(winnings +(item_bet_value[0]if wagered_items else 0))}{item_suffix}", text_color = "green")
             wagered_items.clear()
             item_bet_value[0]= 0
             try:
@@ -11419,7 +12456,7 @@ class App:
             save_money_cb()
 
             game_state["game_active"]= False
-            result_label.configure(text = f"Wrong! You lose ${game_state['current_bet']}{item_suffix}", text_color = "red")
+            result_label.configure(text = f"Wrong! You lose {format_price(game_state['current_bet'])}{item_suffix}", text_color = "red")
             game_state["streak"]= 0
             game_state["winnings"]= 0
             update_display()
@@ -11463,7 +12500,7 @@ class App:
                 total = sum(int(e["item"].get("value", 0))for e in wagered_items)
                 item_bet_value[0]= total
                 if wagered_items:
-                    item_wager_label.configure(text = f"Items Wagered: {len(wagered_items)}(${total})", text_color = "gold")
+                    item_wager_label.configure(text = f"Items Wagered: {len(wagered_items)}({format_price(total)})", text_color = "gold")
                 else:
                     item_wager_label.configure(text = "Items Wagered: None", text_color = "gray")
 
@@ -11518,10 +12555,10 @@ class App:
         title_label = customtkinter.CTkLabel(header_frame, text = "Roulette", font = customtkinter.CTkFont(size = 24, weight = "bold"))
         title_label.pack(pady =(10, 5))
 
-        money_label = customtkinter.CTkLabel(header_frame, text = f"Your Money: ${player_money[0]}", font = customtkinter.CTkFont(size = 16, weight = "bold"), text_color = "green")
+        money_label = customtkinter.CTkLabel(header_frame, text = f"Your Money: {format_price(player_money[0])}", font = customtkinter.CTkFont(size = 16, weight = "bold"), text_color = "green")
         money_label.pack(pady = 5)
 
-        bet_label = customtkinter.CTkLabel(header_frame, text = f"Bet Range: ${min_bet} - ${max_bet}", font = customtkinter.CTkFont(size = 12), text_color = "orange")
+        bet_label = customtkinter.CTkLabel(header_frame, text = f"Bet Range: {format_price(min_bet)} - {format_price(max_bet)}", font = customtkinter.CTkFont(size = 12), text_color = "orange")
         bet_label.pack()
 
         game_frame = customtkinter.CTkFrame(main_frame)
@@ -11646,7 +12683,7 @@ class App:
                 return
 
             if bet <min_bet or bet >max_bet:
-                self._popup_show_info("Invalid Bet", f"Bet must be between ${min_bet} and ${max_bet}.", sound = "error")
+                self._popup_show_info("Invalid Bet", f"Bet must be between {format_price(min_bet)} and {format_price(max_bet)}.", sound = "error")
                 return
 
             if bet >player_money[0]:
@@ -11740,8 +12777,8 @@ class App:
                     record_game_cb(winnings)
                 item_suffix = ""
                 if item_bet_value[0]>0 and wagered_items:
-                    item_suffix = f" | +${item_bet_value[0]} from items"
-                result_label.configure(text = f"Winner! {number}({color}) - +${winnings +(item_bet_value[0]if wagered_items else 0)}{item_suffix}", text_color = "green")
+                    item_suffix = f" | +{format_price(item_bet_value[0])} from items"
+                result_label.configure(text = f"Winner! {number}({color}) - +{format_price(winnings +(item_bet_value[0]if wagered_items else 0))}{item_suffix}", text_color = "green")
             else:
                 player_money[0]-=bet
                 if record_game_cb:
@@ -11750,7 +12787,7 @@ class App:
                 if wagered_items:
                     self._process_item_bet_loss(save_data, save_path, wagered_items)
                     item_suffix = f" | Lost {len(wagered_items)} item(s)"
-                result_label.configure(text = f"Lost! {number}({color}) - -${bet}{item_suffix}", text_color = "red")
+                result_label.configure(text = f"Lost! {number}({color}) - -{format_price(bet)}{item_suffix}", text_color = "red")
 
             wagered_items.clear()
             item_bet_value[0]= 0
@@ -11760,7 +12797,7 @@ class App:
                 pass
 
             save_money_cb()
-            money_label.configure(text = f"Your Money: ${player_money[0]}")
+            money_label.configure(text = f"Your Money: {format_price(player_money[0])}")
             update_money_cb()
             game_state["spinning"]= False
             spin_btn.configure(state = "normal")
@@ -11786,7 +12823,7 @@ class App:
                 total = sum(int(e["item"].get("value", 0))for e in wagered_items)
                 item_bet_value[0]= total
                 if wagered_items:
-                    item_wager_label.configure(text = f"Items Wagered: {len(wagered_items)}(${total})", text_color = "gold")
+                    item_wager_label.configure(text = f"Items Wagered: {len(wagered_items)}({format_price(total)})", text_color = "gold")
                 else:
                     item_wager_label.configure(text = "Items Wagered: None", text_color = "gray")
 
@@ -11829,7 +12866,7 @@ class App:
         title_label = customtkinter.CTkLabel(header_frame, text = "Poker Room", font = customtkinter.CTkFont(size = 24, weight = "bold"))
         title_label.pack(pady =(10, 5))
 
-        money_label = customtkinter.CTkLabel(header_frame, text = f"Your Money: ${player_money[0]}", font = customtkinter.CTkFont(size = 16, weight = "bold"), text_color = "green")
+        money_label = customtkinter.CTkLabel(header_frame, text = f"Your Money: {format_price(player_money[0])}", font = customtkinter.CTkFont(size = 16, weight = "bold"), text_color = "green")
         money_label.pack(pady = 5)
 
         content_frame = customtkinter.CTkFrame(main_frame)
@@ -12068,7 +13105,7 @@ class App:
         other_label.pack(pady =(20, 15), anchor = "w", padx = 20)
 
         other_items =[
-        ("Money", f"${save_data.get('money', 0)}"),
+        ("Money", f"{format_price(save_data.get('money', 0))}"),
         ("Equipment Slots", f"{len([s for s in save_data.get('equipment', {}).values()if s is not None])}/{len(save_data.get('equipment', {}))}"),
         ("Storage Items", f"{len(save_data.get('storage', []))}")
         ]
@@ -13756,7 +14793,7 @@ class App:
                 with open(transfer_filename, 'w')as f:
                     f.write(encoded_data)
 
-                self._popup_show_info("Success", f"Exported {len(items_to_export)} items and ${money_amount}!", sound = "success")
+                self._popup_show_info("Success", f"Exported {len(items_to_export)} items and {format_price(money_amount)}!", sound = "success")
                 logging.info(f"Created transfer file: {transfer_filename}")
                 refresh_export_items()
             except Exception as e:
@@ -13806,7 +14843,7 @@ class App:
                         os.remove(filepath)
 
                         select_window.destroy()
-                        self._popup_show_info("Success", f"Received ${transfer_data.get('money', 0)} and {len(transfer_data.get('items', []))} items!", sound = "success")
+                        self._popup_show_info("Success", f"Received {format_price(transfer_data.get('money', 0))} and {len(transfer_data.get('items', []))} items!", sound = "success")
                     except Exception as e:
                         logging.error(f"Import failed: {e}")
                         self._popup_show_info("Error", f"Import failed: {e}", sound = "error")
@@ -13823,7 +14860,7 @@ class App:
 
                         info_label = customtkinter.CTkLabel(
                         file_frame,
-                        text = f"From: {transfer_data.get('from_character', 'Unknown')}\nMoney: ${transfer_data.get('money', 0)} | Items: {len(transfer_data.get('items', []))}",
+                        text = f"From: {transfer_data.get('from_character', 'Unknown')}\nMoney: {format_price(transfer_data.get('money', 0))} | Items: {len(transfer_data.get('items', []))}",
                         anchor = "w"
                         )
                         info_label.pack(side = "left", padx = 10, pady = 5)
@@ -14558,7 +15595,7 @@ class App:
 
             item_info_label = customtkinter.CTkLabel(
             item_frame,
-            text = f"Weight: {self._format_weight(item_weight)} | Value: ${item_value}",
+            text = f"Weight: {self._format_weight(item_weight)} | Value: {format_price(item_value)}",
             font = customtkinter.CTkFont(size = 11),
             text_color = "gray",
             anchor = "w"
@@ -15423,6 +16460,8 @@ class App:
                                     total_weight = sum(i.get("weight", 0)*i.get("quantity", 1)for i in current_item.get("items", []))
                                     capacity = current_item.get("capacity", 0)
                                     subitem_text = f" {subitem_name}[{self._format_weight(total_weight)}/{self._format_weight(capacity)}]"
+                                elif isinstance(current_item, dict) and current_item.get("hits_left") is not None:
+                                    subitem_text = f" {subitem_name} [{current_item['hits_left']} hits left]"
                                 else:
                                     subitem_text = f" {subitem_name}"
 
@@ -15445,6 +16484,106 @@ class App:
                                 height = 25
                                 )
                                 unequip_sub_button.pack(side = "left", padx = 2)
+
+                                if isinstance(current_item, dict) and (current_item.get("hits_left") is not None or current_item.get("material") in ("ceramic", "steel")):
+                                    _hit_item = current_item
+                                    _hit_subslot = subslot_data
+                                    _hit_slot = slot
+
+                                    def _armor_hit_register(ci=_hit_item, ss=_hit_subslot, sl=_hit_slot):
+                                        try:
+                                            mat = str(ci.get("material", "") or "").lower()
+                                            plate_name = ci.get("name", "Armor Plate")
+                                            has_uses = ci.get("hits_left") is not None
+                                            self._safe_sound_play("misc/armor", "impact" + str(random.randint(0, 2)))
+
+                                            if has_uses:
+                                                old_hits = int(ci.get("hits_left", 0) or 0)
+                                                new_hits = max(0, old_hits - 1)
+                                                ci["hits_left"] = new_hits
+
+                                                if new_hits <= 0:
+                                                    if mat == "ceramic":
+                                                        import time as _t_armor
+                                                        _t_armor.sleep(0.3)
+                                                        self._safe_sound_play("misc/armor", "ceramicshatter")
+                                                    d20 = random.randint(1, 20)
+                                                    if d20 == 1:
+                                                        dmg_text = "VITAL ORGAN HIT"
+                                                        dmg_color = "#FF0000"
+                                                    elif d20 <= 5:
+                                                        dmg_text = "Heavy Damage"
+                                                        dmg_color = "#FF4444"
+                                                    elif d20 <= 10:
+                                                        dmg_text = "Medium Damage"
+                                                        dmg_color = "#FFA500"
+                                                    elif d20 <= 19:
+                                                        dmg_text = "Light Damage"
+                                                        dmg_color = "#FFFF00"
+                                                    else:
+                                                        dmg_text = "No Damage"
+                                                        dmg_color = "#33FF33"
+
+                                                    import time as _t_armor2
+                                                    _t_armor2.sleep(0.4)
+                                                    self._safe_sound_play("misc/armor", "fleshhit")
+
+                                                    spall_text = ""
+                                                    if mat == "steel":
+                                                        d4 = random.randint(1, 4)
+                                                        if d4 <= 3:
+                                                            spall_text = "\n\nSpall: YES (d4 = {})".format(d4)
+                                                        else:
+                                                            spall_text = "\n\nSpall: No (d4 = {})".format(d4)
+
+                                                    shatter_text = ""
+                                                    if mat == "ceramic":
+                                                        shatter_text = "\n\nPlate SHATTERED!"
+
+                                                    ss["current"] = None
+                                                    self._save_file(save_data)
+                                                    self._popup_show_info(
+                                                        "Plate Destroyed",
+                                                        f"{plate_name} has been destroyed!\n\n"
+                                                        f"d20 = {d20}: {dmg_text}{shatter_text}{spall_text}",
+                                                        sound="error"
+                                                    )
+                                                    refresh_display()
+                                                    return
+                                                else:
+                                                    self._save_file(save_data)
+                                                    self._popup_show_info(
+                                                        "Armor Hit",
+                                                        f"{plate_name} absorbed the hit.\n\n"
+                                                        f"Hits remaining: {new_hits}",
+                                                        sound="popup"
+                                                    )
+                                                    refresh_display()
+                                                    return
+                                            else:
+                                                spall_text = ""
+                                                if mat == "steel":
+                                                    d4 = random.randint(1, 4)
+                                                    if d4 <= 3:
+                                                        spall_text = f"\n\nSpall: YES (d4 = {d4})"
+                                                    else:
+                                                        spall_text = f"\n\nSpall: No (d4 = {d4})"
+                                                self._popup_show_info(
+                                                    "Armor Hit",
+                                                    f"{plate_name} absorbed the hit.{spall_text}",
+                                                    sound="popup"
+                                                )
+                                        except Exception:
+                                            logging.exception("Armor hit register failed")
+
+                                    hit_reg_button = self._create_sound_button(
+                                    button_container,
+                                    "Hit",
+                                    _armor_hit_register,
+                                    width = 50,
+                                    height = 25
+                                    )
+                                    hit_reg_button.pack(side = "left", padx = 2)
 
                                 if is_container:
                                     view_button = self._create_sound_button(
@@ -16746,7 +17885,7 @@ class App:
         if report.get('used_lead'):
             lines.append(f" ⚠ LEAD ROUNDS USED: {report['lead_rounds_fired']}")
             if report.get('lead_free_required'):
-                lines.append(f" ⚠ LEAD-FREE REQUIRED — FINE: ${report['lead_fine']:,}")
+                lines.append(f" ⚠ LEAD-FREE REQUIRED — FINE: {format_price(report['lead_fine'])}")
         else:
             lines.append(' ✓ All rounds lead-free')
 
@@ -17666,6 +18805,13 @@ class App:
                 magicsys_local = str(wpn.get("magicsoundsystem")or "").lower()
                 is_magic_local =(str(wpn.get("type")or "").lower()=="magic")or(magicsys_local in("hg", "at", "mg", "rf"))
                 k = magic_k if is_magic_local else default_k
+                try:
+                    _ws = combat_state.get("weather", {})
+                    _wt = _ws.get("weather", "clear") if isinstance(_ws, dict) else "clear"
+                    if _wt in ("rain", "thunderstorm", "snowstorm", "thundersnow"):
+                        k *= 1.5
+                except Exception:
+                    pass
                 new_temp = ambient +(current_temp -ambient)*math.exp(-k *elapsed)
 
                 low = min(ambient, current_temp)
@@ -17690,6 +18836,48 @@ class App:
         )
 
         self._init_combat_session_stats(save_data)
+
+        try:
+            _update_all_weapon_batteries(equipped_weapons, now_ts)
+            self._save_combat_state(save_data)
+        except Exception:
+            pass
+
+        weather_state = {"weather": "clear", "wind_severity": 0, "temperature_f": combat_state.get("ambient_temperature", 70)}
+        try:
+            weather_path = os.path.join('remotedata', 'weather.json')
+            if os.path.exists(weather_path):
+                with open(weather_path, 'r', encoding = 'utf-8') as f:
+                    weather_data = json.load(f)
+                forecast = weather_data.get("forecast")
+                if isinstance(forecast, dict):
+                    now_dt = datetime.now()
+                    if now_dt.hour < 12:
+                        effective_date = (now_dt - timedelta(days = 1)).strftime("%Y-%m-%d")
+                    else:
+                        effective_date = now_dt.strftime("%Y-%m-%d")
+                    day_weather = forecast.get(effective_date) or forecast.get("default") or {}
+                    logging.info("Weather forecast: effective_date=%s (actual=%s %02d:%02d)", effective_date, now_dt.strftime("%Y-%m-%d"), now_dt.hour, now_dt.minute)
+                else:
+                    day_weather = weather_data
+                w_type = str(day_weather.get("weather", "clear")).lower().strip()
+                w_sev = int(day_weather.get("wind_severity", 0))
+                w_temp = day_weather.get("temperature_f")
+                if w_temp is not None:
+                    combat_state["ambient_temperature"] = float(w_temp)
+                valid_weather = ("clear", "rain", "thunderstorm", "snowstorm", "thundersnow")
+                if w_type not in valid_weather:
+                    w_type = "clear"
+                if w_type in ("snowstorm", "thundersnow") and combat_state.get("ambient_temperature", 70) >= 30:
+                    w_type = "clear"
+                    logging.warning("Weather %s requires temperature < 30°F, defaulting to clear", day_weather.get("weather"))
+                w_sev = max(0, min(3, w_sev))
+                weather_state = {"weather": w_type, "wind_severity": w_sev, "temperature_f": combat_state.get("ambient_temperature", 70)}
+                logging.info("Weather loaded: %s, wind_severity=%d, temp=%.1f°F", w_type, w_sev, weather_state["temperature_f"])
+        except Exception:
+            logging.exception("Failed to load weather data")
+
+        combat_state["weather"] = weather_state
 
         self._clear_window()
         self._play_ui_sound("whoosh1")
@@ -17720,6 +18908,207 @@ class App:
         font = customtkinter.CTkFont(size = 14)
         )
         ambient_label.pack(side = "left", padx = 10, pady = 10)
+
+        w_type = weather_state.get("weather", "clear")
+        if w_type != "clear":
+            weather_display_names = {
+                "rain": "Rain",
+                "thunderstorm": "Thunderstorm",
+                "snowstorm": "Snowstorm",
+                "thundersnow": "Thundersnow"
+            }
+            weather_display = weather_display_names.get(w_type, w_type.title())
+            weather_colors = {
+                "rain": "#4A90D9",
+                "thunderstorm": "#FFD700",
+                "snowstorm": "#B0C4DE",
+                "thundersnow": "#DDA0DD"
+            }
+            weather_lbl = customtkinter.CTkLabel(
+                temp_frame,
+                text = f"Weather: {weather_display}",
+                font = customtkinter.CTkFont(size = 14),
+                text_color = weather_colors.get(w_type, "#AAAAAA")
+            )
+            weather_lbl.pack(side = "right", padx = 10, pady = 10)
+
+        w_wind_sev = weather_state.get("wind_severity", 0)
+        if w_wind_sev > 0:
+            wind_lbl = customtkinter.CTkLabel(
+                temp_frame,
+                text = f"Wind: severity {w_wind_sev}",
+                font = customtkinter.CTkFont(size = 14),
+                text_color = "#90EE90"
+            )
+            wind_lbl.pack(side = "right", padx = 10, pady = 10)
+
+        weather_sound_state = {"channel": None, "sound": None, "thunder_after_id": None}
+
+        def _start_weather_sounds():
+            if not appearance_settings.get("weather_audio_effects", True):
+                return
+            w = weather_state.get("weather", "clear")
+            loop_map = {
+                "rain": "rain_loop.ogg",
+                "thunderstorm": "rain_loop.ogg",
+                "snowstorm": "snowstorm_loop.ogg",
+                "thundersnow": "snowstorm_loop.ogg"
+            }
+            loop_file = loop_map.get(w)
+            wind_sev = weather_state.get("wind_severity", 0)
+            if not loop_file and wind_sev > 0:
+                loop_file = "wind_loop.ogg"
+            if not loop_file:
+                return
+            try:
+                loop_path = os.path.join("sounds", "ambience", loop_file)
+                if os.path.exists(loop_path):
+                    snd = pygame.mixer.Sound(loop_path)
+                    vol = appearance_settings.get("sound_volume", 100) / 100.0
+                    vol *= 0.5
+                    snd.set_volume(min(1.0, max(0.0, vol)))
+                    try:
+                        ch = pygame.mixer.Channel(pygame.mixer.get_num_channels() - 1)
+                    except Exception:
+                        ch = pygame.mixer.find_channel(True)
+                    if ch:
+                        ch.play(snd, loops = -1)
+                        weather_sound_state["channel"] = ch
+                        weather_sound_state["sound"] = snd
+                        self._weather_ambient_channel = ch
+                        logging.debug("Weather ambient sound started: %s", loop_file)
+            except Exception:
+                logging.exception("Failed to start weather ambient sound")
+
+        def _schedule_thunder():
+            if not appearance_settings.get("weather_audio_effects", True):
+                return
+            w = weather_state.get("weather", "clear")
+            if w not in ("thunderstorm", "thundersnow"):
+                return
+
+            def _play_thunder():
+                try:
+                    if appearance_settings.get("weather_visual_effects", True):
+                        _weather_lightning_flash()
+                    delay_ms = random.randint(200, 1500)
+                    self.root.after(delay_ms, _play_thunder_sound)
+                except Exception:
+                    logging.exception("Failed in thunder sequence")
+                interval = random.randint(15000, 45000)
+                weather_sound_state["thunder_after_id"] = self.root.after(interval, _play_thunder)
+
+            def _play_thunder_sound():
+                try:
+                    idx = random.randint(0, 4)
+                    thunder_path = os.path.join("sounds", "ambience", f"thunder{idx}.ogg")
+                    if os.path.exists(thunder_path):
+                        snd = pygame.mixer.Sound(thunder_path)
+                        vol = appearance_settings.get("sound_volume", 100) / 100.0 * 0.7
+                        snd.set_volume(min(1.0, max(0.0, vol)))
+                        ch = pygame.mixer.find_channel()
+                        if ch:
+                            ch.play(snd)
+                except Exception:
+                    logging.exception("Failed to play thunder sound")
+
+            interval = random.randint(5000, 20000)
+            weather_sound_state["thunder_after_id"] = self.root.after(interval, _play_thunder)
+
+        def _weather_lightning_flash():
+            try:
+                ov = customtkinter.CTkToplevel(self.root)
+                ov.overrideredirect(True)
+                sw = self.root.winfo_screenwidth()
+                sh = self.root.winfo_screenheight()
+                ov.geometry(f"{sw}x{sh}+0+0")
+                try:
+                    ov.attributes('-topmost', True)
+                except Exception:
+                    pass
+                try:
+                    ov.attributes('-alpha', 0.0)
+                except Exception:
+                    pass
+                try:
+                    ov.configure(fg_color = 'white')
+                except Exception:
+                    try:
+                        ov.configure(bg = 'white')
+                    except Exception:
+                        pass
+
+                flicker_count = random.randint(2, 4)
+                flicker_seq = []
+                for i in range(flicker_count):
+                    bright = random.uniform(0.5, 0.8) if i == 0 else random.uniform(0.25, 0.6)
+                    hold = random.randint(40, 100) if i == 0 else random.randint(20, 60)
+                    gap = random.randint(30, 80)
+                    flicker_seq.append((bright, hold, gap))
+
+                def _run_flicker(idx = 0):
+                    try:
+                        if not getattr(ov, 'winfo_exists', lambda: False)():
+                            return
+                        if idx >= len(flicker_seq):
+                            _final_fade(0, 50)
+                            return
+                        bright, hold, gap = flicker_seq[idx]
+                        try:
+                            ov.attributes('-alpha', bright)
+                        except Exception:
+                            pass
+                        def _after_hold():
+                            try:
+                                if not getattr(ov, 'winfo_exists', lambda: False)():
+                                    return
+                                try:
+                                    ov.attributes('-alpha', 0.0)
+                                except Exception:
+                                    pass
+                                ov.after(gap, lambda: _run_flicker(idx + 1))
+                            except Exception:
+                                try:
+                                    ov.destroy()
+                                except Exception:
+                                    pass
+                        ov.after(hold, _after_hold)
+                    except Exception:
+                        try:
+                            ov.destroy()
+                        except Exception:
+                            pass
+
+                def _final_fade(step = 0, total_steps = 50):
+                    try:
+                        if not getattr(ov, 'winfo_exists', lambda: False)():
+                            return
+                        t = float(step) / float(total_steps)
+                        smooth = t * t * (3.0 - 2.0 * t)
+                        alpha = 0.35 * (1.0 - smooth)
+                        try:
+                            ov.attributes('-alpha', max(0.0, alpha))
+                        except Exception:
+                            pass
+                        if step < total_steps:
+                            ov.after(8, lambda: _final_fade(step + 1, total_steps))
+                        else:
+                            try:
+                                ov.destroy()
+                            except Exception:
+                                pass
+                    except Exception:
+                        try:
+                            ov.destroy()
+                        except Exception:
+                            pass
+
+                ov.after(10, lambda: _run_flicker(0))
+            except Exception:
+                logging.exception("Failed to create lightning flash")
+
+        _start_weather_sounds()
+        _schedule_thunder()
 
         def _show_combat_stats():
 
@@ -17915,6 +19304,28 @@ class App:
                                 pass
                 except Exception as e:
                     logging.debug("Failed aggregating equipment modifiers for combat stats: %s", e)
+
+                try:
+                    w_weather = combat_state.get("weather", {})
+                    w_type = w_weather.get("weather", "clear") if isinstance(w_weather, dict) else "clear"
+                    parts.append("")
+                    parts.append("Weather modifiers:")
+                    if w_type == "clear":
+                        parts.append("  (none — clear weather)")
+                    else:
+                        weather_names = {"rain": "Rain", "thunderstorm": "Thunderstorm", "snowstorm": "Snowstorm", "thundersnow": "Thundersnow"}
+                        parts.append(f"  Weather: {weather_names.get(w_type, w_type.title())}")
+                        weather_aim_map = {"rain": -1, "thunderstorm": -1, "snowstorm": -2, "thundersnow": -2}
+                        if w_type in weather_aim_map:
+                            parts.append(f"  Aim: {weather_aim_map[w_type]}")
+                        if w_type in ("rain", "thunderstorm", "snowstorm", "thundersnow"):
+                            parts.append("  Barrel cooling: 1.5x")
+                    w_sev = w_weather.get("wind_severity", 0) if isinstance(w_weather, dict) else 0
+                    if w_sev > 0:
+                        aim_mod = -max(1, min(3, w_sev))
+                        parts.append(f"  Wind: severity {w_sev}, Aim: {aim_mod}")
+                except Exception:
+                    pass
 
                 popup_text = "\n".join(parts)
             except Exception as e:
@@ -18148,11 +19559,32 @@ class App:
             except Exception:
                 pass
 
+        def on_a_key(event):
+            try:
+                logging.debug("'a' pressed - accessories menu requested")
+                manage_attachments()
+            except Exception:
+                pass
+
+        def on_p_key(event):
+            try:
+                _is_hc = bool((table_data.get('additional_settings') or {}).get('hardcore_mode'))
+                if not _is_hc:
+                    return
+                logging.debug("'p' pressed - parts menu requested")
+                _view_parts()
+            except Exception:
+                pass
+
         try:
             self.root.bind("b", on_b_key)
             self.root.bind("B", on_b_key)
             self.root.bind("n", on_n_key)
             self.root.bind("N", on_n_key)
+            self.root.bind("a", on_a_key)
+            self.root.bind("A", on_a_key)
+            self.root.bind("p", on_p_key)
+            self.root.bind("P", on_p_key)
         except Exception:
             pass
 
@@ -19048,10 +20480,12 @@ class App:
         attachments_with_modes =[]
         for ai, acc in enumerate(current_weapon.get("accessories", [])or[]):
             cur = acc.get("current")
-            if cur and isinstance(cur, dict)and isinstance(cur.get("modes"), list)and cur.get("modes"):
-
-                display = str(cur.get('name', 'Attachment'))
-                attachments_with_modes.append((ai, acc, display))
+            if cur and isinstance(cur, dict):
+                _has_modes = isinstance(cur.get("modes"), list)and cur.get("modes")
+                _is_elec = bool(cur.get("electronic"))
+                if _has_modes or _is_elec:
+                    display = str(cur.get('name', 'Attachment'))
+                    attachments_with_modes.append((ai, acc, display))
 
         attach_select_var = customtkinter.StringVar(value = "")
         def _update_attachment_selection(choice):
@@ -19060,9 +20494,12 @@ class App:
             attachments_with_modes =[]
             for ai, acc in enumerate(current_weapon.get("accessories", [])or[]):
                 cur = acc.get("current")
-                if cur and isinstance(cur, dict)and isinstance(cur.get("modes"), list)and cur.get("modes"):
-                    display = str(cur.get('name', 'Attachment'))
-                    attachments_with_modes.append((ai, acc, display))
+                if cur and isinstance(cur, dict):
+                    _has_modes = isinstance(cur.get("modes"), list)and cur.get("modes")
+                    _is_elec = bool(cur.get("electronic"))
+                    if _has_modes or _is_elec:
+                        display = str(cur.get('name', 'Attachment'))
+                        attachments_with_modes.append((ai, acc, display))
 
             try:
                 new_names =[disp for(_ai, _acc, disp)in attachments_with_modes]
@@ -19119,6 +20556,23 @@ class App:
                         acc_with_modes["_mode_index"]= 0
 
                 acc_modes = cleaned
+
+                _is_electronic_acc = bool(cur.get("electronic"))
+                if _is_electronic_acc:
+                    _off_mode = {"name": "Off", "_is_off": True}
+                    if acc_modes:
+                        acc_modes = [_off_mode] + acc_modes
+                    else:
+                        acc_modes = [_off_mode, {"name": "On"}]
+                    if not cur.get("power_on"):
+                        acc_with_modes["_mode_index"] = 0
+                    else:
+                        _prev = int(acc_with_modes.get("_mode_index") or 0)
+                        if _prev < 1:
+                            acc_with_modes["_mode_index"] = 1
+                        elif _prev >= len(acc_modes):
+                            acc_with_modes["_mode_index"] = len(acc_modes) - 1
+
                 acc_slot_ref = acc_with_modes
 
                 try:
@@ -19338,6 +20792,14 @@ class App:
                     actual_idx = int(idx)
             except Exception:
                 actual_idx = 0
+
+            _cur_att = (acc_with_modes.get("current") if isinstance(acc_with_modes, dict) else None) or {}
+            _is_elec_mode = bool(_cur_att.get("electronic"))
+            if _is_elec_mode:
+                _batt_pct_now = _get_battery_percentage(_cur_att)
+                if _batt_pct_now is not None and _batt_pct_now <= 0 and actual_idx != 0:
+                    actual_idx = 0
+
             try:
                 old_index = acc_with_modes.get("_mode_index")
             except Exception:
@@ -19346,6 +20808,33 @@ class App:
                 acc_with_modes["_mode_index"]= int(actual_idx)
             except Exception:
                 acc_with_modes["_mode_index"]= 0
+
+            if _is_elec_mode:
+                _sel_mode = acc_modes[actual_idx] if 0 <= actual_idx < len(acc_modes) else {}
+                if isinstance(_sel_mode, dict) and _sel_mode.get("_is_off"):
+                    _cur_att["power_on"] = False
+                    _cur_att.pop("power_on_timestamp", None)
+                else:
+                    if not _cur_att.get("power_on"):
+                        _cur_att["power_on"] = True
+                        _cur_att["power_on_timestamp"] = time.time()
+                try:
+                    _is_hc_mode = False
+                    _tbl_hc_m = globals().get('table_data', {})
+                    if isinstance(_tbl_hc_m, dict):
+                        _is_hc_mode = bool((_tbl_hc_m.get('additional_settings') or {}).get('hardcore_mode'))
+                    if _is_hc_mode and old_index is not None and int(old_index) != actual_idx:
+                        _drain_cap = float(_cur_att.get("battery_capacity", 0) or 0)
+                        if _drain_cap > 0:
+                            _drain_amt = _drain_cap * 0.0002
+                            _cur_lvl = float(_cur_att.get("battery_level", _drain_cap) or _drain_cap)
+                            _cur_att["battery_level"] = round(max(0.0, _cur_lvl - _drain_amt), 4)
+                            if _cur_att["battery_level"] <= 0:
+                                _cur_att["power_on"] = False
+                                _cur_att.pop("power_on_timestamp", None)
+                                acc_with_modes["_mode_index"] = 0
+                except Exception:
+                    pass
 
             try:
                 new_index = acc_with_modes.get("_mode_index")
@@ -19499,6 +20988,15 @@ class App:
                 return
             attach_state["current_angle"]= snapped
 
+            _cur_att_d = (acc_with_modes.get("current") if isinstance(acc_with_modes, dict) else None) or {}
+            _is_elec_d = bool(_cur_att_d.get("electronic"))
+            if _is_elec_d:
+                _batt_pct_d = _get_battery_percentage(_cur_att_d)
+                if _batt_pct_d is not None and _batt_pct_d <= 0 and idx != 0:
+                    idx = 0
+                    _snapped_off = acc_modes[0].get("position") if isinstance(acc_modes[0], dict) and acc_modes[0].get("position") is not None else 0.0
+                    attach_state["current_angle"] = float(_snapped_off) # type: ignore
+
             try:
                 old_index = acc_with_modes.get("_mode_index")
             except Exception:
@@ -19507,6 +21005,33 @@ class App:
                 acc_with_modes["_mode_index"]= int(idx)
             except Exception:
                 acc_with_modes["_mode_index"]= 0
+
+            if _is_elec_d:
+                _sel_mode_d = acc_modes[idx] if 0 <= idx < len(acc_modes) else {}
+                if isinstance(_sel_mode_d, dict) and _sel_mode_d.get("_is_off"):
+                    _cur_att_d["power_on"] = False
+                    _cur_att_d.pop("power_on_timestamp", None)
+                else:
+                    if not _cur_att_d.get("power_on"):
+                        _cur_att_d["power_on"] = True
+                        _cur_att_d["power_on_timestamp"] = time.time()
+                try:
+                    _is_hc_d = False
+                    _tbl_hc_d = globals().get('table_data', {})
+                    if isinstance(_tbl_hc_d, dict):
+                        _is_hc_d = bool((_tbl_hc_d.get('additional_settings') or {}).get('hardcore_mode'))
+                    if _is_hc_d and old_index is not None and int(old_index) != idx:
+                        _dc = float(_cur_att_d.get("battery_capacity", 0) or 0)
+                        if _dc > 0:
+                            _da = _dc * 0.0002
+                            _dl = float(_cur_att_d.get("battery_level", _dc) or _dc)
+                            _cur_att_d["battery_level"] = round(max(0.0, _dl - _da), 4)
+                            if _cur_att_d["battery_level"] <= 0:
+                                _cur_att_d["power_on"] = False
+                                _cur_att_d.pop("power_on_timestamp", None)
+                                acc_with_modes["_mode_index"] = 0
+                except Exception:
+                    pass
 
             try:
                 new_index = acc_with_modes.get("_mode_index")
@@ -19666,6 +21191,10 @@ class App:
                 _handle_break_action_reload()
                 return
 
+            if "muzzle"in magazine_type:
+                self._reload_muzzleloader_ui(wpn, save_data, update_weapon_view)
+                return
+
             if "internal"in magazine_type or "tube"in magazine_type:
                 _handle_internal_magazine_reload()
                 return
@@ -19708,9 +21237,18 @@ class App:
         def clean_weapon():
             wpn = current_weapon_state["weapon"]
             logging.info("Clean requested for %s", wpn.get("name", "Unknown"))
-            result = self._clean_weapon(wpn, combat_state)
-            self._popup_show_info("Clean Result", result)
-            update_weapon_view()
+
+            def _do_clean():
+                try:
+                    result = self._clean_weapon(wpn, combat_state)
+                    self.root.after(0, lambda: self._popup_show_info("Clean Result", result))
+                    self.root.after(0, update_weapon_view)
+                except Exception as e:
+                    logging.exception("Clean weapon failed: %s", e)
+                    self.root.after(0, lambda: self._popup_show_info("Clean Error", str(e)))
+
+            t = threading.Thread(target = _do_clean, name = "CleanWeaponThread", daemon = True)
+            t.start()
 
         def on_spacebar(event):
             logging.debug("Spacebar pressed - firing")
@@ -19744,6 +21282,48 @@ class App:
 
         self.root.bind("r", on_r_press)
         self.root.bind("R", on_r_press)
+
+        if global_variables.get("devmode", {}).get("value", False):
+            g_last_press_time =[0.0]
+            g_pending_id =[None]
+
+            def _get_compatible_mag_count():
+                try:
+                    wpn = current_weapon_state.get("weapon", {})
+                    mag_system = wpn.get("magazinesystem")or wpn.get("submagazinesystem")or wpn.get("submagazinetype")
+                    if not mag_system:
+                        return 0
+                    magazines_table = table_data.get("tables", {}).get("magazines", [])
+                    return len([m for m in magazines_table if(m.get("magazinesystem")==mag_system or m.get("magazinetype")==mag_system)])
+                except Exception:
+                    return 0
+
+            def on_g_press(event):
+                mag_count = _get_compatible_mag_count()
+                if mag_count <= 1:
+                    add_individual_magazine()
+                    return
+
+                current_time = time.time()
+                time_since_last = current_time -g_last_press_time[0]
+                g_last_press_time[0]= current_time
+
+                if g_pending_id[0]:
+                    self.root.after_cancel(g_pending_id[0])
+                    g_pending_id[0]= None
+
+                if time_since_last <0.4:
+                    logging.debug("G double-tapped - quick give magazine")
+                    add_individual_magazine()
+                else:
+                    try:
+                        _gid = self.root.after(400, add_individual_magazine)
+                        g_pending_id[0]= _gid # type: ignore
+                    except Exception:
+                        g_pending_id[0]= None
+
+            self.root.bind("g", on_g_press)
+            self.root.bind("G", on_g_press)
 
         def reload_auto_drop():
 
@@ -19856,12 +21436,12 @@ class App:
 
                     if wpn.get("dualfeed")and(wpn.get("submagazinesystem")or wpn.get("submagazinetype")):
                         try:
-                            self._perform_dualfeed_belt_reload_sequence(wpn)
+                            self._perform_dualfeed_belt_reload_sequence(wpn, quick=True)
                         except Exception:
                             pass
                     else:
                         try:
-                            self._perform_belt_reload_sequence(wpn)
+                            self._perform_belt_reload_sequence(wpn, quick=True)
                         except Exception:
                             pass
                     handled_belt = True
@@ -19934,6 +21514,20 @@ class App:
 
             previous_chambered = wpn.get("chambered")
             wpn["loaded"]= mag_item
+
+            try:
+                _hc_tbl_rel = globals().get('table_data', {})
+                if isinstance(_hc_tbl_rel, dict) and bool((_hc_tbl_rel.get('additional_settings') or {}).get('hardcore_mode')):
+                    _sd_val = mag_item.get("spring_durability")
+                    if _sd_val is not None:
+                        try:
+                            _sd_val = float(_sd_val)
+                            _sd_val = max(0.0, _sd_val - random.uniform(0.3, 0.8))
+                            mag_item["spring_durability"] = round(_sd_val, 2)
+                        except (ValueError, TypeError):
+                            pass
+            except Exception:
+                pass
 
             if is_gun_empty and mag_item.get("rounds", []):
 
@@ -20057,6 +21651,83 @@ class App:
             logging.exception("Failed to create NVG button")
         try:
             _update_nvg_button()
+        except Exception:
+            pass
+
+        def _toggle_electronics():
+            try:
+                wpn = current_weapon_state.get("weapon") or {}
+                electronic_atts = []
+                for acc in wpn.get("accessories", []) or []:
+                    cur = acc.get("current")
+                    if isinstance(cur, dict) and cur.get("electronic"):
+                        electronic_atts.append(cur)
+                    if isinstance(cur, dict):
+                        for sub in cur.get("subslots", []) or []:
+                            sub_cur = sub.get("current") if isinstance(sub, dict) else None
+                            if isinstance(sub_cur, dict) and sub_cur.get("electronic"):
+                                electronic_atts.append(sub_cur)
+
+                if not electronic_atts:
+                    self._popup_show_info("Electronics", "No electronic attachments on this weapon.")
+                    return
+
+                if len(electronic_atts) == 1:
+                    att = electronic_atts[0]
+                    ok, msg = _toggle_electronic_attachment(att)
+                    self._popup_show_info("Electronics", f"{att.get('name', 'Device')}: {msg}")
+                    try:
+                        self._save_combat_state(save_data)
+                    except Exception:
+                        pass
+                    update_weapon_view()
+                    return
+
+                elec_popup = customtkinter.CTkToplevel(self.root)
+                elec_popup.title("Toggle Electronics")
+                elec_popup.transient(self.root)
+                self._center_popup_on_window(elec_popup, 400, 300)
+
+                customtkinter.CTkLabel(elec_popup, text="Electronic Attachments", font=customtkinter.CTkFont(size=14, weight="bold")).pack(pady=8)
+
+                for att in electronic_atts:
+                    att_frame = customtkinter.CTkFrame(elec_popup, fg_color="transparent")
+                    att_frame.pack(fill="x", padx=10, pady=3)
+
+                    batt_pct = _get_battery_percentage(att)
+                    pw = "ON" if att.get("power_on") else "OFF"
+                    bt = f" ({batt_pct:.0f}%)" if batt_pct is not None else ""
+                    lbl_text = f"{att.get('name', 'Device')} [{pw}{bt}]"
+                    customtkinter.CTkLabel(att_frame, text=lbl_text, font=customtkinter.CTkFont(size=12)).pack(side="left", padx=5)
+
+                    def _make_toggle(a=att):
+                        def _do():
+                            ok, msg = _toggle_electronic_attachment(a)
+                            try:
+                                self._save_combat_state(save_data)
+                            except Exception:
+                                pass
+                            try:
+                                elec_popup.destroy()
+                            except Exception:
+                                pass
+                            update_weapon_view()
+                        return _do
+
+                    customtkinter.CTkButton(att_frame, text="Toggle", command=_make_toggle(), width=80, height=28).pack(side="right", padx=5)
+
+                customtkinter.CTkButton(elec_popup, text="Close", command=elec_popup.destroy, width=120).pack(pady=8)
+                try:
+                    elec_popup.grab_set()
+                    elec_popup.lift()
+                except Exception:
+                    pass
+            except Exception:
+                logging.exception("Electronics toggle failed")
+
+        try:
+            elec_btn = self._create_sound_button(actions_frame, "Electronics", _toggle_electronics, width=150, height=50, font=customtkinter.CTkFont(size=14))
+            elec_btn.pack(side="left", padx=10, pady=10)
         except Exception:
             pass
 
@@ -20202,6 +21873,13 @@ class App:
                             self._popup_show_info("Attachment Modes", "No attachment installed in this slot.")
                             return
                         modes = cur.get("modes")or[]
+                        _is_elec_popup = bool(cur.get("electronic"))
+                        if _is_elec_popup:
+                            _off_m_p = {"name": "Off", "_is_off": True}
+                            if modes:
+                                modes = [_off_m_p] + list(modes)
+                            else:
+                                modes = [_off_m_p, {"name": "On"}]
                         if not modes or not isinstance(modes, list):
                             self._popup_show_info("Attachment Modes", "This attachment has no selectable modes.")
                             return
@@ -20248,10 +21926,42 @@ class App:
                             cur_index = 0
 
                         def _set_mode_and_close(acc_set, idx_set, dial_win):
+                            _cur_p = (acc_set.get("current") if isinstance(acc_set, dict) else None) or {}
+                            _is_elec_p = bool(_cur_p.get("electronic"))
+                            if _is_elec_p:
+                                _bp_p = _get_battery_percentage(_cur_p)
+                                if _bp_p is not None and _bp_p <= 0 and idx_set != 0:
+                                    idx_set = 0
                             try:
                                 acc_set["_mode_index"]= int(idx_set)
                             except Exception:
                                 acc_set["_mode_index"]= 0
+                            if _is_elec_p:
+                                _sel_p = modes[idx_set] if 0 <= idx_set < len(modes) else {}
+                                if isinstance(_sel_p, dict) and _sel_p.get("_is_off"):
+                                    _cur_p["power_on"] = False
+                                    _cur_p.pop("power_on_timestamp", None)
+                                else:
+                                    if not _cur_p.get("power_on"):
+                                        _cur_p["power_on"] = True
+                                        _cur_p["power_on_timestamp"] = time.time()
+                                try:
+                                    _is_hc_p = False
+                                    _tbl_hc_p = globals().get('table_data', {})
+                                    if isinstance(_tbl_hc_p, dict):
+                                        _is_hc_p = bool((_tbl_hc_p.get('additional_settings') or {}).get('hardcore_mode'))
+                                    if _is_hc_p:
+                                        _dcp = float(_cur_p.get("battery_capacity", 0) or 0)
+                                        if _dcp > 0:
+                                            _dap = _dcp * 0.0002
+                                            _dlp = float(_cur_p.get("battery_level", _dcp) or _dcp)
+                                            _cur_p["battery_level"] = round(max(0.0, _dlp - _dap), 4)
+                                            if _cur_p["battery_level"] <= 0:
+                                                _cur_p["power_on"] = False
+                                                _cur_p.pop("power_on_timestamp", None)
+                                                acc_set["_mode_index"] = 0
+                                except Exception:
+                                    pass
                             try:
 
                                 self._apply_item_overrides(wpn)
@@ -20819,16 +22529,41 @@ class App:
 
             if capacity !="Unknown"and capacity >0:
                 fill_ratio = round_count /capacity
-                if fill_ratio ==0:
-                    estimation = "Ammo: Empty"
-                elif fill_ratio <0.5:
-                    estimation = "Ammo: Less than halfway full"
-                elif fill_ratio ==0.5:
-                    estimation = "Ammo: Halfway full"
-                elif fill_ratio <1.0:
-                    estimation = "Ammo: More than halfway full"
+                is_hc_inspect = False
+                try:
+                    _tbl_hci = globals().get('table_data', {})
+                    if isinstance(_tbl_hci, dict):
+                        is_hc_inspect = bool((_tbl_hci.get('additional_settings') or {}).get('hardcore_mode'))
+                except Exception:
+                    is_hc_inspect = False
+                if is_hc_inspect:
+                    fuzz = random.uniform(-0.08, 0.08)
+                    perceived = max(0.0, min(1.0, fill_ratio + fuzz))
+                    if perceived == 0 and round_count == 0:
+                        estimation = "Ammo: Empty"
+                    elif perceived < 0.15:
+                        estimation = "Ammo: Nearly empty"
+                    elif perceived < 0.35:
+                        estimation = "Ammo: Light"
+                    elif perceived < 0.55:
+                        estimation = "Ammo: About half"
+                    elif perceived < 0.75:
+                        estimation = "Ammo: More than half"
+                    elif perceived < 0.95:
+                        estimation = "Ammo: Heavy"
+                    else:
+                        estimation = "Ammo: Full"
                 else:
-                    estimation = "Ammo: Full"
+                    if fill_ratio ==0:
+                        estimation = "Ammo: Empty"
+                    elif fill_ratio <0.5:
+                        estimation = "Ammo: Less than halfway full"
+                    elif fill_ratio ==0.5:
+                        estimation = "Ammo: Halfway full"
+                    elif fill_ratio <1.0:
+                        estimation = "Ammo: More than halfway full"
+                    else:
+                        estimation = "Ammo: Full"
             else:
                 estimation = "Ammo: Unknown capacity"
 
@@ -22595,6 +24330,20 @@ class App:
                     pass
 
                 try:
+                    _mark_mag = (current_weapon_state.get('weapon') or {}).get('loaded')
+                    if isinstance(_mark_mag, dict) and _mark_mag.get('marking_system'):
+                        def _open_marking():
+                            try:
+                                popup.destroy()
+                            except Exception:
+                                pass
+                            self._open_magazine_marking_dialog(_mark_mag, current_weapon_state.get('weapon') or {}, save_data, update_callback=update_weapon_view)
+                        mark_btn = self._create_sound_button(popup, text='Mark Magazine', command=_open_marking, width=240, height=40, font=customtkinter.CTkFont(size=12), fg_color='#4a3080', hover_color='#6040a0')
+                        mark_btn.pack(pady=6)
+                except Exception:
+                    pass
+
+                try:
                     customtkinter.CTkButton(popup, text = 'Close', command = popup.destroy, width = 140).pack(pady = 8)
                 except Exception:
                     pass
@@ -23296,6 +25045,12 @@ class App:
                     _cap_lbl.configure(text = f'{len(existing)}/{cap} rounds loaded')
 
                 def _done():
+                    _rt_act_raw_d = wpn.get('action', '')or ''
+                    if isinstance(_rt_act_raw_d, (list, tuple)):
+                        _rt_act_raw_d = _rt_act_raw_d[0]if _rt_act_raw_d else ''
+                    _rt_act_d = str(_rt_act_raw_d).lower()
+                    _is_manual_bolt = _rt_act_d in ('bolt', 'lever', 'single')
+                    _bolt_closed = False
                     if ls['added']>0:
                         wpn['rounds']= existing
                         if not wpn.get('chambered')and existing:
@@ -23304,11 +25059,7 @@ class App:
                             if isinstance(_rt_plat_raw, (list, tuple)):
                                 _rt_plat_raw = _rt_plat_raw[0]if _rt_plat_raw else ''
                             _rt_plat = str(_rt_plat_raw).lower()
-                            _rt_act_raw = wpn.get('action', '')or ''
-                            if isinstance(_rt_act_raw, (list, tuple)):
-                                _rt_act_raw = _rt_act_raw[0]if _rt_act_raw else ''
-                            _rt_act = str(_rt_act_raw).lower()
-                            _is_pump =('pump'in _rt_plat or _rt_act =='pump'or 'pump'in _rt_mag_type)
+                            _is_pump =('pump'in _rt_plat or _rt_act_d =='pump'or 'pump'in _rt_mag_type)
                             if _is_pump:
                                 wpn['chambered']= existing.pop(0)
                                 wpn['rounds']= existing
@@ -23316,6 +25067,15 @@ class App:
                                     self._play_weapon_action_sound(wpn, 'pumpforward')
                                 except Exception:
                                     pass
+                                _bolt_closed = True
+                            elif _is_manual_bolt:
+                                wpn['chambered']= existing.pop(0)
+                                wpn['rounds']= existing
+                                try:
+                                    self._play_weapon_action_sound(wpn, 'boltforward')
+                                except Exception:
+                                    pass
+                                _bolt_closed = True
                             else:
                                 if not wpn.get('bolt_catch'):
                                     try:
@@ -23328,6 +25088,11 @@ class App:
                                     self._play_weapon_action_sound(wpn, 'boltforward')
                                 except Exception:
                                     pass
+                    if _is_manual_bolt and not _bolt_closed:
+                        try:
+                            self._play_weapon_action_sound(wpn, 'boltforward')
+                        except Exception:
+                            pass
                     editor.destroy()
                     update_weapon_view()
                     if ls['added']>0:
@@ -23350,6 +25115,15 @@ class App:
                 editor.grab_set()
                 editor.lift()
                 self._safe_focus(editor)
+                _rt_act_raw_open = wpn.get('action', '')or ''
+                if isinstance(_rt_act_raw_open, (list, tuple)):
+                    _rt_act_raw_open = _rt_act_raw_open[0]if _rt_act_raw_open else ''
+                _rt_act_open = str(_rt_act_raw_open).lower()
+                if _rt_act_open in ('bolt', 'lever', 'single'):
+                    try:
+                        self._play_weapon_action_sound(wpn, 'boltback')
+                    except Exception:
+                        pass
             except Exception:
                 logging.exception('Failed to open internal box magazine loader')
 
@@ -24526,7 +26300,20 @@ class App:
                 editor = customtkinter.CTkToplevel(self.root)
                 editor.title('Break Action Loader')
                 editor.transient(self.root)
-                cap = int(wpn.get('capacity', 0) or 0) or 2
+                try:
+                    _raw_cap = wpn.get('capacity')
+                    if _raw_cap is None or _raw_cap == '' or _raw_cap == 0:
+                        _raw_cap = wpn.get('loaded', {})
+                        if isinstance(_raw_cap, dict):
+                            _raw_cap = _raw_cap.get('capacity')
+                    cap = int(_raw_cap) if _raw_cap else 2
+                except Exception:
+                    cap = 2
+                if cap < 1:
+                    cap = 2
+                subtype_raw = str(wpn.get('magazinesubtype', '') or '').lower()
+                if subtype_raw == 'single' and cap > 1:
+                    cap = 1
                 existing = list(wpn.get('rounds', []) or [])
                 while len(existing) < cap:
                     existing.append(None)
@@ -24553,6 +26340,7 @@ class App:
 
                 subtype = str(wpn.get('magazinesubtype', '') or 'side-by-side').lower()
                 is_over_under = 'over' in subtype or 'under' in subtype
+                is_single = subtype == 'single' or cap == 1
 
                 vlist = sorted(available_by_variant.keys())
                 cpal = ['#c4a032', '#b87333', '#a0a0a0', '#d4af37', '#8b4513', '#cd7f32', '#e8c872', '#a08060']
@@ -25086,19 +26874,21 @@ class App:
                 ba_canvas.bind('<B1-Motion>', _on_move)
                 ba_canvas.bind('<ButtonRelease-1>', _on_release)
 
+                barrel_word = 'barrel' if cap == 1 else 'barrels'
                 _cap_lbl = customtkinter.CTkLabel(side,
-                    text = f'{sum(1 for r in existing if _is_live(r))}/{cap} barrels loaded',
+                    text = f'{sum(1 for r in existing if _is_live(r))}/{cap} {barrel_word} loaded',
                     font = customtkinter.CTkFont(size = 13, weight = 'bold'))
                 _cap_lbl.pack(pady = (10, 6))
 
-                subtype_label = 'Over/Under' if is_over_under else 'Side-by-Side'
+                subtype_label = 'Single Barrel' if is_single else ('Over/Under' if is_over_under else 'Side-by-Side')
+                barrel_word = 'barrel' if cap == 1 else 'barrels'
                 customtkinter.CTkLabel(side,
-                    text = f'{subtype_label} Break Action\n\nDrag down to open.\nDrag rounds onto barrels.\nDrag up to close.',
+                    text = f'{subtype_label} Break Action\n\nDrag down to open.\nDrag round onto barrel.\nDrag up to close.' if is_single else f'{subtype_label} Break Action\n\nDrag down to open.\nDrag rounds onto barrels.\nDrag up to close.',
                     font = customtkinter.CTkFont(size = 10), text_color = '#888888',
                     wraplength = 170).pack(pady = 6)
 
                 def _update_side():
-                    _cap_lbl.configure(text = f'{sum(1 for r in existing if _is_live(r))}/{cap} barrels loaded')
+                    _cap_lbl.configure(text = f'{sum(1 for r in existing if _is_live(r))}/{cap} {barrel_word} loaded')
 
                 customtkinter.CTkButton(side, text = 'Eject Spent', command = _eject_spent,
                     width = 160, height = 30, font = customtkinter.CTkFont(size = 11),
@@ -26120,6 +27910,246 @@ class App:
             except Exception:
                 pass
 
+        def _view_parts():
+            import copy as _copy_parts
+            w = current_weapon_state.get('weapon') if isinstance(current_weapon_state, dict) else None
+            if not w:
+                w = current_weapon
+            parts = w.get('parts') if isinstance(w, dict) else None
+            if not parts or not isinstance(parts, list):
+                self._popup_show_info('Parts', 'This weapon has no parts.')
+                return
+
+            id_to_item_parts = {}
+            try:
+                td_tables = table_data.get('tables', {}) if isinstance(table_data, dict) else {}
+                for _sub_items in td_tables.values():
+                    if not isinstance(_sub_items, list):
+                        continue
+                    for _it in _sub_items:
+                        if isinstance(_it, dict) and 'id' in _it:
+                            id_to_item_parts[_it['id']] = _it
+            except Exception:
+                pass
+
+            def _resolve_part_current(p):
+                cur = p.get('current')
+                if cur is None:
+                    return None
+                if isinstance(cur, dict) and 'name' in cur:
+                    return cur
+                target_id = None
+                overrides = {}
+                if isinstance(cur, int):
+                    target_id = cur
+                elif isinstance(cur, dict) and 'id' in cur:
+                    target_id = cur.get('id')
+                    for k, v in cur.items():
+                        if k != 'id':
+                            overrides[k] = v
+                if target_id is None:
+                    return cur if isinstance(cur, dict) else None
+                target = id_to_item_parts.get(target_id)
+                if not target:
+                    return cur if isinstance(cur, dict) else None
+                resolved = _copy_parts.deepcopy(target)
+                for k, v in overrides.items():
+                    resolved[k] = v
+                p['current'] = resolved
+                return resolved
+
+            is_devmode = global_variables.get('devmode', {}).get('value', False)
+
+            def _get_durability_text(p, resolved):
+                dur = None
+                if isinstance(p, dict):
+                    dur = p.get('current_durability')
+                if dur is None and isinstance(resolved, dict):
+                    dur = resolved.get('current_durability')
+                if dur is not None and dur != 'null' and str(dur).strip().lower() != 'set_by_looting':
+                    try:
+                        dur_val = float(dur)
+                        pct = max(0.0, min(100.0, (dur_val / PART_DURABILITY_MAX) * 100))
+                        if dur_val <= 0:
+                            if is_devmode:
+                                return f'Worn Out ({pct:.2f}%)', '#ff4444'
+                            return 'Worn Out', '#ff4444'
+                        elif pct < 25:
+                            if is_devmode:
+                                return f'Poor ({pct:.2f}%)', '#ff6644'
+                            return 'Poor', '#ff6644'
+                        elif pct < 50:
+                            if is_devmode:
+                                return f'Fair ({pct:.2f}%)', '#ffaa44'
+                            return 'Fair', '#ffaa44'
+                        elif pct < 75:
+                            if is_devmode:
+                                return f'Good ({pct:.2f}%)', '#aacc44'
+                            return 'Good', '#aacc44'
+                        else:
+                            if is_devmode:
+                                return f'Excellent ({pct:.2f}%)', '#44cc44'
+                            return 'Excellent', '#44cc44'
+                    except (ValueError, TypeError):
+                        return 'Unknown', '#888888'
+                dur_raw = p.get('durability') if isinstance(p, dict) else None
+                if dur_raw == 'set_by_looting':
+                    return 'Set by looting', '#888888'
+                return 'N/A', '#888888'
+
+            popup = customtkinter.CTkToplevel(self.root)
+            popup.title("Weapon Parts")
+            popup.transient(self.root)
+            self._center_popup_on_window(popup, 440, 400)
+
+            scroll_frame = customtkinter.CTkScrollableFrame(popup, fg_color = "transparent")
+            scroll_frame.pack(fill = "both", expand = True, padx = 10, pady = 10)
+
+            part_rows = []
+
+            def _candidates_for_part_slot(slot_req, part_type, weapon_platform):
+                matches = []
+                for itm in save_data.get("hands", {}).get("items", []):
+                    if itm and isinstance(itm, dict):
+                        if itm.get('type') == part_type or itm.get('slot') == slot_req:
+                            itp = itm.get('platform', '')
+                            if not itp or not weapon_platform or str(itp).lower() == str(weapon_platform).lower():
+                                matches.append(itm)
+                for slot_name_eq, eq_item in save_data.get("equipment", {}).items():
+                    if eq_item and isinstance(eq_item, dict) and isinstance(eq_item.get("items"), list):
+                        for itm in eq_item["items"]:
+                            if itm and isinstance(itm, dict):
+                                if itm.get('type') == part_type or itm.get('slot') == slot_req:
+                                    itp = itm.get('platform', '')
+                                    if not itp or not weapon_platform or str(itp).lower() == str(weapon_platform).lower():
+                                        matches.append(itm)
+                return matches
+
+            weapon_platform = w.get('platform', '') if isinstance(w, dict) else ''
+
+            for p in parts:
+                if not isinstance(p, dict):
+                    continue
+                resolved = _resolve_part_current(p)
+                pname = p.get('name', p.get('type', 'Unknown'))
+                ptype = p.get('type', '')
+                slot = p.get('slot', '')
+
+                frame = customtkinter.CTkFrame(scroll_frame)
+                frame.pack(fill = "x", padx = 6, pady = 6)
+
+                slot_label = ptype.replace('_', ' ').title() if ptype else pname
+                customtkinter.CTkLabel(frame, text = slot_label, font = customtkinter.CTkFont(size = 12, weight = "bold")).pack(anchor = "w", padx = 8, pady = (4, 0))
+
+                if resolved and isinstance(resolved, dict):
+                    cur_name = resolved.get('name', f'ID {resolved.get("id", "?")}')
+                elif resolved is not None:
+                    cur_name = str(resolved)
+                else:
+                    cur_name = 'Empty'
+
+                name_label = customtkinter.CTkLabel(frame, text = cur_name, font = customtkinter.CTkFont(size = 11))
+                name_label.pack(anchor = "w", padx = 16)
+
+                dur_text, dur_color = _get_durability_text(p, resolved)
+                dur_label = customtkinter.CTkLabel(frame, text = f'Durability: {dur_text}', font = customtkinter.CTkFont(size = 10), text_color = dur_color)
+                dur_label.pack(anchor = "w", padx = 16, pady = (0, 2))
+
+                btn_frame = customtkinter.CTkFrame(frame, fg_color = "transparent")
+                btn_frame.pack(anchor = "w", padx = 16, pady = (0, 4))
+
+                opts = [(None, "None")]
+                for itm in _candidates_for_part_slot(slot, ptype, weapon_platform):
+                    label = itm.get("name", "Part")
+                    itm_dur_text, _ = _get_durability_text(itm, itm)
+                    if itm_dur_text and itm_dur_text not in ('N/A', 'Set by looting'):
+                        label = f"{label} [{itm_dur_text}]"
+                    opts.append((itm, label))
+
+                current_label = cur_name if resolved else "None"
+
+                if resolved and isinstance(resolved, dict):
+                    found_in_opts = False
+                    for itm, lbl in opts:
+                        if itm is resolved or (isinstance(itm, dict) and itm.get('id') == resolved.get('id')):
+                            found_in_opts = True
+                            break
+                    if not found_in_opts:
+                        opts.append((resolved, cur_name)) # type: ignore
+
+                current_choice = customtkinter.StringVar(value = current_label)
+                if len(opts) > 1:
+                    option = customtkinter.CTkOptionMenu(btn_frame, values = [o[1] for o in opts], variable = current_choice, width = 220)
+                    option.pack(side = "left", padx = (0, 4))
+
+                part_rows.append((p, opts, current_choice, resolved))
+
+            def _apply_part_changes():
+                for part_ref, opts, var, old_resolved in part_rows:
+                    chosen_label = var.get()
+                    chosen_item = None
+                    for itm, lbl in opts:
+                        if lbl == chosen_label:
+                            chosen_item = itm
+                            break
+
+                    old_current = part_ref.get('current')
+                    if old_current and isinstance(old_current, dict) and old_current.get('name'):
+                        if chosen_item is not old_current and not (isinstance(chosen_item, dict) and chosen_item.get('id') == old_current.get('id')):
+                            save_data.setdefault('hands', {}).setdefault('items', []).append(_copy_parts.deepcopy(old_current))
+
+                    if chosen_item is None:
+                        part_ref['current'] = None
+                        part_ref.pop('current_durability', None)
+                    else:
+                        if chosen_item is not old_current:
+                            hands_items = save_data.get("hands", {}).get("items", [])
+                            try:
+                                if chosen_item in hands_items:
+                                    hands_items.remove(chosen_item)
+                            except Exception:
+                                pass
+                            try:
+                                for slot_name_eq, eq_item in save_data.get("equipment", {}).items():
+                                    if eq_item and isinstance(eq_item, dict) and isinstance(eq_item.get("items"), list):
+                                        try:
+                                            while chosen_item in eq_item["items"]:
+                                                eq_item["items"].remove(chosen_item)
+                                        except Exception:
+                                            pass
+                            except Exception:
+                                pass
+                        new_installed = _copy_parts.deepcopy(chosen_item) if isinstance(chosen_item, dict) else chosen_item
+                        part_ref['current'] = new_installed
+
+                try:
+                    self._save_file(save_data)
+                except Exception:
+                    logging.exception("Failed to save after part changes")
+
+                popup.destroy()
+                update_weapon_view()
+
+            apply_btn = customtkinter.CTkButton(popup, text = "Apply", command = _apply_part_changes, width = 120)
+            apply_btn.pack(pady = 10)
+
+            try:
+                popup.update_idletasks()
+                req_w = popup.winfo_reqwidth()
+                req_h = popup.winfo_reqheight()
+                screen_w = popup.winfo_screenwidth()
+                screen_h = popup.winfo_screenheight()
+                max_w = max(200, screen_w - 100)
+                max_h = max(150, screen_h - 100)
+                final_w = min(req_w, max_w)
+                final_h = min(req_h, max_h)
+                self._center_popup_on_window(popup, final_w, final_h)
+            except Exception:
+                try:
+                    self._center_popup_on_window(popup, 440, 400)
+                except Exception:
+                    pass
+
         def _show_more_actions():
             try:
                 popup = customtkinter.CTkToplevel(self.root)
@@ -26192,6 +28222,20 @@ class App:
                     pass
 
                 try:
+                    vp_btn = _add('Manage Parts', _view_parts)
+                    w_vp = current_weapon_state.get('weapon') if isinstance(current_weapon_state, dict) else None
+                    if not w_vp:
+                        w_vp = current_weapon
+                    if not w_vp or not (w_vp.get('parts') if isinstance(w_vp, dict) else None):
+                        if vp_btn is not None:
+                            try:
+                                vp_btn.configure(state = 'disabled')
+                            except Exception:
+                                pass
+                except Exception:
+                    pass
+
+                try:
                     has_consumables = len(_find_consumables_in_inventory())>0
 
                     def _wrap_consume():
@@ -26208,6 +28252,144 @@ class App:
                     if not has_consumables:
                         consume_btn.configure(state = 'disabled')
                     consume_btn.pack(pady = 6)
+                except Exception:
+                    pass
+
+                try:
+                    w_gas = current_weapon_state.get('weapon') if isinstance(current_weapon_state, dict) else None
+                    if not w_gas:
+                        w_gas = current_weapon
+                    raw_cyclic_list = w_gas.get('cyclic') if isinstance(w_gas, dict) else None
+                    if isinstance(raw_cyclic_list, list) and len(raw_cyclic_list) > 1:
+                        gas_weapon_id = str(w_gas.get('id', ''))
+                        gas_settings = combat_state.setdefault('gas_setting', {})
+                        current_gas_idx = gas_settings.get(gas_weapon_id, 0)
+                        if current_gas_idx < 0 or current_gas_idx >= len(raw_cyclic_list):
+                            current_gas_idx = 0
+                            gas_settings[gas_weapon_id] = 0
+
+                        gas_frame = customtkinter.CTkFrame(frame)
+                        gas_frame.pack(pady = 10, padx = 10, fill = 'x')
+
+                        customtkinter.CTkLabel(
+                            gas_frame,
+                            text = 'Gas Regulator:',
+                            font = customtkinter.CTkFont(size = 12, weight = 'bold')
+                        ).pack(side = 'top', padx = 5, pady = 2)
+
+                        gas_canvas = customtkinter.CTkCanvas(
+                            gas_frame,
+                            width = 160,
+                            height = 160,
+                            bg = '#212121',
+                            highlightthickness = 0
+                        )
+                        gas_canvas.pack(side = 'top', padx = 5, pady = 5)
+
+                        num_gas = len(raw_cyclic_list)
+                        gas_angles = {}
+                        for gi in range(num_gas):
+                            gas_angles[gi] = gi * (360 / num_gas)
+
+                        gas_dial_state = {'current_angle': gas_angles.get(current_gas_idx, 0), 'dragging': False}
+
+                        gas_label_var = customtkinter.StringVar(value = f'{int(raw_cyclic_list[current_gas_idx])} RPM')
+
+                        def _draw_gas_dial():
+                            gas_canvas.delete('all')
+                            cx, cy = 80, 80
+                            r = 40
+
+                            gas_canvas.create_oval(
+                                cx - r, cy - r,
+                                cx + r, cy + r,
+                                fill = '#333333', outline = '#555555', width = 2
+                            )
+
+                            for gi, angle in gas_angles.items():
+                                rad = math.radians(angle)
+                                x1 = cx + (r - 8) * math.cos(rad)
+                                y1 = cy + (r - 8) * math.sin(rad)
+                                x2 = cx + r * math.cos(rad)
+                                y2 = cy + r * math.sin(rad)
+                                gas_canvas.create_line(x1, y1, x2, y2, fill = '#888888', width = 3)
+
+                                label_dist = r + 18
+                                lx = cx + label_dist * math.cos(rad)
+                                ly = cy + label_dist * math.sin(rad)
+                                gas_canvas.create_text(
+                                    lx, ly,
+                                    text = f'{int(raw_cyclic_list[gi])}',
+                                    fill = '#AAAAAA',
+                                    font = ('Arial', 9, 'bold')
+                                )
+
+                            ca = gas_dial_state['current_angle']
+                            rad = math.radians(ca)
+                            px = cx + 32 * math.cos(rad)
+                            py = cy + 32 * math.sin(rad)
+                            gas_canvas.create_line(cx, cy, px, py, fill = '#FF4444', width = 4)
+
+                            knob_r = 6
+                            gas_canvas.create_oval(
+                                cx - knob_r, cy - knob_r,
+                                cx + knob_r, cy + knob_r,
+                                fill = '#FF4444', outline = '#FFFFFF', width = 2
+                            )
+
+                            gas_canvas.create_text(
+                                cx, 12,
+                                text = gas_label_var.get(),
+                                fill = '#00FF00',
+                                font = ('Arial', 11, 'bold')
+                            )
+
+                        def _gas_angle_from_point(x, y):
+                            dx = x - 80
+                            dy = y - 80
+                            return math.degrees(math.atan2(dy, dx)) % 360
+
+                        def _gas_snap(angle):
+                            best_idx = 0
+                            best_diff = 360
+                            for gi, ga in gas_angles.items():
+                                diff = min(abs(angle - ga), 360 - abs(angle - ga))
+                                if diff < best_diff:
+                                    best_diff = diff
+                                    best_idx = gi
+                            return best_idx, gas_angles.get(best_idx, 0)
+
+                        def _gas_mouse_down(event):
+                            dx = event.x - 80
+                            dy = event.y - 80
+                            if math.sqrt(dx ** 2 + dy ** 2) < 50:
+                                gas_dial_state['dragging'] = True
+
+                        def _gas_mouse_move(event):
+                            if not gas_dial_state['dragging']:
+                                return
+                            gas_dial_state['current_angle'] = _gas_angle_from_point(event.x, event.y)
+                            _draw_gas_dial()
+
+                        def _gas_mouse_up(event):
+                            if not gas_dial_state['dragging']:
+                                return
+                            gas_dial_state['dragging'] = False
+                            idx, snapped = _gas_snap(gas_dial_state['current_angle'])
+                            gas_dial_state['current_angle'] = snapped
+                            gas_settings[gas_weapon_id] = idx
+                            gas_label_var.set(f'{int(raw_cyclic_list[idx])} RPM')
+                            try:
+                                self._safe_sound_play('firearms/universal', 'fireselector')
+                            except Exception:
+                                pass
+                            _draw_gas_dial()
+
+                        gas_canvas.bind('<Button-1>', _gas_mouse_down)
+                        gas_canvas.bind('<B1-Motion>', _gas_mouse_move)
+                        gas_canvas.bind('<ButtonRelease-1>', _gas_mouse_up)
+
+                        _draw_gas_dial()
                 except Exception:
                     pass
 
@@ -26559,7 +28741,10 @@ class App:
                             sd['hands'].setdefault('items', [])
                             for itm in found:
                                 try:
-                                    sd['hands']['items'].append(itm.copy()if isinstance(itm, dict)else itm)
+                                    itm_copy = itm.copy()if isinstance(itm, dict)else itm
+                                    if isinstance(itm_copy, dict):
+                                        _set_full_part_durability(itm_copy)
+                                    sd['hands']['items'].append(itm_copy)
                                     added +=1
                                 except Exception:
                                     logging.exception('Failed to append throwable to in-memory hands')
@@ -26603,7 +28788,10 @@ class App:
                             file_sd['hands'].setdefault('items', [])
                             for itm in found:
                                 try:
-                                    file_sd['hands']['items'].append(itm.copy()if isinstance(itm, dict)else itm)
+                                    itm_copy = itm.copy()if isinstance(itm, dict)else itm
+                                    if isinstance(itm_copy, dict):
+                                        _set_full_part_durability(itm_copy)
+                                    file_sd['hands']['items'].append(itm_copy)
                                     added +=1
                                 except Exception:
                                     logging.exception('Failed to append throwable to save file hands')
@@ -26766,18 +28954,83 @@ class App:
                         return
 
                     mag_template = compatible_mags[0]
+                    capacity = mag_template.get('capacity', 30)
+
+                    rounds = []
+                    try:
+                        raw_cal = current_weapon.get("caliber", [])or[]
+                        if isinstance(raw_cal, (list, tuple)):
+                            caliber = raw_cal[0]if raw_cal else None
+                        else:
+                            caliber = raw_cal
+
+                        ammo_tables = table_data.get("tables", {}).get("ammunition", [])if table_data else[]
+                        ammo_def = None
+                        for a in ammo_tables:
+                            try:
+                                a_cal = a.get("caliber")
+                                if caliber is not None:
+                                    if isinstance(a_cal, (list, tuple))and isinstance(caliber, str)and caliber in a_cal:
+                                        ammo_def = a ;break
+                                    if isinstance(a_cal, str)and isinstance(caliber, str)and a_cal ==caliber:
+                                        ammo_def = a ;break
+                                a_id = a.get("id")
+                                if a_id is not None and str(a_id)==str(caliber):
+                                    ammo_def = a ;break
+                                w_sounds = None
+                                if isinstance(caliber, str):
+                                    w_sounds = caliber
+                                if w_sounds and(a.get("sounds")==w_sounds or a.get("ammo_type")==w_sounds):
+                                    ammo_def = a ;break
+                            except Exception:
+                                continue
+
+                        if ammo_def:
+                            variant_name = variant_var.get()
+                            variant_info = None
+                            for var in ammo_def.get("variants", []):
+                                if var.get("name")==variant_name:
+                                    variant_info = var
+                                    break
+                            if not variant_info and ammo_def.get("variants"):
+                                variant_info = ammo_def["variants"][0]
+
+                            single_round = {
+                            "name":f"{caliber} | {variant_name}",
+                            "caliber":caliber,
+                            "variant":variant_name,
+                            "weight":ammo_def.get("weight", 0.01),
+                            "value":ammo_def.get("value", 0),
+                            "sounds":ammo_def.get("sounds", ""),
+                            "description":f"{caliber} - {variant_name}"
+                            }
+                            if variant_info:
+                                if variant_info.get("type"):
+                                    single_round["type"]= variant_info.get("type")
+                                if variant_info.get("pen"):
+                                    single_round["pen"]= variant_info.get("pen")
+                                if variant_info.get("tip"):
+                                    single_round["tip"]= variant_info.get("tip")
+                                if variant_info.get("modifiers"):
+                                    single_round["modifiers"]= variant_info.get("modifiers")
+
+                            rounds =[dict(single_round)for _ in range(capacity)]
+                    except Exception:
+                        pass
+
                     new_mag = {
                     'name':mag_template.get('name'),
                     'id':mag_template.get('id'),
                     'magazinetype':mag_template.get('magazinetype', 'Unknown'),
                     'magazinesystem':mag_system,
-                    'capacity':mag_template.get('capacity', 30),
-                    'rounds':[]
+                    'capacity':capacity,
+                    'rounds':rounds
                     }
 
                     save_data.setdefault('hands', {}).setdefault('items', []).append(new_mag)
                     update_weapon_view()
-                    self._popup_show_info('DevMode Ammo', f"Added {new_mag.get('name')} to hands(empty)")
+                    round_desc = f"loaded with {len(rounds)} rounds"if rounds else "empty"
+                    self._popup_show_info('DevMode Ammo', f"Added {new_mag.get('name')} to hands({round_desc})")
                 except Exception as e:
                     logging.error(f"Error adding magazine: {e}")
                     self._popup_show_info("DevMode Error", str(e))
@@ -26928,6 +29181,13 @@ class App:
                         magicsys_local = str(wpn.get("magicsoundsystem")or "").lower()
                         is_magic_local =(str(wpn.get("type")or "").lower()=="magic")or(magicsys_local in("hg", "at", "mg", "rf"))
                         k = magic_k if is_magic_local else default_k
+                        try:
+                            _ws = combat_state.get("weather", {})
+                            _wt = _ws.get("weather", "clear") if isinstance(_ws, dict) else "clear"
+                            if _wt in ("rain", "thunderstorm", "snowstorm", "thundersnow"):
+                                k *= 1.5
+                        except Exception:
+                            pass
                         new_temp = ambient +(current_temp -ambient)*math.exp(-k *elapsed)
                         low = min(ambient, current_temp)
                         high = max(ambient, current_temp)
@@ -27016,11 +29276,25 @@ class App:
                 pass
 
             try:
-                for k in("<Left>", "<Right>", "<space>", "r", "R"):
+                for k in("<Left>", "<Right>", "<space>", "r", "R", "b", "B", "n", "N", "g", "G", "a", "A", "p", "P"):
                     try:
                         self.root.unbind(k)
                     except Exception:
                         pass
+            except Exception:
+                pass
+
+            try:
+                if weather_sound_state.get("channel"):
+                    weather_sound_state["channel"].stop()
+                    weather_sound_state["channel"] = None
+                self._weather_ambient_channel = None
+                if weather_sound_state.get("thunder_after_id"):
+                    try:
+                        self.root.after_cancel(weather_sound_state["thunder_after_id"])
+                    except Exception:
+                        pass
+                    weather_sound_state["thunder_after_id"] = None
             except Exception:
                 pass
 
@@ -27301,8 +29575,9 @@ class App:
                         return True
 
                 if cur and isinstance(cur, dict):
+                    _elec_off = bool(cur.get("electronic")) and not cur.get("power_on")
                     mods = cur.get("modifiers")or {}
-                    if isinstance(mods, dict):
+                    if isinstance(mods, dict) and not _elec_off:
                         stats = mods.get("stats")or {}
                         if isinstance(stats, dict):
 
@@ -27315,7 +29590,7 @@ class App:
 
                     try:
                         modes = cur.get("modes")or[]
-                        if isinstance(modes, list)and modes:
+                        if isinstance(modes, list)and modes and not _elec_off:
                             mode_index = acc.get("_mode_index")
                             if mode_index is None:
 
@@ -27399,12 +29674,18 @@ class App:
         name_label.pack(pady = 5)
 
         stats_text = f"Platform: {weapon.get('platform', 'Unknown')}\n"
-        stats_text +=f"Caliber: {', '.join(weapon.get('caliber', ['Unknown']))}\n"
+        stats_text +=f"Caliber: {', '.join(weapon.get('caliber') or weapon.get('musket_caliber') or ['Unknown'])}\n"
         stats_text +=f"Action: {', '.join(weapon.get('action', ['Unknown']))}\n"
-        if weapon.get("burst_cyclic"):
-            stats_text +=f"Cyclic Rate: {weapon.get('cyclic', 0)} RPM({weapon.get('burst_cyclic', 0)} RPM burst)\n"
+        raw_cyclic = weapon.get('cyclic', 0)
+        if isinstance(raw_cyclic, list) and raw_cyclic:
+            effective_rpm = _resolve_effective_cyclic(weapon, combat_state)
+            gas_settings = combat_state.get("gas_setting", {}) if combat_state else {}
+            gas_idx = gas_settings.get(str(weapon.get("id", "")), 0)
+            stats_text +=f"Cyclic Rate: {int(effective_rpm)} RPM (Gas Setting {gas_idx + 1}/{len(raw_cyclic)})\n"
+        elif weapon.get("burst_cyclic"):
+            stats_text +=f"Cyclic Rate: {raw_cyclic} RPM({weapon.get('burst_cyclic', 0)} RPM burst)\n"
         else:
-            stats_text +=f"Cyclic Rate: {weapon.get('cyclic', 0)} RPM\n"
+            stats_text +=f"Cyclic Rate: {raw_cyclic} RPM\n"
         stats_text +=f"Magazine Type: {weapon.get('magazinetype', 'Unknown')}\n"
 
         if weapon.get("magazinesystem"):
@@ -27676,6 +29957,43 @@ class App:
         clean_exact = bool(has_hud or(has_csad and gunlink_on_weapon))
         ammo_exact = bool(has_hud or(has_csad and gunlink_on_weapon))
 
+        is_hardcore = False
+        try:
+            tbl_hc = globals().get('table_data', {})
+            if isinstance(tbl_hc, dict):
+                is_hardcore = bool((tbl_hc.get('additional_settings') or {}).get('hardcore_mode'))
+        except Exception:
+            is_hardcore = False
+
+        if is_hardcore:
+            ammo_exact = bool(has_hud and (has_csad and gunlink_on_weapon))
+
+        try:
+            weapon_mods = weapon.get("_active_modifiers") or {}
+            if isinstance(weapon_mods, dict):
+                mod_stats = weapon_mods.get("stats") or {}
+                if mod_stats.get("ammo_exact"):
+                    ammo_exact = True
+                if mod_stats.get("temp_exact"):
+                    temp_exact = True
+                if mod_stats.get("clean_exact"):
+                    clean_exact = True
+            for acc in (weapon.get("accessories") or []):
+                cur = acc.get("current") if isinstance(acc, dict) else None
+                if isinstance(cur, dict):
+                    acc_mods = cur.get("modifiers") or {}
+                    if isinstance(acc_mods, dict):
+                        acc_stats = acc_mods.get("stats") or {}
+                        if isinstance(acc_stats, dict):
+                            if acc_stats.get("ammo_exact"):
+                                ammo_exact = True
+                            if acc_stats.get("temp_exact"):
+                                temp_exact = True
+                            if acc_stats.get("clean_exact"):
+                                clean_exact = True
+        except Exception:
+            pass
+
         if appearance_settings["units"]=="metric":
             display_temp =(temperature -32)*5 /9
             temp_unit = "°C"
@@ -27710,23 +30028,28 @@ class App:
             temp_text = f"Barrel Temperature: {display_temp:.2f}{temp_unit}"
         else:
 
-            if temperature >200:
+            try:
+                _cookoff_t = float(combat_state.get("cookoff_temp", 1500))
+            except Exception:
+                _cookoff_t = 1500.0
+            if temperature >= _cookoff_t:
                 temp_desc = "Critical hot"
-            elif temperature >150:
+            elif temperature > 800:
                 temp_desc = "Very hot"
-            elif temperature >100:
+            elif temperature > 500:
                 temp_desc = "Hot"
-            elif temperature >80:
+            elif temperature > 250:
                 temp_desc = "Warm"
             else:
                 temp_desc = "Cool"
             temp_text = f"Barrel Temperature: {temp_desc}"
 
+        _temp_label_kwargs = {"text": temp_text, "font": customtkinter.CTkFont(size = 14)}
+        if temp_color:
+            _temp_label_kwargs["text_color"] = temp_color
         customtkinter.CTkLabel(
         detail_frame,
-        text = temp_text,
-        font = customtkinter.CTkFont(size = 14),
-        text_color = temp_color
+        **_temp_label_kwargs
         ).pack(pady = 5)
 
         clean_color = "#00FF00"
@@ -27737,12 +30060,28 @@ class App:
         elif cleanliness <70:
             clean_color = "#FFFF00"
 
-        clean_text = f"Cleanliness: {cleanliness:.2f}%"if clean_exact else "Cleanliness: Status only"
+        if not has_hud:
+            clean_color = None
+
+        if clean_exact:
+            clean_text = f"Cleanliness: {cleanliness:.2f}%"
+        else:
+            if cleanliness < 30:
+                clean_desc = "Very dirty"
+            elif cleanliness < 50:
+                clean_desc = "Dirty"
+            elif cleanliness < 70:
+                clean_desc = "Slightly dirty"
+            else:
+                clean_desc = "Clean"
+            clean_text = f"Cleanliness: {clean_desc}"
+
+        _clean_label_kwargs = {"text": clean_text, "font": customtkinter.CTkFont(size = 14)}
+        if clean_color:
+            _clean_label_kwargs["text_color"] = clean_color
         clean_label = customtkinter.CTkLabel(
         detail_frame,
-        text = clean_text,
-        font = customtkinter.CTkFont(size = 14),
-        text_color = clean_color
+        **_clean_label_kwargs
         )
         clean_label.pack(pady = 5)
 
@@ -27762,16 +30101,45 @@ class App:
         show_variant = bool(ammo_exact)and(mag_checked or mag_windowed or(has_csad and gunlink_on_weapon))
         ammo_text = self._get_ammo_display(weapon, bool(ammo_exact), show_variant = show_variant)
 
+        _ammo_color = None
+        if has_hud and ammo_exact:
+            try:
+                _total_rds = 0
+                if weapon.get("chambered"):
+                    _total_rds += 1
+                _mag_type_ammo = (weapon.get("magazinetype") or "").lower()
+                _is_int_ammo = "internal" in _mag_type_ammo or "tube" in _mag_type_ammo
+                _is_rev_ammo = "revolver" in (weapon.get("platform", "") or "").lower()
+                if _is_int_ammo or _is_rev_ammo:
+                    _total_rds += len(weapon.get("rounds", []) or [])
+                else:
+                    _ld_mag = weapon.get("loaded")
+                    if isinstance(_ld_mag, dict):
+                        _total_rds += len(_ld_mag.get("rounds", []) or [])
+                if _total_rds <= 5:
+                    _ammo_color = "#FF0000"
+            except Exception:
+                pass
+
+        _ammo_label_kwargs = {"text": ammo_text, "font": customtkinter.CTkFont(size = 14)}
+        if _ammo_color:
+            _ammo_label_kwargs["text_color"] = _ammo_color
         ammo_label = customtkinter.CTkLabel(
         detail_frame,
-        text = ammo_text,
-        font = customtkinter.CTkFont(size = 14)
+        **_ammo_label_kwargs
         )
         ammo_label.pack(pady = 5)
 
         if current_weapon_state is not None:
             current_weapon_state["ammo_label_ref"]= ammo_label
             current_weapon_state["original_ammo_text"]= ammo_text
+
+        try:
+            loaded_marking_mag = weapon.get("loaded")
+            if isinstance(loaded_marking_mag, dict) and loaded_marking_mag.get("marking_text"):
+                self._render_magazine_marking_widget(detail_frame, loaded_marking_mag, weapon)
+        except Exception:
+            pass
 
         if weapon.get("accessories"):
             customtkinter.CTkLabel(
@@ -27781,16 +30149,88 @@ class App:
             ).pack(pady =(10, 5))
 
             for accessory in weapon["accessories"]:
+                batt_color = None
                 if accessory.get("current"):
-                    att_text = f"• {accessory['name']}: {accessory['current'].get('name', 'Unknown')}"
+                    cur_att = accessory["current"]
+                    att_text = f"• {accessory['name']}: {cur_att.get('name', 'Unknown')}"
+                    batt_pct = _get_battery_percentage(cur_att)
+                    if batt_pct is not None:
+                        power_state = "ON" if cur_att.get("power_on") else "OFF"
+                        if batt_pct <= 10:
+                            batt_color = "#FF3333"
+                        elif batt_pct <= 30:
+                            batt_color = "#FFA500"
+                        else:
+                            batt_color = "#33FF33"
+                        att_text += f"  [{power_state} | {batt_pct:.0f}%]"
                 else:
                     att_text = f"• {accessory['name']}: Empty"
 
-                customtkinter.CTkLabel(
+                att_label = customtkinter.CTkLabel(
                 detail_frame,
                 text = att_text,
-                font = customtkinter.CTkFont(size = 12)
-                ).pack(anchor = "w", padx = 20)
+                font = customtkinter.CTkFont(size = 12),
+                text_color = batt_color if batt_color else None
+                )
+                att_label.pack(pady = 1)
+
+        try:
+            _is_hc_parts = False
+            _tbl_hc_parts = globals().get('table_data', {})
+            if isinstance(_tbl_hc_parts, dict):
+                _is_hc_parts = bool((_tbl_hc_parts.get('additional_settings') or {}).get('hardcore_mode'))
+            if _is_hc_parts and weapon.get("parts") and isinstance(weapon["parts"], list):
+                _parts_frame = customtkinter.CTkFrame(detail_frame, corner_radius = 6)
+                _parts_frame.place(relx = 1.0, y = 4, anchor = "ne", x = -4)
+
+                customtkinter.CTkLabel(
+                    _parts_frame,
+                    text = "Parts",
+                    font = customtkinter.CTkFont(size = 11, weight = "bold")
+                ).pack(pady = (4, 2), padx = 8)
+
+                for _p in weapon["parts"]:
+                    if not isinstance(_p, dict):
+                        continue
+                    _pname = _p.get("name") or _p.get("type") or "Unknown"
+                    _pdur = _p.get("current_durability")
+                    _pcolor = "#888888"
+                    _pstatus = ""
+                    if _pdur is not None and str(_pdur).strip().lower() not in ("null", "set_by_looting"):
+                        try:
+                            _pdur_val = float(_pdur)
+                            _ppct = max(0.0, min(100.0, (_pdur_val / PART_DURABILITY_MAX) * 100))
+                            if _pdur_val <= 0:
+                                _pstatus = "Worn Out"
+                                _pcolor = "#ff4444"
+                            elif _ppct < 25:
+                                _pstatus = "Poor"
+                                _pcolor = "#ff6644"
+                            elif _ppct < 50:
+                                _pstatus = "Fair"
+                                _pcolor = "#ffaa44"
+                            elif _ppct < 75:
+                                _pstatus = "Good"
+                                _pcolor = "#aacc44"
+                            else:
+                                _pstatus = "Excellent"
+                                _pcolor = "#44cc44"
+                        except (ValueError, TypeError):
+                            _pstatus = "?"
+                    else:
+                        _pstatus = "N/A"
+
+                    customtkinter.CTkLabel(
+                        _parts_frame,
+                        text = f"{_pname}: {_pstatus}",
+                        font = customtkinter.CTkFont(size = 10),
+                        text_color = _pcolor
+                    ).pack(pady = 1, padx = 8, anchor = "w")
+
+                _parts_frame_spacer = customtkinter.CTkLabel(_parts_frame, text = "", height = 2)
+                _parts_frame_spacer.pack()
+        except Exception:
+            logging.exception("Failed to render parts status box in combat mode")
 
     def _check_for_hud(self, save_data):
 
@@ -27910,6 +30350,17 @@ class App:
 
         effective_has_hud = bool(has_hud)or bool(mag_windowed)
 
+        is_hardcore_ammo = False
+        try:
+            tbl_hc2 = globals().get('table_data', {})
+            if isinstance(tbl_hc2, dict):
+                is_hardcore_ammo = bool((tbl_hc2.get('additional_settings') or {}).get('hardcore_mode'))
+        except Exception:
+            is_hardcore_ammo = False
+
+        if is_hardcore_ammo:
+            effective_has_hud = bool(has_hud)
+
         next_variant = None
         if show_variant:
             try:
@@ -27985,6 +30436,201 @@ class App:
             logging.info("Combat state saved for %s", (currentsave or "<unknown>"))
         except Exception as e:
             logging.error(f"Failed to save combat state: {e}")
+
+    def _open_magazine_marking_dialog(self, magazine, weapon, save_data, update_callback=None):
+        if not magazine or not isinstance(magazine, dict):
+            self._popup_show_info("Mark Magazine", "No magazine to mark.")
+            return
+
+        marking_system = str(magazine.get("marking_system", "Tape") or "Tape")
+        is_dot_matrix = "dot matrix" in marking_system.lower() or "magpul" in marking_system.lower()
+        is_pistol = "pistol" in marking_system.lower()
+
+        if is_dot_matrix:
+            weapon_subtype = str(weapon.get("subtype", "") or weapon.get("type", "") or "").lower()
+            if is_pistol or weapon_subtype in ("pistol", "handgun", "revolver"):
+                max_chars = 2
+            else:
+                max_chars = 4
+        else:
+            max_chars = 12
+
+        current_marking = magazine.get("marking_text", "")
+        current_color = magazine.get("marking_color", "white")
+
+        dialog = customtkinter.CTkToplevel(self.root)
+        dialog.title("Mark Magazine" if is_dot_matrix else "Tape Label Magazine")
+        dialog.transient(self.root)
+
+        if is_dot_matrix:
+            dw, dh = 500, 420
+        else:
+            dw, dh = 400, 300
+        self._center_popup_on_window(dialog, dw, dh)
+
+        customtkinter.CTkLabel(
+            dialog,
+            text=f"Marking System: {marking_system}",
+            font=customtkinter.CTkFont(size=14, weight="bold")
+        ).pack(pady=(10, 5))
+
+        color_var = customtkinter.StringVar(value=current_color)
+        color_frame = customtkinter.CTkFrame(dialog, fg_color="transparent")
+        color_frame.pack(pady=5)
+        customtkinter.CTkLabel(color_frame, text="Color:", font=customtkinter.CTkFont(size=12)).pack(side="left", padx=5)
+        for cname, chex in MARKING_COLORS.items():
+            rb = customtkinter.CTkRadioButton(
+                color_frame, text=cname.capitalize(), variable=color_var, value=cname,
+                font=customtkinter.CTkFont(size=11)
+            )
+            rb.pack(side="left", padx=5)
+
+        text_var = customtkinter.StringVar(value=current_marking)
+        text_frame = customtkinter.CTkFrame(dialog, fg_color="transparent")
+        text_frame.pack(pady=5)
+        customtkinter.CTkLabel(text_frame, text=f"Text (max {max_chars} chars):", font=customtkinter.CTkFont(size=12)).pack(side="left", padx=5)
+        text_entry = customtkinter.CTkEntry(text_frame, textvariable=text_var, width=150)
+        text_entry.pack(side="left", padx=5)
+
+        preview_frame = customtkinter.CTkFrame(dialog, fg_color="#1a1a1a", corner_radius=8)
+        preview_frame.pack(pady=10, padx=20, fill="x")
+        customtkinter.CTkLabel(preview_frame, text="Preview:", font=customtkinter.CTkFont(size=11)).pack(pady=(5, 2))
+        dot_canvas = None
+        tape_label = None
+
+        if is_dot_matrix:
+            import tkinter as _tk_dm
+            canvas_w = max_chars * 4 * 8 + (max_chars - 1) * 10 + 20
+            canvas_h = 5 * 8 + 20
+            dot_canvas = _tk_dm.Canvas(preview_frame, width=canvas_w, height=canvas_h, bg="#1a1a1a", highlightthickness=0)
+            dot_canvas.pack(pady=5)
+        else:
+            tape_label = customtkinter.CTkLabel(
+                preview_frame, text="", font=customtkinter.CTkFont(size=16, weight="bold"),
+                fg_color="#d4c896", text_color="#000000", corner_radius=4, width=200, height=30
+            )
+            tape_label.pack(pady=5)
+
+        def update_preview(*_args):
+            txt = text_var.get()[:max_chars]
+            col = MARKING_COLORS.get(color_var.get(), "#FFFFFF")
+
+            if is_dot_matrix and dot_canvas:
+                dot_canvas.delete("all")
+                grids = render_dot_matrix_text(txt, max_chars)
+                dot_size = 6
+                gap = 2
+                char_gap = 10
+                x_off = 10
+                y_off = 10
+                for ci, grid in enumerate(grids):
+                    for row_i, row in enumerate(grid):
+                        for col_i, val in enumerate(row):
+                            x = x_off + ci * (3 * (dot_size + gap) + char_gap) + col_i * (dot_size + gap)
+                            y = y_off + row_i * (dot_size + gap)
+                            fill = col if val else "#333333"
+                            dot_canvas.create_oval(x, y, x + dot_size, y + dot_size, fill=fill, outline="")
+            elif tape_label:
+                tape_label.configure(text=txt or " ", text_color=col if col != "#FFFFFF" else "#000000")
+
+        text_var.trace_add("write", update_preview)
+        color_var.trace_add("write", update_preview)
+        update_preview()
+
+        def apply_marking():
+            txt = text_var.get()[:max_chars].strip()
+            col = color_var.get()
+            magazine["marking_text"] = txt
+            magazine["marking_color"] = col
+            try:
+                self._save_combat_state(save_data)
+            except Exception:
+                pass
+            dialog.destroy()
+            if update_callback:
+                try:
+                    update_callback()
+                except Exception:
+                    pass
+
+        def clear_marking():
+            magazine.pop("marking_text", None)
+            magazine.pop("marking_color", None)
+            try:
+                self._save_combat_state(save_data)
+            except Exception:
+                pass
+            dialog.destroy()
+            if update_callback:
+                try:
+                    update_callback()
+                except Exception:
+                    pass
+
+        btn_frame = customtkinter.CTkFrame(dialog, fg_color="transparent")
+        btn_frame.pack(pady=10)
+        customtkinter.CTkButton(btn_frame, text="Apply", command=apply_marking, width=100, fg_color="#1a4d1a", hover_color="#2d7a2d").pack(side="left", padx=5)
+        customtkinter.CTkButton(btn_frame, text="Clear", command=clear_marking, width=100, fg_color="#8B0000", hover_color="#A00000").pack(side="left", padx=5)
+        customtkinter.CTkButton(btn_frame, text="Cancel", command=dialog.destroy, width=100).pack(side="left", padx=5)
+
+        try:
+            dialog.grab_set()
+            dialog.lift()
+            self._safe_focus(dialog)
+        except Exception:
+            pass
+
+    def _render_magazine_marking_widget(self, parent, magazine, weapon=None):
+        if not magazine or not isinstance(magazine, dict):
+            return
+        marking_text = magazine.get("marking_text")
+        if not marking_text:
+            return
+
+        marking_system = str(magazine.get("marking_system", "Tape") or "Tape")
+        marking_color = magazine.get("marking_color", "white")
+        color_hex = MARKING_COLORS.get(marking_color, "#FFFFFF")
+        is_dot_matrix = "dot matrix" in marking_system.lower() or "magpul" in marking_system.lower()
+        is_pistol = "pistol" in marking_system.lower()
+
+        if is_dot_matrix:
+            weapon_subtype = str((weapon or {}).get("subtype", "") or (weapon or {}).get("type", "") or "").lower()
+            if is_pistol or weapon_subtype in ("pistol", "handgun", "revolver"):
+                max_chars = 2
+            else:
+                max_chars = 4
+
+            import tkinter as _tk_render
+            mark_frame = customtkinter.CTkFrame(parent, fg_color="#1a1a1a", corner_radius=6)
+            mark_frame.pack(pady=(2, 5))
+
+            dot_size = 5
+            gap = 1
+            char_gap = 6
+            grids = render_dot_matrix_text(marking_text, max_chars)
+            canvas_w = max_chars * 3 * (dot_size + gap) + (max_chars - 1) * char_gap + 12
+            canvas_h = 5 * (dot_size + gap) + 10
+            canvas = _tk_render.Canvas(mark_frame, width=canvas_w, height=canvas_h, bg="#1a1a1a", highlightthickness=0)
+            canvas.pack(padx=4, pady=4)
+
+            x_off = 6
+            y_off = 5
+            for ci, grid in enumerate(grids):
+                for row_i, row in enumerate(grid):
+                    for col_i, val in enumerate(row):
+                        x = x_off + ci * (3 * (dot_size + gap) + char_gap) + col_i * (dot_size + gap)
+                        y = y_off + row_i * (dot_size + gap)
+                        fill = color_hex if val else "#2a2a2a"
+                        canvas.create_oval(x, y, x + dot_size, y + dot_size, fill=fill, outline="")
+        else:
+            tape_frame = customtkinter.CTkFrame(parent, fg_color="#d4c896", corner_radius=4)
+            tape_frame.pack(pady=(2, 5))
+            display_color = color_hex if color_hex != "#FFFFFF" else "#000000"
+            customtkinter.CTkLabel(
+                tape_frame, text=f" {marking_text} ",
+                font=customtkinter.CTkFont(size=11, weight="bold"),
+                text_color=display_color, fg_color="transparent"
+            ).pack(padx=6, pady=2)
 
     def _get_firearm_sound_folder(self, weapon):
 
@@ -28818,7 +31464,7 @@ class App:
             logging.error(f"_play_weapon_action_sound_strict error: {e}")
             return False
 
-    def _perform_belt_reload_sequence(self, weapon):
+    def _perform_belt_reload_sequence(self, weapon, quick=False):
         try:
             save_data = globals().get('save_data')or {}
 
@@ -28993,39 +31639,68 @@ class App:
                 return
 
             try:
+                self._play_weapon_action_sound(weapon, 'boltback')
+            except Exception:
+                pass
+            try:
+                self._play_weapon_action_sound(weapon, 'boltforward')
+            except Exception:
+                pass
+            time.sleep(random.uniform(0.4, 0.6))
+
+            try:
                 self._play_weapon_action_sound(weapon, 'coveropen')
             except Exception:
                 pass
-            time.sleep(random.uniform(0.1, 0.2))
+            time.sleep(random.uniform(0.4, 0.6))
 
             try:
                 self._play_weapon_action_sound(weapon, 'magout')
             except Exception:
                 pass
+            time.sleep(random.uniform(0.15, 0.25))
+
+            if quick:
+                try:
+                    magdrop_sound = f"magdrop{random.randint(0, 1)}"
+                    self._safe_sound_play("", f"sounds/firearms/universal/{magdrop_sound}.ogg")
+                except Exception:
+                    pass
+            else:
+                try:
+                    self._play_weapon_action_sound(weapon, 'pouchin')
+                except Exception:
+                    pass
             time.sleep(random.uniform(1.0, 1.5))
+
+            try:
+                self._play_weapon_action_sound(weapon, 'pouchout')
+            except Exception:
+                pass
+            time.sleep(random.uniform(0.15, 0.25))
 
             try:
                 self._play_weapon_action_sound(weapon, 'magin')
             except Exception:
                 pass
+            time.sleep(random.uniform(0.4, 0.6))
 
             try:
                 self._play_weapon_action_sound(weapon, 'beltalign')
             except Exception:
                 pass
-            time.sleep(random.uniform(0.1, 0.2))
+            time.sleep(random.uniform(0.4, 0.6))
 
             try:
                 self._play_weapon_action_sound(weapon, 'coverclose')
             except Exception:
                 pass
-            time.sleep(random.uniform(0.1, 0.2))
+            time.sleep(random.uniform(0.4, 0.6))
 
             try:
                 self._play_weapon_action_sound(weapon, 'boltback')
             except Exception:
                 pass
-
             try:
                 self._play_weapon_action_sound(weapon, 'boltforward')
             except Exception:
@@ -29057,10 +31732,10 @@ class App:
         except Exception:
             logging.exception('_perform_belt_reload_sequence error')
 
-    def _perform_dualfeed_belt_reload_sequence(self, weapon):
+    def _perform_dualfeed_belt_reload_sequence(self, weapon, quick=False):
         try:
 
-            self._perform_belt_reload_sequence(weapon)
+            self._perform_belt_reload_sequence(weapon, quick=quick)
         except Exception:
             logging.exception('_perform_dualfeed_belt_reload_sequence error')
 
@@ -29164,7 +31839,11 @@ class App:
                 nshots = 1
 
             try:
-                rpm = float(weapon.get("cyclic", weapon.get("rpm", 600))or 600)
+                raw_rpm = weapon.get("cyclic", weapon.get("rpm", 600))
+                if isinstance(raw_rpm, list):
+                    rpm = _resolve_effective_cyclic(weapon, combat_state)
+                else:
+                    rpm = float(raw_rpm or 600)
                 if rpm <=0:
                     rpm = 600.0
             except Exception:
@@ -29274,6 +31953,39 @@ class App:
                 self._safe_sound_play("", "sounds/firearms/universal/dryfire.ogg")
                 return "Empty! Magazine loaded but no rounds."
 
+        can_fire, cant_fire_reason = _check_weapon_can_fire(weapon)
+        if not can_fire:
+            logging.info("Weapon cannot fire due to worn/missing part: %s", cant_fire_reason)
+            self._safe_sound_play("", "sounds/firearms/universal/dryfire.ogg")
+            return cant_fire_reason or "Weapon cannot fire - parts failure!"
+
+        part_effects = _get_weapon_part_effects(weapon)
+        if part_effects.get("force_manual_action"):
+            weapon["gas_melted"] = True
+            logging.info("Part worn - forcing manual action (recoil spring or gas piston)")
+
+        wrong_ammo_firing = False
+        try:
+            weapon_calibers = weapon.get("caliber") or []
+            if isinstance(weapon_calibers, str):
+                weapon_calibers = [weapon_calibers]
+            next_round = None
+            if chambered and isinstance(chambered, dict):
+                next_round = chambered
+            elif is_internal and weapon.get("rounds"):
+                next_round = weapon["rounds"][0] if weapon["rounds"] else None
+            elif loaded_mag and loaded_mag.get("rounds"):
+                next_round = loaded_mag["rounds"][0] if loaded_mag["rounds"] else None
+            if next_round and isinstance(next_round, dict):
+                round_caliber = next_round.get("caliber", "")
+                if isinstance(round_caliber, list):
+                    round_caliber = round_caliber[0] if round_caliber else ""
+                if round_caliber and weapon_calibers and round_caliber not in weapon_calibers:
+                    wrong_ammo_firing = True
+                    logging.warning("Firing wrong ammo type: %s in weapon calibered for %s", round_caliber, weapon_calibers)
+        except Exception:
+            wrong_ammo_firing = False
+
         temperature = combat_state.get("barrel_temperatures", {}).get(weapon_id, combat_state["ambient_temperature"])
         cleanliness = combat_state.get("barrel_cleanliness", {}).get(weapon_id, 100)
 
@@ -29286,7 +31998,38 @@ class App:
         clean_mult = 1.0 -(cleanliness -50)/100.0
         clean_mult = max(0.5, min(1.5, clean_mult))
 
-        total_jamrate = base_jamrate *temp_mult *clean_mult
+        mag_reliability_mult = 1.0
+        try:
+            is_hardcore_jam = False
+            tbl_jam = globals().get('table_data', {})
+            if isinstance(tbl_jam, dict):
+                is_hardcore_jam = bool((tbl_jam.get('additional_settings') or {}).get('hardcore_mode'))
+            if is_hardcore_jam:
+                loaded_mag_jam = weapon.get("loaded")
+                if isinstance(loaded_mag_jam, dict):
+                    mag_reliability = loaded_mag_jam.get("reliability")
+                    if mag_reliability is not None:
+                        try:
+                            mag_reliability = float(mag_reliability)
+                        except (ValueError, TypeError):
+                            mag_reliability = 100.0
+                        mag_reliability = max(0.0, min(100.0, mag_reliability))
+                        if mag_reliability < 100.0:
+                            mag_reliability_mult = 1.0 + (100.0 - mag_reliability) / 50.0
+
+                    spring_dur = loaded_mag_jam.get("spring_durability")
+                    if spring_dur is not None:
+                        try:
+                            spring_dur = float(spring_dur)
+                        except (ValueError, TypeError):
+                            spring_dur = None
+                    if spring_dur is not None and spring_dur < 80.0:
+                        spring_penalty = (80.0 - spring_dur) / 80.0
+                        mag_reliability_mult *= (1.0 + spring_penalty * 2.0)
+        except Exception:
+            mag_reliability_mult = 1.0
+
+        total_jamrate = base_jamrate *temp_mult *clean_mult * mag_reliability_mult
 
         logging.debug(
         "Jam calc: base=%s temp_mult=%s clean_mult=%s total=%s temp=%s clean=%s",
@@ -29298,7 +32041,7 @@ class App:
         cleanliness
         )
 
-        cyclic = weapon.get("cyclic", 600)or 600
+        cyclic = _resolve_effective_cyclic(weapon, combat_state)
         base_delay = max(0.0, 60.0 /cyclic)
 
         burst_cyclic = weapon.get("burst_cyclic")
@@ -29327,6 +32070,10 @@ class App:
         if fire_mode =="Bolt":
             actual_rounds_to_fire = 1
             logging.debug("Bolt-action fire mode: forcing rounds to 1")
+
+        elif fire_mode =="Double":
+            actual_rounds_to_fire = 1
+            logging.debug("Double-action fire mode: forcing rounds to 1")
 
         elif effective_is_pump:
             actual_rounds_to_fire = 1
@@ -29436,7 +32183,19 @@ class App:
             rotary_channel = None
             rotary_sound = None
 
+        try:
+            if isinstance(weapon, dict) and str(weapon.get("subtype", "")).lower() == "musket":
+                musket_sound_folder = os.path.join("sounds", "firearms", "weaponsounds", "musket")
+                hammer_file = os.path.join(musket_sound_folder, "hammer.ogg")
+                if os.path.exists(hammer_file):
+                    self._safe_sound_play("", hammer_file, block=True)
+                    time.sleep(0.15)
+        except Exception:
+            logging.exception("Error playing musket pre-fire hammer cock")
+
         for i in range(actual_rounds_to_fire):
+
+            _shot_start_time = time.perf_counter()
 
             if random.random()<total_jamrate:
                 jammed = True
@@ -29466,6 +32225,7 @@ class App:
                 except Exception:
                     self._play_firearm_sound(weapon, "fire")
                 rounds_fired +=1
+                chambered = None
                 fired_this_iteration = True
             elif loaded_mag and loaded_mag.get("rounds"):
                 chambered = loaded_mag["rounds"].pop(0)
@@ -29483,6 +32243,20 @@ class App:
                 break
 
             if fired_this_iteration:
+
+                try:
+                    if weapon.get("bolt_catch"):
+                        _has_more_rounds = bool(
+                            (is_internal and weapon.get("rounds")) or
+                            (loaded_mag and isinstance(loaded_mag, dict) and loaded_mag.get("rounds"))
+                        )
+                        if not _has_more_rounds:
+                            try:
+                                self._safe_sound_play("", os.path.join("sounds", "firearms", "universal", "rifleboltlock.ogg"))
+                            except Exception:
+                                pass
+                except Exception:
+                    pass
 
                 try:
                     if fired_round:
@@ -29679,24 +32453,73 @@ class App:
             cleanliness -=random.uniform(0.1, 0.3)
             cleanliness = max(0, cleanliness)
 
+            try:
+                newly_broken = _apply_part_wear(weapon, shots_fired=1, wrong_ammo=wrong_ammo_firing)
+                if newly_broken:
+                    for bp in newly_broken:
+                        logging.warning("Part worn out during firing: %s (%s)", bp.get("name"), bp.get("type"))
+                    can_still_fire, reason = _check_weapon_can_fire(weapon)
+                    if not can_still_fire:
+                        logging.info("Weapon can no longer fire due to part failure: %s", reason)
+                        rounds_fired += 0
+                        jammed = False
+                        weapon["chambered"] = chambered
+                        weapon["loaded"] = loaded_mag
+                        combat_state.setdefault("barrel_temperatures", {})[weapon_id] = temperature
+                        combat_state.setdefault("barrel_cleanliness", {})[weapon_id] = cleanliness
+                        part_names = ", ".join(bp.get("name", bp.get("type", "unknown")) for bp in newly_broken)
+                        return f"Fired {rounds_fired} round(s) - PART FAILURE! {part_names} worn out. {reason}"
+                    pe = _get_weapon_part_effects(weapon)
+                    if pe.get("force_manual_action") and not weapon.get("gas_melted"):
+                        weapon["gas_melted"] = True
+                        is_bolt = True
+                    if pe.get("inconsistent_feeding") and random.random() < 0.35:
+                        is_bolt = True
+            except Exception:
+                logging.exception("Error applying part wear")
+
+            try:
+                if loaded_mag and isinstance(loaded_mag, dict):
+                    _sd_fire = loaded_mag.get("spring_durability")
+                    if _sd_fire is not None:
+                        try:
+                            _sd_fire = float(_sd_fire)
+                            _sd_fire = max(0.0, _sd_fire - random.uniform(0.02, 0.06))
+                            loaded_mag["spring_durability"] = round(_sd_fire, 4)
+                        except (ValueError, TypeError):
+                            pass
+            except Exception:
+                pass
+
+            _shot_elapsed = time.perf_counter() - _shot_start_time
+
             if is_bolt:
 
                 pass
             elif is_semi:
 
-                time.sleep(base_delay +0.18)
+                _semi_target = base_delay +0.18
+                _semi_remaining = _semi_target - _shot_elapsed
+                if _semi_remaining >0:
+                    time.sleep(_semi_remaining)
             elif is_burst:
 
                 shots_in_burst =(i +1)%burst_count
                 if shots_in_burst ==0 and i +1 <actual_rounds_to_fire:
 
-                    time.sleep(burst_pause)
+                    _burst_pause_remaining = burst_pause - _shot_elapsed
+                    if _burst_pause_remaining >0:
+                        time.sleep(_burst_pause_remaining)
                 else:
 
-                    time.sleep(burst_base_delay)
+                    _burst_remaining = burst_base_delay - _shot_elapsed
+                    if _burst_remaining >0:
+                        time.sleep(_burst_remaining)
             else:
 
-                time.sleep(base_delay)
+                _auto_remaining = base_delay - _shot_elapsed
+                if _auto_remaining >0:
+                    time.sleep(_auto_remaining)
 
         try:
             if rotary_playing and rotary_channel:
@@ -29871,6 +32694,31 @@ class App:
                     wstats = weapon.get("stats", {})or {}
                     if isinstance(wstats, dict):
                         effective_aim +=float(wstats.get("aim", 0)or 0)
+            except Exception:
+                pass
+
+            try:
+                pe_aim = _get_weapon_part_effects(weapon)
+                effective_aim += pe_aim.get("aim_debuff", 0)
+            except Exception:
+                pass
+
+            try:
+                if isinstance(weapon, dict) and str(weapon.get("subtype", "")).lower() == "musket":
+                    if not weapon.get("rifling", False):
+                        effective_aim -= 5
+            except Exception:
+                pass
+
+            try:
+                w_weather = combat_state.get("weather", {})
+                w_type = w_weather.get("weather", "clear") if isinstance(w_weather, dict) else "clear"
+                weather_aim_map = {"rain": -1, "thunderstorm": -1, "snowstorm": -2, "thundersnow": -2}
+                if w_type in weather_aim_map:
+                    effective_aim += weather_aim_map[w_type]
+                w_sev = w_weather.get("wind_severity", 0) if isinstance(w_weather, dict) else 0
+                if w_sev > 0:
+                    effective_aim -= max(1, min(3, w_sev))
             except Exception:
                 pass
 
@@ -30116,7 +32964,7 @@ class App:
             try:
                 popup_lines =[
                 f"Base roll(rounded avg): {median}",
-                f"Aim bonus: {int(round(effective_aim))}",
+                f"Aim modifier: {int(round(effective_aim))}",
                 f"Final total: {final_total}",
                 f"Weapon: {weapon_name}",
                 f"Round: {round_display}",
@@ -30124,7 +32972,7 @@ class App:
                 ]
                 try:
                     if 'applied_clamp'in locals()and applied_clamp:
-                        popup_lines.insert(2, f"Bonus clamp applied: +{int(clamp_num)}(was {int(round(pre_clamp_aim))})")
+                        popup_lines.insert(2, f"Modifier clamp applied: +{int(clamp_num)}(was {int(round(pre_clamp_aim))})")
                 except Exception:
                     pass
                 roll_summary_text = "\n".join(popup_lines)
@@ -30134,6 +32982,19 @@ class App:
         if jammed:
 
             import random as _rand
+
+            jam_cause_parts = []
+            if temp_mult > 1.1:
+                jam_cause_parts.append(f"Overheated barrel ({temperature:.0f}\u00b0F)")
+            if clean_mult > 1.1:
+                jam_cause_parts.append(f"Dirty weapon ({cleanliness:.0f}% clean)")
+            if mag_reliability_mult > 1.2:
+                jam_cause_parts.append("Poor magazine/spring condition")
+            if base_jamrate >= 0.03:
+                jam_cause_parts.append("Low weapon reliability")
+            if not jam_cause_parts:
+                jam_cause_parts.append("Random malfunction")
+            jam_cause_text = "Jam cause: " + ", ".join(jam_cause_parts)
 
             if loaded_mag and isinstance(loaded_mag, dict)and loaded_mag.get("magazinetype"):
                 magazine_type = str(loaded_mag.get("magazinetype", "")or "").lower()
@@ -30151,7 +33012,7 @@ class App:
 
             progress = None
             try:
-                progress = self._popup_progress("Clearing Jam", "Preparing to clear jam...")
+                progress = self._create_action_minigame_popup("Clearing Jam", jam_cause_text, key_count = 7)
             except Exception:
                 progress = None
 
@@ -30180,9 +33041,15 @@ class App:
                         except Exception:
                             pass
 
+                _mg_completed = progress["completed"] if progress else None
+                _mg_set_progress = progress.get("set_progress") if progress else None
+
                 if progress:
-                    progress["update"]("Waiting(1.0-1.5s)...")
-                time.sleep(_rand.uniform(1.0, 1.5))
+                    progress["update"]("Waiting...")
+                if _mg_completed:
+                    self._interruptible_wait(_mg_completed, _rand.uniform(3.0, 4.5), progress_callback = _mg_set_progress)
+                else:
+                    time.sleep(_rand.uniform(3.0, 4.5))
 
                 if progress:
                     if is_pump:
@@ -30211,8 +33078,11 @@ class App:
                     pass
 
                 if progress:
-                    progress["update"]("Waiting(3.5-5.0s)...")
-                time.sleep(_rand.uniform(3.5, 5.0))
+                    progress["update"]("Waiting...")
+                if _mg_completed:
+                    self._interruptible_wait(_mg_completed, _rand.uniform(8.0, 12.0), progress_callback = _mg_set_progress)
+                else:
+                    time.sleep(_rand.uniform(8.0, 12.0))
 
                 if has_detachable_mag:
                     if progress:
@@ -30234,8 +33104,11 @@ class App:
                         pass
 
                 if progress:
-                    progress["update"]("Waiting(1.0-1.5s)...")
-                time.sleep(_rand.uniform(1.0, 1.5))
+                    progress["update"]("Waiting...")
+                if _mg_completed:
+                    self._interruptible_wait(_mg_completed, _rand.uniform(2.5, 4.0), progress_callback = _mg_set_progress)
+                else:
+                    time.sleep(_rand.uniform(2.5, 4.0))
 
                 if progress:
                     if is_pump:
@@ -30521,6 +33394,12 @@ class App:
 
         if "internal"in magazine_type:
             return self._reload_internal_magazine(weapon, save_data, magazine_type)
+
+        if "muzzle"in magazine_type:
+            check = self._reload_muzzleloader_check(weapon, save_data)
+            if check:
+                return check
+            return self._reload_muzzleloader_finish(weapon, save_data)
 
         if "cylinder"in magazine_type:
             return self._reload_cylinder(weapon, save_data)
@@ -31726,6 +34605,496 @@ class App:
             logging.exception('Failed updating session reload stats after cylinder reload')
         return f"Cylinder reloaded with {ammo_loaded} rounds(total: {len(current_rounds)}/{capacity})"
 
+    def _muzzleloader_get_ammo_availability(self, weapon, save_data):
+
+        caliber_list = weapon.get("musket_caliber") or weapon.get("caliber") or []
+        caliber = caliber_list[0] if caliber_list else None
+        caliber_lower = str(caliber or "").lower()
+
+        all_items = []
+        for item in save_data.get("hands", {}).get("items", []):
+            if item and isinstance(item, dict):
+                all_items.append(item)
+        for slot_name, eq_item in save_data.get("equipment", {}).items():
+            if eq_item and isinstance(eq_item, dict) and "items" in eq_item:
+                for item in eq_item["items"]:
+                    if item and isinstance(item, dict):
+                        all_items.append(item)
+
+        has_cartridge = False
+        has_ball = False
+        has_powder = False
+
+        for item in all_items:
+            item_type = str(item.get("type", "")).lower()
+            item_caliber = item.get("musket_caliber") or item.get("caliber")
+            if isinstance(item_caliber, list):
+                item_caliber = item_caliber[0] if item_caliber else None
+            item_caliber_lower = str(item_caliber or "").lower()
+
+            if item_type == "gunpowder" and item.get("grains_left", 0) > 0:
+                has_powder = True
+            if item_type == "musket_paper_cartridge":
+                qty = item.get("quantity", 0) or item.get("random_quantity", 0)
+                if isinstance(qty, dict):
+                    qty = 1
+                if qty > 0 and item_caliber_lower == caliber_lower:
+                    has_cartridge = True
+            elif item_type == "musket_ball":
+                qty = item.get("quantity", 0) or item.get("random_quantity", 0)
+                if isinstance(qty, dict):
+                    qty = 1
+                if qty > 0 and item_caliber_lower == caliber_lower:
+                    has_ball = True
+
+        return has_cartridge, (has_ball and has_powder)
+
+    def _muzzleloader_pour_minigame(self, popup, status_label, intelligence, on_complete):
+
+        BAR_WIDTH = 350
+        BAR_HEIGHT = 30
+
+        green_width = max(30, min(160, 40 + int(intelligence) * 6))
+        speed = max(1.5, min(8.0, 6.0 - float(intelligence) * 0.35))
+
+        green_start = random.randint(10, max(11, BAR_WIDTH - green_width - 10))
+        green_end = green_start + green_width
+
+        status_label.configure(text="Pour gunpowder — press SPACE to stop!")
+
+        mg_frame = customtkinter.CTkFrame(popup, fg_color="transparent")
+        mg_frame.pack(pady=(5, 5))
+
+        instr_label = customtkinter.CTkLabel(
+            mg_frame, text="Stop the marker in the green zone!",
+            font=customtkinter.CTkFont(size=11)
+        )
+        instr_label.pack(pady=(0, 3))
+
+        canvas = _tk.Canvas(mg_frame, width=BAR_WIDTH, height=BAR_HEIGHT,
+                            bg='#8B0000', highlightthickness=1, highlightbackground='#444444')
+        canvas.pack()
+
+        canvas.create_rectangle(green_start, 0, green_end, BAR_HEIGHT,
+                                fill='#228B22', outline='')
+
+        slider = canvas.create_rectangle(0, 0, 5, BAR_HEIGHT, fill='white', outline='#CCCCCC')
+
+        mg_state = {'pos': 0.0, 'direction': 1, 'active': True}
+
+        def _animate():
+            if not mg_state['active']:
+                return
+            mg_state['pos'] += speed * mg_state['direction']
+            if mg_state['pos'] >= BAR_WIDTH - 5:
+                mg_state['pos'] = BAR_WIDTH - 5
+                mg_state['direction'] = -1
+            elif mg_state['pos'] <= 0:
+                mg_state['pos'] = 0
+                mg_state['direction'] = 1
+            canvas.coords(slider, int(mg_state['pos']), 0, int(mg_state['pos']) + 5, BAR_HEIGHT)
+            popup.after(16, _animate)
+
+        def _stop(event=None):
+            if not mg_state['active']:
+                return
+            mg_state['active'] = False
+            pos = mg_state['pos']
+            success = green_start <= pos <= green_end - 5
+
+            color = '#00FF00' if success else '#FF4444'
+            canvas.create_rectangle(int(pos), 0, int(pos) + 5, BAR_HEIGHT,
+                                    fill=color, outline='')
+            result_text = "Good pour!" if success else "Spilled powder!"
+            instr_label.configure(text=result_text)
+
+            def _cleanup():
+                try:
+                    popup.unbind('<space>', bind_id)
+                except Exception:
+                    pass
+                try:
+                    mg_frame.destroy()
+                except Exception:
+                    pass
+                on_complete(success)
+
+            popup.after(600, _cleanup)
+
+        bind_id = popup.bind('<space>', _stop)
+        popup.after(50, _animate)
+
+    def _reload_muzzleloader_ui(self, weapon, save_data, update_weapon_view=None):
+
+        try:
+            result = self._reload_muzzleloader_check(weapon, save_data)
+            if result:
+                self._popup_show_info("Reload Result", result)
+                return
+        except Exception as e:
+            self._popup_show_info("Reload Error", str(e))
+            return
+
+        has_cartridge, has_ball_powder = self._muzzleloader_get_ammo_availability(weapon, save_data)
+
+        if has_cartridge and has_ball_powder:
+            sel_popup = customtkinter.CTkToplevel(self.root)
+            sel_popup.title("Select Ammunition")
+            sel_popup.transient(self.root)
+            self._center_popup_on_window(sel_popup, 340, 160)
+            sel_popup.grab_set()
+
+            customtkinter.CTkLabel(
+                sel_popup, text="Choose ammunition type:",
+                font=customtkinter.CTkFont(size=14)
+            ).pack(pady=(20, 10))
+
+            btn_frame = customtkinter.CTkFrame(sel_popup, fg_color="transparent")
+            btn_frame.pack(pady=10)
+
+            def _pick(use_cart):
+                try:
+                    sel_popup.grab_release()
+                    sel_popup.destroy()
+                except Exception:
+                    pass
+                self._reload_muzzleloader_ui_run(weapon, save_data, update_weapon_view, use_cartridge=use_cart)
+
+            customtkinter.CTkButton(
+                btn_frame, text="Paper Cartridge", width=140,
+                command=lambda: _pick(True)
+            ).pack(side="left", padx=5)
+            customtkinter.CTkButton(
+                btn_frame, text="Powder + Ball", width=140,
+                command=lambda: _pick(False)
+            ).pack(side="left", padx=5)
+        elif has_ball_powder:
+            self._reload_muzzleloader_ui_run(weapon, save_data, update_weapon_view, use_cartridge=False)
+        else:
+            self._reload_muzzleloader_ui_run(weapon, save_data, update_weapon_view, use_cartridge=True)
+
+    def _reload_muzzleloader_ui_run(self, weapon, save_data, update_weapon_view, use_cartridge):
+
+        is_rifled = bool(weapon.get("rifling", False))
+        musket_sound_folder = os.path.join("sounds", "firearms", "weaponsounds", "musket")
+
+        popup_height = 160 if use_cartridge else 240
+        popup = customtkinter.CTkToplevel(self.root)
+        popup.title("Reloading Muzzleloader")
+        popup.transient(self.root)
+        self._center_popup_on_window(popup, 420, popup_height)
+        popup.grab_set()
+
+        status_label = customtkinter.CTkLabel(
+            popup,
+            text="Preparing to reload...",
+            font=customtkinter.CTkFont(size=14)
+        )
+        status_label.pack(pady=(20, 10))
+
+        progress_bar = customtkinter.CTkProgressBar(popup, width=350)
+        progress_bar.pack(pady=10)
+        progress_bar.set(0.0)
+
+        if use_cartridge:
+            steps = [
+                ("Half-cocking hammer", "hammer.ogg", 0.3, False),
+                ("Looking for cartridge", "search.ogg", 0.5, False),
+                ("Tearing cartridge open with mouth", "tear.ogg", 0, False),
+                ("Spitting paper out", "spit.ogg", 0.2, False),
+                ("Pouring gunpowder in flash pan", "pour.ogg", 0.4, False),
+                ("Closing frizzen", "frizzen.ogg", 0.5, False),
+                ("Inserting cartridge", "insert.ogg", 0.4, False),
+                ("Drawing ramrod", "ramrod_holder.ogg", 0.2, False),
+            ]
+
+            if not is_rifled:
+                steps.append(("Ramming ball", "ramrod_barrel.ogg", 0, False))
+            else:
+                steps.append(("Ramming ball...", None, 5.0, False))
+
+            steps.extend([
+                ("Tamping ball", "ramrod_tap.ogg", 0, False),
+                ("Withdrawing ramrod", "ramrod_barrel.ogg", 0.3, False),
+                ("Stowing ramrod", "ramrod_holder.ogg", 0.1, False),
+            ])
+        else:
+            steps = [
+                ("Half-cocking hammer", "hammer.ogg", 0.3, False),
+                ("Looking for ball and powder", "search.ogg", 0.5, False),
+                ("Pouring gunpowder in flash pan", "pour.ogg", 0, True),
+                ("Closing frizzen", "frizzen.ogg", 0.5, False),
+                ("Pouring gunpowder in barrel", "pour.ogg", 0, True),
+                ("Drawing ramrod", "ramrod_holder.ogg", 0.2, False),
+            ]
+
+            if not is_rifled:
+                steps.append(("Ramming powder", "ramrod_barrel.ogg", 0, False))
+            else:
+                steps.append(("Ramming powder...", None, 5.0, False))
+
+            steps.extend([
+                ("Stowing ramrod", "ramrod_holder.ogg", 0.1, False),
+                ("Inserting ball", "insert.ogg", 0.4, False),
+                ("Drawing ramrod", "ramrod_holder.ogg", 0.2, False),
+                ("Seating ball", "ramrod_barrel.ogg", 0, False),
+                ("Tamping ball", "ramrod_tap.ogg", 0, False),
+                ("Withdrawing ramrod", "ramrod_barrel.ogg", 0.3, False),
+                ("Stowing ramrod", "ramrod_holder.ogg", 0.1, False),
+            ])
+
+        total_steps = len(steps)
+        state = {"index": 0, "minigame_wins": 0, "minigame_losses": 0}
+
+        intelligence = 0
+        try:
+            sd_stats = save_data.get("stats", {}) or {}
+            intelligence = float(sd_stats.get("Intelligence", 0) or 0)
+        except Exception:
+            intelligence = 0
+
+        def _play_step():
+            idx = state["index"]
+            if idx >= total_steps:
+                progress_bar.set(1.0)
+                status_label.configure(text="Reload complete!")
+
+                aim_bonus = 0
+                if not use_cartridge:
+                    wins = state["minigame_wins"]
+                    losses = state["minigame_losses"]
+                    if wins == 2:
+                        aim_bonus = 1
+                    aim_bonus -= losses
+
+                result = self._reload_muzzleloader_finish(weapon, save_data, use_cartridge=use_cartridge, aim_bonus=aim_bonus)
+
+                def _close():
+                    try:
+                        popup.grab_release()
+                        popup.destroy()
+                    except Exception:
+                        pass
+                    self._popup_show_info("Reload Result", result)
+                    if update_weapon_view:
+                        try:
+                            update_weapon_view()
+                        except Exception:
+                            pass
+
+                popup.after(400, _close)
+                return
+
+            step_label, sound_file, delay, is_minigame = steps[idx]
+            progress_bar.set(idx / total_steps)
+            status_label.configure(text=step_label)
+
+            sound_duration = 0
+            if sound_file:
+                path = os.path.join(musket_sound_folder, sound_file)
+                if os.path.exists(path):
+                    try:
+                        snd = pygame.mixer.Sound(path)
+                        sound_duration = snd.get_length()
+                        channel = pygame.mixer.find_channel()
+                        if channel:
+                            channel.play(snd)
+                    except Exception:
+                        try:
+                            self._safe_sound_play("", path, block=False)
+                        except Exception:
+                            pass
+
+            state["index"] += 1
+
+            if is_minigame:
+                def _on_minigame_done(success):
+                    if success:
+                        state["minigame_wins"] += 1
+                    else:
+                        state["minigame_losses"] += 1
+                    popup.after(200, _play_step)
+
+                wait_time = max(sound_duration, delay)
+                delay_ms = max(100, int(wait_time * 1000))
+                popup.after(delay_ms, lambda: self._muzzleloader_pour_minigame(popup, status_label, intelligence, _on_minigame_done))
+            else:
+                wait_time = max(sound_duration, delay)
+                delay_ms = max(100, int(wait_time * 1000))
+                popup.after(delay_ms, _play_step)
+
+        popup.after(100, _play_step)
+
+    def _reload_muzzleloader_check(self, weapon, save_data):
+
+        if weapon.get("chambered"):
+            return "Weapon is already loaded."
+
+        caliber_list = weapon.get("musket_caliber") or weapon.get("caliber") or []
+        caliber = caliber_list[0] if caliber_list else None
+        caliber_lower = str(caliber or "").lower()
+
+        all_items = []
+        for item in save_data.get("hands", {}).get("items", []):
+            if item and isinstance(item, dict):
+                all_items.append(item)
+        for slot_name, eq_item in save_data.get("equipment", {}).items():
+            if eq_item and isinstance(eq_item, dict) and "items" in eq_item:
+                for item in eq_item["items"]:
+                    if item and isinstance(item, dict):
+                        all_items.append(item)
+
+        has_cartridge = False
+        has_ball = False
+        has_powder = False
+
+        for item in all_items:
+            item_type = str(item.get("type", "")).lower()
+            item_caliber = item.get("musket_caliber") or item.get("caliber")
+            if isinstance(item_caliber, list):
+                item_caliber = item_caliber[0] if item_caliber else None
+            item_caliber_lower = str(item_caliber or "").lower()
+
+            if item_type == "gunpowder" and item.get("grains_left", 0) > 0:
+                has_powder = True
+            if item_type == "musket_paper_cartridge":
+                qty = item.get("quantity", 0) or item.get("random_quantity", 0)
+                if isinstance(qty, dict):
+                    qty = 1
+                if qty > 0 and item_caliber_lower == caliber_lower:
+                    has_cartridge = True
+            elif item_type == "musket_ball":
+                qty = item.get("quantity", 0) or item.get("random_quantity", 0)
+                if isinstance(qty, dict):
+                    qty = 1
+                if qty > 0 and item_caliber_lower == caliber_lower:
+                    has_ball = True
+
+        if has_cartridge or (has_ball and has_powder):
+            return None
+        if has_ball and not has_powder:
+            return "No black powder available!"
+        return "No compatible ammunition found!"
+
+    def _reload_muzzleloader_finish(self, weapon, save_data, use_cartridge=None, aim_bonus=0):
+
+        try:
+            caliber_list = weapon.get("musket_caliber") or weapon.get("caliber") or []
+            caliber = caliber_list[0] if caliber_list else None
+            caliber_lower = str(caliber or "").lower()
+
+            compatible_ball = []
+            compatible_cartridge = []
+            powder_source = None
+
+            all_items = []
+            for item in save_data.get("hands", {}).get("items", []):
+                if item and isinstance(item, dict):
+                    all_items.append(item)
+            for slot_name, eq_item in save_data.get("equipment", {}).items():
+                if eq_item and isinstance(eq_item, dict) and "items" in eq_item:
+                    for item in eq_item["items"]:
+                        if item and isinstance(item, dict):
+                            all_items.append(item)
+
+            for item in all_items:
+                item_type = str(item.get("type", "")).lower()
+                item_caliber = item.get("musket_caliber") or item.get("caliber")
+                if isinstance(item_caliber, list):
+                    item_caliber = item_caliber[0] if item_caliber else None
+                item_caliber_lower = str(item_caliber or "").lower()
+
+                if item_type == "gunpowder" and item.get("grains_left", 0) > 0:
+                    if not powder_source:
+                        powder_source = item
+                if item_type == "musket_paper_cartridge":
+                    qty = item.get("quantity", 0) or item.get("random_quantity", 0)
+                    if isinstance(qty, dict):
+                        qty = 1
+                    if qty > 0 and item_caliber_lower == caliber_lower:
+                        compatible_cartridge.append(item)
+                elif item_type == "musket_ball":
+                    qty = item.get("quantity", 0) or item.get("random_quantity", 0)
+                    if isinstance(qty, dict):
+                        qty = 1
+                    if qty > 0 and item_caliber_lower == caliber_lower:
+                        compatible_ball.append(item)
+
+            cartridge_item = None
+            ball_item = None
+            grains_used = random.randint(110, 130)
+
+            if use_cartridge is None:
+                if compatible_cartridge:
+                    use_cartridge = True
+                    cartridge_item = compatible_cartridge[0]
+                elif compatible_ball and powder_source:
+                    use_cartridge = False
+                    ball_item = compatible_ball[0]
+                else:
+                    return "No compatible ammunition found!"
+            elif use_cartridge:
+                if compatible_cartridge:
+                    cartridge_item = compatible_cartridge[0]
+                else:
+                    return "No paper cartridges found!"
+            else:
+                if compatible_ball and powder_source:
+                    ball_item = compatible_ball[0]
+                else:
+                    return "No musket balls or black powder found!"
+
+            if use_cartridge:
+                qty = cartridge_item.get("quantity", 1)
+                if isinstance(qty, (int, float)) and qty > 0:
+                    cartridge_item["quantity"] = qty - 1
+                round_name = f"{caliber} | Paper Cartridge"
+            else:
+                qty = ball_item.get("quantity", 1)
+                if isinstance(qty, (int, float)) and qty > 0:
+                    ball_item["quantity"] = qty - 1
+                current_grains = powder_source.get("grains_left", 0)
+                powder_source["grains_left"] = max(0, current_grains - grains_used)
+                round_name = f"{caliber} | Musket Ball"
+
+            chambered_round = {"name": round_name, "caliber": caliber}
+            if aim_bonus != 0:
+                chambered_round["modifiers"] = {"stats": {"aim": aim_bonus}}
+
+            weapon["chambered"] = chambered_round
+            weapon["rounds"] = []
+
+            try:
+                sd_ref = save_data if isinstance(save_data, dict) else globals().get('save_data') or getattr(self, '_current_save_data', None)
+                if isinstance(sd_ref, dict):
+                    ts = sd_ref.setdefault('tracked_stats', {})
+                    if isinstance(ts, dict):
+                        ts['mags_reloaded_total'] = int(ts.get('mags_reloaded_total', 0)) + 1
+                        ts['bullets_loaded_total'] = int(ts.get('bullets_loaded_total', 0)) + 1
+                        bh = ts.setdefault('bullets_loaded_history', [])
+                        try:
+                            bh.append({'weapon_id': str(weapon.get('id', 'unknown')), 'count': 1, 'time': time.time()})
+                        except Exception:
+                            pass
+            except Exception:
+                logging.exception('Failed updating tracked_stats after muzzleloader reload')
+            try:
+                self._update_session_reload_stats(save_data, 1)
+            except Exception:
+                logging.exception('Failed updating session reload stats after muzzleloader reload')
+
+            method = "paper cartridge" if use_cartridge else f"musket ball + {grains_used} grains black powder"
+            result_msg = f"Muzzleloader reloaded with {method}"
+            if aim_bonus > 0:
+                result_msg += f"\nPowder pour bonus: +{aim_bonus} aim"
+            elif aim_bonus < 0:
+                result_msg += f"\nPowder pour penalty: {aim_bonus} aim"
+            return result_msg
+
+        except Exception as e:
+            logging.exception("Failed to reload muzzleloader")
+            return f"Reload failed: {e}"
+
     def _play_cylinder_sound(self, weapon, action_type, block = False):
 
         try:
@@ -31760,7 +35129,60 @@ class App:
         weapon_id = str(weapon.get("id"))
         logging.info("_clean_weapon start: id=%s name=%s", weapon_id, weapon.get("name", "Unknown"))
 
-        self._play_weapon_action_sound(weapon, "cleaning")
+        cleanliness = combat_state.get("barrel_cleanliness", {}).get(weapon_id, 100)
+        cause_text = f"Cleaning weapon (current cleanliness: {cleanliness:.0f}%)"
+
+        mg_popup = None
+        try:
+            mg_popup = self._create_action_minigame_popup("Cleaning Weapon", cause_text, key_count = 5)
+        except Exception:
+            mg_popup = None
+
+        cleaning_channel = None
+        try:
+            if mg_popup:
+                mg_popup["update"]("Disassembling...")
+
+            try:
+                cleaning_path = os.path.join("sounds", "firearms", "universal", "cleaning.ogg")
+                if os.path.exists(cleaning_path):
+                    if not hasattr(self, "_sound_cache"):
+                        self._sound_cache = {}
+                    snd = self._sound_cache.get(cleaning_path)
+                    if snd is None:
+                        snd = pygame.mixer.Sound(cleaning_path)
+                        self._sound_cache[cleaning_path] = snd
+                    cleaning_channel = snd.play()
+                else:
+                    self._play_weapon_action_sound(weapon, "cleaning")
+            except Exception:
+                self._play_weapon_action_sound(weapon, "cleaning")
+
+            _mg_completed = mg_popup["completed"] if mg_popup else None
+            _mg_set_progress = mg_popup.get("set_progress") if mg_popup else None
+            wait_time = random.uniform(6.0, 10.0)
+
+            if mg_popup:
+                mg_popup["update"]("Cleaning and lubricating...")
+            if _mg_completed:
+                self._interruptible_wait(_mg_completed, wait_time, progress_callback = _mg_set_progress)
+            else:
+                time.sleep(wait_time)
+
+            if mg_popup:
+                mg_popup["update"]("Reassembling...")
+            time.sleep(0.3)
+        finally:
+            if cleaning_channel:
+                try:
+                    cleaning_channel.stop()
+                except Exception:
+                    pass
+            if mg_popup:
+                try:
+                    mg_popup["close"]()
+                except Exception:
+                    pass
 
         if "barrel_cleanliness"not in combat_state:
             combat_state["barrel_cleanliness"]= {}
@@ -32167,6 +35589,19 @@ class App:
             if not weapon.get("infinite_ammo"):
                 weapon["loaded"]= mag_item
                 weapon["chambered"]= None
+                try:
+                    _hc_tbl_ms = globals().get('table_data', {})
+                    if isinstance(_hc_tbl_ms, dict) and bool((_hc_tbl_ms.get('additional_settings') or {}).get('hardcore_mode')):
+                        _sd_ms = mag_item.get("spring_durability")
+                        if _sd_ms is not None:
+                            try:
+                                _sd_ms = float(_sd_ms)
+                                _sd_ms = max(0.0, _sd_ms - random.uniform(0.3, 0.8))
+                                mag_item["spring_durability"] = round(_sd_ms, 2)
+                            except (ValueError, TypeError):
+                                pass
+                except Exception:
+                    pass
             else:
                 weapon["chambered"]= None
 
@@ -32894,6 +36329,20 @@ class App:
             except Exception:
                 pass
 
+            try:
+                def _cancel_all_after(widget):
+                    try:
+                        for after_id in widget.tk.eval('after info').split():
+                            try:
+                                widget.after_cancel(after_id)
+                            except Exception:
+                                pass
+                    except Exception:
+                        pass
+                _cancel_all_after(self.root)
+            except Exception:
+                pass
+
             self.root.quit()
             try:
 
@@ -33163,6 +36612,30 @@ class App:
         )
         volume_slider.grid(row = 8, column = 1, sticky = "ew", padx = 10, pady =(8, 4))
         volume_slider.set(appearance_settings.get("sound_volume", 100))
+
+        customtkinter.CTkLabel(appearance_frame, text = "Weather Effects", font = customtkinter.CTkFont(size = 14, weight = "bold")).grid(row = 9, column = 0, columnspan = 2, pady = (12, 4), sticky = "w", padx = 10)
+
+        weather_visual_chk = customtkinter.CTkCheckBox(
+            appearance_frame,
+            text = "Visual Effects (lightning flashes)",
+            command = lambda: (appearance_settings.__setitem__("weather_visual_effects", bool(weather_visual_chk.get())), settings_modified.__setitem__(0, True))
+        )
+        weather_visual_chk.grid(row = 10, column = 0, columnspan = 2, sticky = "w", padx = 10, pady = 4)
+        if appearance_settings.get("weather_visual_effects", True):
+            weather_visual_chk.select()
+        else:
+            weather_visual_chk.deselect()
+
+        weather_audio_chk = customtkinter.CTkCheckBox(
+            appearance_frame,
+            text = "Audio Effects (rain, wind, thunder)",
+            command = lambda: (appearance_settings.__setitem__("weather_audio_effects", bool(weather_audio_chk.get())), settings_modified.__setitem__(0, True))
+        )
+        weather_audio_chk.grid(row = 11, column = 0, columnspan = 2, sticky = "w", padx = 10, pady = 4)
+        if appearance_settings.get("weather_audio_effects", True):
+            weather_audio_chk.select()
+        else:
+            weather_audio_chk.deselect()
 
         right_frame = customtkinter.CTkFrame(content)
         right_frame.grid(row = 0, column = 1, sticky = "nsew", padx =(10, 0), pady = 10)
@@ -33468,7 +36941,7 @@ class App:
 
             category_label = customtkinter.CTkLabel(
             details_frame,
-            text = f"{item.get('table_category', 'N/A')} | {item.get('rarity', 'N/A')} | ${item.get('value', 0)}",
+            text = f"{item.get('table_category', 'N/A')} | {item.get('rarity', 'N/A')} | {format_price(item.get('value', 0))}",
             font = customtkinter.CTkFont(size = 10),
             text_color = "gray",
             anchor = "w"
@@ -33685,8 +37158,470 @@ class App:
         dungeon_generator_button = self._create_sound_button(scroll_frame, "Dungeon Generator", self._open_dungeon_generator, width = 500, height = 50, font = customtkinter.CTkFont(size = 16))
         dungeon_generator_button.pack(pady = 10)
 
+        weather_editor_button = self._create_sound_button(scroll_frame, "Weather Editor", self._open_weather_editor, width = 500, height = 50, font = customtkinter.CTkFont(size = 16))
+        weather_editor_button.pack(pady = 10)
+
         back_button = self._create_sound_button(main_frame, "Back to Main Menu", lambda:[self._clear_window(), self._build_main_menu()], width = 500, height = 50, font = customtkinter.CTkFont(size = 16))
         back_button.pack(pady = 20)
+
+    def _open_weather_editor(self):
+
+        import calendar as cal_module
+
+        logging.info("Weather Editor called")
+
+        weather_path = os.path.join('remotedata', 'weather.json')
+        remote_url = 'https://raw.githubusercontent.com/soli-dstate/DOOM-Tools/master/remotedata/weather.json'
+        weather_data = {"forecast": {"default": {"weather": "clear", "wind_severity": 0, "temperature_f": 70}}}
+
+        try:
+            resp = requests.get(remote_url, timeout = 10)
+            if resp.status_code == 200:
+                weather_data = resp.json()
+                os.makedirs('remotedata', exist_ok = True)
+                with open(weather_path, 'w', encoding = 'utf-8') as f:
+                    json.dump(weather_data, f, indent = 4)
+                logging.info('Pulled latest weather.json from GitHub')
+            else:
+                logging.warning('Could not fetch weather.json from GitHub (status %d), using local copy', resp.status_code)
+                if os.path.exists(weather_path):
+                    with open(weather_path, 'r', encoding = 'utf-8') as f:
+                        weather_data = json.load(f)
+        except Exception:
+            logging.debug('Could not fetch weather.json from GitHub, using local copy')
+            try:
+                if os.path.exists(weather_path):
+                    with open(weather_path, 'r', encoding = 'utf-8') as f:
+                        weather_data = json.load(f)
+            except Exception:
+                logging.exception('Failed to load local weather.json')
+
+        forecast = weather_data.get("forecast", {})
+        if not isinstance(forecast, dict):
+            forecast = {}
+            weather_data["forecast"] = forecast
+        if "default" not in forecast:
+            forecast["default"] = {"weather": "clear", "wind_severity": 0, "temperature_f": 70}
+
+        VALID_WEATHER = ("clear", "rain", "thunderstorm", "snowstorm", "thundersnow")
+        RAIN_TYPES = ("rain", "thunderstorm")
+        SNOW_TYPES = ("snowstorm", "thundersnow")
+
+        use_metric = appearance_settings.get("units", "imperial") == "metric"
+        temp_unit = "°C" if use_metric else "°F"
+
+        def _f_to_display(f_val):
+            if use_metric:
+                return round((f_val - 32) * 5 / 9, 1)
+            return f_val
+
+        def _display_to_f(display_val):
+            if use_metric:
+                return round(display_val * 9 / 5 + 32, 2)
+            return display_val
+
+        def _validate_weather_temp(weather_type, temp_f, label = ""):
+            threshold_display = _f_to_display(32)
+            if weather_type in RAIN_TYPES and temp_f <= 32:
+                return f"{label}{weather_type.title()} requires temperature above {threshold_display}{temp_unit} (got {_f_to_display(temp_f)}{temp_unit})."
+            if weather_type in SNOW_TYPES and temp_f >= 32:
+                return f"{label}{weather_type.title()} requires temperature below {threshold_display}{temp_unit} (got {_f_to_display(temp_f)}{temp_unit})."
+            return None
+
+        self._clear_window()
+        self._play_ui_sound("whoosh1")
+
+        outer_frame = customtkinter.CTkScrollableFrame(self.root, fg_color = "transparent")
+        outer_frame.pack(fill = "both", expand = True, padx = 10, pady = 5)
+
+        title_label = customtkinter.CTkLabel(outer_frame, text = "Weather Editor", font = customtkinter.CTkFont(size = 22, weight = "bold"))
+        title_label.pack(pady = (5, 8))
+
+        now = datetime.now()
+        current_year = [now.year]
+        current_month = [now.month]
+
+        # --- Default weather ---
+        default_frame = customtkinter.CTkFrame(outer_frame)
+        default_frame.pack(fill = "x", padx = 10, pady = (0, 6))
+
+        default_data = forecast.get("default", {})
+        default_weather_var = customtkinter.StringVar(value = default_data.get("weather", "clear"))
+        default_wind_var = customtkinter.StringVar(value = str(default_data.get("wind_severity", 0)))
+        default_temp_var = customtkinter.StringVar(value = str(_f_to_display(default_data.get("temperature_f", 70))))
+
+        df_row = customtkinter.CTkFrame(default_frame, fg_color = "transparent")
+        df_row.pack(pady = 6, anchor = "center")
+        customtkinter.CTkLabel(df_row, text = "Default", font = customtkinter.CTkFont(size = 14, weight = "bold"), width = 60).pack(side = "left", padx = (0, 8))
+        customtkinter.CTkLabel(df_row, text = "Type:").pack(side = "left", padx = (0, 2))
+        customtkinter.CTkOptionMenu(df_row, variable = default_weather_var, values = list(VALID_WEATHER), width = 130).pack(side = "left", padx = (0, 8))
+        customtkinter.CTkLabel(df_row, text = "Wind:").pack(side = "left", padx = (0, 2))
+        customtkinter.CTkOptionMenu(df_row, variable = default_wind_var, values = ["0", "1", "2", "3"], width = 55).pack(side = "left", padx = (0, 8))
+        customtkinter.CTkLabel(df_row, text = f"Temp {temp_unit}:").pack(side = "left", padx = (0, 2))
+        customtkinter.CTkEntry(df_row, textvariable = default_temp_var, width = 55).pack(side = "left")
+
+        # --- Calendar ---
+        cal_frame = customtkinter.CTkFrame(outer_frame)
+        cal_frame.pack(fill = "x", padx = 10, pady = (0, 6))
+
+        nav_frame = customtkinter.CTkFrame(cal_frame, fg_color = "transparent")
+        nav_frame.pack(pady = (6, 2), anchor = "center")
+
+        month_names_list = [cal_module.month_name[i] for i in range(1, 13)]
+        year_list = [str(y) for y in range(now.year - 2, now.year + 6)]
+        month_var = customtkinter.StringVar(value = cal_module.month_name[current_month[0]])
+        year_var = customtkinter.StringVar(value = str(current_year[0]))
+
+        def _on_month_dropdown(choice):
+            current_month[0] = month_names_list.index(choice) + 1
+            render_calendar()
+
+        def _on_year_dropdown(choice):
+            current_year[0] = int(choice)
+            render_calendar()
+
+        month_label = customtkinter.CTkLabel(nav_frame, text = "", font = customtkinter.CTkFont(size = 16, weight = "bold"))
+
+        cal_grid_wrapper = customtkinter.CTkFrame(cal_frame, fg_color = "transparent")
+        cal_grid_wrapper.pack(pady = (0, 6), anchor = "center")
+        cal_grid = customtkinter.CTkFrame(cal_grid_wrapper, fg_color = "transparent")
+        cal_grid.pack()
+
+        btn_map = {}
+        selected_date = [None]
+        today_str = now.strftime("%Y-%m-%d")
+
+        def _btn_color(date_key):
+            if date_key == selected_date[0]:
+                return "#1a6600"
+            if date_key in forecast:
+                return "#005f99"
+            if date_key == today_str:
+                return "#444444"
+            return "transparent"
+
+        def _update_selection(old_key, new_key):
+            if old_key and old_key in btn_map:
+                btn_map[old_key].configure(fg_color = _btn_color(old_key))
+            if new_key and new_key in btn_map:
+                btn_map[new_key].configure(fg_color = _btn_color(new_key))
+
+        def on_day_click(date_key):
+            old = selected_date[0]
+            selected_date[0] = date_key
+            _update_selection(old, date_key)
+            detail_title.configure(text = f"Editing: {date_key}")
+            if date_key in forecast:
+                d = forecast[date_key]
+                day_weather_var.set(d.get("weather", "clear"))
+                day_wind_var.set(str(d.get("wind_severity", 0)))
+                day_temp_var.set(str(_f_to_display(d.get("temperature_f", 70))))
+                if "hourly" in d:
+                    hourly_toggle_var.set(True)
+                    hourly_scroll.pack(fill = "x", padx = 8, pady = (0, 4))
+                else:
+                    hourly_toggle_var.set(False)
+                    hourly_scroll.pack_forget()
+            else:
+                day_weather_var.set("clear")
+                day_wind_var.set("0")
+                day_temp_var.set("70")
+                hourly_toggle_var.set(False)
+                hourly_scroll.pack_forget()
+            _rebuild_hourly_rows()
+
+        def render_calendar():
+            for w in cal_grid.winfo_children():
+                w.destroy()
+            btn_map.clear()
+
+            y = current_year[0]
+            m = current_month[0]
+            month_label.configure(text = f"{cal_module.month_name[m]} {y}")
+            month_var.set(cal_module.month_name[m])
+            year_var.set(str(y))
+
+            day_names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+            for col, dn in enumerate(day_names):
+                customtkinter.CTkLabel(cal_grid, text = dn, font = customtkinter.CTkFont(size = 11, weight = "bold"), width = 50).grid(row = 0, column = col, padx = 1, pady = (0, 2))
+
+            for row_i, week in enumerate(cal_module.monthcalendar(y, m), start = 1):
+                for col_i, day in enumerate(week):
+                    if day == 0:
+                        customtkinter.CTkLabel(cal_grid, text = "", width = 50, height = 36).grid(row = row_i, column = col_i, padx = 1, pady = 1)
+                        continue
+                    date_key = f"{y}-{m:02d}-{day:02d}"
+                    btn_kwargs = {
+                        "master": cal_grid,
+                        "text": str(day),
+                        "width": 50,
+                        "height": 36,
+                        "font": customtkinter.CTkFont(size = 12),
+                        "fg_color": _btn_color(date_key),
+                        "command": lambda dk = date_key: on_day_click(dk)
+                    }
+                    if date_key == today_str:
+                        btn_kwargs["border_width"] = 2
+                        btn_kwargs["border_color"] = "#ffcc00"
+                    btn = customtkinter.CTkButton(**btn_kwargs)
+                    btn.grid(row = row_i, column = col_i, padx = 1, pady = 1)
+                    btn_map[date_key] = btn
+
+        def prev_month():
+            current_month[0] -= 1
+            if current_month[0] < 1:
+                current_month[0] = 12
+                current_year[0] -= 1
+            render_calendar()
+
+        def next_month():
+            current_month[0] += 1
+            if current_month[0] > 12:
+                current_month[0] = 1
+                current_year[0] += 1
+            render_calendar()
+
+        def prev_month_nav():
+            prev_month()
+            month_var.set(cal_module.month_name[current_month[0]])
+            year_var.set(str(current_year[0]))
+
+        def next_month_nav():
+            next_month()
+            month_var.set(cal_module.month_name[current_month[0]])
+            year_var.set(str(current_year[0]))
+
+        self._create_sound_button(nav_frame, "\u25c0", prev_month_nav, width = 32, height = 28).pack(side = "left", padx = (0, 4))
+        customtkinter.CTkOptionMenu(nav_frame, variable = month_var, values = month_names_list, width = 110, command = _on_month_dropdown).pack(side = "left", padx = 2)
+        customtkinter.CTkOptionMenu(nav_frame, variable = year_var, values = year_list, width = 70, command = _on_year_dropdown).pack(side = "left", padx = 2)
+        self._create_sound_button(nav_frame, "\u25b6", next_month_nav, width = 32, height = 28).pack(side = "left", padx = (4, 0))
+
+        render_calendar()
+
+        # --- Day detail editor ---
+        detail_frame = customtkinter.CTkFrame(outer_frame)
+        detail_frame.pack(fill = "x", padx = 10, pady = (0, 6))
+
+        detail_title = customtkinter.CTkLabel(detail_frame, text = "Select a day to edit", font = customtkinter.CTkFont(size = 13, weight = "bold"))
+        detail_title.pack(pady = (6, 2))
+
+        detail_row = customtkinter.CTkFrame(detail_frame, fg_color = "transparent")
+        detail_row.pack(pady = 2, anchor = "center")
+
+        day_weather_var = customtkinter.StringVar(value = "clear")
+        day_wind_var = customtkinter.StringVar(value = "0")
+        day_temp_var = customtkinter.StringVar(value = "70")
+
+        customtkinter.CTkLabel(detail_row, text = "Type:").pack(side = "left", padx = (0, 2))
+        customtkinter.CTkOptionMenu(detail_row, variable = day_weather_var, values = list(VALID_WEATHER), width = 130).pack(side = "left", padx = (0, 8))
+        customtkinter.CTkLabel(detail_row, text = "Wind:").pack(side = "left", padx = (0, 2))
+        customtkinter.CTkOptionMenu(detail_row, variable = day_wind_var, values = ["0", "1", "2", "3"], width = 55).pack(side = "left", padx = (0, 8))
+        customtkinter.CTkLabel(detail_row, text = f"Temp {temp_unit}:").pack(side = "left", padx = (0, 2))
+        customtkinter.CTkEntry(detail_row, textvariable = day_temp_var, width = 55).pack(side = "left")
+
+        detail_btn_frame = customtkinter.CTkFrame(detail_frame, fg_color = "transparent")
+        detail_btn_frame.pack(pady = 4, anchor = "center")
+
+        # --- Hourly forecast ---
+        hourly_toggle_var = customtkinter.BooleanVar(value = False)
+        customtkinter.CTkSwitch(detail_btn_frame, text = "Hourly", variable = hourly_toggle_var, width = 60, command = lambda: _toggle_hourly()).pack(side = "left", padx = (0, 8))
+
+        hourly_scroll = customtkinter.CTkScrollableFrame(detail_frame, height = 180)
+        hourly_scroll.pack_forget()
+        hourly_rows = {}
+        HOURLY_COLS = 4
+
+        def _toggle_hourly():
+            if hourly_toggle_var.get():
+                hourly_scroll.pack(fill = "x", padx = 8, pady = (0, 4))
+                _rebuild_hourly_rows()
+            else:
+                hourly_scroll.pack_forget()
+
+        def _rebuild_hourly_rows():
+            for w in hourly_scroll.winfo_children():
+                w.destroy()
+            hourly_rows.clear()
+            date_key = selected_date[0]
+            existing_hourly = {}
+            if date_key and date_key in forecast:
+                existing_hourly = forecast[date_key].get("hourly", {})
+
+            grid_frame = customtkinter.CTkFrame(hourly_scroll, fg_color = "transparent")
+            grid_frame.pack(anchor = "center", pady = 2)
+
+            for h in range(24):
+                h_key = f"{h:02d}"
+                h_data = existing_hourly.get(h_key, {})
+                grid_row = h // HOURLY_COLS
+                grid_col = h % HOURLY_COLS
+
+                cell = customtkinter.CTkFrame(grid_frame)
+                cell.grid(row = grid_row, column = grid_col, padx = 4, pady = 3)
+
+                top_row = customtkinter.CTkFrame(cell, fg_color = "transparent")
+                top_row.pack(fill = "x", padx = 2, pady = (2, 0))
+                customtkinter.CTkLabel(top_row, text = f"{h:02d}:00", font = customtkinter.CTkFont(size = 11, weight = "bold"), width = 40).pack(side = "left")
+                w_var = customtkinter.StringVar(value = h_data.get("weather", ""))
+                customtkinter.CTkOptionMenu(top_row, variable = w_var, values = [""] + list(VALID_WEATHER), width = 100).pack(side = "left", padx = 2)
+
+                bot_row = customtkinter.CTkFrame(cell, fg_color = "transparent")
+                bot_row.pack(fill = "x", padx = 2, pady = (0, 2))
+                customtkinter.CTkLabel(bot_row, text = "W:", font = customtkinter.CTkFont(size = 10)).pack(side = "left")
+                wnd_var = customtkinter.StringVar(value = str(h_data.get("wind_severity", "")) if "wind_severity" in h_data else "")
+                customtkinter.CTkOptionMenu(bot_row, variable = wnd_var, values = ["", "0", "1", "2", "3"], width = 45).pack(side = "left", padx = 2)
+                customtkinter.CTkLabel(bot_row, text = f"T{temp_unit}:", font = customtkinter.CTkFont(size = 10)).pack(side = "left")
+                stored_f = h_data.get("temperature_f")
+                display_t = str(_f_to_display(stored_f)) if stored_f is not None else ""
+                tmp_var = customtkinter.StringVar(value = display_t)
+                customtkinter.CTkEntry(bot_row, textvariable = tmp_var, width = 45, placeholder_text = temp_unit).pack(side = "left", padx = 2)
+                hourly_rows[h_key] = {"weather": w_var, "wind": wnd_var, "temp": tmp_var}
+
+        def _collect_hourly():
+            hourly = {}
+            for h_key, vars_dict in hourly_rows.items():
+                w = vars_dict["weather"].get().strip()
+                wnd = vars_dict["wind"].get().strip()
+                tmp = vars_dict["temp"].get().strip()
+                if not w and not wnd and not tmp:
+                    continue
+                entry = {}
+                if w:
+                    entry["weather"] = w
+                if wnd:
+                    try:
+                        entry["wind_severity"] = int(wnd)
+                    except ValueError:
+                        pass
+                if tmp:
+                    try:
+                        entry["temperature_f"] = _display_to_f(float(tmp))
+                    except ValueError:
+                        pass
+                if entry:
+                    hourly[h_key] = entry
+            return hourly if hourly else None
+
+        def set_day_weather():
+            date_key = selected_date[0]
+            if not date_key:
+                self._popup_show_info("No Date", "Select a day on the calendar first.", sound = "error")
+                return
+            try:
+                temp_val = _display_to_f(float(day_temp_var.get()))
+            except ValueError:
+                self._popup_show_info("Invalid", "Temperature must be a number.", sound = "error")
+                return
+            w_type = day_weather_var.get()
+            err = _validate_weather_temp(w_type, temp_val)
+            if err:
+                self._popup_show_info("Invalid Weather", err, sound = "error")
+                return
+            day_entry = {
+                "weather": w_type,
+                "wind_severity": int(day_wind_var.get()),
+                "temperature_f": temp_val
+            }
+            if hourly_toggle_var.get():
+                hourly_data = _collect_hourly()
+                if hourly_data:
+                    for h_key, h_entry in hourly_data.items():
+                        h_w = h_entry.get("weather", "")
+                        h_t = h_entry.get("temperature_f")
+                        if h_w and h_t is not None:
+                            h_err = _validate_weather_temp(h_w, h_t, f"Hour {h_key}: ")
+                            if h_err:
+                                self._popup_show_info("Invalid Hourly Weather", h_err, sound = "error")
+                                return
+                    day_entry["hourly"] = hourly_data
+            forecast[date_key] = day_entry
+            if date_key in btn_map:
+                btn_map[date_key].configure(fg_color = _btn_color(date_key))
+
+        def remove_day_weather():
+            date_key = selected_date[0]
+            if not date_key:
+                return
+            if date_key in forecast and date_key != "default":
+                del forecast[date_key]
+            old = selected_date[0]
+            selected_date[0] = None
+            if old and old in btn_map:
+                btn_map[old].configure(fg_color = _btn_color(old))
+            detail_title.configure(text = "Select a day to edit")
+            hourly_toggle_var.set(False)
+            hourly_scroll.pack_forget()
+
+        self._create_sound_button(detail_btn_frame, "Set Day Weather", set_day_weather, width = 130).pack(side = "left", padx = 4)
+        self._create_sound_button(detail_btn_frame, "Remove Override", remove_day_weather, width = 130, fg_color = "#8B0000").pack(side = "left", padx = 4)
+
+        # --- Bottom buttons ---
+        bottom_frame = customtkinter.CTkFrame(outer_frame, fg_color = "transparent")
+        bottom_frame.pack(pady = (4, 8), anchor = "center")
+
+        def save_weather():
+            try:
+                try:
+                    dt = _display_to_f(float(default_temp_var.get()))
+                except ValueError:
+                    self._popup_show_info("Invalid", "Default temperature must be a number.", sound = "error")
+                    return
+                dw = default_weather_var.get()
+                err = _validate_weather_temp(dw, dt, "Default: ")
+                if err:
+                    self._popup_show_info("Invalid Default Weather", err, sound = "error")
+                    return
+                forecast["default"] = {
+                    "weather": dw,
+                    "wind_severity": int(default_wind_var.get()),
+                    "temperature_f": dt
+                }
+                weather_data["forecast"] = forecast
+                os.makedirs('remotedata', exist_ok = True)
+                with open(weather_path, 'w', encoding = 'utf-8') as f:
+                    json.dump(weather_data, f, indent = 4)
+                logging.info("Weather data saved to %s", weather_path)
+                self._popup_show_info("Saved", "Weather data saved locally.\nUpload remotedata/weather.json to GitHub to apply.", sound = "success")
+            except Exception as e:
+                logging.exception("Failed to save weather data")
+                self._popup_show_info("Error", f"Failed to save: {e}", sound = "error")
+
+        def download_weather():
+            try:
+                resp = requests.get(remote_url, timeout = 10)
+                if resp.status_code == 200:
+                    new_data = resp.json()
+                    weather_data.clear()
+                    weather_data.update(new_data)
+                    fc = weather_data.get("forecast", {})
+                    forecast.clear()
+                    forecast.update(fc)
+                    if "default" not in forecast:
+                        forecast["default"] = {"weather": "clear", "wind_severity": 0, "temperature_f": 70}
+                    d = forecast["default"]
+                    default_weather_var.set(d.get("weather", "clear"))
+                    default_wind_var.set(str(d.get("wind_severity", 0)))
+                    default_temp_var.set(str(_f_to_display(d.get("temperature_f", 70))))
+                    selected_date[0] = None
+                    detail_title.configure(text = "Select a day to edit")
+                    hourly_toggle_var.set(False)
+                    hourly_scroll.pack_forget()
+                    render_calendar()
+                    self._popup_show_info("Downloaded", "Weather data refreshed from GitHub.", sound = "success")
+                else:
+                    self._popup_show_info("Error", f"GitHub returned status {resp.status_code}", sound = "error")
+            except Exception as e:
+                self._popup_show_info("Error", f"Download failed: {e}", sound = "error")
+
+        self._create_sound_button(bottom_frame, "Download from GitHub", download_weather, width = 180, height = 36).pack(side = "left", padx = 6)
+        self._create_sound_button(bottom_frame, "Save Locally", save_weather, width = 180, height = 36, fg_color = "#006400").pack(side = "left", padx = 6)
+        self._create_sound_button(
+            bottom_frame,
+            text = "Back to DM Tools",
+            command = lambda:[self._clear_window(), self._open_dm_tools()],
+            width = 180,
+            height = 36
+        ).pack(side = "right", padx = 6)
 
     def _open_dungeon_generator(self):
 
@@ -34738,12 +38673,17 @@ class App:
                     logging.exception("Failed to load enemies table")
                     return[]
 
+            _distant_combat_sound_cache = {}
+
             def _play_distant_combat_sound(sound_path, volume = 0.15):
 
                 try:
-                    if not os.path.exists(sound_path):
-                        return
-                    sound = pygame.mixer.Sound(sound_path)
+                    sound = _distant_combat_sound_cache.get(sound_path)
+                    if sound is None:
+                        if not os.path.exists(sound_path):
+                            return
+                        sound = pygame.mixer.Sound(sound_path)
+                        _distant_combat_sound_cache[sound_path] = sound
                     sound.set_volume(volume)
                     channel = pygame.mixer.find_channel()
                     if channel:
@@ -34855,7 +38795,7 @@ class App:
 
             def _get_shots_for_firemode(firemode, weapon):
 
-                if firemode in["Bolt", "Pump", "Lever", "Single", "Break"]:
+                if firemode in["Bolt", "Pump", "Lever", "Single", "Break", "Double"]:
                     return 1
                 elif firemode =="Semi":
                     return random.randint(1, 4)
@@ -34976,10 +38916,17 @@ class App:
                     return 1500
 
                 if firemode =="Burst":
-                    burst_cyclic = weapon.get("burst_cyclic", weapon.get("cyclic", 600))
+                    raw_burst = weapon.get("burst_cyclic")
+                    if raw_burst:
+                        try:
+                            burst_cyclic = float(raw_burst)
+                        except Exception:
+                            burst_cyclic = _resolve_effective_cyclic(weapon, combat_state)
+                    else:
+                        burst_cyclic = _resolve_effective_cyclic(weapon, combat_state)
                     return max(50, int(60000 /burst_cyclic))
 
-                cyclic = weapon.get("cyclic", 600)
+                cyclic = _resolve_effective_cyclic(weapon, combat_state)
 
                 return max(50, int(60000 /cyclic))
 
@@ -34988,26 +38935,27 @@ class App:
                 cyclic_delay = _get_cyclic_delay(weapon, firemode)
                 is_manual = _is_manual_action(weapon)
 
+                try:
+                    if os.path.isdir(sound_dir):
+                        all_sounds = glob.glob(os.path.join(sound_dir, "*.wav"))+glob.glob(os.path.join(sound_dir, "*.ogg"))
+                    else:
+                        all_sounds =[]
+                except Exception:
+                    all_sounds =[]
+
+                if is_suppressed:
+                    suppressed_sounds =[s for s in all_sounds if "_suppressed"in s.lower()]
+                    resolved_sounds = suppressed_sounds if suppressed_sounds else all_sounds
+                    resolved_volume = volume *0.5
+                else:
+                    resolved_sounds =[s for s in all_sounds if "_suppressed"not in s.lower()]
+                    resolved_volume = volume
+
                 def play_shot(shot_num):
                     try:
-                        if os.path.isdir(sound_dir):
-
-                            all_sounds = glob.glob(os.path.join(sound_dir, "*.wav"))+glob.glob(os.path.join(sound_dir, "*.ogg"))
-
-                            if is_suppressed:
-
-                                suppressed_sounds =[s for s in all_sounds if "_suppressed"in s.lower()]
-                                sounds = suppressed_sounds if suppressed_sounds else all_sounds
-
-                                actual_volume = volume *0.5
-                            else:
-
-                                sounds =[s for s in all_sounds if "_suppressed"not in s.lower()]
-                                actual_volume = volume
-
-                            if sounds:
-                                sound_path = random.choice(sounds)
-                                _play_distant_combat_sound(sound_path, volume = actual_volume)
+                        if resolved_sounds:
+                            sound_path = random.choice(resolved_sounds)
+                            _play_distant_combat_sound(sound_path, volume = resolved_volume)
                     except Exception:
                         pass
 
@@ -38211,7 +42159,7 @@ class App:
 
             category_label = customtkinter.CTkLabel(
             details_frame,
-            text = f"{item.get('table_category', 'N/A')} | {item.get('rarity', 'N/A')} | ${item.get('value', 0)}",
+            text = f"{item.get('table_category', 'N/A')} | {item.get('rarity', 'N/A')} | {format_price(item.get('value', 0))}",
             font = customtkinter.CTkFont(size = 9),
             text_color = "gray",
             anchor = "w"
@@ -38617,7 +42565,7 @@ class App:
 
             category_label = customtkinter.CTkLabel(
             details_frame,
-            text = f"{item.get('table_category', 'N/A')} | {item.get('rarity', 'N/A')} | ${item.get('value', 0)}",
+            text = f"{item.get('table_category', 'N/A')} | {item.get('rarity', 'N/A')} | {format_price(item.get('value', 0))}",
             font = customtkinter.CTkFont(size = 10),
             text_color = "gray",
             anchor = "w"
@@ -38775,7 +42723,7 @@ class App:
                 filename = os.path.join("transfers", f"transfer_dm_{datetime.now().strftime('%Y%m%d_%H%M%S')}{global_variables['transfer_extension']}")
                 with open(filename, 'w')as f:
                     f.write(encoded_data)
-                self._popup_show_info("Success", f"Saved transfer with ${transfer_money} and {len(items_to_send)} items.", sound = "success")
+                self._popup_show_info("Success", f"Saved transfer with {format_price(transfer_money)} and {len(items_to_send)} items.", sound = "success")
                 logging.info(f"Saved DM transfer to {filename}")
                 self._open_dm_tools()
             except Exception as e:
