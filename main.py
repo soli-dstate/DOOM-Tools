@@ -1592,6 +1592,49 @@ def validate_table_ids():
     except Exception:
         pass
 
+    try:
+        for table_file in sorted(table_files):
+            try:
+                table_path_sc = os.path.join(tables_dir, table_file)
+                with open(table_path_sc, 'r', encoding = 'utf-8') as f_sc:
+                    table_data_sc = json.load(f_sc)
+                tables_sc = table_data_sc.get("tables", {})
+                stores_sc = tables_sc.get("stores", []) or []
+                if not stores_sc:
+                    continue
+                display_table_sc = table_pretty_names.get(table_file, table_file)
+                store_item_ids = set()
+                store_table_names = set()
+                for store_sc in stores_sc:
+                    if not isinstance(store_sc, dict):
+                        continue
+                    for inv_entry in store_sc.get("inventory", []) or []:
+                        if not isinstance(inv_entry, dict):
+                            continue
+                        if inv_entry.get("type") == "table":
+                            tname = inv_entry.get("table")
+                            if tname:
+                                store_table_names.add(tname)
+                        elif inv_entry.get("type") == "id":
+                            iid = inv_entry.get("id")
+                            if iid is not None:
+                                store_item_ids.add(iid)
+                for sub_name, sub_items in tables_sc.items():
+                    if not isinstance(sub_items, list):
+                        continue
+                    in_store_table = sub_name in store_table_names
+                    for item_sc in sub_items:
+                        if not isinstance(item_sc, dict):
+                            continue
+                        in_store = in_store_table or item_sc.get("id") in store_item_ids
+                        if in_store and not item_sc.get("shop_category"):
+                            item_name_sc = item_sc.get("name") or f"ID {item_sc.get('id', '?')}"
+                            logging.warning(f"Table '{display_table_sc}': Item '{item_name_sc}' in subtable '{sub_name}' is referenced by a store but missing 'shop_category' field.")
+            except Exception:
+                pass
+    except Exception:
+        pass
+
     all_errors = duplicate_errors +magazine_errors +table_sequence_errors +hardcore_errors
     if all_errors:
 
