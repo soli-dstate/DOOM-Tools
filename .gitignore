@@ -27,6 +27,8 @@ share/python-wheels/
 *.egg
 MANIFEST
 backup/
+dm_config.json
+saves/.save_key
 
 # PyInstaller
 *.manifest

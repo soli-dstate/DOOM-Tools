@@ -113,6 +113,40 @@
                 "in_armory": true,
                 "parts": null,
                 "armory_category": "Rifle"
+            },
+            {
+                "name": "Anschutz 1782 Slimline",
+                "value": 3995,
+                "description": "German made big bore hunting rifle chambered in .30-06 Springfield, designed for precision and reliability in the field.",
+                "rarity": "Legendary",
+                "random_quantity": false,
+                "weight": 3.6,
+                "id": 23,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "1782",
+                "caliber": [".30-06 Springfield", ".30-06 NATO"],
+                "action": ["Bolt"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 40,
+                "magazinetype": "Internal box",
+                "accepts_clips": true,
+                "clip_type": "M1903",
+                "capacity": 5,
+                "jamrate": 0.005,
+                "shop_category": "Rifles",
+                "shop_subcategory": "Full-Power Rifles",
+                "accessories": [
+                    {"name": "Scope Mount", "slot": "scope_mount", "current": null}
+                ],
+                "can_stack": false,
+                "parts": [
+                    {"name":"1782 Slimline Barrel","slot":"1782_slimline_barrel","current":{"id":24},"durability":null,"type":"barrel"},
+                    {"name":"1782 Slimline Trigger Spring","slot":"1782_slimline_trigger_spring","current":{"id":25},"durability":null,"type":"trigger_spring"},
+                    {"name":"1782 Slimline Bolt","slot":"1782_slimline_bolt","current":{"id":26},"durability":null,"type":"bolt"}
+                ]
             }
         ],
         "pistols": [
@@ -320,6 +354,89 @@
                 "durability": "set_by_looting",
                 "armory_category": "Model 686 Parts",
                 "armory_subcategory": "Springs"
+            },
+            {
+                "name": "14.5\" .300 AAC Blackout AR-15 Barrel",
+                "value": 300,
+                "description": "14.5-inch barrel for AR-15 rifles, chambered in .300 AAC Blackout, known for its durability and performance.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 0.74,
+                "id": 22,
+                "type": "barrel",
+                "platform": "AR-15",
+                "slot": "ar15_barrel",
+                "caliber": [".300 AAC Blackout"],
+                "can_stack": false,
+                "in_armory": true,
+                "durability": "set_by_looting",
+                "armory_category": "AR-15 Parts",
+                "armory_subcategory": "Barrels"
+            },
+            {
+                "name": "Anschutz 1782 Slimline Barrel",
+                "value": 149.99,
+                "description": "Barrel for Anschutz 1782 Slimline rifles, providing standard performance and reliability.",
+                "rarity": "Legendary",
+                "random_quantity": false,
+                "weight": 0.5,
+                "id": 24,
+                "type": "barrel",
+                "platform": "Anschutz 1782",
+                "slot": "1782_slimline_barrel",
+                "caliber": [".30-06 Springfield", ".30-06 NATO"],
+                "can_stack": false,
+                "in_armory": true,
+                "durability": "set_by_looting",
+                "armory_category": "Parts",
+                "armory_subcategory": "Anschutz 1782 Parts",
+                "armory_subcategory2": "Anschutz 1782 Barrels",
+                "shop_category": "Weapon Parts",
+                "shop_subcategory": "Anschutz 1782 Parts",
+                "shop_subcategory2": "Anschutz 1782 Barrels"
+            },
+            {
+                "name": "Anschutz 1782 Slimline Trigger Spring",
+                "value": 19.99,
+                "description": "Trigger spring for Anschutz 1782 Slimline rifles, providing consistent trigger pull and reliable cycling.",
+                "rarity": "Legendary",
+                "random_quantity": false,
+                "weight": 0.01,
+                "id": 25,
+                "type": "trigger_spring",
+                "platform": "Anschutz 1782",
+                "slot": "1782_slimline_trigger_spring",
+                "can_stack": false,
+                "in_armory": true,
+                "durability": "set_by_looting",
+                "armory_category": "Parts",
+                "armory_subcategory": "Anschutz 1782 Parts",
+                "armory_subcategory2": "Anschutz 1782 Trigger Springs",
+                "shop_category": "Weapon Parts",
+                "shop_subcategory": "Anschutz 1782 Parts",
+                "shop_subcategory2": "Anschutz 1782 Trigger Springs"
+            },
+            {
+                "name": "Anschutz 1782 Slimline Bolt",
+                "value": 149.99,
+                "description": "Bolt for Anschutz 1782 Slimline rifles, providing reliable cycling and improved performance.",
+                "rarity": "Legendary",
+                "random_quantity": false,
+                "weight": 0.5,
+                "id": 26,
+                "type": "bolt",
+                "platform": "Anschutz 1782",
+                "slot": "1782_slimline_bolt",
+                "caliber": [".30-06 Springfield", ".30-06 NATO"],
+                "can_stack": false,
+                "in_armory": true,
+                "durability": "set_by_looting",
+                "armory_category": "Parts",
+                "armory_subcategory": "Anschutz 1782 Parts",
+                "armory_subcategory2": "Anschutz 1782 Bolts",
+                "shop_category": "Weapon Parts",
+                "shop_subcategory": "Anschutz 1782 Parts",
+                "shop_subcategory2": "Anschutz 1782 Bolts"
             }
         ],
         "magazines": [
@@ -525,6 +642,53 @@
                 "type": "gunpowder",
                 "in_armory": true,
                 "armory_category": "Gunpowder"
+            },
+            {
+                "name": ".30-06 Springfield",
+                "value": 0.75,
+                "description": "A powerful rifle cartridge known for its long-range performance and versatility.",
+                "rarity": "Uncommon",
+                "random_quantity": {"min": 10, "max": 50},
+                "weight": 0.024,
+                "id": 27,
+                "caliber": [".30-06 Springfield"],
+                "sounds": "30_06",
+                "variants": [
+                    {
+                        "name": "FMJ",
+                        "type": "FMJ",
+                        "pen": "IIIa",
+                        "modifiers": null,
+                        "rarity": "Uncommon",
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "SP",
+                        "type": "SP",
+                        "pen": "II",
+                        "modifiers": null,
+                        "rarity": "Common",
+                        "tip": null,
+                        "lead_free": false
+                    }
+                ],
+                "in_armory": true,
+                "armory_category": "Rifle Ammunition"
+            },
+            {
+                "name": "Springfield M1903 Clip",
+                "value": 5,
+                "description": "A stripper clip used for loading the internal magazine of the Springfield M1903 rifle, holding 5 rounds of .30-06 Springfield ammunition for quick reloading.",
+                "rarity": "Uncommon",
+                "random_quantity": {"min": 1, "max": 5},
+                "weight": 0.05,
+                "id": 28,
+                "caliber": [".30-06 Springfield", ".30-06 NATO"],
+                "clip_type": "M1903",
+                "capacity": 5,
+                "in_armory": true,
+                "armory_category": "Rifle Ammunition"
             }
         ]
     }

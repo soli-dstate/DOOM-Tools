@@ -1,4 +1,4 @@
-version = "1.1.0"
+version = "2.0.0"
 
 import os
 import logging
@@ -13,7 +13,6 @@ import pygame
 import customtkinter
 import tkinter as _tk
 import base64
-import pickle
 import json
 import shutil
 import subprocess
@@ -31,10 +30,130 @@ import sys
 import inspect
 import distro
 
+def _sanitize_log(s):
+    if not isinstance(s, str):
+        s = str(s)
+    return s.replace('\n', '\\n').replace('\r', '\\r').replace('\x1b', '\\x1b')
+
+import hashlib as _hashlib
+import hmac as _hmac
+
+def _get_save_key_path():
+    folder = saves_folder if 'saves_folder' in globals() and saves_folder else "saves"
+    return os.path.join(folder, ".save_key")
+
+def _get_save_key():
+    key_path = _get_save_key_path()
+    os.makedirs(os.path.dirname(key_path), exist_ok = True)
+    if os.path.exists(key_path):
+        with open(key_path, 'rb') as f:
+            key = f.read()
+        if len(key) >= 32:
+            return key
+    key = secrets.token_bytes(32)
+    with open(key_path, 'wb') as f:
+        f.write(key)
+    return key
+
+_PORTABLE_KEY = _hashlib.sha256(b"DOOM-Tools-portable-transfer-signing-key-v1").digest()
+
+def _sign_data(payload_str, *, portable = False):
+    key = _PORTABLE_KEY if portable else _get_save_key()
+    return _hmac.new(key, payload_str.encode('utf-8'), _hashlib.sha256).hexdigest()
+
+def _verify_signature(payload_str, signature, *, portable = False):
+    key = _PORTABLE_KEY if portable else _get_save_key()
+    expected = _hmac.new(key, payload_str.encode('utf-8'), _hashlib.sha256).hexdigest()
+    return _hmac.compare_digest(expected, signature)
+
+def _signed_json_write(filepath, data, *, binary_mode = False, comment_lines = None, portable = False):
+    payload_str = json.dumps(data, ensure_ascii = False, sort_keys = True)
+    sig = _sign_data(payload_str, portable = portable)
+    envelope = json.dumps({"_sig": sig, "_data": data}, ensure_ascii = False)
+    encoded = base64.b85encode(envelope.encode('utf-8')).decode('ascii')
+    if binary_mode:
+        with open(filepath, 'wb') as f:
+            if comment_lines:
+                for cl in comment_lines:
+                    line = cl if cl.endswith("\n") else cl + "\n"
+                    f.write(line.encode('utf-8'))
+            f.write(encoded.encode('ascii'))
+    else:
+        with open(filepath, 'w', encoding = 'utf-8') as f:
+            if comment_lines:
+                for cl in comment_lines:
+                    f.write(cl if cl.endswith("\n") else cl + "\n")
+            f.write(encoded)
+
+def _signed_json_read(filepath, *, allow_unsigned = False, portable = False):
+    try:
+        with open(filepath, 'r', encoding = 'utf-8') as f:
+            text = f.read()
+    except UnicodeDecodeError:
+        with open(filepath, 'rb') as f:
+            text = f.read().decode('utf-8', errors = 'replace')
+
+    lines = text.splitlines(True)
+    comment_lines = []
+    data_lines = []
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith("//"):
+            comment_lines.append(line)
+        elif stripped == "" and not data_lines:
+            comment_lines.append(line)
+        else:
+            data_lines.append(line)
+    payload = "".join(data_lines).strip()
+
+    if not payload:
+        return None, comment_lines, "incompatible_format"
+
+    # Try base85 decode first (current format)
+    decoded_json = None
+    try:
+        decoded_bytes = base64.b85decode(payload.encode('ascii'))
+        decoded_json = decoded_bytes.decode('utf-8')
+    except Exception:
+        pass
+
+    # If base85 decode failed, treat raw payload as JSON (legacy unsigned)
+    if decoded_json is None:
+        try:
+            parsed = json.loads(payload)
+        except (json.JSONDecodeError, ValueError):
+            return None, comment_lines, "incompatible_format"
+        if allow_unsigned and isinstance(parsed, dict):
+            return parsed, comment_lines, "unsigned"
+        elif isinstance(parsed, dict):
+            return None, comment_lines, "unsigned"
+        else:
+            return None, comment_lines, "invalid_structure"
+
+    try:
+        parsed = json.loads(decoded_json)
+    except (json.JSONDecodeError, ValueError):
+        return None, comment_lines, "incompatible_format"
+
+    if isinstance(parsed, dict) and "_sig" in parsed and "_data" in parsed:
+        sig = parsed["_sig"]
+        data = parsed["_data"]
+        payload_str = json.dumps(data, ensure_ascii = False, sort_keys = True)
+        if _verify_signature(payload_str, sig, portable = portable):
+            return data, comment_lines, "ok"
+        else:
+            return None, comment_lines, "tampered"
+    elif allow_unsigned and isinstance(parsed, dict):
+        return parsed, comment_lines, "unsigned"
+    elif isinstance(parsed, dict):
+        return None, comment_lines, "unsigned"
+    else:
+        return None, comment_lines, "invalid_structure"
+
 pygame.init()
 
 pygame.mixer.init(channels = 2)
-pygame.mixer.set_num_channels(134218)
+pygame.mixer.set_num_channels(512)
 
 try:
     import platform as _platform_mod
@@ -789,8 +908,14 @@ try:
             f.write(response.content)
 
         os.makedirs(extract_dir, exist_ok = True)
+        import pathlib as _pathlib
+        _extract_dest = _pathlib.Path(extract_dir).resolve()
         with zipfile.ZipFile(tmp_zip, "r")as zip_ref:
-            zip_ref.extractall(extract_dir)
+            for member in zip_ref.infolist():
+                member_target = (_extract_dest / member.filename).resolve()
+                if not str(member_target).startswith(str(_extract_dest)):
+                    raise ValueError(f"Zip slip detected: {member.filename}")
+                zip_ref.extract(member, extract_dir)
 
         extracted_roots =[d for d in os.listdir(extract_dir)if os.path.isdir(os.path.join(extract_dir, d))]
         if extracted_roots:
@@ -843,7 +968,16 @@ if _debugger_attached:
         sys.argv.append('-debug')
         logging.info('Debugger detected; added -debug to argv')
 
-dm_users =["bGlseQ==", "amFjemk=", "cGhvbmU=", "YWlkZW4="]
+dm_users =[]
+_dm_config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'dm_config.json')
+try:
+    if os.path.exists(_dm_config_path):
+        with open(_dm_config_path, 'r', encoding = 'utf-8') as _dcf:
+            dm_users = json.load(_dcf).get('dm_users', [])
+        dm_users = [u.lower() for u in dm_users if isinstance(u, str)]
+except Exception as _e:
+    logging.warning(f"Failed to load dm_config.json: {_e}")
+    dm_users = []
 
 if any(indicator in os.environ for indicator in ide_indicators):
     if not global_variables["devmode"]["value"]and not global_variables["devmode"]["forced"]:
@@ -919,28 +1053,31 @@ os.makedirs(saves_folder or "saves", exist_ok = True)
 try:
     appearance_settings_path = os.path.join(saves_folder, "appearance_settings.sldsv")
     if os.path.exists(appearance_settings_path):
-        with open(appearance_settings_path, 'r')as f:
-            loaded_settings = json.load(f)
-        appearance_settings.update(loaded_settings)
-        logging.info(f"Appearance settings loaded from {appearance_settings_path}")
+        loaded_settings, _, a_status = _signed_json_read(appearance_settings_path, allow_unsigned = True)
+        if isinstance(loaded_settings, dict):
+            appearance_settings.update(loaded_settings)
+            logging.info(f"Appearance settings loaded from {appearance_settings_path} (status: {a_status})")
+        else:
+            logging.warning(f"Appearance settings in {appearance_settings_path} could not be loaded (status: {a_status})")
 except Exception as e:
     logging.warning(f"Failed to load appearance settings: {e}")
 
 try:
     settings_path = os.path.join(saves_folder, "settings.sldsv")
     if os.path.exists(settings_path):
-        with open(settings_path, 'r')as f:
-            loaded_globals = json.load(f)
-
-        for key, value in loaded_globals.items():
-            if key in global_variables:
-                if isinstance(global_variables[key], dict)and isinstance(value, dict):
-                    global_variables[key].update(value)
+        loaded_globals, _, s_status = _signed_json_read(settings_path, allow_unsigned = True)
+        if isinstance(loaded_globals, dict):
+            for key, value in loaded_globals.items():
+                if key in global_variables:
+                    if isinstance(global_variables[key], dict)and isinstance(value, dict):
+                        global_variables[key].update(value)
+                    else:
+                        global_variables[key]= value
                 else:
                     global_variables[key]= value
-            else:
-                global_variables[key]= value
-        logging.info(f"Global settings loaded from {settings_path}")
+            logging.info(f"Global settings loaded from {settings_path} (status: {s_status})")
+        else:
+            logging.warning(f"Global settings in {settings_path} could not be loaded (status: {s_status})")
 except Exception as e:
     logging.warning(f"Failed to load global settings: {e}")
 
@@ -972,12 +1109,35 @@ def _sync_remote_table():
         remote_url = raw_base +basename
 
         logging.info(f"Checking remote table for updates: {remote_url}")
-        resp = requests.get(remote_url, timeout = 15)
+        resp = requests.get(remote_url, timeout = 15, verify = True)
         if resp.status_code !=200:
             logging.info(f"Remote table not found(status {resp.status_code}): {remote_url}")
             return
 
         remote_text = resp.text
+
+        import hashlib as _hl
+        hash_url = raw_base + basename + ".sha256"
+        try:
+            hash_resp = requests.get(hash_url, timeout = 15, verify = True)
+            if hash_resp.status_code == 200:
+                import hmac as _hmac
+                expected_hash = hash_resp.text.strip().split()[0].lower()
+                actual_hash = _hl.sha256(resp.content).hexdigest().lower()
+                if not _hmac.compare_digest(actual_hash, expected_hash):
+                    logging.error(f"Remote table integrity check failed for {remote_url} (expected {expected_hash}, got {actual_hash})")
+                    return
+                logging.info(f"Remote table integrity verified (SHA-256: {actual_hash[:16]}...)")
+            else:
+                logging.warning(f"No SHA-256 hash file found at {hash_url} — skipping integrity check")
+        except Exception as e:
+            logging.warning(f"Could not verify remote table integrity: {e}")
+
+        try:
+            json.loads(remote_text)
+        except (json.JSONDecodeError, ValueError):
+            logging.error(f"Remote table is not valid JSON — refusing to overwrite local table")
+            return
         try:
             with open(target_local, 'r', encoding = 'utf-8')as f:
                 local_text = f.read()
@@ -1022,17 +1182,21 @@ def validate_table_ids():
         logging.warning(f"Tables directory '{tables_dir}' not found, skipping validation.")
         return
 
-    table_files =[f for f in os.listdir(tables_dir)if f.endswith(".sldtbl")]
+    table_files =[f for f in os.listdir(tables_dir)if f.endswith(".sldtbl") or f.endswith(".disabled")]
     if not table_files:
         logging.info("No table files found to validate.")
         return
+
+    disabled_files = {f for f in table_files if f.endswith(".disabled")}
 
     global_id_map = {}
 
     magazine_errors =[]
     magazine_errors_details =[]
+    magazine_errors_files =[]
     table_sequence_errors =[]
     table_sequence_details =[]
+    table_sequence_errors_files =[]
     ammo_errors =[]
     ammo_errors_details =[]
     sound_warnings =[]
@@ -1095,6 +1259,7 @@ def validate_table_ids():
                                 msg = f"{friendly} missing 'magazinesystem' field"
                                 logging.error(msg)
                                 magazine_errors.append(msg)
+                                magazine_errors_files.append(table_file)
                                 try:
                                     magazine_errors_details.append({'table':table_name, 'weapon':item_check, 'reason':'missing_magazinesystem', 'message':msg})
                                 except Exception:
@@ -1108,8 +1273,25 @@ def validate_table_ids():
                             if not compatible:
                                 msg = f"{friendly} has no magazines matching magazinesystem(s): {needed}"
                                 magazine_errors.append(msg)
+                                magazine_errors_files.append(table_file)
                                 try:
                                     magazine_errors_details.append({'table':table_name, 'weapon':item_check, 'reason':'no_compatible_magazines', 'message':msg})
+                                except Exception:
+                                    pass
+
+                        if item_check.get("firearm")and item_check.get("dualfeed")and item_check.get("submagazinesystem"):
+                            sub_ms = item_check.get("submagazinesystem")
+                            friendly = f"Table '{table_name}': Dualfeed firearm '{item_check.get('name')}'(ID {item_check.get('id')})"
+                            sub_needed =[sub_ms]if not isinstance(sub_ms, list)else sub_ms
+                            sub_needed =[str(n)for n in sub_needed]
+                            sub_compatible = any(n in magazine_systems for n in sub_needed)
+                            if not sub_compatible:
+                                msg = f"{friendly} has no magazines matching submagazinesystem(s): {sub_needed}"
+                                logging.warning(msg)
+                                magazine_errors.append(msg)
+                                magazine_errors_files.append(table_file)
+                                try:
+                                    magazine_errors_details.append({'table':table_name, 'weapon':item_check, 'reason':'no_compatible_submagazines', 'message':msg})
                                 except Exception:
                                     pass
             except Exception as e:
@@ -1209,6 +1391,7 @@ def validate_table_ids():
 
                 seq_msg = "\n".join(id_msg_lines)
                 table_sequence_errors.append(seq_msg)
+                table_sequence_errors_files.append(table_file)
                 try:
                     table_sequence_details.append({'table':table_name, 'missing_ids':missing_ids, 'last_id':max_id, 'next_id':next_id, 'suggested_changes':suggested_lines})
                 except Exception:
@@ -1235,10 +1418,11 @@ def validate_table_ids():
     except Exception:
         pass
 
+    hardcore_errors =[]
+    hardcore_errors_details =[]
+    hardcore_errors_files =[]
     try:
         import copy as _copy
-        hardcore_errors =[]
-        hardcore_errors_details =[]
 
         id_to_item_by_table = {}
         for it, tf, sub in all_table_items:
@@ -1280,6 +1464,7 @@ def validate_table_ids():
                             if target_id is None or(isinstance(target_id, str)and str(target_id).strip().lower()=='null'):
                                 msg = f"Table '{table_pretty_names.get(tf, tf)}': Firearm '{fname}' has part '{p.get('name')}' with invalid 'current' id: {target_id}"
                                 hardcore_errors.append(msg)
+                                hardcore_errors_files.append(tf)
                                 try:
                                     hardcore_errors_details.append({'table':tf, 'weapon':item, 'part':p, 'reason':'invalid_part_current_id', 'id':target_id})
                                 except Exception:
@@ -1290,6 +1475,7 @@ def validate_table_ids():
                             if target_id not in table_id_map:
                                 msg = f"Table '{table_pretty_names.get(tf, tf)}': Firearm '{fname}' has part '{p.get('name')}' referencing missing item ID {target_id}"
                                 hardcore_errors.append(msg)
+                                hardcore_errors_files.append(tf)
                                 try:
                                     hardcore_errors_details.append({'table':tf, 'weapon':item, 'part':p, 'reason':'missing_referenced_part', 'id':target_id})
                                 except Exception:
@@ -1304,6 +1490,7 @@ def validate_table_ids():
                                 if lf and lt and not(lf in lt or lt in lf):
                                     msg = f"Table '{table_pretty_names.get(tf, tf)}': Firearm '{fname}' part '{p.get('name')}' references item ID {target_id} with platform '{tplat}' which does not match firearm platform '{fplat}'"
                                     hardcore_errors.append(msg)
+                                    hardcore_errors_files.append(tf)
                                     try:
                                         hardcore_errors_details.append({'table':tf, 'weapon':item, 'part':p, 'reason':'platform_mismatch', 'weapon_platform':fplat, 'part_platform':tplat, 'id':target_id})
                                     except Exception:
@@ -1492,6 +1679,7 @@ def validate_table_ids():
             if len(file_locs)>1:
                 duplicates.setdefault(item_id, []).extend(file_locs)
     duplicate_errors =[]
+    duplicate_errors_files =[]
 
     duplicate_suggestions =[]
     if duplicates:
@@ -1499,6 +1687,7 @@ def validate_table_ids():
             loc_str = "; ".join([f"{f}:{sub}:{name}"for f, sub, name in locations])
             msg = f"Duplicate ID detected: {dup_id} used in: {loc_str}"
             duplicate_errors.append(msg)
+            duplicate_errors_files.append(locations[0][0] if locations else '')
             try:
 
                 max_id = max(global_id_map.keys())if global_id_map else dup_id
@@ -1635,7 +1824,49 @@ def validate_table_ids():
     except Exception:
         pass
 
-    all_errors = duplicate_errors +magazine_errors +table_sequence_errors +hardcore_errors
+    try:
+        skip_subtables = {'stores', 'armories', 'businesses', 'settings', 'additional_settings'}
+        for item_cat, tf_cat, sub_cat in all_table_items:
+            try:
+                if not isinstance(item_cat, dict):
+                    continue
+                if sub_cat and str(sub_cat).lower() in skip_subtables:
+                    continue
+                has_armory = bool(item_cat.get("armory_category"))
+                has_shop = bool(item_cat.get("shop_category"))
+                if not has_armory and not has_shop:
+                    item_name_cat = item_cat.get("name") or f"ID {item_cat.get('id', '?')}"
+                    display_table_cat = table_pretty_names.get(tf_cat, tf_cat)
+                    logging.warning(f"Table '{display_table_cat}': Item '{item_name_cat}' in subtable '{sub_cat}' is missing both 'armory_category' and 'shop_category' fields.")
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+    all_errors_with_source = (
+        [(e, f) for e, f in zip(duplicate_errors, duplicate_errors_files)] +
+        [(e, f) for e, f in zip(magazine_errors, magazine_errors_files)] +
+        [(e, f) for e, f in zip(table_sequence_errors, table_sequence_errors_files)] +
+        [(e, f) for e, f in zip(hardcore_errors, hardcore_errors_files)]
+    )
+    active_errors = [e for e, f in all_errors_with_source if f not in disabled_files]
+    disabled_table_errors = [e for e, f in all_errors_with_source if f in disabled_files]
+
+    if disabled_table_errors:
+        for err in disabled_table_errors:
+            logging.error(f"[Disabled table] {err}")
+
+        disabled_displayed = disabled_table_errors[:10]
+        disabled_numbered =[f"{i +1}. [Disabled table] {e}"for i, e in enumerate(disabled_displayed)]
+        disabled_preview = "\n\n".join(disabled_numbered)
+        disabled_more = len(disabled_table_errors)-len(disabled_displayed)
+        if disabled_more >0:
+            disabled_preview +=f"\n\n...and {disabled_more} more errors"
+        disabled_title = f"Disabled Table Validation Errors({len(disabled_table_errors)})"
+        disabled_msg = f"Errors detected in disabled tables (program will continue):\n\n{disabled_preview}\n\nSee logs for full details."
+        show_error_dialog(disabled_title, disabled_msg)
+
+    all_errors = active_errors
     if all_errors:
 
         for err in all_errors:
@@ -2210,10 +2441,11 @@ persistentdata = {
 
 ATTACHMENTS_VERSION = 0
 
-dm_users =[base64.b64decode(user).decode('utf-8').lower()for user in dm_users]
+import getpass as _getpass
+_current_login = _getpass.getuser().lower()
 
 for user in dm_users:
-    if user in os.getlogin().lower():
+    if _current_login == user:
         if not global_variables["dmmode"]["value"]and not global_variables["dmmode"]["forced"]:
             global_variables["dmmode"]["value"]= True
             logging.info(f"DM user '{user}' detected.DM mode toggled on.")
@@ -2229,16 +2461,18 @@ for user in dm_users:
                 pass
 
             import ast
+            import copy
 
             ALLOWED_FUNCS = {
             'len':len, 'str':str, 'int':int, 'float':float, 'bool':bool,
             'sum':sum, 'min':min, 'max':max, 'sorted':sorted, 'repr':repr,
-            'json':json
             }
 
+            SAFE_ATTRS = frozenset({'get', 'keys', 'values', 'items', 'copy', 'count', 'index', 'upper', 'lower', 'strip', 'split', 'join', 'startswith', 'endswith', 'replace', 'format'})
+
             ALLOWED_NAMES = {
-            'dm_users':dm_users,
-            'global_variables':global_variables,
+            'dm_users':list(dm_users),
+            'global_variables':copy.deepcopy(global_variables),
             }
 
             ALLOWED_NODE_TYPES =(
@@ -2253,6 +2487,11 @@ for user in dm_users:
 
                 if not isinstance(node, ALLOWED_NODE_TYPES):
                     return False
+                if isinstance(node, ast.Attribute):
+                    if node.attr not in SAFE_ATTRS:
+                        return False
+                    if node.attr.startswith('_'):
+                        return False
                 for child in ast.iter_child_nodes(node):
                     if isinstance(child, ast.Name):
                         if child.id in('True', 'False', 'None'):
@@ -2534,6 +2773,59 @@ PART_WRONG_AMMO_BREAK_CHANCE = {
     "bolt_carrier_group": 0.008,
     "bolt": 0.006,
 }
+
+def _parse_caliber_diameter_mm(caliber_str):
+    if not caliber_str or not isinstance(caliber_str, str):
+        return None
+    import re as _re_cal, math as _math_cal
+    s = caliber_str.strip()
+    gauge_match = _re_cal.match(r'^(\d+)\s*gauge', s, _re_cal.IGNORECASE)
+    if gauge_match:
+        gauge = int(gauge_match.group(1))
+        if gauge <= 0:
+            return None
+        mass_g = 453.592 / gauge
+        vol_cm3 = mass_g / 11.34
+        radius_cm = (3.0 * vol_cm3 / (4.0 * _math_cal.pi)) ** (1.0 / 3.0)
+        return round(2.0 * radius_cm * 10.0, 3)
+    metric_match = _re_cal.search(r'(\d+\.?\d*)\s*x\s*\d+', s, _re_cal.IGNORECASE)
+    if metric_match:
+        return float(metric_match.group(1))
+    imp_match = _re_cal.match(r'^\.(\d+)', s)
+    if imp_match:
+        diameter_in = float('0.' + imp_match.group(1))
+        return round(diameter_in * 25.4, 3)
+    metric_ish = _re_cal.match(r'^(\d+\.?\d*)\s+[A-Za-z]', s)
+    if metric_ish:
+        val = float(metric_ish.group(1))
+        if 1.0 < val < 30.0:
+            return val
+    return None
+
+def _get_caliber_mismatched_parts(weapon):
+    mismatched = set()
+    weapon_calibers = weapon.get("caliber") or []
+    if isinstance(weapon_calibers, str):
+        weapon_calibers = [weapon_calibers]
+    if not weapon_calibers:
+        return mismatched
+    weapon_cal_lower = {c.lower() for c in weapon_calibers if isinstance(c, str)}
+    parts = weapon.get("parts") or []
+    for p in parts:
+        if not isinstance(p, dict):
+            continue
+        cur = p.get("current")
+        if not isinstance(cur, dict):
+            continue
+        part_calibers = cur.get("caliber")
+        if not part_calibers:
+            continue
+        if isinstance(part_calibers, str):
+            part_calibers = [part_calibers]
+        part_cal_lower = {c.lower() for c in part_calibers if isinstance(c, str)}
+        if part_cal_lower and not part_cal_lower.intersection(weapon_cal_lower):
+            mismatched.add(id(p))
+    return mismatched
 
 def _get_part_by_type(weapon, part_type):
     parts = weapon.get("parts") or []
@@ -2893,10 +3185,7 @@ class App:
 
         try:
             persistent_path = os.path.join(saves_folder or "saves", "persistent_data.sldsv")
-            pickled_persistent = pickle.dumps(persistentdata)
-            encoded_persistent = base64.b85encode(pickled_persistent).decode('utf-8')
-            with open(persistent_path, 'w')as f:
-                f.write(encoded_persistent)
+            _signed_json_write(persistent_path, persistentdata)
             logging.info(f"Persistent data saved to {persistent_path}")
         except Exception as e:
             logging.error(f"Failed to save persistent data: {e}")
@@ -2966,10 +3255,7 @@ class App:
                         except Exception as backup_err:
                             logging.warning(f"Failed to create backup copy: {backup_err}")
                     else:
-                        pickled_backup = pickle.dumps(data)
-                        encoded_backup = base64.b85encode(pickled_backup).decode('utf-8')
-                        with open(backup_path, 'w', encoding = 'utf-8')as bf:
-                            bf.write(encoded_backup)
+                        _signed_json_write(backup_path, data)
                         logging.info(f"Created backup at {backup_path}")
                 except Exception as backup_err:
                     logging.warning(f"Failed to create backup: {backup_err}")
@@ -2978,12 +3264,7 @@ class App:
             if isinstance(data, dict):
                 comment_lines = data.pop("_save_comments", [])
 
-            pickled = pickle.dumps(data)
-            encoded = base64.b85encode(pickled).decode('utf-8')
-            with open(path, 'w', encoding = 'utf-8')as f:
-                for cl in comment_lines:
-                    f.write(cl if cl.endswith("\n")else cl +"\n")
-                f.write(encoded)
+            _signed_json_write(path, data, comment_lines = comment_lines or None)
             logging.info(f"Data written to {path}")
         except Exception as e:
             logging.error(f"Failed to write save to {path}: {e}")
@@ -2995,42 +3276,25 @@ class App:
             if not os.path.exists(path):
                 logging.error(f"Save file '{path}' does not exist.")
                 return None
-            with open(path, 'r', encoding = 'utf-8')as f:
-                text = f.read()
 
-            lines = text.splitlines(True)
-            comment_lines =[]
-            data_lines =[]
-            for line in lines:
-                stripped = line.strip()
-                if stripped.startswith("//"):
-                    comment_lines.append(line)
-                elif stripped ==""and not data_lines:
-                    comment_lines.append(line)
-                else:
-                    data_lines.append(line)
-            payload = "".join(data_lines)
+            data, comment_lines, status = _signed_json_read(path, allow_unsigned = False)
 
-            try:
-                pickled = base64.b85decode(payload.encode('utf-8'))
-                data = pickle.loads(pickled)
+            if status == "ok":
                 if isinstance(data, dict):
                     if comment_lines:
                         data["_save_comments"]= comment_lines
                     logging.info(f"Loaded save from {path}")
                     return data
-            except Exception:
-                pass
+            elif status == "tampered":
+                logging.error(f"Save file '{path}' has been tampered with — signature verification failed.")
+                return None
+            elif status == "unsigned":
+                logging.error(f"Save file '{path}' is unsigned. Download and run convert_legacy_saves.py from github and run with --resign flag to convert.")
+                return None
+            elif status == "incompatible_format":
+                logging.error(f"Save file '{path}' uses an incompatible legacy format. Download and run convert_legacy_saves.py from github to convert it.")
+                return None
 
-            try:
-                data = json.loads(payload)
-                if isinstance(data, dict):
-                    if comment_lines:
-                        data["_save_comments"]= comment_lines
-                    logging.info(f"Loaded save from {path}(json)")
-                    return data
-            except Exception:
-                pass
             logging.error(f"Failed to parse save file: {path}")
             return None
         except Exception as e:
@@ -3095,10 +3359,16 @@ class App:
         try:
             persistent_path = os.path.join(saves_folder or "saves", "persistent_data.sldsv")
             if os.path.exists(persistent_path):
-                with open(persistent_path, 'r')as f:
-                    encoded_persistent = f.read()
-                pickled_persistent = base64.b85decode(encoded_persistent.encode('utf-8'))
-                loaded_persistent = pickle.loads(pickled_persistent)
+                loaded_persistent, _, p_status = _signed_json_read(persistent_path, allow_unsigned = False)
+                if p_status == "tampered":
+                    logging.error(f"Persistent data file '{persistent_path}' has been tampered with.")
+                    loaded_persistent = None
+                elif p_status == "unsigned":
+                    logging.error(f"Persistent data file '{persistent_path}' is unsigned. Download and run convert_legacy_saves.py from github and run with --resign flag to sign it.")
+                    loaded_persistent = None
+                elif p_status == "incompatible_format":
+                    logging.error(f"Persistent data file '{persistent_path}' uses an incompatible legacy format. Download and run convert_legacy_saves.py from github to convert it.")
+                    loaded_persistent = None
                 if isinstance(loaded_persistent, dict):
                     persistentdata.update(loaded_persistent)
                     logging.info(f"Persistent data loaded from {persistent_path}")
@@ -3795,6 +4065,7 @@ class App:
             pass
         try:
             def _bg_pay_worker():
+                _excluded_saves = {"persistent_data.sldsv", "settings.sldsv", "appearance_settings.sldsv", "dm_settings.sldsv"}
                 try:
                     while True:
                         try:
@@ -3802,6 +4073,8 @@ class App:
                             pattern = os.path.join(saves_dir, "*_*.sldsv")
                             files = glob.glob(pattern)
                             for fpath in files:
+                                if os.path.basename(fpath) in _excluded_saves:
+                                    continue
                                 try:
                                     data = self._read_save_from_path(fpath)
                                     if data:
@@ -5887,13 +6160,18 @@ class App:
             crate_files = glob.glob(os.path.join("lootcrates", f"*{global_variables['lootcrate_extension']}"))
             for crate_file in crate_files:
                 try:
-                    with open(crate_file, 'r')as cf:
-                        encoded_data = cf.read()
-                    pickled_data = base64.b85decode(encoded_data.encode('utf-8'))
-                    crate_data = pickle.loads(pickled_data)
+                    crate_data, _, c_status = _signed_json_read(crate_file, allow_unsigned = False, portable = True)
+                    if c_status == "tampered":
+                        logging.warning(f"Loot crate '{crate_file}' has been tampered with — skipping.")
+                        continue
+                    elif c_status in ("unsigned", "incompatible_format"):
+                        logging.warning(f"Loot crate '{crate_file}' is unsigned or incompatible. Download and run convert_legacy_saves.py from github and run with --resign flag to sign it.")
+                        continue
+                    elif crate_data is None:
+                        continue
                     crate_data["_file_path"]= crate_file
                     lootcrates.append(crate_data)
-                    logging.info(f"Loaded custom loot crate: {crate_data.get('name', os.path.basename(crate_file))}")
+                    logging.info(f"Loaded custom loot crate: {_sanitize_log(crate_data.get('name', os.path.basename(crate_file)))}")
                 except Exception as e:
                     logging.warning(f"Failed to load loot crate file {crate_file}: {e}")
 
@@ -5901,13 +6179,18 @@ class App:
             enemyloot_files = glob.glob(os.path.join("enemyloot", "*.sldenlt"))
             for el_file in enemyloot_files:
                 try:
-                    with open(el_file, 'rb')as ef:
-                        encoded_data = ef.read()
-                    pickled_data = base64.b85decode(encoded_data)
-                    el_data = pickle.loads(pickled_data)
+                    el_data, _, e_status = _signed_json_read(el_file, allow_unsigned = False, portable = True)
+                    if e_status == "tampered":
+                        logging.warning(f"Enemy loot '{el_file}' has been tampered with — skipping.")
+                        continue
+                    elif e_status in ("unsigned", "incompatible_format"):
+                        logging.warning(f"Enemy loot '{el_file}' is unsigned or incompatible. Download and run convert_legacy_saves.py from github and run with --resign flag to sign it.")
+                        continue
+                    elif el_data is None:
+                        continue
                     el_data["_file_path"]= el_file
                     enemyloots.append(el_data)
-                    logging.info(f"Loaded enemy loot: {el_data.get('enemy_name', os.path.basename(el_file))}")
+                    logging.info(f"Loaded enemy loot: {_sanitize_log(el_data.get('enemy_name', os.path.basename(el_file)))}")
                 except Exception as e:
                     logging.warning(f"Failed to load enemy loot file {el_file}: {e}")
 
@@ -5982,10 +6265,7 @@ class App:
                             updated_crate["generated_items"]= available_items
                             updated_crate.pop("loot_table", None)
                             try:
-                                pickled_crate = pickle.dumps(updated_crate)
-                                encoded_crate = base64.b85encode(pickled_crate).decode('utf-8')
-                                with open(crate_file_path, 'w')as cf:
-                                    cf.write(encoded_crate)
+                                _signed_json_write(crate_file_path, updated_crate, portable = True)
                                 logging.info(f"Saved {len(available_items)} generated items to crate file: {crate_file_path}")
 
                                 crate["generated_items"]= available_items
@@ -7115,10 +7395,7 @@ class App:
                         updated_crate["generated_items"]= remaining_items
                         updated_crate.pop("loot_table", None)
 
-                        pickled_crate = pickle.dumps(updated_crate)
-                        encoded_crate = base64.b85encode(pickled_crate).decode('utf-8')
-                        with open(crate_file_path, 'w')as cf:
-                            cf.write(encoded_crate)
+                        _signed_json_write(crate_file_path, updated_crate, portable = True)
                         logging.info(f"Updated crate file with {len(remaining_items)} remaining items: {crate_file_path}")
                     else:
 
@@ -8735,6 +9012,103 @@ class App:
 
                 subcat_buttons = {}
 
+                def _render_subcat_items(name, sub_items, target_frame, scroll_holder):
+                    sub2cats = {}
+                    for it2 in sub_items:
+                        s2 = it2.get("armory_subcategory2") or "General"
+                        sub2cats.setdefault(s2, []).append(it2)
+
+                    if len(sub2cats) <= 1:
+                        sub_title = customtkinter.CTkLabel(target_frame, text = name, font = customtkinter.CTkFont(size = 16, weight = "bold"))
+                        sub_title.pack(pady =(6, 12), anchor = "w", padx = 10)
+                        render_item_list(sub_items, parent = scroll_holder if scroll_holder is not None else target_frame)
+                    else:
+                        target_frame.grid_rowconfigure(0, weight = 1)
+                        target_frame.grid_columnconfigure(0, weight = 0)
+                        target_frame.grid_columnconfigure(1, weight = 1)
+
+                        sub2_scroll = customtkinter.CTkScrollableFrame(target_frame, width = 150)
+                        sub2_scroll.grid(row = 0, column = 0, sticky = "ns", padx =(0, 6))
+
+                        sub2_right = customtkinter.CTkFrame(target_frame)
+                        sub2_right.grid(row = 0, column = 1, sticky = "nsew")
+
+                        try:
+                            sub2_items_scroll = customtkinter.CTkScrollableFrame(sub2_right)
+                            sub2_items_scroll.pack(fill = "both", expand = True, padx = 0, pady = 0)
+                        except Exception:
+                            sub2_items_scroll = None
+
+                        sub2_buttons = {}
+                        selected_sub2 = [None]
+
+                        def make_sub2_btn(s2name):
+                            def on_click():
+                                for w2 in sub2_right.winfo_children():
+                                    w2.destroy()
+                                try:
+                                    s2_scroll = customtkinter.CTkScrollableFrame(sub2_right)
+                                    s2_scroll.pack(fill = "both", expand = True, padx = 0, pady = 0)
+                                except Exception:
+                                    s2_scroll = None
+                                s2_title = customtkinter.CTkLabel(sub2_right, text = s2name, font = customtkinter.CTkFont(size = 16, weight = "bold"))
+                                s2_title.pack(pady =(6, 12), anchor = "w", padx = 10)
+                                render_item_list(sub2cats.get(s2name, []), parent = s2_scroll if s2_scroll is not None else sub2_right)
+                                selected_sub2[0] = s2name
+                                for nm2, b2 in sub2_buttons.items():
+                                    try:
+                                        if nm2 == s2name:
+                                            b2.configure(border_color = "white", border_width = 2)
+                                        else:
+                                            b2.configure(border_width = 0)
+                                    except Exception:
+                                        pass
+                            return on_click
+
+                        for s2name in sorted(sub2cats.keys()):
+                            has_highlighted2 = False
+                            for it2 in sub2cats.get(s2name, []):
+                                calibers2 = it2.get("caliber", [])
+                                if isinstance(calibers2, str):
+                                    calibers2 = [calibers2]
+                                if it2.get("_table_category") == "ammunition":
+                                    for cal2 in calibers2:
+                                        if cal2 in equipped_calibers:
+                                            has_highlighted2 = True
+                                            break
+                                if has_highlighted2:
+                                    break
+                                if it2.get("_table_category") == "magazines":
+                                    mag_sys2 = it2.get("magazinesystem")
+                                    if mag_sys2 in equipped_magazine_systems:
+                                        for cal2 in calibers2:
+                                            if cal2 in equipped_calibers:
+                                                has_highlighted2 = True
+                                                break
+                                if has_highlighted2:
+                                    break
+                            btn_text2 = s2name if not has_highlighted2 else ("⭐ " + s2name)
+                            btn_kwargs2 = {"width": 130, "height": 30, "font": customtkinter.CTkFont(size = 10)}
+                            if has_highlighted2:
+                                btn_kwargs2["fg_color"] = "#2a8a2a"
+                            btn2 = self._create_sound_button(sub2_scroll, btn_text2, make_sub2_btn(s2name), **btn_kwargs2)
+                            btn2.pack(fill = "x", pady = 3, padx = 6)
+                            sub2_buttons[s2name] = btn2
+
+                        first2 = sorted(sub2cats.keys())[0]
+                        s2_title = customtkinter.CTkLabel(sub2_right, text = first2, font = customtkinter.CTkFont(size = 16, weight = "bold"))
+                        s2_title.pack(pady =(6, 12), anchor = "w", padx = 10)
+                        render_item_list(sub2cats.get(first2, []), parent = sub2_items_scroll if sub2_items_scroll is not None else sub2_right)
+                        selected_sub2[0] = first2
+                        for nm2, b2 in sub2_buttons.items():
+                            try:
+                                if nm2 == first2:
+                                    b2.configure(border_color = "white", border_width = 2)
+                                else:
+                                    b2.configure(border_width = 0)
+                            except Exception:
+                                pass
+
                 def make_subcat_btn(name):
                     def on_click():
                         nonlocal items_scroll
@@ -8747,9 +9121,7 @@ class App:
                             items_scroll.pack(fill = "both", expand = True, padx = 0, pady = 0)
                         except Exception:
                             items_scroll = None
-                        sub_title = customtkinter.CTkLabel(content_right, text = name, font = customtkinter.CTkFont(size = 16, weight = "bold"))
-                        sub_title.pack(pady =(6, 12), anchor = "w", padx = 10)
-                        render_item_list(subcats.get(name, []), parent = items_scroll if items_scroll is not None else content_right)
+                        _render_subcat_items(name, subcats.get(name, []), content_right, items_scroll)
                         selected_subcat[0]= name
 
                         for nm, b in subcat_buttons.items():
@@ -8794,9 +9166,7 @@ class App:
                     subcat_buttons[sname]= btn
 
                 first = sorted(subcats.keys())[0]
-                sub_title = customtkinter.CTkLabel(content_right, text = first, font = customtkinter.CTkFont(size = 16, weight = "bold"))
-                sub_title.pack(pady =(6, 12), anchor = "w", padx = 10)
-                render_item_list(subcats.get(first, []), parent = items_scroll if items_scroll is not None else content_right)
+                _render_subcat_items(first, subcats.get(first, []), content_right, items_scroll)
                 selected_subcat[0]= first
 
                 for nm, b in subcat_buttons.items():
@@ -9805,7 +10175,7 @@ class App:
 
                 if len(subcats) <= 1:
                     try:
-                        shop_items_scroll[0] = customtkinter.CTkScrollableFrame(shop_items_frame)
+                        shop_items_scroll[0] = customtkinter.CTkScrollableFrame(shop_items_frame) # type: ignore
                         shop_items_scroll[0].pack(fill = "both", expand = True)
                     except Exception:
                         shop_items_scroll[0] = None
@@ -9828,7 +10198,7 @@ class App:
                     content_right.grid(row = 0, column = 1, sticky = "nsew")
 
                     try:
-                        shop_items_scroll[0] = customtkinter.CTkScrollableFrame(content_right)
+                        shop_items_scroll[0] = customtkinter.CTkScrollableFrame(content_right) # type: ignore
                         shop_items_scroll[0].pack(fill = "both", expand = True)
                     except Exception:
                         shop_items_scroll[0] = None
@@ -9836,18 +10206,88 @@ class App:
                     subcat_buttons = {}
                     selected_subcat = [None]
 
+                    def _render_shop_subcat_items(sname, sub_items, target_frame, scroll_holder):
+                        sub2cats = {}
+                        for it2 in sub_items:
+                            s2 = it2.get("shop_subcategory2") or it2.get("armory_subcategory2") or "General"
+                            sub2cats.setdefault(s2, []).append(it2)
+
+                        if len(sub2cats) <= 1:
+                            sub_title = customtkinter.CTkLabel(target_frame, text = sname, font = customtkinter.CTkFont(size = 16, weight = "bold"))
+                            sub_title.pack(pady =(6, 12), anchor = "w", padx = 10)
+                            render_shop_item_list(sub_items, scroll_holder if scroll_holder is not None else target_frame)
+                        else:
+                            target_frame.grid_rowconfigure(0, weight = 1)
+                            target_frame.grid_columnconfigure(0, weight = 0)
+                            target_frame.grid_columnconfigure(1, weight = 1)
+
+                            sub2_scroll = customtkinter.CTkScrollableFrame(target_frame, width = 130)
+                            sub2_scroll.grid(row = 0, column = 0, sticky = "ns", padx =(0, 6))
+
+                            sub2_right = customtkinter.CTkFrame(target_frame)
+                            sub2_right.grid(row = 0, column = 1, sticky = "nsew")
+
+                            try:
+                                sub2_items_scroll = customtkinter.CTkScrollableFrame(sub2_right)
+                                sub2_items_scroll.pack(fill = "both", expand = True, padx = 0, pady = 0)
+                            except Exception:
+                                sub2_items_scroll = None
+
+                            sub2_buttons = {}
+                            selected_sub2 = [None]
+
+                            def make_sub2_btn(s2name):
+                                def on_click():
+                                    for w2 in sub2_right.winfo_children():
+                                        w2.destroy()
+                                    try:
+                                        s2_scroll = customtkinter.CTkScrollableFrame(sub2_right)
+                                        s2_scroll.pack(fill = "both", expand = True, padx = 0, pady = 0)
+                                    except Exception:
+                                        s2_scroll = None
+                                    s2_title = customtkinter.CTkLabel(sub2_right, text = s2name, font = customtkinter.CTkFont(size = 16, weight = "bold"))
+                                    s2_title.pack(pady =(6, 12), anchor = "w", padx = 10)
+                                    render_shop_item_list(sub2cats.get(s2name, []), s2_scroll if s2_scroll is not None else sub2_right)
+                                    selected_sub2[0] = s2name
+                                    for nm2, b2 in sub2_buttons.items():
+                                        try:
+                                            if nm2 == s2name:
+                                                b2.configure(border_color = "white", border_width = 2)
+                                            else:
+                                                b2.configure(border_width = 0)
+                                        except Exception:
+                                            pass
+                                return on_click
+
+                            for s2name in sorted(sub2cats.keys()):
+                                btn2 = self._create_sound_button(sub2_scroll, s2name, make_sub2_btn(s2name), width = 110, height = 30, font = customtkinter.CTkFont(size = 10))
+                                btn2.pack(fill = "x", pady = 3, padx = 6)
+                                sub2_buttons[s2name] = btn2
+
+                            first2 = sorted(sub2cats.keys())[0]
+                            s2_title = customtkinter.CTkLabel(sub2_right, text = first2, font = customtkinter.CTkFont(size = 16, weight = "bold"))
+                            s2_title.pack(pady =(6, 12), anchor = "w", padx = 10)
+                            render_shop_item_list(sub2cats.get(first2, []), sub2_items_scroll if sub2_items_scroll is not None else sub2_right)
+                            selected_sub2[0] = first2
+                            for nm2, b2 in sub2_buttons.items():
+                                try:
+                                    if nm2 == first2:
+                                        b2.configure(border_color = "white", border_width = 2)
+                                    else:
+                                        b2.configure(border_width = 0)
+                                except Exception:
+                                    pass
+
                     def make_subcat_btn(sname):
                         def on_click():
                             for w in content_right.winfo_children():
                                 w.destroy()
                             try:
-                                shop_items_scroll[0] = customtkinter.CTkScrollableFrame(content_right)
+                                shop_items_scroll[0] = customtkinter.CTkScrollableFrame(content_right) # type: ignore
                                 shop_items_scroll[0].pack(fill = "both", expand = True)
                             except Exception:
                                 shop_items_scroll[0] = None
-                            sub_title = customtkinter.CTkLabel(content_right, text = sname, font = customtkinter.CTkFont(size = 16, weight = "bold"))
-                            sub_title.pack(pady =(6, 12), anchor = "w", padx = 10)
-                            render_shop_item_list(subcats.get(sname, []), shop_items_scroll[0] if shop_items_scroll[0] is not None else content_right)
+                            _render_shop_subcat_items(sname, subcats.get(sname, []), content_right, shop_items_scroll[0])
                             selected_subcat[0] = sname
                             for nm, b in subcat_buttons.items():
                                 try:
@@ -9865,9 +10305,7 @@ class App:
                         subcat_buttons[sname] = btn
 
                     first_sub = sorted(subcats.keys())[0]
-                    sub_title = customtkinter.CTkLabel(content_right, text = first_sub, font = customtkinter.CTkFont(size = 16, weight = "bold"))
-                    sub_title.pack(pady =(6, 12), anchor = "w", padx = 10)
-                    render_shop_item_list(subcats.get(first_sub, []), shop_items_scroll[0] if shop_items_scroll[0] is not None else content_right)
+                    _render_shop_subcat_items(first_sub, subcats.get(first_sub, []), content_right, shop_items_scroll[0])
                     selected_subcat[0] = first_sub
                     for nm, b in subcat_buttons.items():
                         try:
@@ -14714,7 +15152,6 @@ class App:
     def _transfer_player(self):
         import json
         import base64
-        import pickle
         from datetime import datetime
 
         if currentsave is None:
@@ -14829,12 +15266,8 @@ class App:
 
                 self._save_file(save_data)
 
-                pickled_data = pickle.dumps(transfer_data)
-                encoded_data = base64.b85encode(pickled_data).decode('utf-8')
-
                 transfer_filename = f"transfers/transfer_{datetime.now().strftime('%Y%m%d_%H%M%S')}.sldtrf"
-                with open(transfer_filename, 'w')as f:
-                    f.write(encoded_data)
+                _signed_json_write(transfer_filename, transfer_data, portable = True)
 
                 self._popup_show_info("Success", f"Exported {len(items_to_export)} items and {format_price(money_amount)}!", sound = "success")
                 logging.info(f"Created transfer file: {transfer_filename}")
@@ -14869,11 +15302,13 @@ class App:
 
                 def import_transfer(filepath):
                     try:
-                        with open(filepath, 'r')as f:
-                            encoded_data = f.read()
-
-                        pickled_data = base64.b85decode(encoded_data.encode('utf-8'))
-                        transfer_data = pickle.loads(pickled_data)
+                        transfer_data, _, t_status = _signed_json_read(filepath, allow_unsigned = False, portable = True)
+                        if t_status == "tampered":
+                            raise ValueError(f"Transfer file '{filepath}' has been tampered with — signature verification failed.")
+                        elif t_status in ("unsigned", "incompatible_format"):
+                            raise ValueError(f"Transfer file '{filepath}' is unsigned or incompatible. Download and run convert_legacy_saves.py from github and run with --resign flag to sign it.")
+                        elif transfer_data is None:
+                            raise ValueError(f"Transfer file '{filepath}' could not be loaded.")
 
                         save_data = self._load_file((currentsave or "")+".sldsv")
                         if save_data is None:
@@ -14893,10 +15328,10 @@ class App:
 
                 for i, filepath in enumerate(transfer_files):
                     try:
-                        with open(filepath, 'r')as f:
-                            encoded_data = f.read()
-                        pickled_data = base64.b85decode(encoded_data.encode('utf-8'))
-                        transfer_data = pickle.loads(pickled_data)
+                        transfer_data, _, t_status = _signed_json_read(filepath, allow_unsigned = False, portable = True)
+                        if t_status != "ok" or transfer_data is None:
+                            logging.warning(f"Transfer file '{filepath}' could not be verified (status: {t_status}) — skipping.")
+                            continue
 
                         file_frame = customtkinter.CTkFrame(scroll_frame)
                         file_frame.pack(fill = "x", pady = 5, padx = 5)
@@ -19016,8 +19451,8 @@ class App:
                         ch = pygame.mixer.find_channel(True)
                     if ch:
                         ch.play(snd, loops = -1)
-                        weather_sound_state["channel"] = ch
-                        weather_sound_state["sound"] = snd
+                        weather_sound_state["channel"] = ch # type: ignore
+                        weather_sound_state["sound"] = snd # type: ignore
                         self._weather_ambient_channel = ch
                         logging.debug("Weather ambient sound started: %s", loop_file)
             except Exception:
@@ -19039,7 +19474,7 @@ class App:
                 except Exception:
                     logging.exception("Failed in thunder sequence")
                 interval = random.randint(15000, 45000)
-                weather_sound_state["thunder_after_id"] = self.root.after(interval, _play_thunder)
+                weather_sound_state["thunder_after_id"] = self.root.after(interval, _play_thunder) # type: ignore
 
             def _play_thunder_sound():
                 try:
@@ -19056,7 +19491,7 @@ class App:
                     logging.exception("Failed to play thunder sound")
 
             interval = random.randint(5000, 20000)
-            weather_sound_state["thunder_after_id"] = self.root.after(interval, _play_thunder)
+            weather_sound_state["thunder_after_id"] = self.root.after(interval, _play_thunder) # type: ignore
 
         def _weather_lightning_flash():
             try:
@@ -21537,10 +21972,11 @@ class App:
                 try:
                     mag_type =(wpn.get("magazinetype")or "").lower()
                     platform_check =(wpn.get("platform")or "").lower()
-                    is_detachable_box =(not any(k in mag_type for k in("internal", "tube", "cylinder"))
+                    _df_mag_loaded = wpn.get("dualfeed") and isinstance(wpn.get("loaded"), dict) and wpn.get("loaded")
+                    is_detachable_box =(_df_mag_loaded or (not any(k in mag_type for k in("internal", "tube", "cylinder"))
                     and "revolver"not in platform_check
                     and "belt"not in mag_type and "belt"not in platform_check
-                    and "m249"not in platform_check)
+                    and "m249"not in platform_check))
                 except Exception:
                     is_detachable_box = True
 
@@ -22723,6 +23159,51 @@ class App:
                 if _mag_is_compatible(loaded_mag):
                     all_magazines.append(("loaded", loaded_mag))
 
+            # Also find clips in inventory that are not full
+            def _clip_is_compatible(clip_item):
+                if not clip_item or not isinstance(clip_item, dict):
+                    return False
+                if not clip_item.get('clip_type'):
+                    return False
+                clip_cal_raw = clip_item.get('caliber')
+                clip_cals = set()
+                if isinstance(clip_cal_raw, (list, tuple)):
+                    for c in clip_cal_raw:
+                        if c:
+                            clip_cals.add(str(c).lower().strip())
+                elif isinstance(clip_cal_raw, str) and clip_cal_raw:
+                    clip_cals.add(clip_cal_raw.lower().strip())
+                if wpn_calibers and clip_cals:
+                    if not wpn_calibers.intersection(clip_cals):
+                        return False
+                clip_cap = int(clip_item.get('capacity', 0) or 0)
+                clip_rounds = clip_item.get('rounds', []) or []
+                if len(clip_rounds) >= clip_cap:
+                    return False
+                return True
+
+            for item in save_data.get("hands", {}).get("items", []):
+                if item and isinstance(item, dict) and item.get('clip_type') and item.get('capacity'):
+                    if _clip_is_compatible(item):
+                        all_magazines.append(("hands", item))
+
+            for slot_name, eq_item in save_data.get("equipment", {}).items():
+                if eq_item:
+                    if "items" in eq_item and isinstance(eq_item["items"], list):
+                        for item in eq_item["items"]:
+                            if item and isinstance(item, dict) and item.get('clip_type') and item.get('capacity'):
+                                if _clip_is_compatible(item):
+                                    all_magazines.append(("equipment", item))
+                    if "subslots" in eq_item:
+                        for subslot in eq_item["subslots"]:
+                            if subslot.get("current"):
+                                curr = subslot["current"]
+                                if "items" in curr and isinstance(curr["items"], list):
+                                    for item in curr["items"]:
+                                        if item and isinstance(item, dict) and item.get('clip_type') and item.get('capacity'):
+                                            if _clip_is_compatible(item):
+                                                all_magazines.append(("equipment", item))
+
             if not all_magazines:
                 msg = "No compatible magazines found!\n\nMake sure you have magazines that:\n• Match the weapon's magazine system"
                 if wpn_mag_system:
@@ -22757,7 +23238,8 @@ class App:
                 capacity = mag_item.get("capacity", "?")
                 mag_rounds_list = mag_item.get("rounds", [])
                 rounds = len(mag_rounds_list)
-                mag_system = mag_item.get("magazinesystem", "Unknown")
+                is_clip_item = bool(mag_item.get('clip_type'))
+                mag_system = mag_item.get("clip_type") if is_clip_item else mag_item.get("magazinesystem", "Unknown")
                 _next_var = ""
                 if mag_rounds_list and isinstance(mag_rounds_list, list)and len(mag_rounds_list)>0:
                     _nr = mag_rounds_list[0]
@@ -22769,7 +23251,8 @@ class App:
                 radio_frame = customtkinter.CTkFrame(scroll_frame, fg_color = "transparent")
                 radio_frame.pack(fill = "x", pady = 5, padx = 5)
 
-                radio_text = f"{mag_name}({rounds}/{capacity}) - {mag_system} - {location}{_next_var}"
+                _type_label = "Clip" if is_clip_item else "Mag"
+                radio_text = f"{mag_name}({rounds}/{capacity}) - {mag_system} - {location} [{_type_label}]{_next_var}"
                 radio = customtkinter.CTkRadioButton(
                 radio_frame,
                 text = radio_text,
@@ -22786,6 +23269,18 @@ class App:
 
                 idx = int(selected_mag.get())
                 location, mag_item = all_magazines[idx]
+
+                # If this is a clip, route to clip editor
+                if mag_item.get('clip_type'):
+                    try:
+                        popup.destroy()
+                    except Exception:
+                        pass
+                    _ed = customtkinter.CTkToplevel(self.root)
+                    _ed.title('Clip Loader')
+                    _ed.transient(self.root)
+                    _open_clip_round_editor(mag_item, 'load', _ed)
+                    return
 
                 capacity = mag_item.get("capacity", 0)
                 current_rounds = len(mag_item.get("rounds", []))
@@ -24386,6 +24881,62 @@ class App:
                 except Exception:
                     pass
 
+                # ── Clip Management Buttons ──────────────────────────────
+                try:
+                    def _find_all_clips_in_inventory():
+                        clips = []
+                        def _is_clip(itm):
+                            return itm and isinstance(itm, dict) and itm.get('clip_type')
+                        for itm in save_data.get('hands', {}).get('items', []):
+                            if _is_clip(itm):
+                                clips.append(('hands', itm))
+                        for slot_name, eq_item in save_data.get('equipment', {}).items():
+                            if not eq_item or not isinstance(eq_item, dict):
+                                continue
+                            for itm in eq_item.get('items', []) or []:
+                                if _is_clip(itm):
+                                    clips.append(('equipment', itm))
+                            for sub in eq_item.get('subslots', []) or []:
+                                curr = sub.get('current')
+                                if curr and isinstance(curr, dict):
+                                    for itm in curr.get('items', []) or []:
+                                        if _is_clip(itm):
+                                            clips.append(('equipment', itm))
+                        return clips
+
+                    all_clips = _find_all_clips_in_inventory()
+                    clips_with_rounds = [c for c in all_clips if isinstance(c[1].get('rounds'), list) and len(c[1].get('rounds', [])) > 0]
+                    clips_not_full = [c for c in all_clips if len(c[1].get('rounds', []) or []) < int(c[1].get('capacity', 5) or 5)]
+
+                    if all_clips:
+                        customtkinter.CTkLabel(popup, text = '\u2500' * 30, text_color = '#444444').pack(pady = 2)
+
+                    def _open_clip_loader():
+                        try:
+                            popup.destroy()
+                        except Exception:
+                            pass
+                        _open_clip_management_editor(all_clips, mode = 'load')
+
+                    def _open_clip_unloader():
+                        try:
+                            popup.destroy()
+                        except Exception:
+                            pass
+                        _open_clip_management_editor(all_clips, mode = 'unload')
+
+                    if clips_not_full:
+                        load_clip_btn = self._create_sound_button(popup, text = 'Load Clip', command = _open_clip_loader,
+                        width = 240, height = 40, font = customtkinter.CTkFont(size = 12), fg_color = '#4a6d1a', hover_color = '#5a8d2a')
+                        load_clip_btn.pack(pady = 6)
+
+                    if clips_with_rounds:
+                        unload_clip_btn = self._create_sound_button(popup, text = 'Unload Clip', command = _open_clip_unloader,
+                        width = 240, height = 40, font = customtkinter.CTkFont(size = 12), fg_color = '#6d4a1a', hover_color = '#8d5a2a')
+                        unload_clip_btn.pack(pady = 6)
+                except Exception:
+                    pass
+
                 try:
                     customtkinter.CTkButton(popup, text = 'Close', command = popup.destroy, width = 140).pack(pady = 8)
                 except Exception:
@@ -24399,6 +24950,446 @@ class App:
                     pass
             except Exception:
                 pass
+
+        def _open_clip_management_editor(all_clips, mode = 'load'):
+            import tkinter as _tk_clip
+            try:
+                clip_editor = customtkinter.CTkToplevel(self.root)
+                clip_editor.title('Clip Loader' if mode == 'load' else 'Clip Unloader')
+                clip_editor.transient(self.root)
+
+                if not all_clips:
+                    self._popup_show_info('Clip Management', 'No clips found in inventory.')
+                    clip_editor.destroy()
+                    return
+
+                # Select which clip to manage
+                if len(all_clips) == 1:
+                    _selected_clip = all_clips[0]
+                    _open_clip_round_editor(_selected_clip[1], mode, clip_editor)
+                    return
+
+                customtkinter.CTkLabel(clip_editor, text = 'Select a clip:',
+                font = customtkinter.CTkFont(size = 13, weight = 'bold')).pack(pady = 8)
+
+                scroll = customtkinter.CTkScrollableFrame(clip_editor, width = 400, height = 300)
+                scroll.pack(fill = 'both', expand = True, padx = 10, pady = 5)
+
+                sel_var = customtkinter.StringVar(value = '0')
+
+                for idx, (location, clip_item) in enumerate(all_clips):
+                    clip_name = clip_item.get('name', 'Clip')
+                    clip_cap = int(clip_item.get('capacity', 5) or 5)
+                    clip_rounds = clip_item.get('rounds', []) or []
+                    loaded = len(clip_rounds)
+                    clip_type = clip_item.get('clip_type', '?')
+
+                    radio_text = f'{clip_name} ({loaded}/{clip_cap}) - {clip_type} - {location}'
+                    customtkinter.CTkRadioButton(scroll, text = radio_text, variable = sel_var,
+                    value = str(idx), font = customtkinter.CTkFont(size = 11)).pack(anchor = 'w', pady = 4, padx = 6)
+
+                def _select():
+                    idx = int(sel_var.get())
+                    _, clip_item = all_clips[idx]
+                    clip_editor.destroy()
+                    _ed = customtkinter.CTkToplevel(self.root)
+                    _ed.title('Clip Loader' if mode == 'load' else 'Clip Unloader')
+                    _ed.transient(self.root)
+                    _open_clip_round_editor(clip_item, mode, _ed)
+
+                btn_frame = customtkinter.CTkFrame(clip_editor, fg_color = 'transparent')
+                btn_frame.pack(fill = 'x', padx = 10, pady = 10)
+                customtkinter.CTkButton(btn_frame, text = 'Select', command = _select, width = 140, height = 35).pack(side = 'left', padx = 5)
+                customtkinter.CTkButton(btn_frame, text = 'Cancel', command = clip_editor.destroy,
+                width = 140, height = 35, fg_color = '#444444', hover_color = '#555555').pack(side = 'left', padx = 5)
+
+                self._center_popup_on_window(clip_editor, 500, 400)
+                clip_editor.grab_set()
+                clip_editor.lift()
+                self._safe_focus(clip_editor)
+
+            except Exception:
+                logging.exception('Failed to open clip management editor')
+
+        def _open_clip_round_editor(clip_item, mode, editor):
+            import tkinter as _tk_clr
+            try:
+                clip_cap = int(clip_item.get('capacity', 5) or 5)
+                if 'rounds' not in clip_item or clip_item['rounds'] is None:
+                    clip_item['rounds'] = []
+                clip_rounds = clip_item['rounds']
+
+                clip_caliber_raw = clip_item.get('caliber', [])
+                if isinstance(clip_caliber_raw, str):
+                    clip_caliber_raw = [clip_caliber_raw]
+                clip_calibers = set()
+                for c in clip_caliber_raw:
+                    if c:
+                        clip_calibers.add(str(c).lower().strip())
+
+                if mode == 'load':
+                    # Find compatible loose rounds
+                    def _get_rounds_for_clip():
+                        variants = {}
+                        def _cal_match(item_cal):
+                            if not clip_calibers:
+                                return True
+                            if not item_cal:
+                                return False
+                            return str(item_cal).lower().strip() in clip_calibers
+                        def _proc(itm):
+                            if not itm or not isinstance(itm, dict):
+                                return
+                            if itm.get('magazinesystem') or itm.get('clip_type'):
+                                return
+                            itm_cal = itm.get('caliber')
+                            if not _cal_match(itm_cal):
+                                return
+                            qty = int(itm.get('quantity') or 0) if isinstance(itm.get('quantity'), (int, float)) else 0
+                            if qty > 0:
+                                vn = itm.get('variant') or itm.get('name') or 'Unknown'
+                                variants[str(vn)] = variants.get(str(vn), 0) + qty
+                                return
+                            rds = itm.get('rounds')
+                            if isinstance(rds, list) and rds:
+                                for r in rds:
+                                    if isinstance(r, dict):
+                                        if not _cal_match(r.get('caliber')):
+                                            continue
+                                        vn = r.get('variant') or r.get('name') or 'Unknown'
+                                        variants[str(vn)] = variants.get(str(vn), 0) + 1
+                                return
+                            if itm.get('caliber') and not itm.get('capacity'):
+                                vn = itm.get('variant') or itm.get('name') or 'Unknown'
+                                variants[str(vn)] = variants.get(str(vn), 0) + 1
+                        for itm in save_data.get('hands', {}).get('items', []):
+                            _proc(itm)
+                        for slot_name, eq_item in save_data.get('equipment', {}).items():
+                            if not eq_item or not isinstance(eq_item, dict):
+                                continue
+                            for itm in eq_item.get('items', []) or []:
+                                _proc(itm)
+                            for sub in eq_item.get('subslots', []) or []:
+                                curr = sub.get('current')
+                                if curr and isinstance(curr, dict):
+                                    for itm in curr.get('items', []) or []:
+                                        _proc(itm)
+                        return variants
+
+                    avail = _get_rounds_for_clip()
+                    if not avail:
+                        self._popup_show_info('Clip Loader', 'No compatible loose rounds found!')
+                        editor.destroy()
+                        return
+
+                    vlist_c = sorted(avail.keys())
+                    cpal = ['#c4a032', '#b87333', '#a0a0a0', '#d4af37', '#8b4513', '#cd7f32', '#e8c872', '#a08060']
+                    vcols_c = {v: cpal[i % len(cpal)] for i, v in enumerate(vlist_c)}
+
+                    SLOT_H = 28
+                    SLOT_W = 200
+                    ox = 15
+                    CHIP_W, CHIP_H, CHIP_PAD = 120, 28, 6
+                    _cols = max(1, (SLOT_W + 30) // (CHIP_W + CHIP_PAD))
+                    _rows_need = max(1, (len(vlist_c) + _cols - 1) // _cols)
+                    SEL_H = 22 + _rows_need * (CHIP_H + CHIP_PAD) + 4
+                    HINT_H = 22
+                    MAG_TOP = SEL_H + HINT_H
+                    canvas_h = MAG_TOP + clip_cap * SLOT_H + 20
+                    canvas_w = SLOT_W + 30
+
+                    main_f = customtkinter.CTkFrame(editor)
+                    main_f.grid(row = 0, column = 0, sticky = 'nsew', padx = 8, pady = 8)
+                    clip_canvas = _tk_clr.Canvas(main_f, width = canvas_w, height = min(canvas_h, 500),
+                    bg = '#1a1a1a', highlightthickness = 1, highlightbackground = '#555555')
+                    clip_canvas.pack(fill = 'both', expand = True)
+
+                    side_f = customtkinter.CTkFrame(editor, fg_color = 'transparent', width = 160)
+                    side_f.grid(row = 0, column = 1, sticky = 'ns', padx = 8, pady = 8)
+
+                    cls = {'added': 0, 'dragging': False, 'drag_vn': None, 'di': None, 'dt': None, 'do': None}
+                    chip_hb = {}
+
+                    def _take_clip_round(vname):
+                        for hi in range(len(save_data.get('hands', {}).get('items', [])) - 1, -1, -1):
+                            itm = save_data['hands']['items'][hi]
+                            try:
+                                if not itm or not isinstance(itm, dict):
+                                    continue
+                                if itm.get('magazinesystem') or itm.get('clip_type'):
+                                    continue
+                                rds = itm.get('rounds')
+                                if isinstance(rds, list) and rds:
+                                    for ri, r in enumerate(rds):
+                                        rv = (r.get('variant') if isinstance(r, dict) else (str(r) if r else None))
+                                        if rv == vname:
+                                            return rds.pop(ri)
+                                qty = int(itm.get('quantity') or 0) if isinstance(itm.get('quantity'), (int, float)) else 0
+                                if qty > 0:
+                                    nm = itm.get('variant') or itm.get('name') or itm.get('caliber')
+                                    if nm and str(nm) == vname:
+                                        itm['quantity'] = qty - 1
+                                        return {k: v for k, v in itm.items() if k != 'quantity'}
+                            except Exception:
+                                continue
+                        for _sn, eq_item in list(save_data.get('equipment', {}).items()):
+                            if not eq_item or not isinstance(eq_item, dict):
+                                continue
+                            for cidx in range(len(eq_item.get('items', [])) - 1, -1, -1):
+                                try:
+                                    itm = eq_item['items'][cidx]
+                                    if not itm or not isinstance(itm, dict):
+                                        continue
+                                    if itm.get('magazinesystem') or itm.get('clip_type'):
+                                        continue
+                                    rds = itm.get('rounds')
+                                    if isinstance(rds, list) and rds:
+                                        for ri, r in enumerate(rds):
+                                            rv = (r.get('variant') if isinstance(r, dict) else (str(r) if r else None))
+                                            if rv == vname:
+                                                return rds.pop(ri)
+                                    qty = int(itm.get('quantity') or 0) if isinstance(itm.get('quantity'), (int, float)) else 0
+                                    if qty > 0:
+                                        nm = itm.get('variant') or itm.get('name') or itm.get('caliber')
+                                        if nm and str(nm) == vname:
+                                            itm['quantity'] = qty - 1
+                                            return {k: v for k, v in itm.items() if k != 'quantity'}
+                                except Exception:
+                                    pass
+                        return None
+
+                    def _draw_clip_chips():
+                        clip_canvas.delete('chips')
+                        clip_canvas.create_text(canvas_w // 2, 10, text = 'AVAILABLE ROUNDS', fill = '#888888',
+                        font = ('Consolas', 9, 'bold'), tags = 'chips')
+                        start_x = (canvas_w - min(len(vlist_c), _cols) * (CHIP_W + CHIP_PAD) + CHIP_PAD) // 2
+                        for idx, vn in enumerate(vlist_c):
+                            cnt = avail.get(vn, 0)
+                            row_i = idx // _cols
+                            col_i = idx % _cols
+                            x1 = start_x + col_i * (CHIP_W + CHIP_PAD)
+                            y1 = 22 + row_i * (CHIP_H + CHIP_PAD)
+                            x2 = x1 + CHIP_W
+                            y2 = y1 + CHIP_H
+                            chip_hb[vn] = (x1, y1, x2, y2)
+                            c = vcols_c.get(vn, '#c4a032')
+                            is_a = cnt > 0
+                            fill = c if is_a else '#2a2a2a'
+                            ol = '#dddddd' if is_a else '#3a3a3a'
+                            clip_canvas.create_rectangle(x1, y1, x2, y2, fill = fill, outline = ol, width = 1, tags = 'chips')
+                            disp = vn if len(vn) <= 10 else vn[:9] + '\u2026'
+                            clip_canvas.create_text((x1 + x2) // 2, (y1 + y2) // 2,
+                            text = f'{disp} x{cnt}', fill = '#1a1a1a' if is_a else '#555555',
+                            font = ('Consolas', 8, 'bold'), tags = 'chips')
+
+                    def _draw_clip_body():
+                        clip_canvas.delete('clipbody')
+                        oy = MAG_TOP
+                        clip_canvas.create_text(canvas_w // 2, MAG_TOP - 10, text = '\u2193 DROP INTO CLIP \u2193',
+                        fill = '#555555', font = ('Consolas', 9), tags = 'clipbody')
+                        clip_canvas.create_rectangle(ox, oy, ox + SLOT_W, oy + clip_cap * SLOT_H,
+                        outline = '#999999', width = 2, fill = '#2a2a2a', tags = 'clipbody')
+                        for i in range(clip_cap):
+                            sy = oy + i * SLOT_H
+                            if i > 0:
+                                clip_canvas.create_line(ox, sy, ox + SLOT_W, sy, fill = '#444444', dash = (2, 2), tags = 'clipbody')
+                            if i < len(clip_rounds):
+                                r = clip_rounds[i]
+                                vn = r.get('variant') if isinstance(r, dict) else str(r) if r else 'Unknown'
+                                c = vcols_c.get(vn, '#c4a032')
+                                clip_canvas.create_rectangle(ox + 2, sy + 2, ox + SLOT_W - 2, sy + SLOT_H - 2,
+                                fill = c, outline = '#222222', tags = 'clipbody')
+                                clip_canvas.create_text(ox + SLOT_W // 2, sy + SLOT_H // 2, text = vn,
+                                fill = '#1a1a1a', font = ('Consolas', 9, 'bold'), tags = 'clipbody')
+                            else:
+                                clip_canvas.create_text(ox + SLOT_W // 2, sy + SLOT_H // 2, text = '[empty]',
+                                fill = '#444444', font = ('Consolas', 9), tags = 'clipbody')
+
+                    def _draw_clip_all():
+                        _draw_clip_chips()
+                        _draw_clip_body()
+
+                    _ins_toggle = {'v': 0}
+                    def _play_clip_insert():
+                        try:
+                            sn = f"bulletinsert{_ins_toggle['v']}"
+                            _ins_toggle['v'] = 1 - _ins_toggle['v']
+                            self._play_weapon_action_sound(wpn, sn, block=False)
+                        except Exception:
+                            pass
+
+                    def _clip_on_press(event):
+                        if len(clip_rounds) >= clip_cap:
+                            return
+                        for vn, (x1, y1, x2, y2) in chip_hb.items():
+                            if x1 <= event.x <= x2 and y1 <= event.y <= y2 and avail.get(vn, 0) > 0:
+                                cls['dragging'] = True
+                                cls['drag_vn'] = vn
+                                c = vcols_c.get(vn, '#c4a032')
+                                cls['di'] = clip_canvas.create_rectangle(ox + 2, event.y - SLOT_H // 2,
+                                ox + SLOT_W - 2, event.y + SLOT_H // 2, fill = c, outline = '#ffffff', width = 2, tags = 'drag')
+                                cls['dt'] = clip_canvas.create_text(ox + SLOT_W // 2, event.y,
+                                text = vn, fill = '#1a1a1a', font = ('Consolas', 10, 'bold'), tags = 'drag')
+                                return
+
+                    def _clip_on_move(event):
+                        if not cls['dragging']:
+                            return
+                        y = event.y
+                        if cls['di'] and cls['dt']:
+                            clip_canvas.coords(cls['di'], ox + 2, y - SLOT_H // 2, ox + SLOT_W - 2, y + SLOT_H // 2)
+                            clip_canvas.coords(cls['dt'], ox + SLOT_W // 2, y)
+
+                    def _clip_on_release(event):
+                        if not cls['dragging']:
+                            return
+                        cls['dragging'] = False
+                        clip_canvas.delete('drag')
+                        cls['di'] = cls['dt'] = None
+                        if len(clip_rounds) >= clip_cap:
+                            return
+                        vn = cls['drag_vn']
+                        if not vn or avail.get(vn, 0) <= 0:
+                            return
+                        if event.y >= MAG_TOP - 15:
+                            r = _take_clip_round(vn)
+                            if r:
+                                clip_rounds.insert(0, r)
+                                cls['added'] += 1
+                                avail[vn] = avail.get(vn, 0) - 1
+                                if avail[vn] <= 0:
+                                    del avail[vn]
+                                _play_clip_insert()
+                                _draw_clip_all()
+                                _update_clip_lbl()
+
+                    clip_canvas.bind('<Button-1>', _clip_on_press)
+                    clip_canvas.bind('<B1-Motion>', _clip_on_move)
+                    clip_canvas.bind('<ButtonRelease-1>', _clip_on_release)
+
+                    _clip_lbl = customtkinter.CTkLabel(side_f, text = f'{len(clip_rounds)}/{clip_cap} loaded',
+                    font = customtkinter.CTkFont(size = 13, weight = 'bold'))
+                    _clip_lbl.pack(pady = (10, 6))
+                    customtkinter.CTkLabel(side_f, text = 'Drag rounds into\nthe clip from above',
+                    font = customtkinter.CTkFont(size = 10), text_color = '#888888', wraplength = 150).pack(pady = 6)
+
+                    def _update_clip_lbl():
+                        _clip_lbl.configure(text = f'{len(clip_rounds)}/{clip_cap} loaded')
+
+                    def _clip_done():
+                        editor.destroy()
+                        update_weapon_view()
+                        if cls['added'] > 0:
+                            self._popup_show_info('Clip Loader', f'Loaded {cls["added"]} rounds into clip')
+
+                    editor.protocol('WM_DELETE_WINDOW', _clip_done)
+                    customtkinter.CTkButton(side_f, text = 'Done', command = _clip_done, width = 140, height = 35).pack(pady = 10)
+
+                    _draw_clip_all()
+
+                    self._center_popup_on_window(editor, 450, 400)
+                    editor.grab_set()
+                    editor.lift()
+                    self._safe_focus(editor)
+
+                else:
+                    # Unload mode
+                    if not clip_rounds:
+                        self._popup_show_info('Clip Unloader', 'Clip is empty!')
+                        editor.destroy()
+                        return
+
+                    SLOT_H = 28
+                    SLOT_W = 200
+                    ox = 15
+                    canvas_h = clip_cap * SLOT_H + 40
+                    canvas_w = SLOT_W + 30
+
+                    main_f = customtkinter.CTkFrame(editor)
+                    main_f.grid(row = 0, column = 0, sticky = 'nsew', padx = 8, pady = 8)
+                    clip_canvas = _tk_clr.Canvas(main_f, width = canvas_w, height = min(canvas_h, 400),
+                    bg = '#1a1a1a', highlightthickness = 1, highlightbackground = '#555555')
+                    clip_canvas.pack(fill = 'both', expand = True)
+
+                    side_f = customtkinter.CTkFrame(editor, fg_color = 'transparent', width = 160)
+                    side_f.grid(row = 0, column = 1, sticky = 'ns', padx = 8, pady = 8)
+
+                    uls = {'removed': 0}
+
+                    cpal = ['#c4a032', '#b87333', '#a0a0a0', '#d4af37', '#8b4513', '#cd7f32', '#e8c872', '#a08060']
+                    vset_u = set()
+                    for r in clip_rounds:
+                        if isinstance(r, dict):
+                            vset_u.add(r.get('variant') or r.get('name') or 'Unknown')
+                    vlist_u = sorted(vset_u)
+                    vcols_u = {v: cpal[i % len(cpal)] for i, v in enumerate(vlist_u)}
+
+                    round_hitboxes = {}
+
+                    def _draw_unload_clip():
+                        clip_canvas.delete('all')
+                        clip_canvas.create_text(canvas_w // 2, 12, text = '\u25b2 CLICK ROUND TO REMOVE \u25b2',
+                        fill = '#888888', font = ('Consolas', 9, 'bold'))
+                        oy = 28
+                        clip_canvas.create_rectangle(ox, oy, ox + SLOT_W, oy + clip_cap * SLOT_H,
+                        outline = '#999999', width = 2, fill = '#2a2a2a')
+                        round_hitboxes.clear()
+                        for i in range(clip_cap):
+                            sy = oy + i * SLOT_H
+                            if i > 0:
+                                clip_canvas.create_line(ox, sy, ox + SLOT_W, sy, fill = '#444444', dash = (2, 2))
+                            if i < len(clip_rounds):
+                                r = clip_rounds[i]
+                                vn = r.get('variant') if isinstance(r, dict) else str(r) if r else 'Unknown'
+                                c = vcols_u.get(vn, '#c4a032')
+                                clip_canvas.create_rectangle(ox + 2, sy + 2, ox + SLOT_W - 2, sy + SLOT_H - 2,
+                                fill = c, outline = '#222222')
+                                clip_canvas.create_text(ox + SLOT_W // 2, sy + SLOT_H // 2, text = vn,
+                                fill = '#1a1a1a', font = ('Consolas', 9, 'bold'))
+                                round_hitboxes[i] = (ox, sy, ox + SLOT_W, sy + SLOT_H)
+                            else:
+                                clip_canvas.create_text(ox + SLOT_W // 2, sy + SLOT_H // 2, text = '[empty]',
+                                fill = '#444444', font = ('Consolas', 9))
+
+                    def _unload_click(event):
+                        for idx, (x1, y1, x2, y2) in round_hitboxes.items():
+                            if x1 <= event.x <= x2 and y1 <= event.y <= y2:
+                                removed = clip_rounds.pop(idx)
+                                uls['removed'] += 1
+                                self._add_rounds_to_container(save_data.get('hands', {}).get('items', []), [removed])
+                                _draw_unload_clip()
+                                _update_unl_lbl()
+                                return
+
+                    clip_canvas.bind('<Button-1>', _unload_click)
+
+                    _unl_lbl = customtkinter.CTkLabel(side_f, text = f'{len(clip_rounds)}/{clip_cap} loaded',
+                    font = customtkinter.CTkFont(size = 13, weight = 'bold'))
+                    _unl_lbl.pack(pady = (10, 6))
+                    customtkinter.CTkLabel(side_f, text = 'Click a round\nto remove it',
+                    font = customtkinter.CTkFont(size = 10), text_color = '#888888', wraplength = 150).pack(pady = 6)
+
+                    def _update_unl_lbl():
+                        _unl_lbl.configure(text = f'{len(clip_rounds)}/{clip_cap} loaded')
+
+                    def _unl_done():
+                        editor.destroy()
+                        update_weapon_view()
+                        if uls['removed'] > 0:
+                            self._popup_show_info('Clip Unloader', f'Removed {uls["removed"]} rounds from clip')
+
+                    editor.protocol('WM_DELETE_WINDOW', _unl_done)
+                    customtkinter.CTkButton(side_f, text = 'Done', command = _unl_done, width = 140, height = 35).pack(pady = 10)
+
+                    _draw_unload_clip()
+
+                    self._center_popup_on_window(editor, 400, 350)
+                    editor.grab_set()
+                    editor.lift()
+                    self._safe_focus(editor)
+
+            except Exception:
+                logging.exception('Failed to open clip round editor')
 
         def _handle_break_action_reload():
             try:
@@ -24671,16 +25662,44 @@ class App:
 
                 total_available = sum(available_by_variant.values())
 
+                def _find_compatible_clips_internal():
+                    clips_found = []
+                    wpn_clip_type = wpn.get('clip_type')
+                    if not wpn.get('accepts_clips') or not wpn_clip_type:
+                        return clips_found
+                    def _check_clip(itm, location):
+                        if not itm or not isinstance(itm, dict):
+                            return
+                        if itm.get('clip_type') and str(itm.get('clip_type')).strip() == str(wpn_clip_type).strip():
+                            clip_rounds = itm.get('rounds', [])
+                            if isinstance(clip_rounds, list) and len(clip_rounds) > 0:
+                                clips_found.append({'clip': itm, 'location': location})
+                    for itm in save_data.get('hands', {}).get('items', []):
+                        _check_clip(itm, 'hands')
+                    for slot_name, eq_item in save_data.get('equipment', {}).items():
+                        if not eq_item or not isinstance(eq_item, dict):
+                            continue
+                        for itm in eq_item.get('items', []) or []:
+                            _check_clip(itm, 'equipment')
+                        for sub in eq_item.get('subslots', []) or []:
+                            curr = sub.get('current')
+                            if curr and isinstance(curr, dict):
+                                for itm in curr.get('items', []) or []:
+                                    _check_clip(itm, 'equipment')
+                    return clips_found
+
+                available_clips = _find_compatible_clips_internal() if wpn.get('accepts_clips') else []
+
                 if 'tube'in mag_type:
                     if total_available <=0:
                         self._popup_show_info('Internal Reload', 'No compatible ammunition found!')
                         return
                     _open_tube_magazine_editor(wpn, available_by_variant, caliber, filter_calibers, is_infinite)
                 elif 'box'in mag_type:
-                    if total_available <=0:
-                        self._popup_show_info('Internal Reload', 'No compatible ammunition found!')
+                    if total_available <=0 and not available_clips:
+                        self._popup_show_info('Internal Reload', 'No compatible ammunition or clips found!')
                         return
-                    _open_internal_box_editor(wpn, available_by_variant, caliber, filter_calibers, is_infinite)
+                    _open_internal_box_editor(wpn, available_by_variant, caliber, filter_calibers, is_infinite, available_clips)
                 else:
                     if is_infinite:
                         _open_internal_box_editor(wpn, available_by_variant, caliber, filter_calibers, is_infinite)
@@ -24700,14 +25719,39 @@ class App:
             except Exception:
                 pass
 
-        def _open_internal_box_editor(wpn, available_by_variant, caliber, filter_calibers, is_infinite = False):
+        def _open_internal_box_editor(wpn, available_by_variant, caliber, filter_calibers, is_infinite = False, available_clips = None):
             import tkinter as _tk_ib
             try:
+                _ibe_act_raw = wpn.get('action', '') or ''
+                if isinstance(_ibe_act_raw, (list, tuple)):
+                    _ibe_act_raw = _ibe_act_raw[0] if _ibe_act_raw else ''
+                _ibe_act = str(_ibe_act_raw).lower()
+                _ibe_plat_raw = wpn.get('platform', '') or ''
+                if isinstance(_ibe_plat_raw, (list, tuple)):
+                    _ibe_plat_raw = _ibe_plat_raw[0] if _ibe_plat_raw else ''
+                _ibe_plat = str(_ibe_plat_raw).lower()
+                _ibe_mag = str(wpn.get('magazinetype', '') or '').lower()
+                _ibe_is_pump = ('pump' in _ibe_plat or _ibe_act == 'pump' or 'pump' in _ibe_mag)
+                _ibe_is_bolt = _ibe_act in ('bolt', 'lever', 'single')
+                if _ibe_is_pump:
+                    try:
+                        self._play_weapon_action_sound(wpn, 'pumpback', block = True)
+                    except Exception:
+                        pass
+                elif _ibe_is_bolt:
+                    try:
+                        self._play_weapon_action_sound(wpn, 'boltactionback', block = True)
+                    except Exception:
+                        pass
+
                 editor = customtkinter.CTkToplevel(self.root)
                 editor.title('Internal Magazine Loader')
                 editor.transient(self.root)
                 cap = int(wpn.get('capacity', 0)or 0)
                 existing = list(wpn.get('rounds', [])or[])
+
+                _weapon_accepts_clips = bool(wpn.get('accepts_clips'))
+                _clip_list = list(available_clips) if available_clips else []
 
                 SLOT_H = 28
                 SLOT_W = 260
@@ -24771,8 +25815,11 @@ class App:
                 HINT_H = 22
                 MAG_TOP = SEL_H +HINT_H
                 SPRING_H = 14
+                CLIP_PANEL_W = 180
+                _has_clips = bool(_weapon_accepts_clips and _clip_list)
                 canvas_h = MAG_TOP +cap *SLOT_H +SPRING_H +8
-                canvas_w = SLOT_W +40
+                canvas_w = SLOT_W +40 + (CLIP_PANEL_W + 30 if _has_clips else 0)
+                CLIP_PANEL_X = SLOT_W + 55
 
                 main_frame = customtkinter.CTkFrame(editor)
                 main_frame.grid(row = 0, column = 0, sticky = 'nsew', padx = 8, pady = 8)
@@ -24789,19 +25836,23 @@ class App:
                 side.grid(row = 0, column = 1, sticky = 'ns', padx = 8, pady = 8)
 
                 ls = {'dragging':False, 'drag_vn':None, 'di':None, 'dt':None, 'do':None,
-                'added':0, 'stoggle':0, 'animating':False}
+                'added':0, 'stoggle':0, 'animating':False,
+                'clip_dragging':False, 'clip_idx':None, 'clip_di':None, 'clip_dt':None}
 
                 chip_hitboxes = {}
+                clip_hitboxes = {}
 
                 def _draw_chips():
                     mag_canvas.delete('chips')
-                    mag_canvas.create_text(canvas_w //2, 10, text = 'AVAILABLE ROUNDS', fill = '#888888',
+                    _chip_cx = ox_mag + SLOT_W // 2
+                    mag_canvas.create_text(_chip_cx, 10, text = 'AVAILABLE ROUNDS', fill = '#888888',
                     font =('Consolas', 9, 'bold'), tags = 'chips')
                     if not vlist:
-                        mag_canvas.create_text(canvas_w //2, SEL_H //2 +10, text = 'No rounds available',
+                        mag_canvas.create_text(_chip_cx, SEL_H //2 +10, text = 'No rounds available',
                         fill = '#555555', font =('Consolas', 9), tags = 'chips')
                         return
-                    start_x =(canvas_w -min(len(vlist), _cols)*(CHIP_W +CHIP_PAD)+CHIP_PAD)//2
+                    _chip_area_w = SLOT_W + 40
+                    start_x =(_chip_area_w -min(len(vlist), _cols)*(CHIP_W +CHIP_PAD)+CHIP_PAD)//2
                     for idx, vn in enumerate(vlist):
                         cnt = available_by_variant.get(vn, 0)
                         row_i = idx //_cols
@@ -24828,7 +25879,8 @@ class App:
                 def _draw_mag_body():
                     mag_canvas.delete('mag')
                     oy = MAG_TOP
-                    mag_canvas.create_text(canvas_w //2, MAG_TOP -10, text = '\u2193 DROP INTO MAGAZINE \u2193',
+                    _mag_cx = ox_mag + SLOT_W // 2
+                    mag_canvas.create_text(_mag_cx, MAG_TOP -10, text = '\u2193 DROP INTO MAGAZINE \u2193',
                     fill = '#555555', font =('Consolas', 9), tags = 'mag')
                     mag_canvas.create_rectangle(ox_mag, oy, ox_mag +SLOT_W, oy +cap *SLOT_H,
                     outline = '#888888', width = 2, tags = 'mag')
@@ -24860,9 +25912,52 @@ class App:
                     text = '\u25b2 SPRING \u25b2', fill = '#888888',
                     font =('Consolas', 8), tags = 'mag')
 
+                def _draw_clip_panel():
+                    mag_canvas.delete('clippanel')
+                    clip_hitboxes.clear()
+                    if not _has_clips:
+                        return
+                    _cp_x = CLIP_PANEL_X
+                    mag_canvas.create_text(_cp_x + CLIP_PANEL_W // 2, 10,
+                    text = 'STRIPPER CLIPS', fill = '#888888',
+                    font = ('Consolas', 9, 'bold'), tags = 'clippanel')
+                    mag_canvas.create_text(_cp_x + CLIP_PANEL_W // 2, 24,
+                    text = 'Drag clip onto charger slot',
+                    fill = '#555555', font = ('Consolas', 8), tags = 'clippanel')
+                    cy = 40
+                    CLIP_CHIP_H = 42
+                    for ci, clip_entry in enumerate(_clip_list):
+                        clip_obj = clip_entry.get('clip', {})
+                        clip_rnds = clip_obj.get('rounds', [])
+                        clip_name = clip_obj.get('name', 'Clip')
+                        clip_cap_c = int(clip_obj.get('capacity', 5) or 5)
+                        loaded = len(clip_rnds) if isinstance(clip_rnds, list) else 0
+                        has_rounds = loaded > 0
+                        x1 = _cp_x
+                        y1 = cy
+                        x2 = _cp_x + CLIP_PANEL_W
+                        y2 = cy + CLIP_CHIP_H - 4
+                        fill = '#3a5a3a' if has_rounds else '#2a2a2a'
+                        ol = '#66aa66' if has_rounds else '#3a3a3a'
+                        mag_canvas.create_rectangle(x1, y1, x2, y2,
+                        fill = fill, outline = ol, width = 2, tags = 'clippanel')
+                        disp_name = clip_name if len(clip_name) <= 16 else clip_name[:15] + '\u2026'
+                        txt_color = '#cccccc' if has_rounds else '#555555'
+                        mag_canvas.create_text((x1 + x2) // 2, y1 + 12,
+                        text = disp_name,
+                        fill = txt_color, font = ('Consolas', 9, 'bold'), tags = 'clippanel')
+                        mag_canvas.create_text((x1 + x2) // 2, y1 + 26,
+                        text = f'{loaded}/{clip_cap_c} rounds',
+                        fill = '#888888' if has_rounds else '#444444',
+                        font = ('Consolas', 8), tags = 'clippanel')
+                        if has_rounds:
+                            clip_hitboxes[ci] = (x1, y1, x2, y2)
+                        cy += CLIP_CHIP_H
+
                 def _draw_all():
                     _draw_chips()
                     _draw_mag_body()
+                    _draw_clip_panel()
 
                 def _take_round(vname):
                     if is_infinite:
@@ -24946,7 +26041,61 @@ class App:
                     return None
 
                 def _on_press(event):
-                    if ls['animating']or len(existing)>=cap:
+                    if ls['animating']:
+                        return
+                    # Clip-seated mode: click top round to push all rounds down
+                    if ls.get('clip_seated'):
+                        hb = ls.get('_clip_top_hb')
+                        if hb:
+                            x1, y1, x2, y2 = hb
+                            if x1 <= event.x <= x2 and y1 <= event.y <= y2:
+                                clip_rounds_ref = ls.get('clip_rounds_ref', [])
+                                space = cap - len(existing)
+                                n_to_load = min(len(clip_rounds_ref), space)
+                                if n_to_load > 0:
+                                    ls['clip_push_dragging'] = True
+                                    first_rnd = clip_rounds_ref[0]
+                                    vn0 = first_rnd.get('variant') if isinstance(first_rnd, dict) else str(first_rnd) if first_rnd else 'Unknown'
+                                    c0 = vcols.get(vn0, '#c4a032')
+                                    ls['clip_push_di'] = mag_canvas.create_rectangle(
+                                    ox_mag + 2, event.y - SLOT_H // 2, ox_mag + SLOT_W - 2, event.y + SLOT_H // 2,
+                                    fill = c0, outline = '#ffffff', width = 2, tags = 'clippush')
+                                    ls['clip_push_do'] = mag_canvas.create_oval(
+                                    ox_mag + 4, event.y - SLOT_H // 2 + 2, ox_mag + 22, event.y + SLOT_H // 2 - 2,
+                                    fill = _tip_for_round(first_rnd), outline = _tip_ol_for_round(first_rnd), tags = 'clippush')
+                                    _lbl = f'{vn0}  (+{n_to_load - 1})' if n_to_load > 1 else vn0
+                                    ls['clip_push_dt'] = mag_canvas.create_text(
+                                    ox_mag + SLOT_W // 2 + 10, event.y,
+                                    text = _lbl, fill = '#1a1a1a',
+                                    font = ('Consolas', 10, 'bold'), tags = 'clippush')
+                        return
+                    # Check clip panel hitboxes first
+                    if _has_clips:
+                        for ci, (x1, y1, x2, y2) in clip_hitboxes.items():
+                            if x1 <= event.x <= x2 and y1 <= event.y <= y2:
+                                clip_entry = _clip_list[ci]
+                                clip_obj = clip_entry.get('clip', {})
+                                clip_rnds = clip_obj.get('rounds', [])
+                                if isinstance(clip_rnds, list) and len(clip_rnds) > 0 and len(existing) < cap:
+                                    ls['clip_dragging'] = True
+                                    ls['clip_idx'] = ci
+                                    n_rnds = len(clip_rnds)
+                                    _cname = clip_obj.get('name', 'Clip')
+                                    CLIP_VIS_W = 80
+                                    CLIP_VIS_H = min(n_rnds, 5) * SLOT_H + 12
+                                    cx = event.x - CLIP_VIS_W // 2
+                                    cy = event.y - CLIP_VIS_H // 2
+                                    ls['clip_di'] = mag_canvas.create_rectangle(
+                                    cx, cy, cx + CLIP_VIS_W, cy + CLIP_VIS_H,
+                                    fill = '#707070', outline = '#ffffff', width = 2, tags = 'clipdrag')
+                                    ls['clip_dt'] = mag_canvas.create_text(
+                                    cx + CLIP_VIS_W // 2, cy + CLIP_VIS_H // 2,
+                                    text = f'CLIP\n{n_rnds} rds', fill = '#ffffff',
+                                    font = ('Consolas', 8, 'bold'), tags = 'clipdrag')
+                                    ls['_clip_vis_w'] = CLIP_VIS_W
+                                    ls['_clip_vis_h'] = CLIP_VIS_H
+                                    return
+                    if len(existing) >= cap:
                         return
                     vn = _hit_chip(event.x, event.y)
                     if not vn:
@@ -24965,6 +26114,28 @@ class App:
                     text = vn, fill = '#1a1a1a', font =('Consolas', 10, 'bold'), tags = 'drag')
 
                 def _on_move(event):
+                    if ls.get('clip_push_dragging'):
+                        y = event.y
+                        _pdi = ls.get('clip_push_di')
+                        _pdo = ls.get('clip_push_do')
+                        _pdt = ls.get('clip_push_dt')
+                        if _pdi and _pdt:
+                            mag_canvas.coords(_pdi, ox_mag + 2, y - SLOT_H // 2,
+                            ox_mag + SLOT_W - 2, y + SLOT_H // 2)
+                            if _pdo:
+                                mag_canvas.coords(_pdo, ox_mag + 4, y - SLOT_H // 2 + 2,
+                                ox_mag + 22, y + SLOT_H // 2 - 2)
+                            mag_canvas.coords(_pdt, ox_mag + SLOT_W // 2 + 10, y)
+                        return
+                    if ls.get('clip_dragging'):
+                        cw = ls.get('_clip_vis_w', 80)
+                        ch = ls.get('_clip_vis_h', 60)
+                        cx = event.x - cw // 2
+                        cy = event.y - ch // 2
+                        if ls['clip_di'] and ls['clip_dt']:
+                            mag_canvas.coords(ls['clip_di'], cx, cy, cx + cw, cy + ch)
+                            mag_canvas.coords(ls['clip_dt'], cx + cw // 2, cy + ch // 2)
+                        return
                     if not ls['dragging']:
                         return
                     y = event.y
@@ -24977,6 +26148,33 @@ class App:
                         mag_canvas.coords(ls_dt, ox_mag +SLOT_W //2 +10, y)
 
                 def _on_release(event):
+                    if ls.get('clip_push_dragging'):
+                        ls['clip_push_dragging'] = False
+                        mag_canvas.delete('clippush')
+                        clip_rounds_ref = ls.get('clip_rounds_ref', [])
+                        if clip_rounds_ref and len(existing) < cap and event.y >= MAG_TOP - 10:
+                            # Push all fitting rounds into magazine at once
+                            space = cap - len(existing)
+                            n_to_load = min(len(clip_rounds_ref), space)
+                            for _ in range(n_to_load):
+                                rnd = clip_rounds_ref.pop(0)
+                                existing.insert(0, rnd)
+                                ls['added'] += 1
+                            _play_insert()
+                            _redraw_clip_mode()
+                            _update_side()
+                        ls['clip_push_di'] = ls['clip_push_do'] = ls['clip_push_dt'] = None
+                        return
+                    if ls.get('clip_dragging'):
+                        ls['clip_dragging'] = False
+                        mag_canvas.delete('clipdrag')
+                        ls['clip_di'] = ls['clip_dt'] = None
+                        ci = ls.get('clip_idx')
+                        if ci is not None and len(existing) < cap:
+                            # Drop zone: near the charger slot (top of magazine area)
+                            if event.x <= ox_mag + SLOT_W + 30 and event.y >= MAG_TOP - 40 and event.y <= MAG_TOP + cap * SLOT_H:
+                                _animate_clip_load(ci)
+                        return
                     if not ls['dragging']:
                         return
                     ls['dragging']= False
@@ -24997,7 +26195,8 @@ class App:
                     c_new = vcols.get(vname, '#c4a032')
 
                     mag_canvas.delete('mag')
-                    mag_canvas.create_text(canvas_w //2, MAG_TOP -10, text = '\u2193 DROP INTO MAGAZINE \u2193',
+                    mag_canvas.delete('clippanel')
+                    mag_canvas.create_text(ox_mag + SLOT_W // 2, MAG_TOP -10, text = '\u2193 DROP INTO MAGAZINE \u2193',
                     fill = '#555555', font =('Consolas', 9), tags = 'magshell')
                     mag_canvas.create_rectangle(ox_mag, oy, ox_mag +SLOT_W, oy +cap *SLOT_H,
                     outline = '#888888', width = 2, tags = 'magshell')
@@ -25080,14 +26279,172 @@ class App:
                 font = customtkinter.CTkFont(size = 13, weight = 'bold'))
                 _cap_lbl.pack(pady =(10, 6))
 
-                customtkinter.CTkLabel(side, text = 'Click & drag a round\nfrom the top area down\ninto the magazine',
+                _side_hint = 'Click & drag a round\nfrom the top area down\ninto the magazine'
+                if _has_clips:
+                    _side_hint += '\n\nDrag clips from right\npanel to charger slot'
+                customtkinter.CTkLabel(side, text = _side_hint,
                 font = customtkinter.CTkFont(size = 10), text_color = '#888888',
                 wraplength = 170).pack(pady = 6)
 
                 def _update_side():
                     _cap_lbl.configure(text = f'{len(existing)}/{cap} rounds loaded')
 
+                def _animate_clip_load(clip_index):
+                    if ls.get('clip_seated'):
+                        return
+                    if clip_index >= len(_clip_list):
+                        return
+                    clip_entry = _clip_list[clip_index]
+                    clip_obj = clip_entry.get('clip', {})
+                    clip_rounds_ref = clip_obj.get('rounds', [])
+                    if not isinstance(clip_rounds_ref, list) or len(clip_rounds_ref) == 0:
+                        return
+                    space = cap - len(existing)
+                    if space <= 0:
+                        return
+                    n_to_load = min(len(clip_rounds_ref), space)
+
+                    ls['clip_seated'] = True
+                    ls['clip_seated_idx'] = clip_index
+                    ls['clip_rounds_ref'] = clip_rounds_ref
+                    ls['clip_push_dragging'] = False
+                    ls['clip_push_di'] = None
+                    ls['clip_push_dt'] = None
+
+                    mag_canvas.delete('mag')
+                    mag_canvas.delete('chips')
+                    mag_canvas.delete('clippanel')
+
+                    oy = MAG_TOP
+                    # Magazine shell
+                    mag_canvas.create_text(ox_mag + SLOT_W // 2, MAG_TOP - 10,
+                    text = '\u2193 PUSH ROUNDS DOWN \u2193',
+                    fill = '#c4a032', font = ('Consolas', 9, 'bold'), tags = 'clipmode')
+                    mag_canvas.create_rectangle(ox_mag, oy, ox_mag + SLOT_W, oy + cap * SLOT_H,
+                    outline = '#888888', width = 2, tags = 'clipmode')
+                    mag_canvas.create_line(ox_mag, oy, ox_mag - 15, oy - 8, fill = '#888888', width = 2, tags = 'clipmode')
+                    mag_canvas.create_line(ox_mag + SLOT_W, oy, ox_mag + SLOT_W + 15, oy - 8,
+                    fill = '#888888', width = 2, tags = 'clipmode')
+                    for si in range(1, cap):
+                        _sy = oy + si * SLOT_H
+                        mag_canvas.create_line(ox_mag, _sy, ox_mag + SLOT_W, _sy, fill = '#444444',
+                        dash = (2, 2), tags = 'clipmode')
+                    _by = oy + cap * SLOT_H
+                    mag_canvas.create_rectangle(ox_mag, _by, ox_mag + SLOT_W, _by + SPRING_H,
+                    fill = '#555555', outline = '#666666', tags = 'clipmode')
+                    mag_canvas.create_text(ox_mag + SLOT_W // 2, _by + SPRING_H // 2,
+                    text = '\u25b2 SPRING \u25b2', fill = '#888888',
+                    font = ('Consolas', 8), tags = 'clipmode')
+
+                    # Clip body seated at charger slot - compact layout
+                    CLIP_VIS_W = 80
+                    CLIP_RD_H = 18
+                    MAX_VIS_RDS = 8
+                    n_vis = min(n_to_load, MAX_VIS_RDS)
+                    CLIP_BODY_PAD = 14
+                    CLIP_VIS_H = n_vis * CLIP_RD_H + CLIP_BODY_PAD
+                    clip_x = ox_mag + (SLOT_W - CLIP_VIS_W) // 2
+                    clip_seated_y = max(8, oy - CLIP_VIS_H - 2)
+                    ls['_clip_vis'] = (clip_x, clip_seated_y, CLIP_VIS_W, CLIP_VIS_H, CLIP_RD_H, n_vis)
+
+                    mag_canvas.create_rectangle(clip_x, clip_seated_y, clip_x + CLIP_VIS_W,
+                    clip_seated_y + CLIP_VIS_H, fill = '#707070', outline = '#999999', width = 2, tags = 'clipmode_body')
+                    mag_canvas.create_rectangle(clip_x + 10, clip_seated_y - 6,
+                    clip_x + CLIP_VIS_W - 10, clip_seated_y + 2, fill = '#888888', outline = '#aaaaaa', tags = 'clipmode_body')
+
+                    _redraw_clip_mode()
+
+                def _redraw_clip_mode():
+                    mag_canvas.delete('clipmode_rounds')
+                    mag_canvas.delete('clipmode_mag')
+                    clip_rounds_ref = ls.get('clip_rounds_ref', [])
+                    oy = MAG_TOP
+                    clip_x, clip_seated_y, CLIP_VIS_W, CLIP_VIS_H, CLIP_RD_H, MAX_VIS = ls['_clip_vis']
+                    space = cap - len(existing)
+                    n_to_load = min(len(clip_rounds_ref), space)
+                    n_vis = min(n_to_load, MAX_VIS)
+
+                    # Draw rounds in clip (compact) - top round highlighted
+                    for ri in range(n_vis):
+                        rnd = clip_rounds_ref[ri]
+                        vn_r = rnd.get('variant') if isinstance(rnd, dict) else str(rnd) if rnd else 'Unknown'
+                        c_r = vcols.get(vn_r, '#c4a032')
+                        ry = clip_seated_y + 6 + ri * CLIP_RD_H
+                        _is_top = (ri == 0)
+                        _rd_ol = '#ffffff' if _is_top else '#333333'
+                        _rd_w = 2 if _is_top else 1
+                        mag_canvas.create_rectangle(clip_x + 4, ry + 1, clip_x + CLIP_VIS_W - 4, ry + CLIP_RD_H - 1,
+                        fill = c_r, outline = _rd_ol, width = _rd_w, tags = 'clipmode_rounds')
+                        mag_canvas.create_oval(clip_x + 6, ry + 2, clip_x + 18, ry + CLIP_RD_H - 2,
+                        fill = _tip_for_round(rnd), outline = _tip_ol_for_round(rnd), tags = 'clipmode_rounds')
+                        disp_r = vn_r if len(vn_r) <= 9 else vn_r[:8] + '\u2026'
+                        mag_canvas.create_text(clip_x + CLIP_VIS_W // 2 + 6, ry + CLIP_RD_H // 2,
+                        text = disp_r, fill = '#1a1a1a', font = ('Consolas', 7, 'bold'), tags = 'clipmode_rounds')
+                    if n_vis > 0:
+                        # Push hint on top round
+                        _tr_y = clip_seated_y + 6
+                        mag_canvas.create_text(clip_x + CLIP_VIS_W + 6, _tr_y + CLIP_RD_H // 2,
+                        text = '\u25c0 push', fill = '#888888', anchor = 'w',
+                        font = ('Consolas', 7), tags = 'clipmode_rounds')
+                    if n_to_load > n_vis:
+                        _ey = clip_seated_y + 6 + n_vis * CLIP_RD_H
+                        mag_canvas.create_text(clip_x + CLIP_VIS_W // 2, _ey + 4,
+                        text = f'+{n_to_load - n_vis} more', fill = '#aaaaaa',
+                        font = ('Consolas', 7), tags = 'clipmode_rounds')
+
+                    # Top-round hitbox for push-all interaction
+                    if n_vis > 0:
+                        _tr_y1 = clip_seated_y + 6 + 1
+                        _tr_y2 = clip_seated_y + 6 + CLIP_RD_H - 1
+                        ls['_clip_top_hb'] = (clip_x + 4, _tr_y1, clip_x + CLIP_VIS_W - 4, _tr_y2)
+                    else:
+                        ls['_clip_top_hb'] = None
+
+                    # Draw existing rounds in magazine
+                    for i in range(cap):
+                        sy = oy + i * SLOT_H
+                        if i < len(existing):
+                            r = existing[i]
+                            vn_e = r.get('variant') if isinstance(r, dict) else str(r) if r else 'Unknown'
+                            c_e = vcols.get(vn_e, '#c4a032')
+                            mag_canvas.create_rectangle(ox_mag + 2, sy + 2, ox_mag + SLOT_W - 2, sy + SLOT_H - 2,
+                            fill = c_e, outline = '#222222', tags = 'clipmode_mag')
+                            mag_canvas.create_oval(ox_mag + 4, sy + 4, ox_mag + 22, sy + SLOT_H - 4,
+                            fill = _tip_for_round(r), outline = _tip_ol_for_round(r), tags = 'clipmode_mag')
+                            mag_canvas.create_text(ox_mag + SLOT_W // 2 + 10, sy + SLOT_H // 2, text = vn_e,
+                            fill = '#1a1a1a', font = ('Consolas', 9, 'bold'), tags = 'clipmode_mag')
+                        else:
+                            mag_canvas.create_text(ox_mag + SLOT_W // 2, sy + SLOT_H // 2, text = '[empty]',
+                            fill = '#444444', font = ('Consolas', 9), tags = 'clipmode_mag')
+
+                    # Auto-remove clip if empty
+                    if not clip_rounds_ref or n_to_load <= 0:
+                        editor.after(200, _unseat_clip)
+
+                def _unseat_clip():
+                    if not ls.get('clip_seated'):
+                        return
+                    ls['clip_seated'] = False
+                    ls['clip_push_dragging'] = False
+                    mag_canvas.delete('clipmode')
+                    mag_canvas.delete('clipmode_body')
+                    mag_canvas.delete('clipmode_rounds')
+                    mag_canvas.delete('clipmode_mag')
+                    mag_canvas.delete('clippush')
+                    _draw_all()
+                    _update_side()
+
                 def _done():
+                    if ls.get('clip_seated'):
+                        ls['clip_seated'] = False
+                        ls['clip_push_dragging'] = False
+                        mag_canvas.delete('clipmode')
+                        mag_canvas.delete('clipmode_body')
+                        mag_canvas.delete('clipmode_rounds')
+                        mag_canvas.delete('clipmode_mag')
+                        mag_canvas.delete('clippush')
+                    if ls['animating']:
+                        ls['animating'] = False
                     _rt_act_raw_d = wpn.get('action', '')or ''
                     if isinstance(_rt_act_raw_d, (list, tuple)):
                         _rt_act_raw_d = _rt_act_raw_d[0]if _rt_act_raw_d else ''
@@ -25115,7 +26472,7 @@ class App:
                                 wpn['chambered']= existing.pop(0)
                                 wpn['rounds']= existing
                                 try:
-                                    self._play_weapon_action_sound(wpn, 'boltforward')
+                                    self._play_weapon_action_sound(wpn, 'boltactionforward')
                                 except Exception:
                                     pass
                                 _bolt_closed = True
@@ -25133,7 +26490,7 @@ class App:
                                     pass
                     if _is_manual_bolt and not _bolt_closed:
                         try:
-                            self._play_weapon_action_sound(wpn, 'boltforward')
+                            self._play_weapon_action_sound(wpn, 'boltactionforward')
                         except Exception:
                             pass
                     editor.destroy()
@@ -25148,7 +26505,8 @@ class App:
                 _draw_all()
 
                 editor.update_idletasks()
-                ew = max(editor.winfo_reqwidth(), 520)
+                _min_w = 560 if _has_clips else 520
+                ew = max(editor.winfo_reqwidth(), _min_w)
                 eh = max(editor.winfo_reqheight(), 420)
                 _sw_s = editor.winfo_screenwidth()
                 _sh_s = editor.winfo_screenheight()
@@ -25158,15 +26516,6 @@ class App:
                 editor.grab_set()
                 editor.lift()
                 self._safe_focus(editor)
-                _rt_act_raw_open = wpn.get('action', '')or ''
-                if isinstance(_rt_act_raw_open, (list, tuple)):
-                    _rt_act_raw_open = _rt_act_raw_open[0]if _rt_act_raw_open else ''
-                _rt_act_open = str(_rt_act_raw_open).lower()
-                if _rt_act_open in ('bolt', 'lever', 'single'):
-                    try:
-                        self._play_weapon_action_sound(wpn, 'boltback')
-                    except Exception:
-                        pass
             except Exception:
                 logging.exception('Failed to open internal box magazine loader')
 
@@ -29334,7 +30683,7 @@ class App:
                 self._weather_ambient_channel = None
                 if weather_sound_state.get("thunder_after_id"):
                     try:
-                        self.root.after_cancel(weather_sound_state["thunder_after_id"])
+                        self.root.after_cancel(weather_sound_state["thunder_after_id"]) # type: ignore
                     except Exception:
                         pass
                     weather_sound_state["thunder_after_id"] = None
@@ -29730,6 +31079,11 @@ class App:
         else:
             stats_text +=f"Cyclic Rate: {raw_cyclic} RPM\n"
         stats_text +=f"Magazine Type: {weapon.get('magazinetype', 'Unknown')}\n"
+        if weapon.get("dualfeed") and weapon.get("submagazinetype"):
+            stats_text +=f"Alt Magazine Type: {weapon.get('submagazinetype')}"
+            if weapon.get("submagazinesystem"):
+                stats_text +=f" ({weapon.get('submagazinesystem')})"
+            stats_text +="\n"
 
         if weapon.get("magazinesystem"):
             stats_text +=f"Magazine System: {weapon.get('magazinesystem')}\n"
@@ -30153,7 +31507,8 @@ class App:
                 _mag_type_ammo = (weapon.get("magazinetype") or "").lower()
                 _is_int_ammo = "internal" in _mag_type_ammo or "tube" in _mag_type_ammo
                 _is_rev_ammo = "revolver" in (weapon.get("platform", "") or "").lower()
-                if _is_int_ammo or _is_rev_ammo:
+                _is_dualfeed_mag = weapon.get("dualfeed") and isinstance(weapon.get("loaded"), dict)
+                if (_is_int_ammo or _is_rev_ammo) and not _is_dualfeed_mag:
                     _total_rds += len(weapon.get("rounds", []) or [])
                 else:
                     _ld_mag = weapon.get("loaded")
@@ -30232,14 +31587,21 @@ class App:
                     font = customtkinter.CTkFont(size = 11, weight = "bold")
                 ).pack(pady = (4, 2), padx = 8)
 
+                _cal_mismatched_ids = _get_caliber_mismatched_parts(weapon)
+                _flash_labels = []
+
                 for _p in weapon["parts"]:
                     if not isinstance(_p, dict):
                         continue
                     _pname = _p.get("name") or _p.get("type") or "Unknown"
+                    _p_is_mismatched = id(_p) in _cal_mismatched_ids
                     _pdur = _p.get("current_durability")
                     _pcolor = "#888888"
                     _pstatus = ""
-                    if _pdur is not None and str(_pdur).strip().lower() not in ("null", "set_by_looting"):
+                    if _p_is_mismatched:
+                        _pstatus = "Incompatible"
+                        _pcolor = "#ff0000"
+                    elif _pdur is not None and str(_pdur).strip().lower() not in ("null", "set_by_looting"):
                         try:
                             _pdur_val = float(_pdur)
                             _ppct = max(0.0, min(100.0, (_pdur_val / PART_DURABILITY_MAX) * 100))
@@ -30263,12 +31625,29 @@ class App:
                     else:
                         _pstatus = "N/A"
 
-                    customtkinter.CTkLabel(
+                    _plbl = customtkinter.CTkLabel(
                         _parts_frame,
                         text = f"{_pname}: {_pstatus}",
                         font = customtkinter.CTkFont(size = 10),
                         text_color = _pcolor
-                    ).pack(pady = 1, padx = 8, anchor = "w")
+                    )
+                    _plbl.pack(pady = 1, padx = 8, anchor = "w")
+
+                    if _p_is_mismatched:
+                        _flash_labels.append(_plbl)
+
+                if _flash_labels:
+                    def _flash_incompatible_parts(_labels=_flash_labels, _frame=_parts_frame, _on=True):
+                        try:
+                            if not _frame.winfo_exists():
+                                return
+                            for _fl in _labels:
+                                if _fl.winfo_exists():
+                                    _fl.configure(text_color="#ff0000" if _on else "#661111")
+                            _frame.after(500, lambda: _flash_incompatible_parts(_labels, _frame, not _on))
+                        except Exception:
+                            pass
+                    _parts_frame.after(500, lambda: _flash_incompatible_parts())
 
                 _parts_frame_spacer = customtkinter.CTkLabel(_parts_frame, text = "", height = 2)
                 _parts_frame_spacer.pack()
@@ -30288,7 +31667,8 @@ class App:
         chambered = weapon.get("chambered")
         magazine_type = weapon.get("magazinetype", "").lower()
 
-        is_internal = "internal"in magazine_type or "tube"in magazine_type
+        is_dualfeed_belt = weapon.get("dualfeed") and ("belt" in magazine_type or "m249" in (weapon.get("platform", "") or "").lower()) and not isinstance(loaded_mag, dict)
+        is_internal = "internal"in magazine_type or "tube"in magazine_type or is_dualfeed_belt
         is_revolver = "revolver"in weapon.get("platform", "").lower()
 
         def _resolve_ref(obj):
@@ -31170,7 +32550,8 @@ class App:
 
             platform_folder = platform if platform else None
 
-            is_belt =("belt"in mag_type)or("belt"in(platform or ""))or("m249"in(platform or ""))
+            _df_mag_snd = weapon.get("dualfeed") and isinstance(weapon.get("loaded"), dict) and weapon.get("loaded")
+            is_belt =(("belt"in mag_type)or("belt"in(platform or ""))or("m249"in(platform or ""))) and not _df_mag_snd
 
             should_block = bool(block)
 
@@ -31379,10 +32760,12 @@ class App:
             universal_sounds = {
             "magin":["riflemagin", "pistolmagin"],
             "magout":["riflemagout", "pistolmagout"],
+            "boltactionback":["boltactionback"],
+            "boltactionforward":["boltactionforward"],
             "boltback":["rifleboltback", "pistolslideback", "boltactionback"],
             "boltforward":["rifleboltforward", "pistolslideforward", "boltactionforward"],
-            "pumpback":["shotgunpumpback", "pumpback"],
-            "pumpforward":["shotgunpumpforward", "pumpforward"],
+            "pumpback":["pumpback", "shotgunpumpback"],
+            "pumpforward":["pumpforward", "shotgunpumpforward"],
             "cleaning":["cleaning"],
 
             "coveropen":["pouchout", "magdrop0"],
@@ -31425,36 +32808,58 @@ class App:
             bolt_setting = str(weapon.get("bolt")or "").lower()
             bolt_catch = bool(weapon.get("bolt_catch", False))
 
+            _cbs_act_raw = weapon.get('action', '') or ''
+            if isinstance(_cbs_act_raw, (list, tuple)):
+                _cbs_act_raw = _cbs_act_raw[0] if _cbs_act_raw else ''
+            _cbs_act = str(_cbs_act_raw).lower()
+            _cbs_plat_raw = weapon.get('platform', '') or ''
+            if isinstance(_cbs_plat_raw, (list, tuple)):
+                _cbs_plat_raw = _cbs_plat_raw[0] if _cbs_plat_raw else ''
+            _cbs_plat = str(_cbs_plat_raw).lower()
+            _cbs_mag = str(weapon.get('magazinetype', '') or '').lower()
+            _cbs_is_pump = ('pump' in _cbs_plat or _cbs_act == 'pump' or 'pump' in _cbs_mag)
+            _cbs_is_bolt = _cbs_act in ('bolt', 'lever', 'single')
+
+            if _cbs_is_pump:
+                _snd_back = 'pumpback'
+                _snd_fwd = 'pumpforward'
+            elif _cbs_is_bolt:
+                _snd_back = 'boltactionback'
+                _snd_fwd = 'boltactionforward'
+            else:
+                _snd_back = 'boltback'
+                _snd_fwd = 'boltforward'
+
             if bolt_setting =="open":
                 if single_forward:
                     if bolt_catch:
 
-                        self._play_weapon_action_sound(weapon, "boltback", block = True)
+                        self._play_weapon_action_sound(weapon, _snd_back, block = True)
                     else:
-                        self._play_weapon_action_sound(weapon, "boltforward")
+                        self._play_weapon_action_sound(weapon, _snd_fwd)
                         time.sleep(delay)
 
-                        self._play_weapon_action_sound(weapon, "boltback", block = True)
+                        self._play_weapon_action_sound(weapon, _snd_back, block = True)
                 else:
 
-                    self._play_weapon_action_sound(weapon, "boltforward")
+                    self._play_weapon_action_sound(weapon, _snd_fwd)
                     time.sleep(delay)
-                    self._play_weapon_action_sound(weapon, "boltback", block = True)
+                    self._play_weapon_action_sound(weapon, _snd_back, block = True)
             else:
 
                 if single_forward:
                     if bolt_catch:
-                        self._play_weapon_action_sound(weapon, "boltforward")
+                        self._play_weapon_action_sound(weapon, _snd_fwd)
                     else:
 
-                        self._play_weapon_action_sound(weapon, "boltback", block = True)
+                        self._play_weapon_action_sound(weapon, _snd_back, block = True)
                         time.sleep(delay)
-                        self._play_weapon_action_sound(weapon, "boltforward")
+                        self._play_weapon_action_sound(weapon, _snd_fwd)
                 else:
 
-                    self._play_weapon_action_sound(weapon, "boltback", block = True)
+                    self._play_weapon_action_sound(weapon, _snd_back, block = True)
                     time.sleep(delay)
-                    self._play_weapon_action_sound(weapon, "boltforward")
+                    self._play_weapon_action_sound(weapon, _snd_fwd)
         except Exception:
             try:
 
@@ -31510,6 +32915,13 @@ class App:
     def _perform_belt_reload_sequence(self, weapon, quick=False):
         try:
             save_data = globals().get('save_data')or {}
+
+            if weapon.get("dualfeed") and isinstance(weapon.get("loaded"), dict):
+                ejected_mag = weapon.get("loaded")
+                if ejected_mag and not weapon.get("infinite_ammo"):
+                    save_data.get("hands", {}).get("items", []).append(ejected_mag)
+                weapon["loaded"] = None
+                weapon["_dualfeed_mode"] = "belt"
 
             capacity = None
             try:
@@ -31777,10 +33189,297 @@ class App:
 
     def _perform_dualfeed_belt_reload_sequence(self, weapon, quick=False):
         try:
+            sub_mag_system = weapon.get("submagazinesystem")
+            sub_mag_type = weapon.get("submagazinetype")
+            if not sub_mag_system and not sub_mag_type:
+                self._perform_belt_reload_sequence(weapon, quick=quick)
+                return
 
-            self._perform_belt_reload_sequence(weapon, quick=quick)
+            popup = customtkinter.CTkToplevel(self.root)
+            popup.title("Select Feed Type")
+            popup.transient(self.root)
+            self._center_popup_on_window(popup, 350, 200)
+
+            label = customtkinter.CTkLabel(
+                popup,
+                text=f"How do you want to reload {weapon.get('name', 'this weapon')}?",
+                font=customtkinter.CTkFont(size=13),
+                wraplength=300
+            )
+            label.pack(pady=15, padx=20)
+
+            button_frame = customtkinter.CTkFrame(popup, fg_color="transparent")
+            button_frame.pack(fill="x", padx=20, pady=10)
+
+            def choose_belt():
+                popup.destroy()
+                try:
+                    self._perform_belt_reload_sequence(weapon, quick=quick)
+                except Exception:
+                    logging.exception("dualfeed belt reload error")
+
+            def choose_magazine():
+                popup.destroy()
+                try:
+                    save_data = globals().get('save_data') or {}
+                    table_data = globals().get('table_data') or {}
+                    current_weapon_state = globals().get('current_weapon_state') or {}
+                    update_cb = globals().get('update_weapon_view') or (lambda: None)
+                    self._show_dualfeed_magazine_selection(weapon, save_data, table_data, current_weapon_state, update_cb)
+                except Exception:
+                    logging.exception("dualfeed magazine reload error")
+
+            belt_btn = customtkinter.CTkButton(
+                button_frame,
+                text="Belt Feed (loose rounds)",
+                command=choose_belt,
+                width=280,
+                height=40
+            )
+            belt_btn.pack(pady=5)
+
+            mag_btn = customtkinter.CTkButton(
+                button_frame,
+                text=f"Magazine ({sub_mag_system or sub_mag_type or 'detachable'})",
+                command=choose_magazine,
+                width=280,
+                height=40
+            )
+            mag_btn.pack(pady=5)
+
+            cancel_btn = customtkinter.CTkButton(
+                button_frame,
+                text="Cancel",
+                command=popup.destroy,
+                width=280,
+                height=35,
+                fg_color="#444444",
+                hover_color="#555555"
+            )
+            cancel_btn.pack(pady=5)
+
+            popup.update_idletasks()
+            popup.grab_set()
+            popup.lift()
+            self._safe_focus(popup)
         except Exception:
             logging.exception('_perform_dualfeed_belt_reload_sequence error')
+
+    def _show_dualfeed_magazine_selection(self, weapon, save_data, table_data, current_weapon_state, update_callback):
+        try:
+            sub_mag_system = weapon.get("submagazinesystem")
+            sub_mag_type = (weapon.get("submagazinetype") or "").lower()
+            weapon_calibers = weapon.get("caliber") or []
+            if isinstance(weapon_calibers, str):
+                weapon_calibers = [weapon_calibers]
+
+            compatible_mags = []
+
+            def mag_is_compatible(mag):
+                if not mag or not isinstance(mag, dict):
+                    return False
+                try:
+                    if mag.get("firearm") is True:
+                        return False
+                except Exception:
+                    pass
+                compat = False
+                try:
+                    if sub_mag_system and mag.get("magazinesystem") == sub_mag_system:
+                        compat = True
+                except Exception:
+                    pass
+                try:
+                    mag_mt = str(mag.get("magazinetype", "") or "").lower()
+                    if sub_mag_type and mag_mt == sub_mag_type:
+                        compat = True
+                except Exception:
+                    pass
+                if not compat:
+                    return False
+                try:
+                    if weapon_calibers:
+                        mag_rounds = mag.get("rounds", [])
+                        if mag_rounds:
+                            for rd in mag_rounds:
+                                if isinstance(rd, dict):
+                                    rcal = rd.get("caliber", "")
+                                    if isinstance(rcal, list):
+                                        rcal = rcal[0] if rcal else ""
+                                    if rcal and str(rcal) not in [str(c) for c in weapon_calibers]:
+                                        return False
+                except Exception:
+                    pass
+                return True
+
+            for item in save_data.get("hands", {}).get("items", []):
+                if mag_is_compatible(item) and len(item.get("rounds", [])) > 0:
+                    compatible_mags.append(("hands", item))
+
+            for slot_name, item in save_data.get("equipment", {}).items():
+                if item and isinstance(item, dict):
+                    if "items" in item and isinstance(item["items"], list):
+                        for mag in item["items"]:
+                            if mag_is_compatible(mag) and len(mag.get("rounds", [])) > 0:
+                                compatible_mags.append(("equipment", mag))
+                    if item.get("subslots"):
+                        for subslot in item["subslots"]:
+                            if subslot.get("current"):
+                                curr = subslot["current"]
+                                if "items" in curr and isinstance(curr["items"], list):
+                                    for mag in curr["items"]:
+                                        if mag_is_compatible(mag) and len(mag.get("rounds", [])) > 0:
+                                            compatible_mags.append(("equipment", mag))
+
+            if not compatible_mags:
+                self._popup_show_info("Magazine", f"No compatible {sub_mag_system or 'detachable'} magazines found in inventory!")
+                return
+
+            popup = customtkinter.CTkToplevel(self.root)
+            popup.title("Select Magazine")
+            popup.transient(self.root)
+            self._center_popup_on_window(popup, 500, 450)
+
+            label = customtkinter.CTkLabel(
+                popup,
+                text=f"Select a magazine for {weapon.get('name')} ({sub_mag_system or sub_mag_type}):",
+                font=customtkinter.CTkFont(size=13),
+                wraplength=450
+            )
+            label.pack(pady=10, padx=20)
+
+            scroll_frame = customtkinter.CTkScrollableFrame(popup, fg_color="transparent")
+            scroll_frame.pack(fill="both", expand=True, padx=10, pady=10)
+
+            selected_mag = customtkinter.StringVar(value="0")
+
+            for idx, (location, mag_item) in enumerate(compatible_mags):
+                mag_name = mag_item.get("name", "Unknown Magazine")
+                capacity = mag_item.get("capacity", "?")
+                rounds = len(mag_item.get("rounds", []))
+
+                radio_frame = customtkinter.CTkFrame(scroll_frame, fg_color="transparent")
+                radio_frame.pack(fill="x", pady=5, padx=5)
+
+                radio_text = f"{mag_name} ({rounds}/{capacity})"
+                radio_text += f" - from {location}"
+                _mag_rds_list = mag_item.get("rounds", [])
+                if _mag_rds_list and isinstance(_mag_rds_list, list) and len(_mag_rds_list) > 0:
+                    _mnr = _mag_rds_list[0]
+                    if isinstance(_mnr, dict):
+                        _mnv = _mnr.get("variant") or _mnr.get("name")
+                        if _mnv:
+                            radio_text += f" [next: {_mnv}]"
+                radio = customtkinter.CTkRadioButton(
+                    radio_frame,
+                    text=radio_text,
+                    variable=selected_mag,
+                    value=str(idx),
+                    font=customtkinter.CTkFont(size=11)
+                )
+                radio.pack(anchor="w")
+
+            def load_magazine():
+                if not selected_mag.get():
+                    self._popup_show_info("Magazine", "Please select a magazine!")
+                    return
+                idx = int(selected_mag.get())
+                location, mag_item = compatible_mags[idx]
+
+                current_belt_rounds = weapon.get("rounds") or []
+                if current_belt_rounds:
+                    save_data.get("hands", {}).get("items", []).extend(
+                        [{"name": r.get("name", "Round"), "caliber": r.get("caliber"), "variant": r.get("variant"), "type": r.get("type"), "pen": r.get("pen"), "rounds": [r]} for r in current_belt_rounds] if False else []
+                    )
+
+                current_mag = weapon.get("loaded")
+                chambered = weapon.get("chambered")
+                is_gun_empty = not chambered and (not current_mag or not current_mag.get("rounds", []))
+
+                if current_mag and not weapon.get("infinite_ammo"):
+                    save_data.get("hands", {}).get("items", []).append(current_mag)
+
+                try:
+                    self._play_weapon_action_sound(weapon, "coveropen")
+                except Exception:
+                    pass
+                time.sleep(random.uniform(0.5, 0.8))
+
+                try:
+                    self._safe_sound_play("", "sounds/firearms/universal/pouchout.ogg")
+                except Exception:
+                    pass
+                time.sleep(random.uniform(0.8, 1.2))
+
+                try:
+                    self._play_weapon_action_sound(weapon, "magin")
+                except Exception:
+                    pass
+                time.sleep(random.uniform(0.5, 0.8))
+
+                try:
+                    self._play_weapon_action_sound(weapon, "coverclose")
+                except Exception:
+                    pass
+                time.sleep(random.uniform(0.3, 0.5))
+
+                weapon["loaded"] = mag_item
+                weapon["rounds"] = []
+                weapon["_dualfeed_mode"] = "magazine"
+
+                if is_gun_empty and mag_item.get("rounds", []):
+                    try:
+                        self._play_weapon_action_sound(weapon, "boltback", block=True)
+                    except Exception:
+                        pass
+                    try:
+                        self._play_weapon_action_sound(weapon, "boltforward")
+                    except Exception:
+                        pass
+                    weapon["chambered"] = mag_item["rounds"].pop(0)
+                else:
+                    weapon["chambered"] = None
+
+                if not weapon.get("infinite_ammo"):
+                    if location == "hands":
+                        if mag_item in save_data.get("hands", {}).get("items", []):
+                            save_data["hands"]["items"].remove(mag_item)
+                    elif location == "equipment":
+                        for slot_name, item in save_data.get("equipment", {}).items():
+                            if item and isinstance(item, dict):
+                                if "items" in item and isinstance(item["items"], list):
+                                    if mag_item in item["items"]:
+                                        item["items"].remove(mag_item)
+                                if item.get("subslots"):
+                                    for subslot in item["subslots"]:
+                                        if subslot.get("current"):
+                                            curr = subslot["current"]
+                                            if "items" in curr and isinstance(curr["items"], list):
+                                                if mag_item in curr["items"]:
+                                                    curr["items"].remove(mag_item)
+
+                popup.destroy()
+                mag_name = mag_item.get("name", "magazine")
+                rounds = len(mag_item.get("rounds", []))
+                chambered_info = " +1 in chamber" if is_gun_empty and weapon.get("chambered") else ""
+                self._popup_show_info("Magazine", f"Loaded {mag_name} ({rounds}{chambered_info} rounds) into magazine well!")
+                update_callback()
+
+            btn_frame = customtkinter.CTkFrame(popup, fg_color="transparent")
+            btn_frame.pack(fill="x", padx=10, pady=10)
+
+            load_btn = customtkinter.CTkButton(btn_frame, text="Load Magazine", command=load_magazine, width=150, height=40)
+            load_btn.pack(side="left", padx=5)
+
+            cancel_btn = customtkinter.CTkButton(btn_frame, text="Cancel", command=popup.destroy, width=150, height=40, fg_color="#444444", hover_color="#555555")
+            cancel_btn.pack(side="left", padx=5)
+
+            popup.update_idletasks()
+            popup.grab_set()
+            popup.lift()
+            self._safe_focus(popup)
+        except Exception:
+            logging.exception("_show_dualfeed_magazine_selection error")
 
     def _roll_d20_dice(self, num_rolls):
 
@@ -31825,7 +33524,8 @@ class App:
             raw_platform = raw_platform[0]if raw_platform else ""
         platform = str(raw_platform)
 
-        is_internal = "internal"in magazine_type or "tube"in magazine_type or "cylinder"in magazine_type or "break"in magazine_type or "revolver"in platform.lower()or("belt"in magazine_type)or("m249"in platform.lower())
+        is_dualfeed_mag_mode = weapon.get("dualfeed") and isinstance(loaded_mag, dict) and loaded_mag
+        is_internal = ("internal"in magazine_type or "tube"in magazine_type or "cylinder"in magazine_type or "break"in magazine_type or "revolver"in platform.lower()or("belt"in magazine_type)or("m249"in platform.lower())) and not is_dualfeed_mag_mode
 
         is_belt = False
 
@@ -32498,6 +34198,50 @@ class App:
 
             try:
                 newly_broken = _apply_part_wear(weapon, shots_fired=1, wrong_ammo=wrong_ammo_firing)
+
+                _cal_mismatched = _get_caliber_mismatched_parts(weapon)
+                if _cal_mismatched:
+                    _fired_round_dia = None
+                    if fired_round and isinstance(fired_round, dict):
+                        _fr_cal = fired_round.get("caliber", "")
+                        if isinstance(_fr_cal, list):
+                            _fr_cal = _fr_cal[0] if _fr_cal else ""
+                        _fired_round_dia = _parse_caliber_diameter_mm(_fr_cal)
+                    for _mp in (weapon.get("parts") or []):
+                        if not isinstance(_mp, dict) or id(_mp) not in _cal_mismatched:
+                            continue
+                        if _mp.get("type") == "barrel" and _fired_round_dia is not None:
+                            _barrel_cur = _mp.get("current")
+                            _barrel_cals = _barrel_cur.get("caliber") if isinstance(_barrel_cur, dict) else None
+                            if _barrel_cals:
+                                if isinstance(_barrel_cals, str):
+                                    _barrel_cals = [_barrel_cals]
+                                _barrel_dias = [_parse_caliber_diameter_mm(c) for c in _barrel_cals if isinstance(c, str)]
+                                _barrel_dias = [d for d in _barrel_dias if d is not None]
+                                _barrel_dia = max(_barrel_dias) if _barrel_dias else None
+                                if _barrel_dia is not None and _fired_round_dia < _barrel_dia:
+                                    _dia_ratio = _barrel_dia / _fired_round_dia
+                                    _heavy_wear = PART_DURABILITY_PER_SHOT.get("barrel", 0.15) * _dia_ratio * 25.0
+                                    _bbl_dur = _mp.get("current_durability")
+                                    try:
+                                        _bbl_dur = float(_bbl_dur)
+                                    except (ValueError, TypeError):
+                                        _bbl_dur = 0
+                                    _bbl_dur = max(0, _bbl_dur - _heavy_wear)
+                                    _mp["current_durability"] = _bbl_dur
+                                    if _bbl_dur <= 0:
+                                        _mp["broken"] = True
+                                        if _mp not in newly_broken:
+                                            newly_broken.append(_mp)
+                                    logging.warning("Undersized round (%.2fmm) in barrel (%.2fmm) - heavy wear: %.2f, ratio: %.2f",
+                                                    _fired_round_dia, _barrel_dia, _heavy_wear, _dia_ratio)
+                                    continue
+                        _mp["current_durability"] = 0
+                        _mp["broken"] = True
+                        if _mp not in newly_broken:
+                            newly_broken.append(_mp)
+                        logging.warning("Caliber-incompatible part destroyed on firing: %s (%s)", _mp.get("name"), _mp.get("type"))
+
                 if newly_broken:
                     for bp in newly_broken:
                         logging.warning("Part worn out during firing: %s (%s)", bp.get("name"), bp.get("type"))
@@ -33069,7 +34813,8 @@ class App:
                         plat_rt =(weapon.get("platform", "")or "").lower()
                         mag_type_rt =(weapon.get("magazinetype", "")or "").lower()
                         plat_rt =(weapon.get("platform", "")or "").lower()
-                        is_belt_rt =("belt"in mag_type_rt)or("belt"in plat_rt)or("m249"in plat_rt)
+                        _dualfeed_has_mag_jc = weapon.get("dualfeed") and isinstance(loaded_mag, dict) and loaded_mag
+                        is_belt_rt =(("belt"in mag_type_rt)or("belt"in plat_rt)or("m249"in plat_rt)) and not _dualfeed_has_mag_jc
                         if is_belt_rt:
                             if weapon.get("dualfeed")and(weapon.get("submagazinesystem")or weapon.get("submagazinetype")):
                                 self._perform_dualfeed_belt_reload_sequence(weapon)
@@ -33135,7 +34880,8 @@ class App:
                         plat_rt =(weapon.get("platform", "")or "").lower()
                         mag_type_rt =(weapon.get("magazinetype", "")or "").lower()
                         plat_rt =(weapon.get("platform", "")or "").lower()
-                        is_belt_rt =("belt"in mag_type_rt)or("belt"in plat_rt)or("m249"in plat_rt)
+                        _dualfeed_has_mag_jc2 = weapon.get("dualfeed") and isinstance(loaded_mag, dict) and loaded_mag
+                        is_belt_rt =(("belt"in mag_type_rt)or("belt"in plat_rt)or("m249"in plat_rt)) and not _dualfeed_has_mag_jc2
                         if is_belt_rt:
                             if weapon.get("dualfeed")and(weapon.get("submagazinesystem")or weapon.get("submagazinetype")):
                                 self._perform_dualfeed_belt_reload_sequence(weapon)
@@ -34269,6 +36015,10 @@ class App:
                 rt_action = str(rt_action_raw).lower()
                 is_pump_reload =("pump"in rt_platform or rt_action =="pump"or "pump"in rt_mag_type)
 
+                _inf_is_ba = (rt_action in ('bolt', 'lever', 'single'))
+                _inf_snd_back = 'boltactionback' if _inf_is_ba else 'boltback'
+                _inf_snd_fwd = 'boltactionforward' if _inf_is_ba else 'boltforward'
+
                 if is_pump_reload:
                     try:
                         self._play_weapon_action_sound(weapon, "pumpforward")
@@ -34276,20 +36026,20 @@ class App:
                         pass
                 else:
                     if not weapon.get("bolt_catch"):
-                            self._play_weapon_action_sound(weapon, "boltback", block = True)
+                            self._play_weapon_action_sound(weapon, _inf_snd_back, block = True)
 
                             if weapon.get("gas_melted", False):
                                 if current_rounds:
                                     weapon["chambered"]= current_rounds.pop(0)
-                                self._play_weapon_action_sound(weapon, "boltforward")
+                                self._play_weapon_action_sound(weapon, _inf_snd_fwd)
                             else:
                                 if current_rounds:
                                     weapon["chambered"]= current_rounds.pop(0)
-                                self._play_weapon_action_sound(weapon, "boltforward")
+                                self._play_weapon_action_sound(weapon, _inf_snd_fwd)
                     else:
                         if current_rounds:
                             weapon["chambered"]= current_rounds.pop(0)
-                        self._play_weapon_action_sound(weapon, "boltforward")
+                        self._play_weapon_action_sound(weapon, _inf_snd_fwd)
 
             weapon["rounds"]= current_rounds
             try:
@@ -34375,11 +36125,54 @@ class App:
             boltback_performed = False
 
             if is_bolt_action:
-                self._play_weapon_action_sound(weapon, "boltback", block = True)
+                self._play_weapon_action_sound(weapon, "boltactionback", block = True)
                 time.sleep(0.2)
                 boltback_performed = True
 
-            insert_index = 0
+            # Try clip-based loading first if weapon accepts clips
+            if weapon.get('accepts_clips') and weapon.get('clip_type'):
+                wpn_clip_type = str(weapon.get('clip_type')).strip()
+                def _find_loaded_clip_combat(sd):
+                    for itm in sd.get('hands', {}).get('items', []):
+                        if itm and isinstance(itm, dict) and str(itm.get('clip_type', '')).strip() == wpn_clip_type:
+                            crds = itm.get('rounds', [])
+                            if isinstance(crds, list) and len(crds) > 0:
+                                return itm
+                    for _sn, eq in sd.get('equipment', {}).items():
+                        if not eq or not isinstance(eq, dict):
+                            continue
+                        for itm in eq.get('items', []) or []:
+                            if itm and isinstance(itm, dict) and str(itm.get('clip_type', '')).strip() == wpn_clip_type:
+                                crds = itm.get('rounds', [])
+                                if isinstance(crds, list) and len(crds) > 0:
+                                    return itm
+                        for sub in eq.get('subslots', []) or []:
+                            curr = sub.get('current')
+                            if curr and isinstance(curr, dict):
+                                for itm in curr.get('items', []) or []:
+                                    if itm and isinstance(itm, dict) and str(itm.get('clip_type', '')).strip() == wpn_clip_type:
+                                        crds = itm.get('rounds', [])
+                                        if isinstance(crds, list) and len(crds) > 0:
+                                            return itm
+                    return None
+
+                while ammo_loaded < ammo_needed:
+                    clip_item = _find_loaded_clip_combat(save_data)
+                    if not clip_item:
+                        break
+                    clip_rds = clip_item.get('rounds', [])
+                    rounds_from_clip = min(len(clip_rds), ammo_needed - ammo_loaded)
+                    for _ in range(rounds_from_clip):
+                        if not clip_rds:
+                            break
+                        rnd = clip_rds.pop(0)
+                        current_rounds.append(rnd)
+                        ammo_loaded += 1
+                    sound_action = f"bulletinsert{ammo_loaded % 2}"
+                    self._play_weapon_action_sound(weapon, sound_action, block = False)
+                    time.sleep(0.3)
+
+            insert_index = ammo_loaded
             while ammo_loaded <ammo_needed and compatible_ammo:
                 ammo_item, qty = compatible_ammo[0]
                 rounds_to_load = min(1, qty, ammo_needed -ammo_loaded)
@@ -34422,25 +36215,28 @@ class App:
                     except Exception:
                         pass
                 else:
+                    _rim_is_ba = (rt_action in ('bolt', 'lever', 'single'))
+                    _rim_snd_back = 'boltactionback' if _rim_is_ba else 'boltback'
+                    _rim_snd_fwd = 'boltactionforward' if _rim_is_ba else 'boltforward'
 
                     if not weapon.get("bolt_catch"):
 
                         if not boltback_performed:
-                            self._play_weapon_action_sound(weapon, "boltback", block = True)
+                            self._play_weapon_action_sound(weapon, _rim_snd_back, block = True)
 
                         if weapon.get("gas_melted", False):
                             if current_rounds:
                                 weapon["chambered"]= current_rounds.pop(0)
-                            self._play_weapon_action_sound(weapon, "boltforward")
+                            self._play_weapon_action_sound(weapon, _rim_snd_fwd)
                         else:
                             if current_rounds:
                                 weapon["chambered"]= current_rounds.pop(0)
-                            self._play_weapon_action_sound(weapon, "boltforward")
+                            self._play_weapon_action_sound(weapon, _rim_snd_fwd)
                     else:
 
                         if current_rounds:
                             weapon["chambered"]= current_rounds.pop(0)
-                        self._play_weapon_action_sound(weapon, "boltforward")
+                        self._play_weapon_action_sound(weapon, _rim_snd_fwd)
 
         weapon["rounds"]= current_rounds
         try:
@@ -35279,6 +37075,15 @@ class App:
         loaded_mag = weapon.get("loaded")
 
         if not loaded_mag:
+            belt_rounds = weapon.get("rounds", [])
+            if belt_rounds and ("belt" in magazine_type or "m249" in (weapon.get("platform", "") or "").lower()):
+                self._play_weapon_action_sound(weapon, "boltback", block = True)
+                next_round = belt_rounds.pop(0)
+                weapon["chambered"]= next_round
+                self._play_weapon_action_sound(weapon, "boltforward")
+                next_var = next_round.get("variant")or next_round.get("name")if isinstance(next_round, dict)else str(next_round)
+                return message +f"Action cycled - chambered {next_var or 'a round'} from belt."
+
             self._play_weapon_action_sound(weapon, "boltback", block = True)
             self._play_weapon_action_sound(weapon, "boltforward")
             return message +"No magazine loaded - action cycled but no round chambered."
@@ -35335,6 +37140,13 @@ class App:
 
             try:
                 if sub_mag_type and mag_type ==sub_mag_type:
+                    compat = True
+            except Exception:
+                pass
+
+            try:
+                sub_mag_system = weapon.get("submagazinesystem")
+                if sub_mag_system and mag.get("magazinesystem")==sub_mag_system:
                     compat = True
             except Exception:
                 pass
@@ -35415,7 +37227,10 @@ class App:
             if is_belt_weapon:
 
                 try:
-                    self._perform_belt_reload_sequence(weapon)
+                    if weapon.get("dualfeed") and (weapon.get("submagazinesystem") or weapon.get("submagazinetype")):
+                        self._perform_dualfeed_belt_reload_sequence(weapon)
+                    else:
+                        self._perform_belt_reload_sequence(weapon)
                     return
                 except Exception:
                     try:
@@ -36488,8 +38303,7 @@ class App:
 
             try:
                 appearance_settings_path = os.path.join(saves_folder or "saves", "appearance_settings.sldsv")
-                with open(appearance_settings_path, 'w')as f:
-                    json.dump(appearance_settings, f, indent = 4)
+                _signed_json_write(appearance_settings_path, appearance_settings)
                 logging.info(f"Appearance settings saved to {appearance_settings_path}")
             except Exception as e:
                 logging.error(f"Failed to save appearance settings: {e}")
@@ -36764,13 +38578,11 @@ class App:
             try:
 
                 appearance_settings_path = os.path.join(saves_folder or "saves", "appearance_settings.sldsv")
-                with open(appearance_settings_path, 'w')as f:
-                    json.dump(appearance_settings, f, indent = 4)
+                _signed_json_write(appearance_settings_path, appearance_settings)
                 logging.info(f"Appearance settings saved to {appearance_settings_path}")
 
                 settings_path = os.path.join(saves_folder or "saves", "settings.sldsv")
-                with open(settings_path, 'w')as f:
-                    json.dump(global_variables, f, indent = 4)
+                _signed_json_write(settings_path, global_variables)
                 logging.info(f"Global settings saved to {settings_path}")
 
                 settings_modified[0]= False
@@ -40923,8 +42735,7 @@ class App:
                     "saved_at":datetime.now().isoformat()
                     }
 
-                    with open(filepath, 'w', encoding = 'utf-8')as f:
-                        json.dump(save_data, f, indent = 2)
+                    _signed_json_write(filepath, save_data)
 
                     self._popup_show_info("Dungeon Saved", f"Saved to: {filename}")
                     logging.info(f"Saved dungeon to {filepath}")
@@ -40952,8 +42763,10 @@ class App:
                         return
 
                     filepath = os.path.join(dungeons_dir, selected)
-                    with open(filepath, 'r', encoding = 'utf-8')as f:
-                        save_data = json.load(f)
+                    save_data, _, dng_status = _signed_json_read(filepath, allow_unsigned = True)
+                    if not isinstance(save_data, dict):
+                        self._popup_show_info("Error", f"Failed to load dungeon (status: {dng_status})", sound = "error")
+                        return
 
                     self._dg_state['generated_dungeon']= save_data.get("dungeon")
                     self._dg_state['current_floor']= save_data.get("current_floor", 0)
@@ -41062,9 +42875,9 @@ class App:
 
         if os.path.exists(dm_settings_path):
             try:
-                with open(dm_settings_path, 'r')as f:
-                    dm_settings = json.load(f)
-                    enabled_enemies = dm_settings.get("enabled_enemies", {})
+                dm_settings_loaded, _, dm_status = _signed_json_read(dm_settings_path, allow_unsigned = True)
+                if isinstance(dm_settings_loaded, dict):
+                    enabled_enemies = dm_settings_loaded.get("enabled_enemies", {})
             except Exception as e:
                 logging.warning(f"Failed to load DM settings: {e}")
 
@@ -41312,9 +43125,9 @@ class App:
 
         if os.path.exists(dm_settings_path):
             try:
-                with open(dm_settings_path, 'r')as f:
-                    dm_settings = json.load(f)
-                    enabled_enemies = dm_settings.get("enabled_enemies", {})
+                dm_settings_loaded, _, dm_status = _signed_json_read(dm_settings_path, allow_unsigned = True)
+                if isinstance(dm_settings_loaded, dict):
+                    enabled_enemies = dm_settings_loaded.get("enabled_enemies", {})
             except Exception as e:
                 logging.warning(f"Failed to load DM settings: {e}")
 
@@ -41610,10 +43423,7 @@ class App:
 
             os.makedirs("enemyloot", exist_ok = True)
 
-            with open(filepath, 'wb')as f:
-                pickled = pickle.dumps(transfer_data)
-                encoded = base64.b85encode(pickled)
-                f.write(encoded)
+            _signed_json_write(filepath, transfer_data, binary_mode = True, portable = True)
 
             logging.info(f"Saved enemy loot transfer: {filepath}")
             self._popup_show_info("Success", f"Enemy loot saved as:\n{filename}", sound = "success")
@@ -41639,10 +43449,7 @@ class App:
 
             os.makedirs("enemyloot", exist_ok = True)
 
-            with open(filepath, 'wb')as f:
-                pickled = pickle.dumps(transfer_data)
-                encoded = base64.b85encode(pickled)
-                f.write(encoded)
+            _signed_json_write(filepath, transfer_data, binary_mode = True, portable = True)
 
             logging.info(f"Saved enemy loot transfer: {filepath}")
             return filename
@@ -41668,10 +43475,7 @@ class App:
 
             os.makedirs("lootcrates", exist_ok = True)
 
-            with open(filepath, 'wb')as f:
-                pickled = pickle.dumps(transfer_data)
-                encoded = base64.b85encode(pickled)
-                f.write(encoded)
+            _signed_json_write(filepath, transfer_data, binary_mode = True, portable = True)
 
             logging.info(f"Saved lootcrate transfer: {filepath}")
             return filename
@@ -41767,10 +43571,8 @@ class App:
                 "lootcrates",
                 f"lootcrate_{datetime.now().strftime('%Y%m%d_%H%M%S')}{global_variables['lootcrate_extension']}"
                 )
-                pickled_data = pickle.dumps(crate_copy)
-                encoded_data = base64.b85encode(pickled_data).decode('utf-8')
-                with open(filename, 'w')as f:
-                    f.write(encoded_data)
+                encoded_data = json.dumps(crate_copy, ensure_ascii = False)
+                _signed_json_write(filename, crate_copy, portable = True)
                 self._popup_show_info("Success", f"Generated loot crate '{crate.get('name', 'Loot Crate')}'.", sound = "success")
                 logging.info(f"Generated loot crate file: {filename}")
             except Exception as e:
@@ -41808,10 +43610,16 @@ class App:
         presets_from_folder =[]
         for pf in preset_files:
             try:
-                with open(pf, 'r')as f:
-                    encoded_data = f.read()
-                pickled_data = base64.b85decode(encoded_data.encode('utf-8'))
-                pdata = pickle.loads(pickled_data)
+                pdata, _, p_status = _signed_json_read(pf, allow_unsigned = False, portable = True)
+                if p_status == "tampered":
+                    logging.warning(f"Preset file '{pf}' has been tampered with \u2014 signature verification failed. Skipping.")
+                    continue
+                elif p_status in ("unsigned", "incompatible_format"):
+                    logging.warning(f"Preset file '{pf}' is unsigned or incompatible. Download and run convert_legacy_saves.py from github and run with --resign flag to convert.")
+                    continue
+                elif pdata is None:
+                    logging.warning(f"Preset file '{pf}' could not be loaded. Skipping.")
+                    continue
                 pdata["_source_file"]= pf
                 presets_from_folder.append(pdata)
             except Exception as e:
@@ -42388,10 +44196,8 @@ class App:
                     f"lootcrate_{datetime.now().strftime('%Y%m%d_%H%M%S')}{global_variables['lootcrate_extension']}"
                     )
 
-                pickled_data = pickle.dumps(crate_data)
-                encoded_data = base64.b85encode(pickled_data).decode('utf-8')
-                with open(filename, 'w')as f:
-                    f.write(encoded_data)
+                encoded_data = json.dumps(crate_data, ensure_ascii = False)
+                _signed_json_write(filename, crate_data, portable = True)
 
                 if as_preset:
                     self._popup_show_info("Success", f"Saved preset '{crate_name}' to presets folder.\nIt will now appear in 'Create from Preset'.", sound = "success")
@@ -42760,12 +44566,10 @@ class App:
                 "timestamp":datetime.now().isoformat(),
                 "from_character":"DM"
                 }
-                pickled_data = pickle.dumps(transfer_data)
-                encoded_data = base64.b85encode(pickled_data).decode('utf-8')
+                encoded_data = json.dumps(transfer_data, ensure_ascii = False)
                 os.makedirs("transfers", exist_ok = True)
                 filename = os.path.join("transfers", f"transfer_dm_{datetime.now().strftime('%Y%m%d_%H%M%S')}{global_variables['transfer_extension']}")
-                with open(filename, 'w')as f:
-                    f.write(encoded_data)
+                _signed_json_write(filename, transfer_data, portable = True)
                 self._popup_show_info("Success", f"Saved transfer with {format_price(transfer_money)} and {len(items_to_send)} items.", sound = "success")
                 logging.info(f"Saved DM transfer to {filename}")
                 self._open_dm_tools()
@@ -43204,10 +45008,7 @@ class App:
 
             os.makedirs("transfers", exist_ok = True)
 
-            with open(filepath, 'wb')as f:
-                pickled = pickle.dumps(transfer_data)
-                encoded = base64.b85encode(pickled)
-                f.write(encoded)
+            _signed_json_write(filepath, transfer_data, binary_mode = True, portable = True)
 
             logging.info(f"Saved magazine transfer: {filepath}")
             self._popup_show_info("Success", f"Magazine transfer saved as:\n{filename}", sound = "success")
@@ -43476,10 +45277,7 @@ class App:
 
             os.makedirs("transfers", exist_ok = True)
 
-            with open(filepath, 'wb')as f:
-                pickled = pickle.dumps(transfer_data)
-                encoded = base64.b85encode(pickled)
-                f.write(encoded)
+            _signed_json_write(filepath, transfer_data, binary_mode = True, portable = True)
 
             logging.info(f"Saved belt transfer: {filepath}")
             self._popup_show_info("Success", f"Belt transfer saved as:\n{filename}", sound = "success")
@@ -43509,8 +45307,9 @@ class App:
 
         if os.path.exists(dm_settings_path):
             try:
-                with open(dm_settings_path, 'r')as f:
-                    dm_settings = json.load(f)
+                dm_settings_loaded, _, dm_status = _signed_json_read(dm_settings_path, allow_unsigned = True)
+                if isinstance(dm_settings_loaded, dict):
+                    dm_settings = dm_settings_loaded
                     if "enabled_enemies"not in dm_settings:
                         dm_settings["enabled_enemies"]= {}
             except Exception as e:
@@ -43578,8 +45377,7 @@ class App:
                 for enemy_name, var in enemy_vars.items():
                     dm_settings["enabled_enemies"][enemy_name]= var.get()
 
-                with open(dm_settings_path, 'w')as f:
-                    json.dump(dm_settings, f, indent = 4)
+                _signed_json_write(dm_settings_path, dm_settings)
 
                 logging.info(f"DM settings saved to {dm_settings_path}")
                 self._popup_show_info("Success", "DM settings saved successfully!", sound = "success")

@@ -13,7 +13,7 @@
         "combat_reports": false,
         "hidden_code": "Mgdqxum",
         "hidden_code_enabled": true,
-        "currency": "EUR"
+        "currency": "USD"
     },
     "rarity_weights": {
         "Common": 40,
@@ -3041,6 +3041,9 @@
                 "cyclic": 850,
                 "magazinetype": "Belt",
                 "capacity": 200,
+                "dualfeed": true,
+                "submagazinetype": "Detachable box",
+                "submagazinesystem": "STANAG 4179",
                 "jamrate": 0.002,
                 "accessories": [
                     {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": null},
