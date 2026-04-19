@@ -1648,11 +1648,13 @@ def validate_table_ids():
 
                     calib = item.get('caliber')
                     if calib:
-                        if str(calib).strip().lower()not in ammo_calibers_present:
-                            msg = f"Firearm '{name}' in table '{tf}' references caliber '{calib}' but no ammunition with that caliber found."
+                        calibs = calib if isinstance(calib, list) else [calib]
+                        missing = [c for c in calibs if str(c).strip().lower() not in ammo_calibers_present]
+                        if missing:
+                            msg = f"Firearm '{name}' in table '{tf}' references caliber '{missing}' but no ammunition with that caliber found."
                             ammo_errors.append(msg)
                             try:
-                                ammo_errors_details.append({'table':tf, 'weapon':item, 'reason':'missing_ammo_caliber', 'caliber':calib})
+                                ammo_errors_details.append({'table':tf, 'weapon':item, 'reason':'missing_ammo_caliber', 'caliber':missing})
                             except Exception:
                                 pass
 
@@ -21681,6 +21683,13 @@ class App:
                 _handle_cylinder_reload()
                 return
 
+            if "belt"in magazine_type or "belt"in(wpn.get("platform", "")or "").lower():
+                if wpn.get("dualfeed")and(wpn.get("submagazinesystem")or wpn.get("submagazinetype")):
+                    self._perform_dualfeed_belt_reload_sequence(wpn, quick=False)
+                else:
+                    self._show_belt_variant_selection(wpn, quick=False)
+                return
+
             if not magazine_system:
                 inferred_ms = None
                 if wpn.get("magazinetype"):
@@ -21919,7 +21928,7 @@ class App:
                             pass
                     else:
                         try:
-                            self._perform_belt_reload_sequence(wpn, quick=True)
+                            self._show_belt_variant_selection(wpn, quick=True)
                         except Exception:
                             pass
                     handled_belt = True
@@ -32912,7 +32921,171 @@ class App:
             logging.error(f"_play_weapon_action_sound_strict error: {e}")
             return False
 
-    def _perform_belt_reload_sequence(self, weapon, quick=False):
+    def _scan_belt_available_variants(self, weapon):
+        """Scan inventory for loose rounds compatible with a belt-fed weapon. Returns {variant_name: count}."""
+        try:
+            save_data = globals().get('save_data')or {}
+            calibers = []
+            try:
+                c = weapon.get('caliber')or weapon.get('calibers')or[]
+                if isinstance(c, (list, tuple)):
+                    calibers = [str(x).strip().lower() for x in c]
+                elif c:
+                    calibers = [str(c).strip().lower()]
+            except Exception:
+                calibers = []
+
+            def _cal_ok(item_cal):
+                if not calibers:
+                    return True
+                if not item_cal:
+                    return False
+                if isinstance(item_cal, list):
+                    return any(str(x).strip().lower() in calibers for x in item_cal)
+                return str(item_cal).strip().lower() in calibers
+
+            variants = {}
+
+            def _scan(itm):
+                if not isinstance(itm, dict):
+                    return
+                if itm is weapon:
+                    return
+                if itm.get('magazinesystem')or itm.get('capacity'):
+                    return
+                if isinstance(itm.get('rounds'), list)and itm.get('rounds'):
+                    for r in itm['rounds']:
+                        if isinstance(r, dict)and _cal_ok(r.get('caliber')):
+                            vn = r.get('variant')or r.get('name')or 'Unknown'
+                            variants[vn]= variants.get(vn, 0)+1
+                    return
+                qty = int(itm.get('quantity')or 0)if isinstance(itm.get('quantity'), (int, float))else 0
+                if qty > 0 and _cal_ok(itm.get('caliber')):
+                    vn = itm.get('variant')or itm.get('name')or 'Unknown'
+                    variants[vn]= variants.get(vn, 0)+qty
+                    return
+                if itm.get('caliber')and _cal_ok(itm.get('caliber'))and not itm.get('capacity'):
+                    vn = itm.get('variant')or itm.get('name')or 'Unknown'
+                    variants[vn]= variants.get(vn, 0)+1
+
+            for itm in save_data.get('hands', {}).get('items', []):
+                _scan(itm)
+            for slot_name, eq_item in save_data.get('equipment', {}).items():
+                if not eq_item or not isinstance(eq_item, dict):
+                    continue
+                for itm in eq_item.get('items', [])or[]:
+                    _scan(itm)
+                for sub in eq_item.get('subslots', [])or[]:
+                    curr = sub.get('current')
+                    if curr and isinstance(curr, dict):
+                        for itm in curr.get('items', [])or[]:
+                            _scan(itm)
+            return variants
+        except Exception:
+            logging.exception('_scan_belt_available_variants error')
+            return {}
+
+    def _show_belt_variant_selection(self, weapon, quick=False):
+        """Show variant selection popup for belt-fed reload, or auto-select if quick/only one variant."""
+        try:
+            variants = self._scan_belt_available_variants(weapon)
+            if not variants:
+                self._popup_show_info('Reload Belt', 'No compatible loose rounds available to load belt')
+                return
+
+            if quick or len(variants)==1:
+                best = max(variants, key=lambda v: variants[v])
+                t = threading.Thread(
+                    target=self._perform_belt_reload_sequence,
+                    args=(weapon,),
+                    kwargs={'quick': quick, 'selected_variant': best},
+                    daemon=True
+                )
+                t.start()
+                return
+
+            popup = customtkinter.CTkToplevel(self.root)
+            popup.title("Belt Feed - Select Ammunition")
+            popup.transient(self.root)
+
+            customtkinter.CTkLabel(
+                popup,
+                text=f"Select round type for {weapon.get('name', 'this weapon')}:",
+                font=customtkinter.CTkFont(size=13),
+                wraplength=400
+            ).pack(pady=(15, 5), padx=20)
+
+            caliber_info = weapon.get('caliber')or[]
+            if isinstance(caliber_info, list):
+                caliber_info = ', '.join(str(c) for c in caliber_info)
+            customtkinter.CTkLabel(
+                popup,
+                text=f"Caliber: {caliber_info}",
+                font=customtkinter.CTkFont(size=10),
+                text_color='#888888'
+            ).pack(pady=(0, 10), padx=20)
+
+            scroll_frame = customtkinter.CTkScrollableFrame(popup, fg_color="transparent")
+            scroll_frame.pack(fill="both", expand=True, padx=10, pady=5)
+
+            selected_var = customtkinter.StringVar(value="")
+            sorted_variants = sorted(variants.items(), key=lambda x: x[1], reverse=True)
+            if sorted_variants:
+                selected_var.set(sorted_variants[0][0])
+
+            for vn, cnt in sorted_variants:
+                radio = customtkinter.CTkRadioButton(
+                    scroll_frame,
+                    text=f"{vn}  ({cnt} available)",
+                    variable=selected_var,
+                    value=vn,
+                    font=customtkinter.CTkFont(size=12)
+                )
+                radio.pack(anchor="w", pady=4, padx=10)
+
+            btn_frame = customtkinter.CTkFrame(popup, fg_color="transparent")
+            btn_frame.pack(fill="x", padx=20, pady=10)
+
+            def _do_load():
+                chosen = selected_var.get()
+                if not chosen:
+                    return
+                popup.destroy()
+                t = threading.Thread(
+                    target=self._perform_belt_reload_sequence,
+                    args=(weapon,),
+                    kwargs={'quick': False, 'selected_variant': chosen},
+                    daemon=True
+                )
+                t.start()
+
+            customtkinter.CTkButton(
+                btn_frame,
+                text="Load Belt",
+                command=_do_load,
+                width=200,
+                height=40
+            ).pack(side="left", padx=5)
+
+            customtkinter.CTkButton(
+                btn_frame,
+                text="Cancel",
+                command=popup.destroy,
+                width=100,
+                height=40,
+                fg_color="#444444",
+                hover_color="#555555"
+            ).pack(side="left", padx=5)
+
+            popup.update_idletasks()
+            self._center_popup_on_window(popup, 420, 350)
+            popup.grab_set()
+            popup.lift()
+            self._safe_focus(popup)
+        except Exception:
+            logging.exception('_show_belt_variant_selection error')
+
+    def _perform_belt_reload_sequence(self, weapon, quick=False, selected_variant=None):
         try:
             save_data = globals().get('save_data')or {}
 
@@ -32960,15 +33133,42 @@ class App:
                         return True
                     if not calib_list:
                         return True
+                    rcal_low = str(rcal).strip().lower()
                     for c in calib_list:
                         try:
-                            if str(rcal)==str(c):
+                            if rcal_low==str(c).strip().lower():
                                 return True
                         except Exception:
                             pass
                     return False
                 except Exception:
                     return True
+
+            def item_cal_matches(itm_cal, calib_list):
+                """Check if an item-level caliber matches the weapon calibers."""
+                if not calib_list:
+                    return True
+                if not itm_cal:
+                    return False
+                if isinstance(itm_cal, list):
+                    return any(str(x).strip().lower() in [str(c).strip().lower() for c in calib_list] for x in itm_cal)
+                return str(itm_cal).strip().lower() in [str(c).strip().lower() for c in calib_list]
+
+            def variant_matches(itm):
+                """Check if item variant/name matches the selected_variant filter."""
+                if not selected_variant:
+                    return True
+                vn = itm.get('variant')or itm.get('name')or 'Unknown'
+                return str(vn)==selected_variant
+
+            def round_variant_matches(r):
+                """Check if a round dict matches the selected_variant filter."""
+                if not selected_variant:
+                    return True
+                if not isinstance(r, dict):
+                    return True
+                vn = r.get('variant')or r.get('name')or 'Unknown'
+                return str(vn)==selected_variant
 
             calibers =[]
             try:
@@ -33000,7 +33200,7 @@ class App:
                         keep =[]
                         rlist = itm.get('rounds')or[]
                         for r in rlist:
-                            if len(take)<need and round_matches(r, calibers):
+                            if len(take)<need and round_matches(r, calibers)and round_variant_matches(r):
                                 take.append(r)
                             else:
                                 keep.append(r)
@@ -33016,7 +33216,7 @@ class App:
                         continue
 
                     qty = int(itm.get('quantity')or 0)if isinstance(itm.get('quantity'), (int, float))else 0
-                    if qty >0 and('caliber'in itm or 'name'in itm):
+                    if qty >0 and('caliber'in itm or 'name'in itm)and item_cal_matches(itm.get('caliber'), calibers)and variant_matches(itm):
                         take_n = min(need, qty)
                         for _ in range(take_n):
                             r = {k:v for k, v in itm.items()if k !='quantity'}
@@ -33030,7 +33230,7 @@ class App:
                                 pass
                         continue
 
-                    if itm.get('caliber'):
+                    if itm.get('caliber')and item_cal_matches(itm.get('caliber'), calibers)and variant_matches(itm):
                         try:
                             hands.pop(hi)
                             rounds_collected.append(itm)
@@ -33055,7 +33255,7 @@ class App:
                             keep =[]
                             rlist = itm.get('rounds')or[]
                             for r in rlist:
-                                if len(take)<need and round_matches(r, calibers):
+                                if len(take)<need and round_matches(r, calibers)and round_variant_matches(r):
                                     take.append(r)
                                 else:
                                     keep.append(r)
@@ -33070,7 +33270,7 @@ class App:
                                     pass
                             continue
                         qty = int(itm.get('quantity')or 0)if isinstance(itm.get('quantity'), (int, float))else 0
-                        if qty >0 and('caliber'in itm or 'name'in itm):
+                        if qty >0 and('caliber'in itm or 'name'in itm)and item_cal_matches(itm.get('caliber'), calibers)and variant_matches(itm):
                             take_n = min(need, qty)
                             for _ in range(take_n):
                                 r = {k:v for k, v in itm.items()if k !='quantity'}
@@ -33192,7 +33392,7 @@ class App:
             sub_mag_system = weapon.get("submagazinesystem")
             sub_mag_type = weapon.get("submagazinetype")
             if not sub_mag_system and not sub_mag_type:
-                self._perform_belt_reload_sequence(weapon, quick=quick)
+                self._show_belt_variant_selection(weapon, quick=quick)
                 return
 
             popup = customtkinter.CTkToplevel(self.root)
@@ -33214,7 +33414,7 @@ class App:
             def choose_belt():
                 popup.destroy()
                 try:
-                    self._perform_belt_reload_sequence(weapon, quick=quick)
+                    self._show_belt_variant_selection(weapon, quick=quick)
                 except Exception:
                     logging.exception("dualfeed belt reload error")
 
@@ -34705,6 +34905,73 @@ class App:
                                         continue
                         except Exception:
                             pass
+            except Exception:
+                pass
+
+            # Try to extract penetration value for the displayed round and append it
+            pen_val = None
+            try:
+                src_round = None
+                try:
+                    if fired_rounds_list:
+                        src_round = fired_rounds_list[0]
+                    elif chambered and isinstance(chambered, dict):
+                        src_round = chambered
+                    elif loaded_mag and loaded_mag.get('rounds'):
+                        src_round = loaded_mag['rounds'][0]
+                except Exception:
+                    src_round = None
+
+                if isinstance(src_round, dict):
+                    pen_val = src_round.get('pen')
+                    if pen_val is None:
+                        v = src_round.get('variant')
+                        if isinstance(v, dict):
+                            pen_val = v.get('pen')
+
+                elif isinstance(src_round, str):
+                    var_name = None
+                    if ' | ' in src_round:
+                        parts = src_round.split(' | ')
+                        if len(parts) > 1:
+                            var_name = parts[1]
+                    elif isinstance(variant, str) and variant and variant != 'Unknown':
+                        var_name = variant
+
+                    if var_name:
+                        try:
+                            current_tbl = global_variables.get('current_table')
+                            if current_tbl:
+                                tbl_path = os.path.join('tables', current_tbl)
+                            else:
+                                tbl_path = os.path.join('tables', sorted(glob.glob(os.path.join('tables', '*.sldtbl')))[0]) if glob.glob(os.path.join('tables', '*.sldtbl')) else None
+                            if tbl_path and os.path.exists(tbl_path):
+                                with open(tbl_path, 'r', encoding='utf-8') as tf:
+                                    import json as _json
+                                    tdata = _json.load(tf)
+                                    ammo_arr = tdata.get('tables', {}).get('ammunition', [])
+                                    for a in ammo_arr:
+                                        try:
+                                            if a.get('caliber') == caliber:
+                                                variants = a.get('variants') or []
+                                                for var in variants:
+                                                    if isinstance(var, dict):
+                                                        vname = var.get('name') or var.get('variant') or var.get('variant_name')
+                                                        if vname and str(vname).strip() == str(var_name).strip():
+                                                            pen_val = var.get('pen')
+                                                            break
+                                                if pen_val is not None:
+                                                    break
+                                        except Exception:
+                                            continue
+                        except Exception:
+                            pass
+            except Exception:
+                pen_val = None
+
+            try:
+                if pen_val is not None and str(pen_val).strip() != '':
+                    round_display = f"{round_display} (Pen: {pen_val})"
             except Exception:
                 pass
 
@@ -37230,7 +37497,7 @@ class App:
                     if weapon.get("dualfeed") and (weapon.get("submagazinesystem") or weapon.get("submagazinetype")):
                         self._perform_dualfeed_belt_reload_sequence(weapon)
                     else:
-                        self._perform_belt_reload_sequence(weapon)
+                        self._show_belt_variant_selection(weapon, quick=False)
                     return
                 except Exception:
                     try:

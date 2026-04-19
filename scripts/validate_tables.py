@@ -252,10 +252,13 @@ def validate_tables(tables_dir=None):
                 continue
             name = item.get("name") or "<unnamed>"
             calib = item.get("caliber")
-            if calib and str(calib).strip().lower() not in ammo_calibers_present:
-                msg = f"Firearm '{name}' in table '{table_pretty_names.get(tf, tf)}' references caliber '{calib}' but no ammunition with that caliber found."
-                errors.append(("Ammunition", msg))
-                error_source.append((msg, tf))
+            if calib:
+                calibs = calib if isinstance(calib, list) else [calib]
+                missing = [c for c in calibs if str(c).strip().lower() not in ammo_calibers_present]
+                if missing:
+                    msg = f"Firearm '{name}' in table '{table_pretty_names.get(tf, tf)}' references caliber '{missing}' but no ammunition with that caliber found."
+                    errors.append(("Ammunition", msg))
+                    error_source.append((msg, tf))
             ammo_type = item.get("ammo_type") or item.get("ammunition")
             if ammo_type and str(ammo_type).strip().lower() not in ammo_names_present:
                 msg = f"Firearm '{name}' in table '{table_pretty_names.get(tf, tf)}' references ammunition '{ammo_type}' but no matching ammunition entry found."
@@ -419,6 +422,8 @@ class ValidatorApp(customtkinter.CTk):
         self.title("Table Validator")
         self.geometry("900x650")
         self.minsize(700, 450)
+        # Keep window on top of other windows
+        self.attributes("-topmost", True)
 
         self._active_errors = []
         self._disabled_errors = []
@@ -522,7 +527,18 @@ class ValidatorApp(customtkinter.CTk):
                 except Exception:
                     self._insert(f"  ✓ {f}\n", "ok")
             for f in sorted(disabled):
-                self._insert(f"  ○ {f} [disabled]\n", "info")
+                try:
+                    td = load_table(os.path.join(tables_dir, f))
+                    pretty = td.get("prettyname", f)
+                    max_id = 0
+                    for items in (td.get("tables") or {}).values():
+                        if isinstance(items, list):
+                            for it in items:
+                                if isinstance(it, dict) and "id" in it:
+                                    max_id = max(max_id, it["id"])
+                    self._insert(f"  ○ {pretty} ({f}) [DISABLED]  next ID: {max_id + 1}\n", "info")
+                except Exception:
+                    self._insert(f"  ○ {f} [DISABLED]\n", "info")
 
         # ── Errors (grouped by category) ──────────────────────────────────
         filtered_errors = [(c, m) for c, m in self._active_errors if c in enabled_cats]
