@@ -1175,7 +1175,39 @@ if not global_variables.get("devmode", {}).get("value", False):
 else:
     logging.info("Remote table sync active, skipped due to devmode.")
 
-def validate_table_ids():
+def _platforms_compatible(fplat, tplat, secondary=None):
+    try:
+        lf = str(fplat).strip().lower() if fplat is not None else ""
+        lt = str(tplat).strip().lower() if tplat is not None else ""
+        if not lf or not lt:
+            return True
+        if lf in lt or lt in lf:
+            return True
+        # Known equivalences between platforms (case-insensitive)
+        PLATFORM_EQUIVALENTS = {
+            "hk21": {"g3"},
+            "g3": {"hk21"},
+        }
+
+        if secondary:
+            ls = str(secondary).strip().lower()
+            if ls and (ls in lf or lf in ls or ls in lt or lt in ls):
+                return True
+
+        # Check configured equivalences
+        try:
+            if lt in PLATFORM_EQUIVALENTS.get(lf, set()):
+                return True
+            if lf in PLATFORM_EQUIVALENTS.get(lt, set()):
+                return True
+        except Exception:
+            pass
+        return False
+    except Exception:
+        return False
+
+
+def validate_table_ids(secondary_platform=None):
 
     tables_dir = "tables"
     if not os.path.isdir(tables_dir):
@@ -1485,9 +1517,10 @@ def validate_table_ids():
                             target = table_id_map.get(target_id)or {}
                             tplat =(target.get('platform')or '')
                             try:
-                                lf = str(fplat).strip().lower()
-                                lt = str(tplat).strip().lower()
-                                if lf and lt and not(lf in lt or lt in lf):
+                                # Use per-item secondary_platform when available
+                                item_secondary = item.get('secondary_platform') if isinstance(item, dict) else None
+                                item_secondary = item_secondary or secondary_platform
+                                if str(fplat).strip() and str(tplat).strip() and not _platforms_compatible(fplat, tplat, item_secondary):
                                     msg = f"Table '{table_pretty_names.get(tf, tf)}': Firearm '{fname}' part '{p.get('name')}' references item ID {target_id} with platform '{tplat}' which does not match firearm platform '{fplat}'"
                                     hardcore_errors.append(msg)
                                     hardcore_errors_files.append(tf)
@@ -1913,7 +1946,16 @@ def validate_table_ids():
         logging.critical("Aborting startup due to table validation errors.")
         raise SystemExit("Format for table tables is broken due to validation errors; aborting startup.Please fix/update the table(s).")
 
-validate_table_ids()
+try:
+    import argparse
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument('--secondary-platform', help='Optional secondary platform to allow when checking part compatibility', default=None)
+    args, _ = parser.parse_known_args()
+    _secondary_platform = args.secondary_platform
+except Exception:
+    _secondary_platform = None
+
+validate_table_ids(secondary_platform=_secondary_platform)
 
 currentsave = None
 
@@ -1964,7 +2006,10 @@ emptysave = {
 "money":0
 }
 
-def populate_equipment_with_subslots(save_data):
+def populate_equipment_with_subslots(save_data, secondary_platform=None):
+
+    if secondary_platform is None:
+        secondary_platform = globals().get('_secondary_platform')
 
     try:
         tbl_path = get_current_table_path()
@@ -1975,101 +2020,100 @@ def populate_equipment_with_subslots(save_data):
             table_data = json.load(f)
 
         equipment_items = table_data.get("tables", {}).get("equipment", [])
-        equipment_map = {item.get("id"):item for item in equipment_items}
+        equipment_map = {item.get("id"): item for item in equipment_items}
 
         for slot_name, equipped_item in save_data.get("equipment", {}).items():
-
-            items_to_process =[]
+            items_to_process = []
             if isinstance(equipped_item, dict):
-                items_to_process =[equipped_item]
+                items_to_process = [equipped_item]
             elif isinstance(equipped_item, list):
-                items_to_process =[it for it in equipped_item if isinstance(it, dict)]
+                items_to_process = [it for it in equipped_item if isinstance(it, dict)]
 
             for eq in items_to_process:
                 try:
                     item_id = eq.get("id")
                     if item_id is not None and item_id in equipment_map:
                         table_item = equipment_map[item_id]
-                        if "subslots"in table_item and "subslots"not in eq:
-                            eq["subslots"]=[{
-                            "name":subslot.get("name"),
-                            "slot":subslot.get("slot"),
-                            "current":None
-                            }for subslot in table_item["subslots"]]
+                        if "subslots" in table_item and "subslots" not in eq:
+                            eq["subslots"] = [{
+                                "name": subslot.get("name"),
+                                "slot": subslot.get("slot"),
+                                "current": None
+                            } for subslot in table_item["subslots"]]
                             logging.debug(f"Added {len(eq['subslots'])} subslots to equipped item ID {item_id} in slot {slot_name}")
 
-                            for sub in eq.get("subslots", []):
-                                try:
-                                    cur = sub.get("current")
-                                    if isinstance(cur, dict):
-                                        add_subslots_to_item(cur)
-                                except Exception:
-                                    pass
-
+                        for sub in eq.get("subslots", []):
                             try:
-                                for sub in eq.get("subslots", [])or[]:
-                                    try:
-                                        s_slot = sub.get('slot')
+                                cur = sub.get("current")
+                                if isinstance(cur, dict):
+                                    add_subslots_to_item(cur)
+                            except Exception:
+                                pass
 
-                                        for candidate in equipment_items:
-                                            try:
-                                                if isinstance(candidate, dict)and candidate.get('slot')==s_slot and 'subslots'in candidate:
-                                                    nested =[]
-                                                    for ss in candidate.get('subslots', [])or[]:
+                        try:
+                            for sub in eq.get("subslots", []) or []:
+                                try:
+                                    s_slot = sub.get('slot')
+
+                                    for candidate in equipment_items:
+                                        try:
+                                            if isinstance(candidate, dict) and candidate.get('slot') == s_slot and 'subslots' in candidate:
+                                                nested = []
+                                                for ss in candidate.get('subslots', []) or []:
+                                                    try:
+                                                        nested.append({'name': ss.get('name'), 'slot': ss.get('slot'), 'current': None})
+                                                    except Exception:
+                                                        pass
+                                                if nested:
+                                                    sub.setdefault('subslots', nested)
+                                                    logging.debug(f"Added {len(nested)} nested subslots to subslot '{sub.get('name')}' on item ID {item_id}")
+
+                                                    for nsub in sub.get('subslots', []) or []:
                                                         try:
-                                                            nested.append({'name':ss.get('name'), 'slot':ss.get('slot'), 'current':None})
+                                                            cur2 = nsub.get('current')
+                                                            if isinstance(cur2, dict):
+                                                                add_subslots_to_item(cur2)
                                                         except Exception:
                                                             pass
-                                                    if nested:
-                                                        sub.setdefault('subslots', nested)
-                                                        logging.debug(f"Added {len(nested)} nested subslots to subslot '{sub.get('name')}' on item ID {item_id}")
-
-                                                        for nsub in sub.get('subslots', [])or[]:
-                                                            try:
-                                                                cur2 = nsub.get('current')
-                                                                if isinstance(cur2, dict):
-                                                                    add_subslots_to_item(cur2)
-                                                            except Exception:
-                                                                pass
-                                                    break
-                                            except Exception:
-                                                pass
-                                    except Exception:
-                                        pass
-                            except Exception:
-                                pass
-
-                            for acc in eq.get("accessories", [])or[]:
-                                try:
-                                    cur = acc.get("current")
-                                    if isinstance(cur, dict):
-                                        add_subslots_to_item(cur)
+                                                break
+                                        except Exception:
+                                            pass
                                 except Exception:
                                     pass
+                        except Exception:
+                            pass
 
+                        for acc in eq.get("accessories", []) or []:
                             try:
-                                eq.setdefault('accessories', [])
-                                for sub in eq.get('subslots', [])or[]:
-                                    try:
-                                        s_slot = sub.get('slot')
-                                        s_name = sub.get('name')or s_slot
-                                        exists = False
-                                        for a in eq.get('accessories', [])or[]:
-                                            try:
-                                                if a and isinstance(a, dict)and(a.get('slot')==s_slot or a.get('name')==s_name):
-                                                    exists = True
-                                                    break
-                                            except Exception:
-                                                pass
-                                        if not exists:
-                                            try:
-                                                eq['accessories'].append({'name':s_name, 'slot':s_slot, 'current':sub.get('current'), 'attachment':True})
-                                            except Exception:
-                                                pass
-                                    except Exception:
-                                        pass
+                                cur = acc.get("current")
+                                if isinstance(cur, dict):
+                                    add_subslots_to_item(cur)
                             except Exception:
                                 pass
+
+                        try:
+                            eq.setdefault('accessories', [])
+                            for sub in eq.get('subslots', []) or []:
+                                try:
+                                    s_slot = sub.get('slot')
+                                    s_name = sub.get('name') or s_slot
+                                    exists = False
+                                    for a in eq.get('accessories', []) or []:
+                                        try:
+                                            if a and isinstance(a, dict) and (a.get('slot') == s_slot or a.get('name') == s_name):
+                                                exists = True
+                                                break
+                                        except Exception:
+                                            pass
+                                    if not exists:
+                                        try:
+                                            eq['accessories'].append({'name': s_name, 'slot': s_slot, 'current': sub.get('current'), 'attachment': True})
+                                        except Exception:
+                                            pass
+                                except Exception:
+                                    pass
+                        except Exception:
+                            pass
                 except Exception:
                     pass
 
@@ -3470,7 +3514,7 @@ class App:
                     persistentdata["last_loaded_save"]= uuid_part
                     logging.debug(f"Updated last_loaded_save to UUID: {uuid_part}")
 
-            data = populate_equipment_with_subslots(data)
+            data = populate_equipment_with_subslots(data, secondary_platform=_secondary_platform)
 
             try:
                 data = self._fix_save_item_references(data)

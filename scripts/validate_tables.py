@@ -9,6 +9,7 @@ Usage:
 import json
 import os
 import sys
+import argparse
 import customtkinter
 
 
@@ -22,7 +23,39 @@ def load_table(path):
         return json.load(f)
 
 
-def validate_tables(tables_dir=None):
+def _platforms_compatible(fplat, tplat, secondary=None):
+    try:
+        lf = str(fplat).strip().lower() if fplat is not None else ""
+        lt = str(tplat).strip().lower() if tplat is not None else ""
+        if not lf or not lt:
+            return True
+        if lf in lt or lt in lf:
+            return True
+        # Known equivalences between platforms (case-insensitive)
+        PLATFORM_EQUIVALENTS = {
+            "hk21": {"g3"},
+            "g3": {"hk21"},
+        }
+
+        if secondary:
+            ls = str(secondary).strip().lower()
+            if ls and (ls in lf or lf in ls or ls in lt or lt in ls):
+                return True
+
+        try:
+            if lt in PLATFORM_EQUIVALENTS.get(lf, set()):
+                return True
+            if lf in PLATFORM_EQUIVALENTS.get(lt, set()):
+                return True
+        except Exception:
+            pass
+
+        return False
+    except Exception:
+        return False
+
+
+def validate_tables(tables_dir=None, secondary_platform=None):
     """
     Run every validation check that main.py's validate_table_ids() runs.
     Returns (active_errors, disabled_errors, warnings) where each item is
@@ -222,9 +255,10 @@ def validate_tables(tables_dir=None):
                     continue
                 target = table_id_map.get(target_id) or {}
                 tplat = target.get("platform") or ""
-                lf = str(fplat).strip().lower()
-                lt = str(tplat).strip().lower()
-                if lf and lt and not (lf in lt or lt in lf):
+                # Prefer per-item secondary_platform if present, otherwise fall back to global arg
+                item_secondary = item.get("secondary_platform") if isinstance(item, dict) else None
+                item_secondary = item_secondary or secondary_platform
+                if str(fplat).strip() and str(tplat).strip() and not _platforms_compatible(fplat, tplat, item_secondary):
                     msg = f"Table '{table_pretty_names.get(tf, tf)}': Firearm '{fname}' part '{p.get('name')}' references item ID {target_id} with platform '{tplat}' which does not match firearm platform '{fplat}'"
                     errors.append(("Hardcore Mode", msg))
                     error_source.append((msg, tf))
@@ -417,13 +451,16 @@ ALL_CATEGORIES = [
 
 
 class ValidatorApp(customtkinter.CTk):
-    def __init__(self):
+    def __init__(self, secondary_platform=None):
         super().__init__()
         self.title("Table Validator")
         self.geometry("900x650")
         self.minsize(700, 450)
         # Keep window on top of other windows
         self.attributes("-topmost", True)
+
+        # Optional secondary platform to allow when checking parts
+        self._secondary_platform = secondary_platform
 
         self._active_errors = []
         self._disabled_errors = []
@@ -494,7 +531,7 @@ class ValidatorApp(customtkinter.CTk):
         return groups
 
     def run_validation(self):
-        self._active_errors, self._disabled_errors, self._warnings = validate_tables()
+        self._active_errors, self._disabled_errors, self._warnings = validate_tables(secondary_platform=getattr(self, "_secondary_platform", None))
         self._redraw()
 
     def _redraw(self):
@@ -605,7 +642,11 @@ class ValidatorApp(customtkinter.CTk):
 def main():
     customtkinter.set_appearance_mode("dark")
     customtkinter.set_default_color_theme("dark-blue")
-    app = ValidatorApp()
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument('--secondary-platform', help='Optional secondary platform to allow when checking part compatibility', default=None)
+    args, _ = parser.parse_known_args()
+
+    app = ValidatorApp(secondary_platform=args.secondary_platform)
     app.mainloop()
 
 
