@@ -61,6 +61,7 @@ env/
 *.swp
 *.swo
 *~
+/scripts_local/
 
 # OS
 .DS_Store
