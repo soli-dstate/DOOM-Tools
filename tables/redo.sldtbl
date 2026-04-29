@@ -2475,7 +2475,7 @@
                 "type": "conventional",
                 "subtype": "sniper_rifle",
                 "platform": "AICS",
-                "caliber": [".300 Winchester Magnum"],
+                "caliber": [".300 Winchester Magnum", "7.62x67mm NATO"],
                 "action": ["Bolt"],
                 "bolt": "closed",
                 "bolt_catch": false,
@@ -5148,6 +5148,9 @@
                 "in_armory": true,
                 "armory_category": "Sniper Rifle"
             }
+        ],
+        "historical_firearms": [
+            
         ],
         "parts": [
             {
@@ -17180,8 +17183,235 @@
                         "tip": null,
                         "lead_free": false
                     }
+                ],
+                "armory_category": "Ammunition",
+                "armory_subcategory": "Rifle Ammunition",
+                "armory_subcategory2": "Full Power Rifle Ammunition",
+                "shop_category": "Ammunition",
+                "shop_subcategory": "Rifle Ammunition",
+                "shop_subcategory2": "Full Power Rifle Ammunition"
+            },
+            {
+                "name": "7.62x51mm NATO",
+                "value": 0.84,
+                "description": "Milspec 7.62x51mm NATO, used for battle rifles and machine guns. Similar to .308 Winchester, but with slightly lower pressure and velocity.",
+                "rarity": "Uncommon",
+                "random_quantity": {"min": 20, "max": 60},
+                "weight": 0.01,
+                "id": 633,
+                "caliber": "7.62x51mm NATO",
+                "sounds": "762_51",
+                "pressure": 60000,
+                "variants": [
+                    {
+                        "name": "M80 Ball",
+                        "type": "Ball",
+                        "pen": "IIIa",
+                        "modifiers": null,
+                        "rarity": "Common",
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "M80A1 Ball",
+                        "type": "Ball",
+                        "pen": "IIIa",
+                        "modifiers": null,
+                        "rarity": "Common",
+                        "tip": null,
+                        "lead_free": true
+                    },
+                    {
+                        "name": "M61 AP",
+                        "type": "AP",
+                        "pen": "III",
+                        "modifiers": null,
+                        "rarity": "Uncommon",
+                        "tip": "#212121",
+                        "lead_free": false
+                    },
+                    {
+                        "name": "M993 AP",
+                        "type": "AP",
+                        "pen": "IV",
+                        "modifiers": null,
+                        "rarity": "Rare",
+                        "tip": "#000000",
+                        "lead_free": false
+                    },
+                    {
+                        "name": "M1158 ADVAP",
+                        "type": "AP",
+                        "pen": "IV",
+                        "modifiers": null,
+                        "rarity": "Rare",
+                        "tip": "#000000",
+                        "lead_free": true
+                    },
+                    {
+                        "name": "M62 Tracer",
+                        "type": "Tracer",
+                        "pen": "IIIa",
+                        "modifiers": {"stats": {"aim": 1, "stealth": -1}},
+                        "rarity": "Rare",
+                        "tip": "#ff4500",
+                        "lead_free": false
+                    },
+                    {
+                        "name": "M948 SLAP",
+                        "type": "SLAP",
+                        "pen": "IV",
+                        "modifiers": null,
+                        "rarity": "Legendary",
+                        "tip": "#ffd700",
+                        "lead_free": true
+                    },
+                    {
+                        "name": "M959 SLAP-T",
+                        "type": "SLAP-T",
+                        "pen": "IV",
+                        "modifiers": null,
+                        "rarity": "Mythic",
+                        "tip": "#ffd700",
+                        "lead_free": true
+                    },
+                    {
+                        "name": "M118 FMJ-BT Match",
+                        "type": "FMJ",
+                        "pen": "IIIa",
+                        "modifiers": {"stats": {"aim": 1}},
+                        "rarity": "Uncommon",
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "M118LR JHP-BT Extended Range Match",
+                        "type": "JHP",
+                        "pen": "IIIa",
+                        "modifiers": {"stats": {"aim": 1}},
+                        "rarity": "Rare",
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "L2A1 Ball",
+                        "type": "Ball",
+                        "pen": "IIIa",
+                        "modifiers": null,
+                        "rarity": "Uncommon",
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "L5A1 Tracer",
+                        "type": "Tracer",
+                        "pen": "IIIa",
+                        "modifiers": {"stats": {"aim": 1, "stealth": -1}},
+                        "rarity": "Rare",
+                        "tip": "#B22222",
+                        "lead_free": false
+                    },
+                    {
+                        "name": "L42A1 Ball",
+                        "type": "Ball",
+                        "pen": "IIIa",
+                        "modifiers": null,
+                        "rarity": "Uncommon",
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "L44A1 Ball",
+                        "type": "Ball",
+                        "pen": "IIIa",
+                        "modifiers": null,
+                        "rarity": "Uncommon",
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "DM41 Ball",
+                        "type": "Ball",
+                        "pen": "IIIa",
+                        "modifiers": null,
+                        "rarity": "Common",
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "DM111 Ball",
+                        "type": "Ball",
+                        "pen": "IIIa",
+                        "modifiers": null,
+                        "rarity": "Uncommon",
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "DM111A1 Green Ball",
+                        "type": "Ball",
+                        "pen": "IIIa",
+                        "modifiers": null,
+                        "rarity": "Uncommon",
+                        "tip": "#4B5320",
+                        "lead_free": true
+                    },
+                    {
+                        "name": "DM111A2 Green Ball",
+                        "type": "Ball",
+                        "pen": "IIIa",
+                        "modifiers": null,
+                        "rarity": "Uncommon",
+                        "tip": "#4B5320",
+                        "lead_free": true
+                    },
+                    {
+                        "name": "DM151 AP",
+                        "type": "AP",
+                        "pen": "III",
+                        "modifiers": null,
+                        "rarity": "Rare",
+                        "tip": "#212121",
+                        "lead_free": true
+                    },
+                    {
+                        "name": "F4 Ball",
+                        "type": "Ball",
+                        "pen": "IIIa",
+                        "modifiers": null,
+                        "rarity": "Uncommon",
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "MDRP Ball",
+                        "type": "Ball",
+                        "pen": "IIIa",
+                        "modifiers": null,
+                        "rarity": "Uncommon",
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "NM127 Reduced Range Ball",
+                        "type": "Ball",
+                        "pen": "IIIa",
+                        "modifiers": {"stats": {"aim": -1}},
+                        "rarity": "Rare",
+                        "tip": null,
+                        "lead_free": true
+                    },
+                    {
+                        "name": "C77 Ball",
+                        "type": "Ball",
+                        "pen": "IIIa",
+                        "modifiers": null,
+                        "rarity": "Uncommon",
+                        "tip": null,
+                        "lead_free": false
+                    }
                 ]
             }
-        ],
+        ]
     }
 }
