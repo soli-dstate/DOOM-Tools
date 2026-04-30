@@ -15136,7 +15136,8 @@
                         "modifiers": null,
                         "rarity": "Mythic",
                         "tip": null,
-                        "lead_free": false
+                        "lead_free": false,
+                        "pressure_override": 65000
                     },
                     {
                         "name": "M202 Ball",
@@ -16259,7 +16260,7 @@
                     {
                         "name": "XM1154 ADVAP",
                         "type": "AP",
-                        "pen": "IV",
+                        "pen": "IV+",
                         "modifiers": null,
                         "rarity": "Mythic",
                         "tip": "#1c1c1c",
@@ -16268,7 +16269,7 @@
                     {
                         "name": "DM11 Match",
                         "type": "ELD-Match",
-                        "pen": "IV",
+                        "pen": "IV+",
                         "modifiers": {"stats": {"aim": 1}},
                         "rarity": "Common",
                         "tip": null,
@@ -16277,7 +16278,7 @@
                     {
                         "name": "DM21 AP",
                         "type": "AP",
-                        "pen": "IV",
+                        "pen": "IV+",
                         "modifiers": null,
                         "rarity": "Legendary",
                         "tip": "#1a1a1a",
@@ -16286,7 +16287,7 @@
                     {
                         "name": "Nammo AP485 AP",
                         "type": "AP",
-                        "pen": "IV",
+                        "pen": "IV+",
                         "modifiers": null,
                         "rarity": "Uncommon",
                         "tip": "#1a1a1a",
@@ -16295,7 +16296,7 @@
                     {
                         "name": "Nammo AP529 AP",
                         "type": "AP",
-                        "pen": "IV",
+                        "pen": "IV+",
                         "modifiers": null,
                         "rarity": "Rare",
                         "tip": "#1a1a1a",
@@ -16304,7 +16305,7 @@
                     {
                         "name": "Swiss P Tactical AP",
                         "type": "AP",
-                        "pen": "IV",
+                        "pen": "IV+",
                         "modifiers": null,
                         "rarity": "Legendary",
                         "tip": "#1a1a1a",
@@ -16313,7 +16314,7 @@
                     {
                         "name": "Lock Base B408 Ball",
                         "type": "FMJ",
-                        "pen": "IV",
+                        "pen": "IV+",
                         "modifiers": null,
                         "rarity": "Uncommon",
                         "tip": null,
@@ -16322,7 +16323,7 @@
                     {
                         "name": "Nammo API526 API",
                         "type": "AP",
-                        "pen": "IV",
+                        "pen": "IV+",
                         "modifiers": null,
                         "rarity": "Mythic",
                         "tip": "#bababa",
@@ -17407,6 +17408,748 @@
                         "pen": "IIIa",
                         "modifiers": null,
                         "rarity": "Uncommon",
+                        "tip": null,
+                        "lead_free": false
+                    } 
+                ]
+            },
+            {
+                "name": ".300 Winchester Magnum",
+                "value": 1.5,
+                "description": "Commercial .300 Winchester Magnum, used for long-range shooting and hunting.",
+                "rarity": "Rare",
+                "random_quantity": {"min": 20, "max": 60},
+                "weight": 0.01,
+                "id": 634,
+                "caliber": ".300 Winchester Magnum",
+                "sounds": "338",
+                "pressure": 64000,
+                "variants": [
+                    {
+                        "name": "150gr Prvi Partizan SP",
+                        "type": "SP",
+                        "pen": "III",
+                        "modifiers": null,
+                        "rarity": "Common",
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "150gr Hornady American Whitetail SP",
+                        "type": "SP",
+                        "pen": "III",
+                        "modifiers": null,
+                        "rarity": "Uncommon",
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "180gr Hornady American Whitetail InterLock Spire Point SP",
+                        "type": "SP",
+                        "pen": "III",
+                        "modifiers": null,
+                        "rarity": "Rare",
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "180gr Remington PSP",
+                        "type": "SP",
+                        "pen": "III",
+                        "modifiers": null,
+                        "rarity": "Uncommon",
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "150gr Federal SP",
+                        "type": "SP",
+                        "pen": "III",
+                        "modifiers": null,
+                        "rarity": "Uncommon",
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "150gr Winchester Super-X PP JHP",
+                        "type": "JHP",
+                        "pen": "III",
+                        "modifiers": null,
+                        "rarity": "Rare",
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "165gr Hornady American Whitetail SSTBT",
+                        "type": "SP",
+                        "pen": "III",
+                        "modifiers": null,
+                        "rarity": "Rare",
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "190gr Federal Gold Medal HPBT",
+                        "type": "HP",
+                        "pen": "III",
+                        "modifiers": null,
+                        "rarity": "Rare",
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "200gr Hornady Precision Hunter ELD-X",
+                        "type": "JHP",
+                        "pen": "III",
+                        "modifiers": {"stats": {"aim": 1}},
+                        "rarity": "Legendary",
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "200gr Federal Terminal Ascent Polymer Tip",
+                        "type": "Polymer Tip",
+                        "pen": "III",
+                        "modifiers": null,
+                        "rarity": "Legendary",
+                        "tip": null,
+                        "lead_free": false
+                    }
+                ],
+                "armory_category": "Ammunition",
+                "armory_subcategory": "Rifle Ammunition",
+                "armory_subcategory2": "Magnum Rifle Ammunition",
+                "shop_category": "Ammunition",
+                "shop_subcategory": "Rifle Ammunition",
+                "shop_subcategory2": "Magnum Rifle Ammunition"
+            },
+            {
+                "name": "7.62x67mm NATO",
+                "value": 1.5,
+                "description": "Milspec .300 Winchester Magnum, used for long-range shooting and sniping.",
+                "rarity": "Rare",
+                "random_quantity": {"min": 20, "max": 60},
+                "weight": 0.01,
+                "id": 635,
+                "caliber": "7.62x67mm NATO",
+                "sounds": "338",
+                "pressure": 64000,
+                "variants": [
+                    {
+                        "name": "Mk. 248 Mod 0 Ball",
+                        "type": "Ball",
+                        "pen": "III",
+                        "modifiers": null,
+                        "rarity": "Common",
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "Mk. 248 Mod 1 Long Range Ball",
+                        "type": "Ball",
+                        "pen": "III",
+                        "modifiers": {"stats": {"aim": 1}},
+                        "rarity": "Uncommon",
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "DM111 Ball",
+                        "type": "Ball",
+                        "pen": "III",
+                        "modifiers": null,
+                        "rarity": "Common",
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "DM121 AP",
+                        "type": "AP",
+                        "pen": "IV+",
+                        "modifiers": null,
+                        "rarity": "Rare",
+                        "tip": null,
+                        "lead_free": true
+                    },
+                    {
+                        "name": "Glass breach",
+                        "type": "Special",
+                        "pen": "III",
+                        "modifiers": null,
+                        "rarity": "Rare",
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "Anti-ricochet frangible",
+                        "type": "Frangible",
+                        "pen": "III",
+                        "modifiers": null,
+                        "rarity": "Legendary",
+                        "tip": null,
+                        "lead_free": true
+                    }
+                ],
+                "armory_category": "Ammunition",
+                "armory_subcategory": "Rifle Ammunition",
+                "armory_subcategory2": "Magnum Rifle Ammunition",
+                "shop_category": "Ammunition",
+                "shop_subcategory": "Rifle Ammunition",
+                "shop_subcategory2": "Magnum Rifle Ammunition"
+            },
+            {
+                "name": "7.62x39mm",
+                "value": 0.56,
+                "description": "Commercial 7.62x39mm ammunition, used for rifles like the AK-47 and SKS.",
+                "rarity": "Uncommon",
+                "random_quantity": {"min": 20, "max": 60},
+                "weight": 0.01,
+                "id": 636,
+                "caliber": "7.62x39mm",
+                "sounds": "762_39",
+                "pressure": 45000,
+                "variants": [
+                    {
+                        "name": "124gr Tela Impex Steel Case FMJ",
+                        "type": "FMJ",
+                        "pen": "IIIa",
+                        "modifiers": null,
+                        "rarity": "Common",
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "123gr Kaiser Steel Case FMJ",
+                        "type": "FMJ",
+                        "pen": "IIIa",
+                        "modifiers": null,
+                        "rarity": "Common",
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "124gr Wolf Classic Steel Case FMJ",
+                        "type": "FMJ",
+                        "pen": "IIIa",
+                        "modifiers": null,
+                        "rarity": "Common",
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "123gr Winchester Super-X SP",
+                        "type": "SP",
+                        "pen": "IIIa",
+                        "modifiers": null,
+                        "rarity": "Uncommon",
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "123gr Hornady BLACK SST JHP",
+                        "type": "JHP",
+                        "pen": "IIIa",
+                        "modifiers": null,
+                        "rarity": "Rare",
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "255gr Hornady Subsonic Polymer Tip",
+                        "type": "Subsonic",
+                        "pen": "IIIa",
+                        "modifiers": {"stats": {"stealth": 1}},
+                        "rarity": "Legendary",
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "123gr Nosler Ballistic Tip JHP",
+                        "type": "JHP",
+                        "pen": "IIIa",
+                        "modifiers": null,
+                        "rarity": "Rare",
+                        "tip": "#207811",
+                        "lead_free": false
+                    },
+                    {
+                        "name": "111gr Hornady BLACK MonoFlex Lead-Free JHP",
+                        "type": "JHP",
+                        "pen": "IIIa",
+                        "modifiers": null,
+                        "rarity": "Rare",
+                        "tip": "#cc1818",
+                        "lead_free": true
+                    }
+                ],
+                "armory_category": "Ammunition",
+                "armory_subcategory": "Rifle Ammunition",
+                "armory_subcategory2": "Intermediate Rifle Ammunition",
+                "shop_category": "Ammunition",
+                "shop_subcategory": "Rifle Ammunition",
+                "shop_subcategory2": "Intermediate Rifle Ammunition"
+            },
+            {
+                "name": "7.62x39mm Soviet",
+                "value": 0.56,
+                "description": "Milspec 7.62x39mm Soviet, used for rifles like the AK-47 and SKS.",
+                "rarity": "Uncommon",
+                "random_quantity": {"min": 20, "max": 60},
+                "weight": 0.01,
+                "id": 637,
+                "caliber": "7.62x39mm Soviet",
+                "sounds": "762_39",
+                "pressure": 45000,
+                "variants": [
+                    {
+                        "name": "57-N-231S Ball",
+                        "type": "Ball",
+                        "pen": "IIIa",
+                        "modifiers": null,
+                        "rarity": "Common",
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "57-N-231M EPR Ball",
+                        "type": "Ball",
+                        "pen": "III",
+                        "modifiers": null,
+                        "rarity": "Common",
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "7N23 AP",
+                        "type": "AP",
+                        "pen": "III+",
+                        "modifiers": null,
+                        "rarity": "Rare",
+                        "tip": "#212121",
+                        "lead_free": false
+                    },
+                    {
+                        "name": "57-T-231P Tracer",
+                        "type": "Tracer",
+                        "pen": "IIIa",
+                        "modifiers": {"stats": {"aim": 1, "stealth": -1}},
+                        "rarity": "Rare",
+                        "tip": "#228B22",
+                        "lead_free": false
+                    },
+                    {
+                        "name": "57-T-231PM1 Tracer",
+                        "type": "Tracer",
+                        "pen": "IIIa",
+                        "modifiers": {"stats": {"aim": 1, "stealth": -1}},
+                        "rarity": "Rare",
+                        "tip": "#228B22",
+                        "lead_free": false
+                    },
+                    {
+                        "name": "57-N-231U Subsonic",
+                        "type": "Subsonic",
+                        "pen": "IIIa",
+                        "modifiers": {"stats": {"stealth": 1}},
+                        "rarity": "Legendary",
+                        "tip": "#000000",
+                        "lead_free": false
+                    },
+                    {
+                        "name": "57-Z-231 API",
+                        "type": "AP",
+                        "pen": "III",
+                        "modifiers": null,
+                        "rarity": "Rare",
+                        "tip": "#D32F2F",
+                        "lead_free": false
+                    },
+                    {
+                        "name": "7N38 ADVAP",
+                        "type": "AP",
+                        "pen": "IV",
+                        "modifiers": null,
+                        "rarity": "Legendary",
+                        "tip": "#8A2BE2",
+                        "lead_free": true
+                    },
+                    {
+                        "name": "Type 56 Ball",
+                        "type": "Ball",
+                        "pen": "IIIa",
+                        "modifiers": null,
+                        "rarity": "Common",
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "Type 54 API",
+                        "type": "AP",
+                        "pen": "III",
+                        "modifiers": null,
+                        "rarity": "Rare",
+                        "tip": "#D32F2F",
+                        "lead_free": false
+                    },
+                    {
+                        "name": "M67 Ball",
+                        "type": "Ball",
+                        "pen": "IIIa",
+                        "modifiers": null,
+                        "rarity": "Uncommon",
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "M78 Tracer",
+                        "type": "Tracer",
+                        "pen": "IIIa",
+                        "modifiers": {"stats": {"aim": 1, "stealth": -1}},
+                        "rarity": "Rare",
+                        "tip": "#2E8B57",
+                        "lead_free": false
+                    },
+                    {
+                        "name": "BS-10 AP",
+                        "type": "AP",
+                        "pen": "IV",
+                        "modifiers": null,
+                        "rarity": "Legendary",
+                        "tip": null,
+                        "lead_free": true
+                    },
+                    {
+                        "name": "VJ313 Match Tracer",
+                        "type": "Tracer",
+                        "pen": "IIIa",
+                        "modifiers": {"stats": {"aim": 2, "stealth": -1}},
+                        "rarity": "Legendary",
+                        "tip": "#32CD32",
+                        "lead_free": false
+                    },
+                    {
+                        "name": "K413 AP",
+                        "type": "AP",
+                        "pen": "IV",
+                        "modifiers": null,
+                        "rarity": "Legendary",
+                        "tip": null,
+                        "lead_free": true
+                    },
+                    {
+                        "name": "M361 Ball",
+                        "type": "Ball",
+                        "pen": "IIIa",
+                        "modifiers": null,
+                        "rarity": "Uncommon",
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "Shoubra API",
+                        "type": "AP",
+                        "pen": "III",
+                        "modifiers": null,
+                        "rarity": "Rare",
+                        "tip": "#D32F2F",
+                        "lead_free": false
+                    },
+                    {
+                        "name": "MU8TJ Ball",
+                        "type": "Ball",
+                        "pen": "IIIa",
+                        "modifiers": null,
+                        "rarity": "Uncommon",
+                        "tip": null,
+                        "lead_free": false
+                    }
+                ],
+                "armory_category": "Ammunition",
+                "armory_subcategory": "Rifle Ammunition",
+                "armory_subcategory2": "Intermediate Rifle Ammunition",
+                "shop_category": "Ammunition",
+                "shop_subcategory": "Rifle Ammunition",
+                "shop_subcategory2": "Intermediate Rifle Ammunition"
+            },
+            {
+                "name": "FN 5.7x28mm",
+                "value": 0.53,
+                "description": "Commercial FN 5.7x28mm ammunition, used by handguns like the FN Five-seveN and PDWs like the FN P90.",
+                "rarity": "Rare",
+                "random_quantity": {"min": 20, "max": 60},
+                "weight": 0.01,
+                "id": 638,
+                "caliber": "FN 5.7x28mm",
+                "sounds": "5_7_28",
+                "pressure": 50000,
+                "variants": [
+                    {
+                        "name": "40gr Fiocchi FMJ",
+                        "type": "FMJ",
+                        "pen": "II",
+                        "modifiers": null,
+                        "rarity": "Common",
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "40gr FN Herstal SS197SR V-MAX Polymer Tip",
+                        "type": "Polymer Tip",
+                        "pen": "II",
+                        "modifiers": null,
+                        "rarity": "Uncommon",
+                        "tip": "#4287f5",
+                        "lead_free": false
+                    },
+                    {
+                        "name": "40gr Federal American Eagle FMJ",
+                        "type": "FMJ",
+                        "pen": "II",
+                        "modifiers": null,
+                        "rarity": "Common",
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "40gr Fiocchi Polymer Tip",
+                        "type": "Polymer Tip",
+                        "pen": "II",
+                        "modifiers": null,
+                        "rarity": "Uncommon",
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "27gr FN Herstal SS198LF JHP",
+                        "type": "JHP",
+                        "pen": "II",
+                        "modifiers": null,
+                        "rarity": "Rare",
+                        "tip": null,
+                        "lead_free": true
+                    }
+                ],
+                "armory_category": "Ammunition",
+                "armory_subcategory": "Handgun Ammunition",
+                "shop_category": "Ammunition",
+                "shop_subcategory": "Handgun Ammunition"
+            },
+            {
+                "name": "5.7x28mm NATO",
+                "value": 0.53,
+                "description": "Milspec FN 5.7x28mm NATO, used by handguns like the FN Five-seveN and PDWs like the FN P90.",
+                "rarity": "Legendary",
+                "random_quantity": {"min": 20, "max": 60},
+                "weight": 0.01,
+                "id": 639,
+                "caliber": "5.7x28mm NATO",
+                "sounds": "5_7_28",
+                "pressure": 50000,
+                "variants": [
+                    {
+                        "name": "SS90 FMJ",
+                        "type": "FMJ",
+                        "pen": "IIa",
+                        "modifiers": null,
+                        "rarity": "Uncommon",
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "SS190 AP",
+                        "type": "AP",
+                        "pen": "IIIa",
+                        "modifiers": null,
+                        "rarity": "Common",
+                        "tip": "#212121",
+                        "lead_free": false
+                    },
+                    {
+                        "name": "L191 AP-T",
+                        "type": "Tracer",
+                        "pen": "IIIa",
+                        "modifiers": {"stats": {"aim": 1, "stealth": -1}},
+                        "rarity": "Rare",
+                        "tip": "#FF0000",
+                        "lead_free": false
+                    },
+                    {
+                        "name": "SB193 FMJ-BT Subsonic",
+                        "type": "Subsonic",
+                        "pen": "II",
+                        "modifiers": {"stats": {"stealth": 1}},
+                        "rarity": "Legendary",
+                        "tip": "#FFFFFF",
+                        "lead_free": false
+                    },
+                    {
+                        "name": "T194 Training Frangible",
+                        "type": "Frangible",
+                        "pen": "II",
+                        "modifiers": null,
+                        "rarity": "Legendary",
+                        "tip": "#008000",
+                        "lead_free": true
+                    },
+                    {
+                        "name": "SS198LF JHP",
+                        "type": "JHP",
+                        "pen": "II",
+                        "modifiers": null,
+                        "rarity": "Rare",
+                        "tip": "#008000",
+                        "lead_free": true
+                    },
+                    {
+                        "name": "FR199 Frangible",
+                        "type": "Frangible",
+                        "pen": "II",
+                        "modifiers": null,
+                        "rarity": "Legendary",
+                        "tip": null,
+                        "lead_free": true
+                    },
+                    {
+                        "name": "SS192 JHP",
+                        "type": "JHP",
+                        "pen": "II",
+                        "modifiers": null,
+                        "rarity": "Rare",
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "SS195LF JHP",
+                        "type": "JHP",
+                        "pen": "II",
+                        "modifiers": null,
+                        "rarity": "Legendary",
+                        "tip": null,
+                        "lead_free": true
+                    }
+                ],
+                "armory_category": "Ammunition",
+                "armory_subcategory": "Handgun Ammunition",
+                "shop_category": "Ammunition",
+                "shop_subcategory": "Handgun Ammunition"
+            },
+            {
+                "name": "HK 4.6x30mm",
+                "value": 0.85,
+                "description": "Commercial HK 4.6x30mm ammunition, used by PDWs like the HK MP7.",
+                "rarity": "Rare",
+                "random_quantity": {"min": 20, "max": 60},
+                "weight": 0.01,
+                "id": 640,
+                "caliber": "HK 4.6x30mm",
+                "sounds": "5_7_28",
+                "pressure": 58000,
+                "variants": [
+                    {
+                        "name": "40gr Fiocchi FMJ",
+                        "type": "FMJ",
+                        "pen": "II",
+                        "modifiers": null,
+                        "rarity": "Common",
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "38gr Hornady BLACK V-MAX Polymer Tip",
+                        "type": "Polymer Tip",
+                        "pen": "II",
+                        "modifiers": null,
+                        "rarity": "Uncommon",
+                        "tip": "#4287f5",
+                        "lead_free": false
+                    },
+                    {
+                        "name": "40gr Fiocchi JSP",
+                        "type": "SP",
+                        "pen": "II",
+                        "modifiers": null,
+                        "rarity": "Common",
+                        "tip": null,
+                        "lead_free": false
+                    }
+                ],
+                "armory_category": "Ammunition",
+                "armory_subcategory": "Handgun Ammunition",
+                "shop_category": "Ammunition",
+                "shop_subcategory": "Handgun Ammunition"
+            },
+            {
+                "name": "4.6x30mm NATO",
+                "value": 0.85,
+                "description": "Milspec HK 4.6x30mm NATO, used by PDWs like the HK MP7.",
+                "rarity": "Legendary",
+                "random_quantity": {"min": 20, "max": 60},
+                "weight": 0.01,
+                "id": 641,
+                "caliber": "4.6x30mm NATO",
+                "sounds": "5_7_28",
+                "pressure": 58000,
+                "variants": [
+                    {
+                        "name": "DM11 Ultimate Combat AP",
+                        "type": "AP",
+                        "pen": "IIIa",
+                        "modifiers": null,
+                        "rarity": "Common",
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "DM21 Ball",
+                        "type": "Ball",
+                        "pen": "II",
+                        "modifiers": null,
+                        "rarity": "Uncommon",
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "DM31 AP-Deforming",
+                        "type": "AP",
+                        "pen": "IIIa",
+                        "modifiers": null,
+                        "rarity": "Legendary",
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "CPS APLF",
+                        "type": "AP",
+                        "pen": "IIIa",
+                        "modifiers": null,
+                        "rarity": "Legendary",
+                        "tip": "#212121",
+                        "lead_free": true
+                    },
+                    {
+                        "name": "Action Law Enforcement JHP",
+                        "type": "JHP",
+                        "pen": "II",
+                        "modifiers": null,
+                        "rarity": "Rare",
+                        "tip": null,
+                        "lead_free": true
+                    },
+                    {
+                        "name": "Tracer",
+                        "type": "Tracer",
+                        "pen": "II",
+                        "modifiers": {"stats": {"aim": 1, "stealth": -1}},
+                        "rarity": "Rare",
+                        "tip": "#FF0000",
+                        "lead_free": false
+                    },
+                    {
+                        "name": "Subsonic",
+                        "type": "Subsonic",
+                        "pen": "IIa",
+                        "modifiers": {"stats": {"stealth": 1}},
+                        "rarity": "Legendary",
                         "tip": null,
                         "lead_free": false
                     }
