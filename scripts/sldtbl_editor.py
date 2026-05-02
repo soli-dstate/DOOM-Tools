@@ -21,7 +21,7 @@ FIREARM_SUBTYPES = ["pistol", "rifle", "shotgun", "smg", "lmg", "launcher", "sni
 ACTION_OPTIONS = ["Semi", "Auto", "Burst", "Bolt", "Double", "Single", "Pump", "Lever"]
 BOLT_OPTIONS = ["closed", "open"]
 MAGAZINE_TYPES = ["Detachable box", "Internal Box", "Internal tube", "Cylinder",
-                  "Break Action", "Belt", "Drum", "Helical"]
+                  "Break Action", "Belt", "Drum", "Helical", "En bloc"]
 PART_TYPES = ["barrel", "trigger_spring", "recoil_spring", "gas_piston",
               "bolt_carrier_group", "buffer_spring"]
 DURABILITY_OPTIONS = ["null", "set_by_looting"]

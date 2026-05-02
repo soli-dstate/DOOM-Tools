@@ -147,6 +147,33 @@
                     {"name":"1782 Slimline Trigger Spring","slot":"1782_slimline_trigger_spring","current":{"id":25},"durability":null,"type":"trigger_spring"},
                     {"name":"1782 Slimline Bolt","slot":"1782_slimline_bolt","current":{"id":26},"durability":null,"type":"bolt"}
                 ]
+            },
+            {
+                "name": "Springfield Armory M1 Garand",
+                "value": 2000,
+                "description": "Iconic semi-automatic rifle, known for its use during World War II and the Korean War. It features a robust design and is chambered in .30-06 Springfield, offering significant stopping power and long-range accuracy.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 3.9,
+                "id": 33,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "M1 Garand",
+                "caliber": [".30-06 Springfield", ".30-06 US Military"],
+                "action": ["Semi"],
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 700,
+                "magazinetype": "En bloc",
+                "magazinesystem": "M1 Garand",
+                "capacity": 8,
+                "jamrate": 0.01,
+                "accessories": null,
+                "can_stack": false,
+                "parts": null,
+                "in_armory": true,
+                "armory_category": "Rifle"
             }
         ],
         "pistols": [
@@ -201,6 +228,59 @@
                     {"name":"Model 686 Barrel","slot":"model686_barrel","current":{"id":10},"durability":null,"type":"barrel"},
                     {"name":"Model 686 Trigger Spring","slot":"model686_trigger_spring","current":{"id":11},"durability":null,"type":"trigger_spring"}
                 ]
+            },
+            {
+                "name": "Spandau Reichsrevolver M1879",
+                "value": 2500,
+                "description": "The Spandau Reichsrevolver M1879 was a single-action revolver used by the German military during the late 19th and early 20th centuries. It was chambered in 10.6x25mmR and featured a solid frame design with a fixed cylinder. The M1879 was primarily issued to officers and saw limited use during World War I.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 1.0,
+                "id": 29,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "pistol",
+                "platform": "M1879 Reichsrevolver",
+                "caliber": ["10.6x25mmR"],
+                "action": ["Single"],
+                "bolt": "closed",
+                "cyclic": 50,
+                "magazinetype": "Cylinder",
+                "capacity": 6,
+                "loading_gate": true,
+                "jamrate": 0.05,
+                "accessories": null,
+                "can_stack": false,
+                "in_armory": true,
+                "parts": null,
+                "armory_category": "Pistol"
+            },
+            {
+                "name": "Webley & Scott Webley Mk. VI",
+                "value": 800,
+                "description": "British service revolver, known for its use during World War I and World War II. It features a top-break design and is chambered in .455 Webley, offering significant stopping power.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 1.3,
+                "id": 31,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "pistol",
+                "platform": "Webley Mk. VI",
+                "caliber": [".45 ACP", "11.43x23mm NATO"],
+                "action": ["Double", "Single"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 120,
+                "magazinetype": "Cylinder",
+                "capacity": 6,
+                "revolver_topbreak": true,
+                "jamrate": 0.01,
+                "accessories": null,
+                "can_stack": false,
+                "parts": null,
+                "in_armory": true,
+                "armory_category": "Revolver"
             }
         ],
         "accessories": [
@@ -474,6 +554,22 @@
                 "armory_category": "Magazines",
                 "armory_subcategory": "STANAG 4179 Magazines",
                 "marking_system": "Magpul Dot Matrix"
+            },
+            {
+                "name": "Springfield Armory M1 Garand 8-Round en bloc clip",
+                "value": 20,
+                "description": "8-round en bloc clip for the Springfield Armory M1 Garand rifle, designed to be loaded into the rifle's internal magazine.",
+                "rarity": "Uncommon",
+                "random_quantity": false,
+                "weight": 0.1,
+                "id": 34,
+                "caliber": [".30-06 Springfield", ".30-06 US Military"],
+                "capacity": 8,
+                "magazinesystem": "M1 Garand",
+                "can_stack": false,
+                "in_armory": true,
+                "armory_category": "Magazines",
+                "armory_subcategory": "M1 Garand Clips"
             }
         ],
         "equipment": [
@@ -689,6 +785,111 @@
                 "capacity": 5,
                 "in_armory": true,
                 "armory_category": "Rifle Ammunition"
+            },
+            {
+                "name": "10.6x25mmR",
+                "value": 0.1,
+                "description": "Rimmed cartridge used for the Reichsrevolver M1879, used in the late 19th century.",
+                "rarity": "Mythic",
+                "random_quantity": {"min": 20, "max": 60},
+                "weight": 0.01,
+                "id": 30,
+                "caliber": "10.6x25mmR",
+                "sounds": "38special",
+                "pressure": 15000,
+                "variants": [
+                    {
+                        "name": "262gr LRN",
+                        "type": "LRN",
+                        "pen": "II",
+                        "modifiers": null,
+                        "rarity": "Mythic",
+                        "tip": null,
+                        "lead_free": false
+                    }
+                ],
+                "armory_category": "Ammunition",
+                "armory_subcategory": "Historical Ammunition",
+                "shop_category": "Ammunition",
+                "shop_subcategory": "Historical Ammunition"
+            },
+            {
+                "name": ".45 ACP",
+                "value": 0.04,
+                "description": "Standard commercial spec .45 ACP, commonly used in handguns.",
+                "rarity": "Uncommon",
+                "random_quantity": {"min": 20, "max": 60},
+                "weight": 0.02,
+                "id": 32,
+                "caliber": ".45 ACP",
+                "sounds": "45acp",
+                "pressure": 21000,
+                "variants": [
+                    {
+                        "name": "230gr Armscor USA FMJ",
+                        "type": "FMJ",
+                        "pen": "I",
+                        "modifiers": null,
+                        "rarity": "Common",
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "230gr Fiocchi FMJ",
+                        "type": "FMJ",
+                        "pen": "I",
+                        "modifiers": null,
+                        "rarity": "Common",
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "230gr Federal JHP",
+                        "type": "JHP",
+                        "pen": "I",
+                        "modifiers": null,
+                        "rarity": "Uncommon",
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "230gr Blazer Aluminum Case TMJ",
+                        "type": "TMJ",
+                        "pen": "I",
+                        "modifiers": null,
+                        "rarity": "Rare",
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "115gr CCI Pest Aluminum Case #8 Bismuth Birdshot",
+                        "type": "Birdshot",
+                        "pen": "N/A",
+                        "modifiers": null,
+                        "rarity": "Mythic",
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "185gr Hornady American Gunner XTP JHP",
+                        "type": "JHP",
+                        "pen": "I",
+                        "modifiers": null,
+                        "rarity": "Rare"
+                    },
+                    {
+                        "name": "220gr Hornady Critical Duty +P JHP",
+                        "type": "JHP",
+                        "pen": "I",
+                        "modifiers": null,
+                        "rarity": "Legendary",
+                        "pressure_override": 23000
+                    }
+                ],
+                "armory_category": "Ammunition",
+                "armory_subcategory": "Handgun Ammunition",
+                "shop_category": "Ammunition",
+                "shop_subcategory": "Handgun Ammunition"
             }
         ]
     }
