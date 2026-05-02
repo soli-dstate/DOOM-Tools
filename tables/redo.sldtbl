@@ -4010,7 +4010,7 @@
         "historical_firearms": [
             {
                 "name": "Colt's Manufacturing Company M16A1",
-                "value": 850,
+                "value": 900,
                 "description": "The M16A1 was the first widely issued variant of the M16, and was used by US forces from the mid-1960s until the early 1990s, when it was replaced by the M16A2. The M16A1 is a lightweight assault rifle chambered in 5.56x45mm NATO, and is still in use with some reserve and allied forces.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
@@ -4088,7 +4088,7 @@
             },
             {
                 "name": "Harrington & Richardson M16A1",
-                "value": 850,
+                "value": 820,
                 "description": "Between 1968 and 1971, alongside General Motors and Colt, Harrington & Richardson manufactured 246,000 rifles for the US military.",
                 "rarity": "Legendary",
                 "random_quantity": false,
@@ -4127,7 +4127,7 @@
             },
             {
                 "name": "Colt's Manufacturing Company M16A2",
-                "value": 1098,
+                "value": 1050,
                 "description": "In 1979, the USMC requested development of the M16A2 as a direct result of combat experience in Vietnam. The changes were extensive, including, controversially, 3 round burst. The USMC was the first branch to adopt it in the early-mid 80s, followed by the Army in 1986.",
                 "rarity": "Rare",
                 "random_quantity": false,
@@ -4167,7 +4167,7 @@
             },
             {
                 "name": "FN America M16A2",
-                "value": 940,
+                "value": 980,
                 "description": "Rather than Colt being the predominant manufacturer for the M16A2, it actually ended up being FN America, who undercut Colt's manufacturing price by $54.50 ($158.83 today).",
                 "rarity": "Common",
                 "random_quantity": false,
@@ -4208,7 +4208,7 @@
             },
             {
                 "name": "Colt's Manufacturing Company M16A3",
-                "value": 910,
+                "value": 1000,
                 "description": "The M16A3 is a Navy variant of the M16A2 with a full-auto fire control group rather than the 3 round burst of the M16A2. Outside of the Navy, the M16A3 is very rare.",
                 "rarity": "Legendary",
                 "random_quantity": false,
@@ -4247,7 +4247,7 @@
             },
             {
                 "name": "Sabre Defence M16A3",
-                "value": 910,
+                "value": 980,
                 "description": "For a short period in 2008, Sabre Defence manufactured M16A3s and M16A4s, but Sabre Defence went bankrupt in 2013. There was a total of 4,952 M16A3s manufactured by Sabre Defence.",
                 "rarity": "Legendary",
                 "random_quantity": false,
@@ -4321,7 +4321,7 @@
             },
             {
                 "name": "VEB GerÃ¤te- und Werkzeugbau Wiesarbeit GmbH MPi-KMS-72",
-                "value": 850,
+                "value": 800,
                 "description": "East German variant of the AKMS, featuring a folding stock. Chambered in 7.62x39mm, a reliable rifle still firing decades after its introduction.",
                 "rarity": "Common",
                 "random_quantity": false,
@@ -4356,7 +4356,7 @@
             },
             {
                 "name": "VEB GerÃ¤te- und Werkzeugbau Wiesarbeit GmbH MPi-AK-74N",
-                "value": 900,
+                "value": 850,
                 "description": "East German variant of the AK-74N, chambered in 5.45x39mm, a reliable rifle with an intermediate cartridge still firing to this day.",
                 "rarity": "Common",
                 "random_quantity": false,
@@ -4391,7 +4391,7 @@
             },
             {
                 "name": "VEB GerÃ¤te- und Werkzeugbau Wiesarbeit GmbH MPi-AKS-74N",
-                "value": 950,
+                "value": 900,
                 "description": "East German variant of the AKS-74N, featuring a folding stock. Chambered in 5.45x39mm, a reliable rifle with an intermediate cartridge still firing to this day.",
                 "rarity": "Common",
                 "random_quantity": false,
@@ -4426,7 +4426,7 @@
             },
             {
                 "name": "VEB GerÃ¤te- und Werkzeugbau Wiesarbeit GmbH MPi-AKS-74NK",
-                "value": 1000,
+                "value": 950,
                 "description": "Rare East German variant of the AKS-74N, fulfilling a similar role to the AKS-74U. Chambered in 5.45x39mm with a shortened barrel, but notably lacking the muzzle booster, utilizing the standard AK-74 gas system and bolt carrier group. A reliable rifle with an intermediate cartridge still firing to this day.",
                 "rarity": "Rare",
                 "random_quantity": false,
@@ -4461,7 +4461,7 @@
             },
             {
                 "name": "18th Century Hesse-Cassel Pattern Jäger rifle",
-                "value": 10000,
+                "value": 12000,
                 "description": "A flintlock rifle used by the Jäger regiments of the Landgraviate of Hesse-Cassel during the 18th century. Known for its accuracy and reliability, it was a favored weapon among sharpshooters and light infantry.",
                 "rarity": "Legendary",
                 "random_quantity": false,
@@ -4486,7 +4486,7 @@
             },
             {
                 "name": "Mid-17th Century German Matchlock Musket",
-                "value": 8000,
+                "value": 9500,
                 "description": "A matchlock musket used by German infantry during the mid-17th century in the Thirty Years' War. It was one of the earliest types of firearms, utilizing a slow-burning match to ignite the gunpowder and fire the projectile. Known for its historical significance and craftsmanship.",
                 "rarity": "Legendary",
                 "random_quantity": false,
@@ -4511,7 +4511,7 @@
             },
             {
                 "name": "Early 17th Century Wheel-lock \"Ball Butt\" Dag Pistol",
-                "value": 12000,
+                "value": 14000,
                 "description": "A wheel-lock pistol from the early 17th century, featuring a distinctive \"ball butt\" design. It was a popular sidearm among European nobility and military officers during the early 1600s. The wheel-lock mechanism provided a more reliable ignition system compared to earlier matchlock designs, making it a significant advancement in firearm technology.",
                 "rarity": "Legendary",
                 "random_quantity": false,
@@ -4536,7 +4536,7 @@
             },
             {
                 "name": "1810 Prussian Neue Korps-Jägerbüchse Flintlock Rifled Musket",
-                "value": 15000,
+                "value": 18000,
                 "description": "A flintlock rifled musket used by the Prussian Neue Korps-Jäger during the early 19th century. It was designed for sharpshooting and skirmishing, featuring a rifled barrel for improved accuracy and range. The musket was a significant advancement in firearm technology during the Napoleonic Wars, providing soldiers with enhanced capabilities on the battlefield.",
                 "rarity": "Legendary",
                 "random_quantity": false,
@@ -4563,7 +4563,7 @@
             },
             {
                 "name": "1811 Prussian Kavalleriebüchse Calvary Rifled Musket",
-                "value": 15000,
+                "value": 17000,
                 "description": "A cavalry rifle used by the Prussian Kavallerie during the early 19th century. It was designed for mounted troops, featuring a shorter barrel and lighter weight compared to standard infantry muskets. The rifle provided cavalry soldiers with increased mobility and firepower on the battlefield, making it a valuable asset during the Napoleonic Wars.",
                 "rarity": "Legendary",
                 "random_quantity": false,
@@ -4590,7 +4590,7 @@
             },
             {
                 "name": "1835 Prussian Neue Korps-Jägerbüchse Percussion Rifled Musket",
-                "value": 15000,
+                "value": 16000,
                 "description": "A percussion rifled musket used by the Prussian Neue Korps-Jäger during the early 19th century. It was designed for sharpshooting and skirmishing, featuring a rifled barrel for improved accuracy and range. The musket was a significant advancement in firearm technology during the Napoleonic Wars, providing soldiers with enhanced capabilities on the battlefield.",
                 "rarity": "Legendary",
                 "random_quantity": false,
@@ -4617,7 +4617,7 @@
             },
             {
                 "name": "1848 Dreyse Needle Gun",
-                "value": 20000,
+                "value": 22000,
                 "description": "The Dreyse Needle Gun was a revolutionary breech-loading rifle developed in the mid-19th century. It featured a needle-like firing pin that ignited a paper cartridge, allowing for faster loading and firing compared to traditional muzzle-loading rifles. The Dreyse Needle Gun played a significant role in the Austro-Prussian War of 1866, giving the Prussian forces a technological advantage on the battlefield.",
                 "rarity": "Legendary",
                 "random_quantity": false,
@@ -4644,7 +4644,7 @@
             },
             {
                 "name": "Bavarian M1854 Jäger Rifled Musket",
-                "value": 15000,
+                "value": 16000,
                 "description": "A rifled musket used by the Bavarian Jäger during the mid-19th century. It was designed for sharpshooting and skirmishing, featuring a rifled barrel for improved accuracy and range. The musket was a significant advancement in firearm technology during the Napoleonic Wars, providing soldiers with enhanced capabilities on the battlefield.",
                 "rarity": "Legendary",
                 "random_quantity": false,
@@ -4671,7 +4671,7 @@
             },
             {
                 "name": "Württemberg Vereinsgewehr 1856 Rifled Musket",
-                "value": 15000,
+                "value": 15500,
                 "description": "A rifled musket used by the Württemberg military during the mid-19th century. It was designed for general infantry use, featuring a rifled barrel for improved accuracy and range. The musket was a significant advancement in firearm technology during the Napoleonic Wars, providing soldiers with enhanced capabilities on the battlefield.",
                 "rarity": "Legendary",
                 "random_quantity": false,
@@ -4698,7 +4698,7 @@
             },
             {
                 "name": "Bavarian M1858 Jäger Rifled Musket",
-                "value": 15000,
+                "value": 16000,
                 "description": "A rifled musket used by the Bavarian Jäger during the late 19th century. It was designed for sharpshooting and skirmishing, featuring a rifled barrel for improved accuracy and range. The musket was a significant advancement in firearm technology during the Napoleonic Wars, providing soldiers with enhanced capabilities on the battlefield.",
                 "rarity": "Legendary",
                 "random_quantity": false,
@@ -4725,7 +4725,7 @@
             },
             {
                 "name": "Prussian Potzdam M1723 Infantry Musket",
-                "value": 15000,
+                "value": 13500,
                 "description": "A smoothbore musket used by the Prussian military during the early 18th century. It was a standard issue firearm for infantry soldiers, featuring a smooth barrel and firing round lead balls. The musket was a significant advancement in firearm technology during its time, providing soldiers with increased firepower and range compared to earlier matchlock designs.",
                 "rarity": "Legendary",
                 "random_quantity": false,
@@ -4752,7 +4752,7 @@
             },
             {
                 "name": "Prussian Potzdam M1740 Infantry Musket",
-                "value": 15000,
+                "value": 14000,
                 "description": "A smoothbore musket used by the Prussian military during the mid-18th century. It was a standard issue firearm for infantry soldiers, featuring a smooth barrel and firing round lead balls. The musket was a significant advancement in firearm technology during its time, providing soldiers with increased firepower and range compared to earlier matchlock designs.",
                 "rarity": "Legendary",
                 "random_quantity": false,
@@ -4806,7 +4806,7 @@
             },
             {
                 "name": "Infanteriegewehr M71, 1871 Mauser",
-                "value": 15000,
+                "value": 16500,
                 "description": "The Infanteriegewehr M71, also known as the 1871 Mauser, was a bolt-action rifle developed by the Mauser brothers in the late 19th century. It was adopted by the German Empire as the standard infantry rifle and saw widespread use during World War I. The M71 featured a robust design, a five-round internal magazine, and was chambered in 11mm Mauser. It was a significant advancement in firearm technology during its time, providing soldiers with increased accuracy and reliability on the battlefield.",
                 "rarity": "Legendary",
                 "random_quantity": false,
@@ -4833,7 +4833,7 @@
             },
             {
                 "name": "Infanteriegewehr M71/84, Gew. 71/84 Mauser",
-                "value": 15000,
+                "value": 16000,
                 "description": "The Infanteriegewehr M71/84, also known as the Gew. 71/84 Mauser, was a bolt-action rifle developed by the Mauser brothers in the late 19th century. It was an improved version of the M71, featuring a detachable box magazine and chambered in 7.92x57mm Mauser. The M71/84 saw widespread use during World War I and was a significant advancement in firearm technology during its time, providing soldiers with increased firepower and reliability on the battlefield.",
                 "rarity": "Legendary",
                 "random_quantity": false,
@@ -4889,7 +4889,7 @@
             },
             {
                 "name": "Walther Arms Gewehr 41(W)",
-                "value": 9500,
+                "value": 12000,
                 "description": "The Gewehr 41(W) was a semi-automatic rifle developed by the German Wehrmacht during World War II. It was designed to provide infantry soldiers with increased firepower and was chambered in 7.92x57mm Mauser. The G41(W) featured a unique gas-operated mechanism and a non-detachable box magazine. However, it suffered from reliability issues and was eventually replaced by the more successful Gewehr 43.",
                 "rarity": "Rare",
                 "random_quantity": false,
@@ -4923,7 +4923,7 @@
             },
             {
                 "name": "Mauser Arms Gewehr 41(M)",
-                "value": 25000,
+                "value": 30000,
                 "description": "The Gewehr 41(M) was a semi-automatic rifle developed by the German Wehrmacht during World War II. It was designed to provide infantry soldiers with increased firepower and was chambered in 7.92x57mm Mauser. The G41(M) featured a unique gas-operated mechanism and a non-detachable box magazine. However, it suffered from reliability issues and was eventually replaced by the more successful Gewehr 43.",
                 "rarity": "Mythic",
                 "random_quantity": false,
@@ -4957,7 +4957,7 @@
             },
             {
                 "name": "C.G. Haenel Waffen und Fahrradfabrik Sturmgewehr 44",
-                "value": 10000,
+                "value": 28000,
                 "description": "The Sturmgewehr 44, also known as the StG 44, was a revolutionary assault rifle developed by the German Wehrmacht during World War II. It was the first mass-produced assault rifle and featured a selective-fire mechanism, allowing soldiers to switch between semi-automatic and fully automatic modes. The StG 44 was chambered in 7.92x33mm Kurz and had a detachable box magazine. It was a significant advancement in firearm technology during its time, providing soldiers with increased firepower and versatility on the battlefield.",
                 "rarity": "Rare",
                 "random_quantity": false,
@@ -4989,7 +4989,7 @@
             },
             {
                 "name": "Sauer & Sohn Sturmgewehr 44",
-                "value": 10000,
+                "value": 27000,
                 "description": "The Sturmgewehr 44, also known as the StG 44, was a revolutionary assault rifle developed by the German Wehrmacht during World War II. It was the first mass-produced assault rifle and featured a selective-fire mechanism, allowing soldiers to switch between semi-automatic and fully automatic modes. The StG 44 was chambered in 7.92x33mm Kurz and had a detachable box magazine. It was a significant advancement in firearm technology during its time, providing soldiers with increased firepower and versatility on the battlefield.",
                 "rarity": "Mythic",
                 "random_quantity": false,
@@ -5022,7 +5022,7 @@
             },
             {
                 "name": "Steyr-Dailmer-Puch Sturmgewehr 44",
-                "value": 10000,
+                "value": 27000,
                 "description": "The Sturmgewehr 44, also known as the StG 44, was a revolutionary assault rifle developed by the German Wehrmacht during World War II. It was the first mass-produced assault rifle and featured a selective-fire mechanism, allowing soldiers to switch between semi-automatic and fully automatic modes. The StG 44 was chambered in 7.92x33mm Kurz and had a detachable box magazine. It was a significant advancement in firearm technology during its time, providing soldiers with increased firepower and versatility on the battlefield.",
                 "rarity": "Legendary",
                 "random_quantity": false,
@@ -5055,7 +5055,7 @@
             },
             {
                 "name": "Ernst Thälmann Werk Suhl Karabiner S",
-                "value": 250,
+                "value": 300,
                 "description": "The Karabiner S was an East German variation of the SKS rifle, produced by the Ernst Thälmann Werk in Suhl. It was widely used by East German forces during the Cold War era.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
@@ -5089,7 +5089,7 @@
             },
             {
                 "name": "Spandau Reichsrevolver M1879",
-                "value": 2500,
+                "value": 3000,
                 "description": "The Spandau Reichsrevolver M1879 was a single-action revolver used by the German military during the late 19th and early 20th centuries. It was chambered in 10.6x25mmR and featured a solid frame design with a fixed cylinder. The M1879 was primarily issued to officers and saw limited use during World War I.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
@@ -5115,7 +5115,7 @@
             },
             {
                 "name": "Mauser C96 Commercial",
-                "value": 5000,
+                "value": 5500,
                 "description": "The Mauser C96, also known as the 'Broomhandle' due to its distinctive grip shape, was a semi-automatic pistol developed by the German arms manufacturer Mauser in the late 19th century. It was chambered in 7.63x25mm Mauser and featured a unique internal magazine located in front of the trigger. The C96 was widely used during World War I and saw service with various military and paramilitary forces around the world.",
                 "rarity": "Rare",
                 "random_quantity": false,
@@ -5169,7 +5169,7 @@
             },
             {
                 "name": "Prussian C96 \"Red 9\"",
-                "value": 5000,
+                "value": 6500,
                 "description": "The Prussian C96, also known as the 'Red 9', was a variant of the Mauser C96 semi-automatic pistol, developed in the early 20th century. It was chambered in 9x19mm Parabellum and featured a distinctive red number '9' stamped on the grip to differentiate it from the standard 7.63x25mm Mauser version. The Red 9 variant was designed for use by German forces during World War I, offering increased firepower while maintaining the unique design of the original C96.",
                 "rarity": "Rare",
                 "random_quantity": false,
@@ -5196,7 +5196,7 @@
             },
             {
                 "name": "Mauser M1930",
-                "value": 5000,
+                "value": 5500,
                 "description": "The Mauser M1930 was a variant of the C96 made post-war chambered in 7.63x25mm Mauser, made to be simplified and cheaper to produce. It featured a detachable magazine and a simplified internal mechanism, making it more affordable for mass production while still maintaining the distinctive design of the original C96.",
                 "rarity": "Rare",
                 "random_quantity": false,
@@ -5223,7 +5223,7 @@
             },
             {
                 "name": "Mauser M712 Schnellfeuer",
-                "value": 10000,
+                "value": 12000,
                 "description": "The Mauser M712 Schnellfeuer was a select-fire variant of the Mauser C96 semi-automatic pistol, developed in the early 20th century. It was chambered in 7.63x25mm Mauser and featured a detachable box magazine, allowing for rapid reloading. The M712 Schnellfeuer was capable of both semi-automatic and fully automatic fire, making it a versatile firearm for military and paramilitary use during its time.",
                 "rarity": "Legendary",
                 "random_quantity": false,
@@ -5250,7 +5250,7 @@
             },
             {
                 "name": "Mauser C96 Carbine",
-                "value": 10000,
+                "value": 11000,
                 "description": "The Mauser C96 Carbine was a variant of the Mauser C96 semi-automatic pistol, developed in the early 20th century. It featured a longer barrel and a detachable shoulder stock, allowing it to be used as a carbine for increased accuracy and range. The C96 Carbine was chambered in 7.63x25mm Mauser and was designed for military and paramilitary use, offering enhanced performance while maintaining the unique design of the original C96.",
                 "rarity": "Legendary",
                 "random_quantity": false,
@@ -5277,7 +5277,7 @@
             },
             {
                 "name": "Pistole Modell 1908, Luger P08",
-                "value": 5000,
+                "value": 2000,
                 "description": "The Luger P08, also known as the Pistole Modell 1908, was a semi-automatic pistol developed by the German arms manufacturer Deutsche Waffen und Munitionsfabriken (DWM) in the early 20th century. It was chambered in 9x19mm Parabellum and featured a distinctive toggle-lock mechanism. The P08 was widely used by German forces during World War I and World War II, and it became an iconic symbol of German military power during the 20th century.",
                 "rarity": "Rare",
                 "random_quantity": false,
@@ -5302,7 +5302,7 @@
             },
             {
                 "name": "Marinemodell 1904, Luger P04",
-                "value": 5000,
+                "value": 3200,
                 "description": "The Luger P04, also known as the Marinemodell 1904, was a variant of the Luger P08 semi-automatic pistol, developed in the early 20th century. It was chambered in 9x19mm Parabellum and featured a longer barrel and a distinctive toggle-lock mechanism. The P04 was primarily issued to German naval forces during World War I, offering enhanced performance while maintaining the unique design of the original P08.",
                 "rarity": "Rare",
                 "random_quantity": false,
@@ -5327,7 +5327,7 @@
             },
             {
                 "name": "Lange Pistole 08, Luger P08 Artillery",
-                "value": 5000,
+                "value": 2800,
                 "description": "The Luger P08 Artillery, also known as the Lange Pistole 08, was a variant of the Luger P08 semi-automatic pistol, developed in the early 20th century. It featured a longer barrel and a detachable shoulder stock, allowing it to be used as a carbine for increased accuracy and range. The P08 Artillery was chambered in 9x19mm Parabellum and was designed for military use, offering enhanced performance while maintaining the unique design of the original P08.",
                 "rarity": "Rare",
                 "random_quantity": false,
@@ -5352,7 +5352,7 @@
             },
             {
                 "name": "Walther Arms PP",
-                "value": 5000,
+                "value": 1200,
                 "description": "The Walther PP (Polizeipistole) was a semi-automatic pistol developed by the German arms manufacturer Carl Walther GmbH in the early 20th century. It was chambered in .32 ACP and featured a blowback-operated mechanism. The PP was widely used by German police forces and civilians for self-defense during the 20th century, and it became an iconic symbol of German firearm design.",
                 "rarity": "Rare",
                 "random_quantity": false,
@@ -5382,7 +5382,7 @@
             },
             {
                 "name": "Walther Arms PPK",
-                "value": 5000,
+                "value": 1500,
                 "description": "The Walther PPK (Polizeipistole Kriminalmodell) was a compact variant of the Walther PP semi-automatic pistol, developed in the early 20th century. It was chambered in .380 ACP and featured a blowback-operated mechanism. The PPK was widely used by German police forces and civilians for self-defense during the 20th century, and it became an iconic symbol of German firearm design, famously associated with the fictional character James Bond.",
                 "rarity": "Rare",
                 "random_quantity": false,
@@ -5412,7 +5412,7 @@
             },
             {
                 "name": "Walther Arms P38",
-                "value": 5000,
+                "value": 1800,
                 "description": "The Walther P38 was a semi-automatic pistol developed by the German arms manufacturer Carl Walther GmbH in the late 1930s. It was chambered in 9x19mm Parabellum and featured a double-action/single-action mechanism. The P38 was widely used by German forces during World War II and became an iconic symbol of German firearm design, known for its reliability and innovative features.",
                 "rarity": "Rare",
                 "random_quantity": false,
@@ -5442,7 +5442,7 @@
             },
             {
                 "name": "Bergmann Waffenfabrik MP-18,I",
-                "value": 10000,
+                "value": 14000,
                 "description": "The MP-18/I was a submachine gun developed by the German arms manufacturer Bergmann Waffenfabrik during World War I. It was chambered in 9x19mm Parabellum and featured a blowback-operated mechanism. The MP-18/I was one of the first submachine guns to see combat, and it was widely used by German forces during the latter stages of World War I, providing soldiers with increased firepower in close-quarters combat.",
                 "rarity": "Legendary",
                 "random_quantity": false,
@@ -5472,7 +5472,7 @@
             },
             {
                 "name": "C.G. Haenel Waffen und Fahrradfabrik MP-28/II",
-                "value": 10000,
+                "value": 13000,
                 "description": "The MP-28/II was a submachine gun developed by the German arms manufacturer C.G. Haenel Waffen und Fahrradfabrik in the interwar period. It was chambered in 9x19mm Parabellum and featured a blowback-operated mechanism. The MP-28/II was an improved version of the earlier MP-18/I, offering enhanced reliability and performance. It saw limited use during World War II, primarily with German forces and some allied nations.",
                 "rarity": "Legendary",
                 "random_quantity": false,
@@ -5502,7 +5502,7 @@
             },
             {
                 "name": "Steyr-Solothurn MP-34",
-                "value": 10000,
+                "value": 14000,
                 "description": "The MP-34 was a submachine gun developed by the Austrian arms manufacturer Steyr-Solothurn in the early 1930s. It was chambered in 9x19mm Parabellum and featured a blowback-operated mechanism. The MP-34 was known for its high-quality construction and reliability, making it a popular choice among military and police forces in Europe during the interwar period and World War II.",
                 "rarity": "Legendary",
                 "random_quantity": false,
@@ -5532,7 +5532,7 @@
             },
             {
                 "name": "Theodor Bergmann & Co. MP-35",
-                "value": 10000,
+                "value": 14000,
                 "description": "The MP-35 was a submachine gun developed by the German arms manufacturer Theodor Bergmann & Co. in the mid-1930s. It was chambered in 9x19mm Parabellum and featured a blowback-operated mechanism. The MP-35 was known for its robust construction and reliability, making it a popular choice among military and police forces in Germany and other countries during World War II.",
                 "rarity": "Legendary",
                 "random_quantity": false,
@@ -5562,7 +5562,7 @@
             },
             {
                 "name": "Erma Werke MP-38",
-                "value": 10000,
+                "value": 30000,
                 "description": "The MP-38 was a submachine gun developed by the German arms manufacturer Erma Werke in the late 1930s. It was chambered in 9x19mm Parabellum and featured a blowback-operated mechanism. The MP-38 was one of the first submachine guns to be mass-produced using stamped metal parts, making it more affordable and easier to manufacture. It saw extensive use by German forces during World War II.",
                 "rarity": "Legendary",
                 "random_quantity": false,
@@ -5592,7 +5592,7 @@
             },
             {
                 "name": "Steyr MP-40",
-                "value": 10000,
+                "value": 22000,
                 "description": "The MP-40 was a submachine gun developed by the German arms manufacturer Steyr in the late 1930s. It was chambered in 9x19mm Parabellum and featured a blowback-operated mechanism. The MP-40 was widely used by German forces during World War II.",
                 "rarity": "Legendary",
                 "random_quantity": false,
@@ -5622,7 +5622,7 @@
             },
             {
                 "name": "C.G. Haenel Waffen und Fahrradfabrik MP-41",
-                "value": 10000,
+                "value": 20000,
                 "description": "The MP-41 was a submachine gun developed by the German arms manufacturer C.G. Haenel Waffen und Fahrradfabrik in the early 1940s. It was chambered in 9x19mm Parabellum and featured a blowback-operated mechanism. The MP-41 was an improved version of the earlier MP-28/II, offering enhanced reliability and performance. It saw limited use during World War II, primarily with German forces and some allied nations.",
                 "rarity": "Legendary",
                 "random_quantity": false,
@@ -5652,7 +5652,7 @@
             },
             {
                 "name": "Rheinmetall-Borsig AG MG-34",
-                "value": 30000,
+                "value": 36000,
                 "description": "The MG-34 was a general-purpose machine gun developed by the German arms manufacturer Rheinmetall-Borsig AG in the early 1930s. It was chambered in 7.92x57mm Mauser and featured a recoil-operated mechanism. The MG-34 was widely used by German armor, and a few infantry units during World War II. It was a highly effective machine gun but was very expensive compared to the MG-42.",
                 "rarity": "Legendary",
                 "random_quantity": false,
@@ -5682,7 +5682,7 @@
             },
             {
                 "name": "Metall- und Lackierwarenfabrik Johannes Großfuß AG MG-42",
-                "value": 30000,
+                "value": 48000,
                 "description": "The MG-42 was a general-purpose machine gun developed by the German arms manufacturer Metall- und Lackierwarenfabrik Johannes Großfuß AG in the early 1940s. It was chambered in 7.92x57mm Mauser and featured a recoil-operated mechanism. The MG-42 was widely used by German forces during World War II and became an iconic symbol of German military power, known for its high rate of fire and reliability.",
                 "rarity": "Legendary",
                 "random_quantity": false,
@@ -5762,7 +5762,9 @@
                 "magazinetype": "Internal Box",
                 "capacity": 1,
                 "jamrate": 0.05,
-                "accessories": null,
+                "accessories": [
+                    {"name": "Bayonet Lug", "slot": "berdan_bayonet_lug", "current": null}
+                ],
                 "can_stack": false,
                 "in_armory": true,
                 "parts": [
@@ -5792,7 +5794,9 @@
                 "accepts_clips": true,
                 "clip_type": "Mosin-Nagant",
                 "jamrate": 0.05,
-                "accessories": null,
+                "accessories": [
+                    {"name": "Bayonet Lug", "slot": "mosin_bayonet_lug", "current": null}
+                ],
                 "can_stack": false,
                 "in_armory": true,
                 "parts": [
@@ -5804,7 +5808,7 @@
             },
             {
                 "name": "Tula Arsenal Nagant M1895 Revolver",
-                "value": 4000,
+                "value": 3500,
                 "description": "The Nagant M1895 was a revolver developed by the Russian arms manufacturer Tula Arsenal in the late 19th century. It was chambered in 7.62x38mmR and featured a unique gas-seal system that allowed for increased muzzle velocity. The M1895 was widely used by Russian forces during the late 19th and early 20th centuries, and it played a significant role in various conflicts, including the Russo-Japanese War, World War I, and World War II.",
                 "rarity": "Rare",
                 "random_quantity": false,
@@ -5830,7 +5834,7 @@
             },
             {
                 "name": "Kovrov Arsenal DP-27",
-                "value": 5000,
+                "value": 5500,
                 "description": "The DP-27 was a light machine gun developed by the Soviet arms manufacturer Kovrov Arsenal in the late 1920s. It was chambered in 7.62x54mmR and featured a pan magazine with a capacity of 47 rounds. The DP-27 was widely used by Soviet forces during World War II and became an iconic symbol of Soviet military power, known for its reliability and ease of use.",
                 "rarity": "Rare",
                 "random_quantity": false,
@@ -5859,7 +5863,7 @@
             },
             {
                 "name": "Izhevsk Mosin-Nagant M91/30",
-                "value": 6000,
+                "value": 5500,
                 "description": "The Mosin-Nagant M91/30 was a bolt-action rifle developed by the Russian arms manufacturer Izhevsk in the early 1930s. It was an updated version of the original M1891, featuring a redesigned stock and improved sights. The M91/30 was chambered in 7.62x54mmR and featured a five-round internal magazine. It was widely used by Soviet forces during World War II and became one of the most iconic and widely produced bolt-action rifles in history.",
                 "rarity": "Rare",
                 "random_quantity": false,
@@ -5877,7 +5881,10 @@
                 "accepts_clips": true,
                 "clip_type": "Mosin-Nagant",
                 "jamrate": 0.05,
-                "accessories": null,
+                "accessories": [
+                    {"name": "Optic Mount", "slot": "pu_optic_mount", "current": null},
+                    {"name": "Bayonet Lug", "slot": "mosin_bayonet_lug", "current": null}
+                ],
                 "can_stack": false,
                 "in_armory": true,
                 "parts": [
@@ -5889,7 +5896,7 @@
             },
             {
                 "name": "Tula Arsanel TT-33 Tokarev",
-                "value": 4000,
+                "value": 3800,
                 "description": "The TT-33 Tokarev was a semi-automatic pistol developed by the Russian arms manufacturer Tula Arsenal in the early 1930s. It was chambered in 7.62x25mm Tokarev and featured a simple blowback-operated mechanism. The TT-33 was widely used by Soviet forces during World War II and became an iconic symbol of Soviet military power, known for its reliability and high magazine capacity.",
                 "rarity": "Rare",
                 "random_quantity": false,
@@ -5934,7 +5941,11 @@
                 "magazinetype": "Detachable Box",
                 "magazinesystem": "SVT-40",
                 "jamrate": 0.05,
-                "accessories": null,
+                "accessories": [
+                    {"name": "Optic Mount", "slot": "svt_optic_mount", "current": null},
+                    {"name": "Bayonet Lug", "slot": "svt_bayonet_lug", "current": null, "conflicts_with": ["muzzle_762"]},
+                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null, "conflicts_with": ["svt_bayonet_lug"]}
+                ],
                 "can_stack": false,
                 "in_armory": true,
                 "parts": [
@@ -5947,7 +5958,7 @@
             },
             {
                 "name": "Vyatskiye Polyany PPSh-41",
-                "value": 5000,
+                "value": 5500,
                 "description": "The PPSh-41 was a submachine gun developed by the Soviet arms manufacturer Vyatskiye Polyany in the early 1940s. It was chambered in 7.62x25mm Tokarev and featured a blowback-operated mechanism. The PPSh-41 was widely used by Soviet forces during World War II and became an iconic symbol of Soviet military power, known for its high rate of fire and large drum magazine.",
                 "rarity": "Rare",
                 "random_quantity": false,
@@ -6007,7 +6018,7 @@
             },
             {
                 "name": "Tula Arsenal SKS-45",
-                "value": 6000,
+                "value": 5500,
                 "description": "The SKS-45 was a semi-automatic carbine developed by the Russian arms manufacturer Tula Arsenal in the mid-1940s. It was chambered in 7.62x39mm and featured a gas-operated mechanism with a tilting bolt. The SKS-45 was widely used by Soviet forces and their allies during the Cold War, and it became an iconic symbol of Soviet military power, known for its reliability and ease of use.",
                 "rarity": "Rare",
                 "random_quantity": false,
@@ -6025,7 +6036,11 @@
                 "accepts_clips": true,
                 "clip_type": "SKS",
                 "jamrate": 0.05,
-                "accessories": null,
+                "accessories": [
+                    {"name": "Optic Mount", "slot": "sks_optic_mount", "current": null},
+                    {"name": "Bayonet Lug", "slot": "sks_bayonet_lug", "current": null, "conflicts_with": ["muzzle_762"]},
+                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null, "conflicts_with": ["sks_bayonet_lug"]}
+                ],
                 "can_stack": false,
                 "in_armory": true,
                 "parts": [
@@ -6038,7 +6053,7 @@
             },
             {
                 "name": "Izhevsk Makarov PM",
-                "value": 4000,
+                "value": 3500,
                 "description": "The Makarov PM was a semi-automatic pistol developed by the Russian arms manufacturer Izhevsk in the late 1940s. It was chambered in 9x18mm Makarov and featured a simple blowback-operated mechanism. The Makarov PM was widely used by Soviet forces during the Cold War and became an iconic symbol of Soviet military power, known for its reliability and ease of use.",
                 "rarity": "Rare",
                 "random_quantity": false,
@@ -6066,7 +6081,7 @@
             },
             {
                 "name": "Izhmash AK-47 Type 3",
-                "value": 10000,
+                "value": 11000,
                 "description": "The AK-47 Type 3 was a later version of the AK-47 assault rifle, developed by the Soviet arms manufacturer Izhmash in the late 1950s. It featured a redesigned stock and improved sights, and it was chambered in 7.62x39mm. The AK-47 Type 3 was widely used by Soviet forces and their allies during the Cold War, and it became one of the most iconic and widely produced assault rifles in history.",
                 "rarity": "Legendary",
                 "random_quantity": false,
@@ -6100,7 +6115,7 @@
             },
             {
                 "name": "Izhmash AKM",
-                "value": 12000,
+                "value": 9000,
                 "description": "The AKM was a modernized version of the AK-47 assault rifle, developed by the Soviet arms manufacturer Izhmash in the late 1950s. It featured a stamped sheet metal receiver and improved sights, and it was chambered in 7.62x39mm. The AKM was widely used by Soviet forces and their allies during the Cold War, and it became one of the most iconic and widely produced assault rifles in history.",
                 "rarity": "Legendary",
                 "random_quantity": false,
@@ -6134,7 +6149,7 @@
             },
             {
                 "name": "Degtyaryov RPD",
-                "value": 8000,
+                "value": 8500,
                 "description": "The RPD was a light machine gun developed by the Soviet arms manufacturer Degtyaryov in the late 1940s. It was chambered in 7.62x39mm and featured a gas-operated mechanism with a rotating bolt. The RPD was widely used by Soviet forces and their allies during the Cold War, and it became an iconic symbol of Soviet military power, known for its reliability and high rate of fire.",
                 "rarity": "Rare",
                 "random_quantity": false,
@@ -6199,7 +6214,7 @@
             },
             {
                 "name": "Izhmash Dragunov SVD",
-                "value": 15000,
+                "value": 16000,
                 "description": "The SVD was a semi-automatic sniper rifle developed by the Soviet arms manufacturer Izhmash in the early 1960s. It was chambered in 7.62x54mmR and featured a gas-operated mechanism with a rotating bolt. The SVD was widely used by Soviet forces and their allies during the Cold War, and it became an iconic symbol of Soviet military power, known for its reliability and accuracy.",
                 "rarity": "Legendary",
                 "random_quantity": false,
@@ -6232,7 +6247,7 @@
             },
             {
                 "name": "Degtyaryov PK",
-                "value": 12000,
+                "value": 12500,
                 "description": "The PK was a general-purpose machine gun developed by the Soviet arms manufacturer Degtyaryov in the early 1960s. It was chambered in 7.62x54mmR and featured a gas-operated mechanism with a rotating bolt. The PK was widely used by Soviet forces and their allies during the Cold War, and it became an iconic symbol of Soviet military power, known for its reliability and high rate of fire.",
                 "rarity": "Rare",
                 "random_quantity": false,
@@ -6249,7 +6264,9 @@
                 "magazinetype": "Belt",
                 "capacity": 200,
                 "jamrate": 0.05,
-                "accessories": null,
+                "accessories": [
+                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
+                ],
                 "can_stack": false,
                 "in_armory": true,
                 "parts": [
@@ -6280,7 +6297,10 @@
                 "magazinetype": "Belt",
                 "capacity": 200,
                 "jamrate": 0.05,
-                "accessories": null,
+                "accessories": [
+                    {"name": "Optic Mount", "slot": "pkm_optic", "current": null},
+                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null}
+                ],
                 "can_stack": false,
                 "in_armory": true,
                 "parts": [
@@ -6328,7 +6348,7 @@
             },
             {
                 "name": "Tula Arsenal AKS-74U",
-                "value": 12000,
+                "value": 13000,
                 "description": "The AKS-74U was a compact version of the AK-74 assault rifle, developed by the Russian arms manufacturer Tula Arsenal in the early 1970s. It featured a folding stock and a shorter barrel, and it was chambered in 5.45x39mm. The AKS-74U was widely used by Soviet forces and their allies during the Cold War, and it became an iconic symbol of Soviet military power, known for its compact design and reliability.",
                 "rarity": "Legendary",
                 "random_quantity": false,
@@ -6362,7 +6382,7 @@
             },
             {
                 "name": "Heckler & Koch G3",
-                "value": 6000,
+                "value": 7000,
                 "description": "Left arm of the free world. German made battle rifle chambered in 7.62x51mm NATO, known for its reliability and performance in various combat situations. This specific rifle is an original with wood furniture.",
                 "rarity": "Legendary",
                 "random_quantity": false,
@@ -6399,7 +6419,7 @@
             },
             {
                 "name": "Heckler & Koch G3A1",
-                "value": 8500,
+                "value": 9000,
                 "description": "Rarest variant of the Heckler & Koch G3 battle rifle, featuring a side-folding skeleton stock and a wood handguard.",
                 "rarity": "Mythic",
                 "random_quantity": false,
@@ -6436,7 +6456,7 @@
             },
             {
                 "name": "Heckler & Koch G3A2",
-                "value": 4500,
+                "value": 5500,
                 "description": "Rare variant of the Heckler & Koch G3 battle rifle, this is a pivotal model in the transition from the hard-hitting early variants of the G3 to more modernized softer hitting variants. This one features wood furniture and a fixed stock.",
                 "rarity": "Rare",
                 "random_quantity": false,
@@ -6473,7 +6493,7 @@
             },
             {
                 "name": "Heckler & Koch PSG1",
-                "value": 8000,
+                "value": 55000,
                 "description": "PrÃ¤zisionsschÃ¼tzengewehr 1 (Precision Marksman Rifle 1), variant of the G3 battle rifle designed for long-range precision shooting.",
                 "rarity": "Legendary",
                 "random_quantity": false,
@@ -6506,7 +6526,7 @@
             },
             {
                 "name": "Heckler & Koch PSG1A1",
-                "value": 8500,
+                "value": 60000,
                 "description": "Variant of the PGS1, which is in of itself a variant of the H&K G3. This one features a relocated charging handle and a better scope.",
                 "rarity": "Legendary",
                 "random_quantity": false,
@@ -6541,7 +6561,7 @@
             },
             {
                 "name": "Heckler & Koch MSG90",
-                "value": 5000,
+                "value": 18000,
                 "description": "Variant of the PGS1, designed for military use rather than police use. The rifle is strengthened, lightened, and less expensive, featuring a composite handguard and stock.",
                 "rarity": "Rare",
                 "random_quantity": false,
@@ -6576,7 +6596,7 @@
             },
             {
                 "name": "Heckler & Koch HK11 LSMG",
-                "value": 9000,
+                "value": 10000,
                 "description": "Historical variant of the G3, this gun is best referred to as a Squad Automatic Weapon. It's essentially just a G3 with a heavier quick-change barrel better suited for automatic fire.",
                 "rarity": "Legendary",
                 "random_quantity": false,
@@ -6614,7 +6634,7 @@
             },
             {
                 "name": "Heckler & Koch HK21",
-                "value": 9000,
+                "value": 11000,
                 "description": "General purpose machine gun variant of the G3. Features a heavier quick-change barrel and the ability to feed from standard M13 linked belts.",
                 "rarity": "Legendary",
                 "random_quantity": false,
@@ -6652,7 +6672,7 @@
             },
             {
                 "name": "Heckler & Koch HK11E",
-                "value": 8500,
+                "value": 10000,
                 "description": "Modernized export variant of the HK11 LSMG, part of the modular family of export guns based on the G3 released in the 80s.",
                 "rarity": "Legendary",
                 "random_quantity": false,
@@ -6690,7 +6710,7 @@
             },
             {
                 "name": "Heckler & Koch HK13E",
-                "value": 8500,
+                "value": 10000,
                 "description": "Modernized export variant of the HK11 LSMG, accepting standard STANAG magazines and firing 5.56x45mm NATO instead of 7.62x51mm NATO. Part of the modular family of export guns based on the G3 released in the 80s.",
                 "rarity": "Legendary",
                 "random_quantity": false,
@@ -6727,7 +6747,7 @@
             },
             {
                 "name": "Heckler & Koch HK21E",
-                "value": 9000,
+                "value": 11000,
                 "description": "Modernized export variant of the HK21, part of the modular family of export guns based on the G3 released in the 80s.",
                 "rarity": "Legendary",
                 "random_quantity": false,
@@ -6764,7 +6784,7 @@
             },
             {
                 "name": "Heckler & Koch HK23E",
-                "value": 9000,
+                "value": 11000,
                 "description": "Modernized export variant of the HK21. This one fires 5.56x45mm NATO instead of 7.62x51mm NATO, part of the modular family of export guns based on the G3 released in the 80s.",
                 "rarity": "Legendary",
                 "random_quantity": false,
@@ -6802,7 +6822,7 @@
             },
             {
                 "name": "Bill Fleming HK51",
-                "value": 10000,
+                "value": 12000,
                 "description": "Custom variant of the G3 made by an American gunsmith, Bill Fleming, for use by the UK's Special Air Service (SAS). 8\" barrel, collapsible stock, and an MP5-style handguard. A G3 the size of an MP5.",
                 "rarity": "Legendary",
                 "random_quantity": false,
@@ -6839,7 +6859,7 @@
             },
             {
                 "name": "F.J. Vollmer HK51B",
-                "value": 25000,
+                "value": 28000,
                 "description": "Another custom variant on top of an already custom variant, the HK51, this one is belt fed, essentially a cut-down HK21, 8\" barrel, and a collapsible stock, and an MP5-style handguard. An HK21 the size of an MP5.",
                 "rarity": "Mythic",
                 "random_quantity": false,
@@ -6876,7 +6896,7 @@
             },
             {
                 "name": "Heckler & Koch HK33",
-                "value": 4000,
+                "value": 4500,
                 "description": "5.56x45mm NATO variant of the G3, featuring a redesigned barrel, bolt carrier group, and magazines. The HK33 is essentially a scaled-down G3, and many parts are not interchangeable between the two platforms.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
@@ -6913,7 +6933,7 @@
             },
             {
                 "name": "Heckler & Koch HK33A1",
-                "value": 4500,
+                "value": 5000,
                 "description": "Variant of the HK33 with a retractable stock instead of the fixed stock. Otherwise identical to the original HK33.",
                 "rarity": "Rare",
                 "random_quantity": false,
@@ -6949,7 +6969,7 @@
             },
             {
                 "name": "Heckler & Koch HK33K",
-                "value": 5000,
+                "value": 5500,
                 "description": "Carbine variant of the HK33, featuring a shorter barrel and a retractable stock. Otherwise identical to the original HK33.",
                 "rarity": "Rare",
                 "random_quantity": false,
@@ -6984,7 +7004,7 @@
             },
             {
                 "name": "Heckler & Koch HK33A2",
-                "value": 5500,
+                "value": 6000,
                 "description": "Improved version of the HK33, strengthened stock, and a handguard that allows a bipod to be attached.",
                 "rarity": "Rare",
                 "random_quantity": false,
@@ -7020,7 +7040,7 @@
             },
             {
                 "name": "Heckler & Koch HK13",
-                "value": 8000,
+                "value": 9000,
                 "description": "Squad Automatic Weapon version of the HK33, featuring a heavier quick-change barrel, a heat guard, and a bipod adapter. Otherwise identical to the HK33.",
                 "rarity": "Legendary",
                 "random_quantity": false,
@@ -7054,7 +7074,7 @@
             },
             {
                 "name": "Colt's Manufacturing Company Single Action Army",
-                "value": 1500,
+                "value": 2200,
                 "description": "Iconic single-action revolver, known for its use in the American West. Features a classic design and is often referred to as the 'Peacemaker'.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
@@ -7083,7 +7103,7 @@
             },
             {
                 "name": "Colt's Manufacturing Company Model 1903 Pocket Hammerless",
-                "value": 1200,
+                "value": 1500,
                 "description": "Compact semi-automatic pistol, designed for concealed carry. Known for its sleek design and reliability, it was popular among civilians and law enforcement in the early 20th century.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
@@ -7113,7 +7133,7 @@
             },
             {
                 "name": "Smith & Wesson Model 1917",
-                "value": 1300,
+                "value": 1600,
                 "description": "Large-frame revolver, designed for military use during World War I. It features a robust design and is chambered in .45 ACP, with the ability to use moon clips for faster reloading.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
@@ -7143,7 +7163,7 @@
             },
             {
                 "name": "Colt's Manufacturing Company M1900",
-                "value": 1100,
+                "value": 2000,
                 "description": "Early semi-automatic pistol, designed by John Browning. It was one of the first successful semi-automatic pistols and was chambered in .38 ACP. It features a unique design with a grip safety and a distinctive slide.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
@@ -7173,7 +7193,7 @@
             },
             {
                 "name": "Colt's Manufacturing Company M1911",
-                "value": 1400,
+                "value": 2200,
                 "description": "Iconic semi-automatic pistol, designed by John Browning. It has been in service for over a century and is known for its reliability and stopping power. Chambered in .45 ACP, it features a single-action trigger and a distinctive design.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
@@ -7203,7 +7223,7 @@
             },
             {
                 "name": "Colt's Manufacturing Company Commander",
-                "value": 1300,
+                "value": 1800,
                 "description": "Compact version of the M1911, designed for concealed carry. It features a shorter barrel and a smaller grip, making it more suitable for everyday carry while maintaining the reliability and stopping power of the original M1911.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
@@ -7233,7 +7253,7 @@
             },
             {
                 "name": "Colt's Manufacturing Company Commander 9mm",
-                "value": 1350,
+                "value": 1850,
                 "description": "9mm version of the M1911 Commander, designed for those who prefer the smaller caliber. It features the same compact design as the original Commander but is chambered in 9mm, offering reduced recoil and increased magazine capacity.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
@@ -7263,7 +7283,7 @@
             },
             {
                 "name": "Webley & Scott Webley Mk. VI",
-                "value": 800,
+                "value": 1100,
                 "description": "British service revolver, known for its use during World War I and World War II. It features a top-break design and is chambered in .455 Webley, offering significant stopping power.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
@@ -7293,7 +7313,7 @@
             },
             {
                 "name": "Webley & Scott Enfield No. 2 Mk. I",
-                "value": 900,
+                "value": 1200,
                 "description": "British service revolver, designed as a replacement for the Webley Mk. VI. It features a more modern design and is chambered in .38/200, offering reduced recoil while maintaining adequate stopping power.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
@@ -7323,7 +7343,7 @@
             },
             {
                 "name": "Browning Arms Company Browning Hi-Power",
-                "value": 1200,
+                "value": 1800,
                 "description": "Iconic semi-automatic pistol, designed by John Browning and completed by Dieudonné Saive. It was one of the first successful high-capacity pistols and is chambered in 9mm, featuring a single-action trigger and a distinctive design.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
@@ -7353,7 +7373,7 @@
             },
             {
                 "name": "Colt's Manufacturing Company Python",
-                "value": 1500,
+                "value": 4500,
                 "description": "High-end revolver, known for its precision and craftsmanship. It features a solid frame and is chambered in .357 Magnum, offering significant stopping power and versatility.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
@@ -7371,7 +7391,9 @@
                 "magazinetype": "Cylinder",
                 "capacity": 6,
                 "jamrate": 0.01,
-                "accessories": null,
+                "accessories": [
+                    {"name": "Optic Mount", "slot": "colt_python_optic_mount", "current": null}
+                ],
                 "can_stack": false,
                 "parts": [
                     {"name": "Colt Python Barrel", "slot": "colt_python_barrel", "current": {"id": 919}, "durability": null, "type": "barrel"},
@@ -7382,7 +7404,7 @@
             },
             {
                 "name": "Colt's Manufacturing Company Anaconda",
-                "value": 1600,
+                "value": 3500,
                 "description": "Large-frame revolver, designed for hunting and self-defense. It features a robust design and is chambered in .44 Magnum, offering significant stopping power and versatility.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
@@ -7400,7 +7422,9 @@
                 "magazinetype": "Cylinder",
                 "capacity": 6,
                 "jamrate": 0.01,
-                "accessories": null,
+                "accessories": [
+                    {"name": "Optic Mount", "slot": "colt_python_optic_mount", "current": null}
+                ],
                 "can_stack": false,
                 "parts": [
                     {"name": "Colt Anaconda Barrel", "slot": "colt_anaconda_barrel", "current": {"id": 921}, "durability": null, "type": "barrel"},
@@ -7411,7 +7435,7 @@
             },
             {
                 "name": "Smith & Wesson Model 29",
-                "value": 1400,
+                "value": 1800,
                 "description": "Iconic revolver, known for its use in popular culture and its powerful chambering. It features a solid frame and is chambered in .44 Magnum, offering significant stopping power and versatility.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
@@ -7429,7 +7453,9 @@
                 "magazinetype": "Cylinder",
                 "capacity": 6,
                 "jamrate": 0.01,
-                "accessories": null,
+                "accessories": [
+                    {"name": "Optic Mount", "slot": "sw_model29_optic_mount", "current": null}
+                ],
                 "can_stack": false,
                 "parts": [
                     {"name": "S&W Model 29 Barrel", "slot": "sw_model29_barrel", "current": {"id": 923}, "durability": null, "type": "barrel"},
@@ -7440,7 +7466,7 @@
             },
             {
                 "name": "Volcanic Pistol",
-                "value": 2000,
+                "value": 7000,
                 "description": "Early repeating pistol, designed by Horace Smith and Daniel B. Wesson. It features a unique design with a tubular magazine and is chambered in .41 Short, offering limited stopping power but significant historical value.",
                 "rarity": "Legendary",
                 "random_quantity": false,
@@ -7470,7 +7496,7 @@
             },
             {
                 "name": "Springfield Armory M1903 Springfield",
-                "value": 1800,
+                "value": 2200,
                 "description": "Iconic bolt-action rifle, known for its use during World War I and World War II. It features a robust design and is chambered in .30-06 Springfield, offering significant stopping power and long-range accuracy.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
@@ -7490,7 +7516,9 @@
                 "accepts_clips": true,
                 "clip_type": "M1903",
                 "jamrate": 0.01,
-                "accessories": null,
+                "accessories": [
+                    {"name": "Bayonet Lug", "slot": "m1905_bayonet_lug", "current": null}
+                ],
                 "can_stack": false,
                 "parts": [
                     {"name": "M1903 Springfield Barrel", "slot": "m1903_barrel", "current": {"id": 928}, "durability": null, "type": "barrel"},
@@ -7502,7 +7530,7 @@
             },
             {
                 "name": "Springfield Armory M1 Garand",
-                "value": 2000,
+                "value": 2500,
                 "description": "Iconic semi-automatic rifle, known for its use during World War II and the Korean War. It features a robust design and is chambered in .30-06 Springfield, offering significant stopping power and long-range accuracy.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
@@ -7520,7 +7548,9 @@
                 "magazinetype": "En bloc",
                 "magazinesystem": "M1 Garand",
                 "jamrate": 0.01,
-                "accessories": null,
+                "accessories": [
+                    {"name": "Bayonet Lug", "slot": "m1905_bayonet_lug", "current": null}
+                ],
                 "can_stack": false,
                 "parts": [
                     {"name": "M1 Garand Barrel", "slot": "m1_garand_barrel", "current": {"id": 931}, "durability": null, "type": "barrel"},
@@ -7532,7 +7562,7 @@
             },
             {
                 "name": "General Motors Inland Division M1 Carbine",
-                "value": 1200,
+                "value": 1500,
                 "description": "Lightweight semi-automatic carbine, known for its use during World War II and the Korean War. It features a compact design and is chambered in .30 Carbine, offering moderate stopping power and good close-range performance.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
@@ -7550,7 +7580,9 @@
                 "magazinetype": "Detachable box",
                 "magazinesystem": "M1 Carbine",
                 "jamrate": 0.01,
-                "accessories": null,
+                "accessories": [
+                    {"name": "Bayonet Lug", "slot": "m1_carbine_bayonet_lug", "current": null}
+                ],
                 "can_stack": false,
                 "parts": [
                     {"name": "M1 Carbine Barrel", "slot": "m1_carbine_barrel", "current": {"id": 934}, "durability": null, "type": "barrel"},
@@ -7563,7 +7595,7 @@
             },
             {
                 "name": "General Motors Inland Division M2 Carbine",
-                "value": 1300,
+                "value": 2000,
                 "description": "Select-fire version of the M1 Carbine, designed for increased versatility in combat. It features the same compact design as the original M1 Carbine but offers both semi-automatic and fully automatic firing modes, making it suitable for a wider range of combat scenarios.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
@@ -7581,7 +7613,9 @@
                 "magazinetype": "Detachable box",
                 "magazinesystem": "M1 Carbine",
                 "jamrate": 0.01,
-                "accessories": null,
+                "accessories": [
+                    {"name": "Bayonet Lug", "slot": "m1_carbine_bayonet_lug", "current": null}
+                ],
                 "can_stack": false,
                 "parts": [
                     {"name": "M2 Carbine Barrel", "slot": "m2_carbine_barrel", "current": {"id": 938}, "durability": null, "type": "barrel"},
@@ -7594,7 +7628,7 @@
             },
             {
                 "name": "Winchester Repeating Arms Company M3 Carbine",
-                "value": 1400,
+                "value": 2200,
                 "description": "Select-fire version of the M1 Carbine, designed for increased versatility in combat. It features the same compact design as the original M1 Carbine but offers both semi-automatic and fully automatic firing modes, making it suitable for a wider range of combat scenarios.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
@@ -7612,7 +7646,10 @@
                 "magazinetype": "Detachable box",
                 "magazinesystem": "M1 Carbine",
                 "jamrate": 0.01,
-                "accessories": null,
+                "accessories": [
+                    {"name": "Optic Mount", "slot": "m3_carbine_optic", "current": null},
+                    {"name": "Bayonet Lug", "slot": "m1_carbine_bayonet_lug", "current": null}
+                ],
                 "can_stack": false,
                 "parts": [
                     {"name": "M3 Carbine Barrel", "slot": "m3_carbine_barrel", "current": {"id": 942}, "durability": null, "type": "barrel"},
@@ -7625,7 +7662,7 @@
             },
             {
                 "name": "Springfield Armory M14",
-                "value": 1500,
+                "value": 2000,
                 "description": "Select-fire battle rifle, designed for increased versatility in combat. It features a robust design and is chambered in 7.62x51mm NATO, offering significant stopping power and long-range accuracy.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
@@ -7643,7 +7680,10 @@
                 "magazinetype": "Detachable box",
                 "magazinesystem": "M14",
                 "jamrate": 0.01,
-                "accessories": null,
+                "accessories": [
+                    {"name": "Optic Mount", "slot": "m14_optic", "current": null},
+                    {"name": "Bayonet Lug", "slot": "m6_bayonet_lug", "current": null}
+                ],
                 "can_stack": false,
                 "parts": [
                     {"name": "M14 Barrel", "slot": "m14_barrel", "current": {"id": 946}, "durability": null, "type": "barrel"},
@@ -7656,7 +7696,7 @@
             },
             {
                 "name": "Winchester Repeating Arms Company Model 1895",
-                "value": 1600,
+                "value": 3000,
                 "description": "Lever-action rifle, designed for hunting and self-defense. It features a robust design and is chambered in .30-06 Springfield, offering significant stopping power and long-range accuracy.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
@@ -7688,7 +7728,7 @@
             },
             {
                 "name": "Winchester Repeating Arms Company M1917 Enfield",
-                "value": 1700,
+                "value": 2000,
                 "description": "Bolt-action rifle, designed for increased reliability and durability in combat. It features a robust design and is chambered in .30-06 Springfield, offering significant stopping power and long-range accuracy.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
@@ -7720,7 +7760,7 @@
             },
             {
                 "name": "Royal Small Arms Factory Lee-Enfield No. 1 Mk. III",
-                "value": 1800,
+                "value": 2000,
                 "description": "Bolt-action rifle, designed for increased reliability and durability in combat. It features a robust design and is chambered in .303 British, offering significant stopping power and long-range accuracy.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
@@ -7740,7 +7780,9 @@
                 "accepts_clips": true,
                 "clip_type": "Lee-Enfield",
                 "jamrate": 0.01,
-                "accessories": null,
+                "accessories": [
+                    {"name": "Bayonet Lug", "slot": "lee_enfield_bayonet_lug", "current": null}
+                ],
                 "can_stack": false,
                 "parts": [
                     {"name": "Lee-Enfield No. 1 Mk. III Barrel", "slot": "lee_enfield_barrel", "current": {"id": 956}, "durability": null, "type": "barrel"},
@@ -7752,7 +7794,7 @@
             },
             {
                 "name": "Winchester Repeating Arms Company Model 70 All-Purpose",
-                "value": 1900,
+                "value": 2200,
                 "description": "Bolt-action rifle, designed for hunting and self-defense. It features a robust design and is chambered in .30-06 Springfield, offering significant stopping power and long-range accuracy.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
@@ -7770,7 +7812,9 @@
                 "magazinetype": "Internal box",
                 "capacity": 5,
                 "jamrate": 0.01,
-                "accessories": null,
+                "accessories": [
+                    {"name": "Optic Mount", "slot": "model_70_optic_mount", "current": null}
+                ],
                 "can_stack": false,
                 "parts": [
                     {"name": "Model 70 All-Purpose Barrel", "slot": "model_70_barrel", "current": {"id": 959}, "durability": null, "type": "barrel"},
@@ -7782,7 +7826,7 @@
             },
             {
                 "name": "Winchester Repeating Arms Company Model 70 Magnum",
-                "value": 2000,
+                "value": 2500,
                 "description": "Bolt-action rifle, designed for hunting and self-defense. It features a robust design and is chambered in .300 Winchester Magnum, offering significant stopping power and long-range accuracy.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
@@ -7800,7 +7844,9 @@
                 "magazinetype": "Internal box",
                 "capacity": 5,
                 "jamrate": 0.01,
-                "accessories": null,
+                "accessories": [
+                    {"name": "Optic Mount", "slot": "model_70_optic_mount", "current": null}
+                ],
                 "can_stack": false,
                 "parts": [
                     {"name": "Model 70 Magnum Barrel", "slot": "model_70_magnum_barrel", "current": {"id": 962}, "durability": null, "type": "barrel"},
@@ -7812,7 +7858,7 @@
             },
             {
                 "name": "FN Herstal FAL",
-                "value": 2500,
+                "value": 3000,
                 "description": "Right arm of the free world. Select-fire battle rifle, designed for increased versatility in combat. It features a robust design and is chambered in 7.62x51mm NATO, offering significant stopping power and long-range accuracy.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
@@ -7830,7 +7876,10 @@
                 "magazinetype": "Detachable box",
                 "magazinesystem": "FAL",
                 "jamrate": 0.01,
-                "accessories": null,
+                "accessories": [
+                    {"name": "Bayonet Lug", "slot": "fal_bayonet_lug", "current": null, "conflicts_with": ["muzzle_762"]},
+                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null, "conflicts_with": ["fal_bayonet_lug"]}
+                ],
                 "can_stack": false,
                 "parts": [
                     {"name": "FAL Barrel", "slot": "fal_barrel", "current": {"id": 965}, "durability": null, "type": "barrel"},
@@ -7843,7 +7892,7 @@
             },
             {
                 "name": "FN Herstal FAL Para",
-                "value": 2600,
+                "value": 3200,
                 "description": "Right arm of the free world. Select-fire battle rifle, designed for increased versatility in combat. It features a compact design and is chambered in 7.62x51mm NATO, offering significant stopping power and long-range accuracy.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
@@ -7861,7 +7910,10 @@
                 "magazinetype": "Detachable box",
                 "magazinesystem": "FAL",
                 "jamrate": 0.01,
-                "accessories": null,
+                "accessories": [
+                    {"name": "Bayonet Lug", "slot": "fal_bayonet_lug", "current": null, "conflicts_with": ["muzzle_762"]},
+                    {"name": "Muzzle Device", "slot": "muzzle_762", "current": null, "conflicts_with": ["fal_bayonet_lug"]}
+                ],
                 "can_stack": false,
                 "parts": [
                     {"name": "FAL Para Barrel", "slot": "fal_para_barrel", "current": {"id": 969}, "durability": null, "type": "barrel"},
@@ -7874,7 +7926,7 @@
             },
             {
                 "name": "Winchester Repeating Arms Company Model 1886",
-                "value": 1700,
+                "value": 4500,
                 "description": "Lever-action rifle, designed for hunting and self-defense. It features a robust design and is chambered in .45-70 Government, offering significant stopping power and long-range accuracy.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
@@ -7904,7 +7956,7 @@
             },
             {
                 "name": "Winchester Repeating Arms Company Model 1897 Riot Gun",
-                "value": 1800,
+                "value": 2200,
                 "description": "Pump-action shotgun, designed for hunting and self-defense. It features a robust design and is chambered in 12 gauge, offering significant stopping power and versatility.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
@@ -7934,7 +7986,7 @@
             },
             {
                 "name": "Winchester Repeating Arms Company Model 1897 Trench Gun",
-                "value": 1900,
+                "value": 2800,
                 "description": "Pump-action shotgun, designed for hunting and self-defense. It features a robust design and is chambered in 12 gauge, offering significant stopping power and versatility.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
@@ -7952,7 +8004,9 @@
                 "magazinetype": "Internal tube",
                 "capacity": 5,
                 "jamrate": 0.01,
-                "accessories": null,
+                "accessories": [
+                    {"name": "Bayonet Lug", "slot": "model_1897_bayonet_lug", "current": null}
+                ],
                 "can_stack": false,
                 "parts": [
                     {"name": "Model 1897 Trench Gun Barrel", "slot": "model_1897_trench_barrel", "current": {"id": 979}, "durability": null, "type": "barrel"},
@@ -7964,7 +8018,7 @@
             },
             {
                 "name": "Winchester Repeating Arms Company Model 1912",
-                "value": 2000,
+                "value": 2200,
                 "description": "Pump-action shotgun, designed for hunting and self-defense. It features a robust design and is chambered in 12 gauge, offering significant stopping power and versatility.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
@@ -7994,7 +8048,7 @@
             },
             {
                 "name": "FN Herstal Browning Auto-5",
-                "value": 2100,
+                "value": 2200,
                 "description": "Semi-automatic shotgun, designed for hunting and self-defense. It features a robust design and is chambered in 12 gauge, offering significant stopping power and versatility.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
@@ -8025,7 +8079,7 @@
             },
             {
                 "name": "Remington Arms Model 870 Wingmaster",
-                "value": 2200,
+                "value": 1200,
                 "description": "Pump-action shotgun, designed for hunting and self-defense. It features a robust design and is chambered in 12 gauge, offering significant stopping power and versatility.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
@@ -8055,7 +8109,7 @@
             },
             {
                 "name": "Ithaca Gun Company Model 37 Stakeout",
-                "value": 2300,
+                "value": 2000,
                 "description": "Pump-action shotgun, designed for hunting and self-defense. It features a compact design and is chambered in 12 gauge, offering significant stopping power and versatility.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
@@ -8085,7 +8139,7 @@
             },
             {
                 "name": "Ithaca Gun Company Model 37 Trench Gun",
-                "value": 2400,
+                "value": 2800,
                 "description": "Pump-action shotgun, designed for hunting and self-defense. It features a compact design and is chambered in 12 gauge, offering significant stopping power and versatility.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
@@ -8103,7 +8157,9 @@
                 "magazinetype": "Internal tube",
                 "capacity": 5,
                 "jamrate": 0.01,
-                "accessories": null,
+                "accessories": [
+                    {"name": "Bayonet Lug", "slot": "model_37_bayonet_lug", "current": null}
+                ],
                 "can_stack": false,
                 "parts": [
                     {"name": "Model 37 Trench Gun Barrel", "slot": "model_37_trench_barrel", "current": {"id": 995}, "durability": null, "type": "barrel"},
@@ -8115,7 +8171,7 @@
             },
             {
                 "name": "Winchester Repeating Arms Company Model 1887",
-                "value": 2500,
+                "value": 3500,
                 "description": "Lever-action shotgun, designed for hunting and self-defense. It features a robust design and is chambered in 12 gauge, offering significant stopping power and versatility.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
@@ -8145,7 +8201,7 @@
             },
             {
                 "name": "Savage Arms Corporation Thompson M1928",
-                "value": 3000,
+                "value": 24000,
                 "description": "Submachine gun, designed for close-quarters combat and self-defense. It features a robust design and is chambered in .45 ACP, offering significant stopping power and reliability.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
@@ -8176,7 +8232,7 @@
             },
             {
                 "name": "Auto-Ordnance Corporation Thompson M1A1",
-                "value": 3100,
+                "value": 22000,
                 "description": "Submachine gun, designed for close-quarters combat and self-defense. It features a robust design and is chambered in .45 ACP, offering significant stopping power and reliability.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
@@ -8207,7 +8263,7 @@
             },
             {
                 "name": "General Motors Inland Division M3 Grease Gun",
-                "value": 3200,
+                "value": 10000,
                 "description": "Submachine gun, designed for close-quarters combat and self-defense. It features a compact design and is chambered in .45 ACP, offering significant stopping power and reliability.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
@@ -8236,7 +8292,7 @@
             },
             {
                 "name": "General Motors Inland Division M3A1 Grease Gun",
-                "value": 3300,
+                "value": 10500,
                 "description": "Submachine gun, designed for close-quarters combat and self-defense. It features a compact design and is chambered in .45 ACP, offering significant stopping power and reliability.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
@@ -8265,7 +8321,7 @@
             },
             {
                 "name": "Royal Small Arms Factory Sten Mk. II",
-                "value": 3400,
+                "value": 8000,
                 "description": "Submachine gun, designed for close-quarters combat and self-defense. It features a compact design and is chambered in 9x19mm Parabellum, offering significant stopping power and reliability.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
@@ -8294,7 +8350,7 @@
             },
             {
                 "name": "Royal Small Arms Factory Sten Mk. II(s)",
-                "value": 3500,
+                "value": 9000,
                 "description": "Integrally suppressed submachine gun, designed for close-quarters combat and self-defense. It features a compact design and is chambered in 9x19mm Parabellum, offering significant stopping power and reliability.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
@@ -8324,7 +8380,7 @@
             },
             {
                 "name": "Winchester Repeating Arms Company M1918 Browning Automatic Rifle",
-                "value": 3600,
+                "value": 25000,
                 "description": "Light machine gun, designed for sustained fire support and suppression. It features a robust design and is chambered in .30-06 Springfield, offering significant stopping power and long-range accuracy.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
@@ -8355,7 +8411,7 @@
             },
             {
                 "name": "General Motors Saginaw Steering Gear Division M1919 Browning Machine Gun",
-                "value": 3700,
+                "value": 22000,
                 "description": "Medium machine gun, designed for sustained fire support and suppression. It features a robust design and is chambered in .30-06 Springfield, offering significant stopping power and long-range accuracy.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
@@ -8386,7 +8442,7 @@
             },
             {
                 "name": "General Motors Frigidaire Division M2HB Browning Machine Gun",
-                "value": 3800,
+                "value": 35000,
                 "description": "Heavy machine gun, designed for sustained fire support and suppression. It features a robust design and is chambered in .50 BMG, offering significant stopping power and long-range accuracy.",
                 "rarity": "Uncommon",
                 "random_quantity": false,
