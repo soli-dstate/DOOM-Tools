@@ -174,6 +174,31 @@
                 "parts": null,
                 "in_armory": true,
                 "armory_category": "Rifle"
+            },
+            {
+                "name": "CVA Scout XP 45-70 Government 20\"",
+                "value": 599.99,
+                "description": "A large and powerful single-shot rifle made by CVA, chambered in .45-70 Government, with a 20\" barrel, synthetic stock and a modern design inspired by classic scout rifles.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 3.54,
+                "id": 35,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "Scout XP",
+                "caliber": [".45-70 Government"],
+                "action": ["Single"],
+                "bolt": "closed",
+                "bolt_catch": false,
+                "cyclic": 40,
+                "magazinetype": "Break Action",
+                "capacity": 1,
+                "jamrate": 0.01,
+                "accessories": [
+                    {"name": "Picatinny Rail (Receiver)", "slot": "picatinny_optic", "current": null}
+                ],
+                "can_stack": false
             }
         ],
         "pistols": [
@@ -890,6 +915,62 @@
                 "armory_subcategory": "Handgun Ammunition",
                 "shop_category": "Ammunition",
                 "shop_subcategory": "Handgun Ammunition"
+            },
+            {
+                "name": ".45-70 Government",
+                "value": 2.1,
+                "description": "Cartridge used by the Springfield Trapdoor Rifle, among many other lever actions, used in the late 19th century and still popular today.",
+                "rarity": "Rare",
+                "random_quantity": {"min": 20, "max": 60},
+                "weight": 0.01,
+                "id": 36,
+                "caliber": ".45-70 Government",
+                "sounds": "45_70",
+                "pressure": 45000,
+                "variants": [
+                    {
+                        "name": "325gr Hornady LeveRevolution FTX JHP",
+                        "type": "JHP",
+                        "pen": "III",
+                        "modifiers": null,
+                        "rarity": "Uncommon",
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "300gr Fiocchi SJHP",
+                        "type": "JHP",
+                        "pen": "III",
+                        "modifiers": null,
+                        "rarity": "Uncommon",
+                        "tip": null,
+                        "lead_free": false
+                    },
+                    {
+                        "name": "250gr Hornady LeveRevolution Solid Copper",
+                        "type": "Solid Copper",
+                        "pen": "III",
+                        "modifiers": null,
+                        "rarity": "Rare",
+                        "tip": null,
+                        "lead_free": true
+                    },
+                    {
+                        "name": "300gr Remington Core-Lokt Polymer Tip",
+                        "type": "Polymer Tip",
+                        "pen": "III",
+                        "modifiers": null,
+                        "rarity": "Rare",
+                        "tip": null,
+                        "lead_free": false
+                    }
+                ],
+                "armory_category": "Ammunition",
+                "armory_subcategory": "Rifle Ammunition",
+                "armory_subcategory2": "Full Power Rifle Ammunition",
+                "shop_category": "Ammunition",
+                "shop_subcategory": "Rifle Ammunition",
+                "shop_subcategory2": "Full Power Rifle Ammunition"
             }
         ]
     }

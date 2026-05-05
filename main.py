@@ -6940,6 +6940,177 @@ class App:
 
         items =[]
         debug_info =[]
+
+        def _normalize_to_lower_set(value):
+            if value is None:
+                return set()
+            if isinstance(value, list):
+                return {str(v).strip().lower() for v in value if str(v).strip()}
+            if isinstance(value, str):
+                s = value.strip().lower()
+                return {s} if s else set()
+            s = str(value).strip().lower()
+            return {s} if s else set()
+
+        def _walk_item_tree(item, out_items, seen):
+            if not isinstance(item, dict):
+                return
+            oid = id(item)
+            if oid in seen:
+                return
+            seen.add(oid)
+            out_items.append(item)
+
+            contained_items = item.get("items")
+            if isinstance(contained_items, list):
+                for sub_item in contained_items:
+                    _walk_item_tree(sub_item, out_items, seen)
+
+            for field_name in ("parts", "subslots", "accessories"):
+                field_value = item.get(field_name)
+                if isinstance(field_value, list):
+                    for entry_data in field_value:
+                        if isinstance(entry_data, dict):
+                            current_item = entry_data.get("current")
+                            if isinstance(current_item, dict):
+                                _walk_item_tree(current_item, out_items, seen)
+
+        def _build_player_firearm_profile(current_save_data):
+            if not isinstance(current_save_data, dict):
+                return {"has_firearms":False}
+
+            collected_items =[]
+            seen = set()
+
+            hands = current_save_data.get("hands")
+            if isinstance(hands, dict):
+                for hand_item in hands.get("items", [])or[]:
+                    _walk_item_tree(hand_item, collected_items, seen)
+
+            for storage_item in current_save_data.get("storage", [])or[]:
+                _walk_item_tree(storage_item, collected_items, seen)
+
+            equipment = current_save_data.get("equipment", {})
+            if isinstance(equipment, dict):
+                for equipped in equipment.values():
+                    if isinstance(equipped, dict):
+                        _walk_item_tree(equipped, collected_items, seen)
+                    elif isinstance(equipped, list):
+                        for equipped_item in equipped:
+                            _walk_item_tree(equipped_item, collected_items, seen)
+
+            firearms = [it for it in collected_items if isinstance(it, dict)and it.get("firearm")]
+            if not firearms:
+                return {"has_firearms":False}
+
+            caliber_set = set()
+            magazine_set = set()
+            submag_set = set()
+            platform_set = set()
+            secondary_platform_set = set()
+
+            for firearm in firearms:
+                caliber_set.update(_normalize_to_lower_set(firearm.get("caliber")))
+                magazine_set.update(_normalize_to_lower_set(firearm.get("magazinesystem")))
+                submag_set.update(_normalize_to_lower_set(firearm.get("submagazinesystem")))
+                platform_set.update(_normalize_to_lower_set(firearm.get("platform")))
+                secondary_platform_set.update(_normalize_to_lower_set(firearm.get("secondary_platform")))
+
+            return {
+            "has_firearms":True,
+            "calibers":caliber_set,
+            "magazinesystems":magazine_set,
+            "submagazinesystems":submag_set,
+            "platforms":platform_set,
+            "secondary_platforms":secondary_platform_set
+            }
+
+        def _is_weapon_part_candidate(item_obj, table_name_hint):
+            if not isinstance(item_obj, dict)or item_obj.get("firearm"):
+                return False
+
+            if item_obj.get("attachment")or item_obj.get("part")or item_obj.get("part_type"):
+                return True
+
+            slot_name = str(item_obj.get("slot", "")).strip().lower()
+            if slot_name in {"weapon_slot", "attachment", "barrel", "receiver", "bolt", "trigger", "stock", "rail", "optic"}:
+                return True
+
+            hint = str(table_name_hint or "").strip().lower()
+            return hint in {"attachments", "parts", "firearm_parts", "weapon_parts", "optics", "barrels", "stocks", "receivers", "triggers", "bolts"}
+
+        compatibility_profile = _build_player_firearm_profile(save_data)if save_data else {"has_firearms":False}
+
+        def _compatibility_weight_multiplier(item_obj, table_name_hint = None):
+            if not isinstance(item_obj, dict):
+                return 1.0
+            if not compatibility_profile.get("has_firearms"):
+                return 1.0
+
+            is_firearm_item = bool(item_obj.get("firearm"))
+            is_ammo_item = bool(item_obj.get("caliber"))and not is_firearm_item and not item_obj.get("magazinesystem")
+            is_part_item = _is_weapon_part_candidate(item_obj, table_name_hint)
+
+            if not(is_firearm_item or is_ammo_item or is_part_item):
+                return 1.0
+
+            candidate_calibers = _normalize_to_lower_set(item_obj.get("caliber"))
+            candidate_mags = _normalize_to_lower_set(item_obj.get("magazinesystem"))
+            candidate_submags = _normalize_to_lower_set(item_obj.get("submagazinesystem"))
+            candidate_platforms = _normalize_to_lower_set(item_obj.get("platform"))
+            candidate_secondary_platforms = _normalize_to_lower_set(item_obj.get("secondary_platform"))
+
+            matches = 0
+            if candidate_calibers and candidate_calibers.intersection(compatibility_profile.get("calibers", set())):
+                matches +=1
+            if candidate_mags and candidate_mags.intersection(compatibility_profile.get("magazinesystems", set())):
+                matches +=1
+            if candidate_submags and candidate_submags.intersection(compatibility_profile.get("submagazinesystems", set())):
+                matches +=1
+
+            platform_overlap = set(candidate_platforms)
+            platform_overlap.update(candidate_secondary_platforms)
+            player_platforms = set(compatibility_profile.get("platforms", set()))
+            player_platforms.update(compatibility_profile.get("secondary_platforms", set()))
+            if platform_overlap and platform_overlap.intersection(player_platforms):
+                matches +=1
+
+            if is_ammo_item:
+                return 1.5 if matches >0 else 1.0
+            if is_part_item:
+                if matches <=0:
+                    return 1.0
+                return min(1.35 +(matches *0.12), 1.75)
+            if is_firearm_item:
+                if matches <=0:
+                    return 1.0
+                return min(1.28 +(matches *0.1), 1.7)
+
+            return 1.0
+
+        def _weighted_compatibility_pick(candidates, table_name_hint = None):
+            if not candidates:
+                return None
+            if len(candidates)==1:
+                return candidates[0]
+
+            weighted_candidates =[]
+            for candidate in candidates:
+                item_obj = candidate
+                candidate_table = table_name_hint
+                if isinstance(candidate, tuple)and candidate and isinstance(candidate[0], dict):
+                    item_obj = candidate[0]
+                    if len(candidate)>1 and isinstance(candidate[1], str):
+                        candidate_table = candidate[1]
+
+                mult = _compatibility_weight_multiplier(item_obj, candidate_table)
+                extra_slots = 0
+                if mult >1.0:
+                    extra_slots = max(1, int((mult -1.0)*3))
+                weighted_candidates.extend([candidate]*(1 +extra_slots))
+
+            return random.choice(weighted_candidates)if weighted_candidates else random.choice(candidates)
+
         try:
             if entry.get("type")=="table":
 
@@ -6962,6 +7133,8 @@ class App:
                     debug_info.append(f" Luck effect multiplier: {luck_effect}")
                     debug_info.append(f" Special chance: {special_chance}%")
                     debug_info.append(f" Available items in table: {len(table)}")
+                    if compatibility_profile.get("has_firearms"):
+                        debug_info.append(" Compatibility bias active for ammo/parts/firearms")
 
                 special_roll = random.random()*100
                 if global_variables.get("devmode", {}).get("value", False):
@@ -6989,7 +7162,14 @@ class App:
                     if luck_stat >0:
                         weight = weight *(1 +(luck_stat *luck_effect /100))
 
-                    count = max(1, int(weight))
+                    compatibility_mult = _compatibility_weight_multiplier(item, table_name)
+                    effective_weight = weight *compatibility_mult
+
+                    base_count = max(1, int(weight))
+                    count = max(1, int(effective_weight))
+                    if compatibility_mult >1.0 and count <=base_count:
+                        count = base_count +1
+
                     weighted_pool.extend([item]*count)
                     rarity_counts[item_rarity]= rarity_counts.get(item_rarity, 0)+count
 
@@ -7133,7 +7313,7 @@ class App:
                     if matching_items:
                         if multi_type =="or":
 
-                            chosen_item = random.choice(matching_items)
+                            chosen_item = _weighted_compatibility_pick(matching_items, table_name)
                             item_copy = chosen_item.copy()
                             item_copy["table_category"]= table_name
                             if global_variables.get("devmode", {}).get("value", False):
@@ -7305,7 +7485,7 @@ class App:
                     if matching_items:
                         if multi_type =="or":
 
-                            chosen_item, chosen_table = random.choice(matching_items)
+                            chosen_item, chosen_table = _weighted_compatibility_pick(matching_items)
                             item_copy = chosen_item.copy()
                             item_copy["table_category"]= chosen_table
                             if global_variables.get("devmode", {}).get("value", False):
@@ -11160,6 +11340,14 @@ class App:
             loc_label = customtkinter.CTkLabel(item_frame, text = f"Location: {location_text}", font = customtkinter.CTkFont(size = 10), text_color = "gray", anchor = "w")
             loc_label.pack(anchor = "w", padx = 10, pady =(0, 5))
 
+            purchase_price = item.get("_purchase_price")
+            if purchase_price is not None:
+                profit = sell_price - purchase_price
+                profit_str = (f"+{format_price(profit)}" if profit >= 0 else f"-{format_price(abs(profit))}")
+                profit_color = "#44cc44" if profit >= 0 else "#ff6644"
+                pp_label = customtkinter.CTkLabel(item_frame, text = f"Paid: {format_price(purchase_price)}  |  P&L: {profit_str}", font = customtkinter.CTkFont(size = 10), text_color = profit_color, anchor = "w")
+                pp_label.pack(anchor = "w", padx = 10, pady =(0, 3))
+
             def add_to_sell_cart(loc = location, i = item_idx, it = item, price = sell_price):
                 cart_key = f"{loc}:{i}"
                 if cart_key in[f"{s['location']}:{s['index']}"for s in sell_cart]:
@@ -11344,6 +11532,7 @@ class App:
                 for cart_entry in buy_cart:
                     item_copy = cart_entry["item"].copy()
                     item_copy.pop("_table_category", None)
+                    item_copy["_purchase_price"] = cart_entry["price"]
                     item_copy = add_subslots_to_item(item_copy)
                     if hardcore and item_copy.get("firearm") and "rounds_fired" not in item_copy:
                         item_copy["rounds_fired"] = random.randint(0, 2000)
@@ -16862,6 +17051,7 @@ class App:
             item_qty = item.get("quantity", 1)
             item_weight = item.get("weight", 0)*item_qty
             item_value = item.get("value", 0)
+            item_purchase_price = item.get("_purchase_price")
 
             display_text = f"{item_name} x{item_qty}"
             if item.get("consumable"):
@@ -16880,9 +17070,13 @@ class App:
             )
             name_label.grid(row = 0, column = 0, sticky = "w", padx = 15, pady =(10, 2))
 
+            item_info_parts = [f"Weight: {self._format_weight(item_weight)}", f"Value: {format_price(item_value)}"]
+            if item_purchase_price is not None:
+                item_info_parts.append(f"Paid: {format_price(item_purchase_price)}")
+
             item_info_label = customtkinter.CTkLabel(
             item_frame,
-            text = f"Weight: {self._format_weight(item_weight)} | Value: {format_price(item_value)}",
+            text = " | ".join(item_info_parts),
             font = customtkinter.CTkFont(size = 11),
             text_color = "gray",
             anchor = "w"
