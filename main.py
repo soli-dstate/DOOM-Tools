@@ -1572,6 +1572,16 @@ def validate_table_ids(secondary_platform=None):
                         if not target:
                             continue
 
+                        # Skip resolving to obvious ammunition/magazine entries when
+                        # resolving accessories/parts. Ammo entries commonly have
+                        # a 'caliber' field and lack 'type'/'slot', which indicates
+                        # an ID collision rather than a valid part.
+                        try:
+                            if isinstance(target, dict) and 'caliber' in target and not target.get('type') and not target.get('slot'):
+                                continue
+                        except Exception:
+                            pass
+
                         new_installed = _copy.deepcopy(target)
 
                         for k, v in overrides.items():
@@ -1584,6 +1594,12 @@ def validate_table_ids(secondary_platform=None):
 
                         if sub_attachment:
                             sub_target = id_map.get(sub_attachment)
+                            # don't place ammo into subslots
+                            try:
+                                if isinstance(sub_target, dict) and 'caliber' in sub_target and not sub_target.get('type') and not sub_target.get('slot'):
+                                    sub_target = None
+                            except Exception:
+                                pass
                             if sub_target and isinstance(new_installed.get('subslots'), list):
                                 placed = False
                                 for ss in new_installed['subslots']:
@@ -1652,6 +1668,13 @@ def validate_table_ids(secondary_platform=None):
                         target = id_map.get(target_id)
                         if not target:
                             continue
+
+                        try:
+                            if isinstance(target, dict) and 'caliber' in target and not target.get('type') and not target.get('slot'):
+                                continue
+                        except Exception:
+                            pass
+
                         import copy as _copy_p
                         new_part = _copy_p.deepcopy(target)
                         for k, v in overrides.items():

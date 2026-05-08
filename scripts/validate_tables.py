@@ -55,6 +55,134 @@ def _platforms_compatible(fplat, tplat, secondary=None):
         return False
 
 
+def _token_set(value):
+    tokens = set()
+    values = value if isinstance(value, (list, tuple, set)) else [value]
+    for entry in values:
+        if entry is None or isinstance(entry, dict):
+            continue
+        sval = str(entry).strip().lower()
+        if sval and sval != "null":
+            tokens.add(sval)
+    return tokens
+
+
+def _extract_ammo_fields(item):
+    if not isinstance(item, dict):
+        return set(), set()
+
+    ammo_names = set()
+    calibers = set()
+
+    ammo_names |= _token_set(item.get("ammo_type"))
+    ammo_names |= _token_set(item.get("ammunition"))
+    calibers |= _token_set(item.get("caliber"))
+
+    overrides = item.get("overrides")
+    if isinstance(overrides, dict):
+        ammo_names |= _token_set(overrides.get("ammo_type"))
+        ammo_names |= _token_set(overrides.get("ammunition"))
+        calibers |= _token_set(overrides.get("caliber"))
+
+    return ammo_names, calibers
+
+
+def _resolve_current_item(cur, id_map):
+    if isinstance(cur, int):
+        target = id_map.get(cur)
+        ref_overrides = {}
+    elif isinstance(cur, dict):
+        target_id = cur.get("id") if "id" in cur else None
+        if isinstance(target_id, int):
+            target = id_map.get(target_id)
+            ref_overrides = {k: v for k, v in cur.items() if k not in ("id", "sub_attachment")}
+        else:
+            target = cur
+            ref_overrides = {}
+    else:
+        return None
+
+    if not isinstance(target, dict):
+        return None
+
+    effective = dict(target)
+    if isinstance(target.get("overrides"), dict):
+        effective.update(target.get("overrides") or {})
+    if ref_overrides:
+        effective.update(ref_overrides)
+
+    # If we're resolving something coming from parts/accessories/subslots,
+    # avoid resolving to ammunition-like entries (they usually have 'caliber'
+    # and lack 'type'/'slot'). This prevents mistakenly treating ammo as a
+    # weapon part due to ID collisions across subtables.
+    try:
+        if isinstance(source, str) and source.lower() in ("parts", "accessories", "subslots"):
+            if ("caliber" in target) and (not target.get("type") and not target.get("slot")):
+                return None
+    except Exception:
+        pass
+
+    return effective
+
+
+def _collect_firearm_ammo_profiles(firearm, id_map):
+    profiles = []
+    base_names, base_calibers = _extract_ammo_fields(firearm)
+    profiles.append(("base firearm", base_names, base_calibers))
+
+    queue = []
+    for key in ("parts", "accessories", "subslots"):
+        entries = firearm.get(key) or []
+        if isinstance(entries, list):
+            for entry in entries:
+                if isinstance(entry, dict) and "current" in entry:
+                    queue.append((key, entry.get("current")))
+
+    seen = set()
+    while queue:
+        source, cur = queue.pop(0)
+        effective = _resolve_current_item(cur, id_map, source)
+        if not isinstance(effective, dict):
+            continue
+
+        marker = id(effective)
+        if marker in seen:
+            continue
+        seen.add(marker)
+
+        names, calibers = _extract_ammo_fields(effective)
+        if names or calibers:
+            profiles.append((source, names, calibers))
+
+        for nested_key in ("parts", "accessories", "subslots"):
+            nested = effective.get(nested_key) or []
+            if isinstance(nested, list):
+                for nested_entry in nested:
+                    if isinstance(nested_entry, dict) and "current" in nested_entry:
+                        queue.append((nested_key, nested_entry.get("current")))
+
+    return profiles
+
+
+def _magazine_matches_systems(mag_item, required_systems):
+    if not isinstance(mag_item, dict):
+        return False
+    if not required_systems:
+        return True
+    mag_systems = _token_set(mag_item.get("magazinesystem"))
+    return bool(mag_systems & required_systems)
+
+
+def _caliber_supported(item, caliber):
+    if not isinstance(item, dict):
+        return False
+    cal_set = _token_set(item.get("caliber"))
+    # If caliber is unspecified, treat as generic compatibility.
+    if not cal_set:
+        return True
+    return caliber in cal_set
+
+
 def validate_tables(tables_dir=None, secondary_platform=None):
     """
     Run every validation check that main.py's validate_table_ids() runs.
@@ -79,6 +207,7 @@ def validate_tables(tables_dir=None, secondary_platform=None):
     all_table_items = []
     table_pretty_names = {}
     table_hardcore = {}
+    table_magazines_by_file = {}
     referenced_slots_by_table = {}
     error_source = []  # (msg, table_file) — to split disabled vs active
 
@@ -103,6 +232,7 @@ def validate_tables(tables_dir=None, secondary_platform=None):
         # ── 1. Magazine compatibility ─────────────────────────────────────
         try:
             magazine_items = tables.get("magazines", []) or [] if isinstance(tables, dict) else []
+            table_magazines_by_file[table_file] = [m for m in magazine_items if isinstance(m, dict)]
             magazine_systems = set()
             for mag in magazine_items:
                 if isinstance(mag, dict):
@@ -214,13 +344,13 @@ def validate_tables(tables_dir=None, secondary_platform=None):
             errors.append(("ID Sequence", msg))
             error_source.append((msg, table_file))
 
+    id_to_item_by_table = {}
+    for it, tf, sub in all_table_items:
+        if isinstance(it, dict) and "id" in it:
+            id_to_item_by_table.setdefault(tf, {})[it["id"]] = it
+
     # ── 3. Hardcore mode validation ───────────────────────────────────────
     try:
-        id_to_item_by_table = {}
-        for it, tf, sub in all_table_items:
-            if isinstance(it, dict) and "id" in it:
-                id_to_item_by_table.setdefault(tf, {})[it["id"]] = it
-
         for item, tf, sub in all_table_items:
             if not isinstance(item, dict):
                 continue
@@ -275,8 +405,7 @@ def validate_tables(tables_dir=None, secondary_platform=None):
                 if name:
                     ammo_names_present.add(str(name).strip().lower())
                 calib = item.get("caliber")
-                if calib:
-                    ammo_calibers_present.add(str(calib).strip().lower())
+                ammo_calibers_present |= _token_set(calib)
     except Exception:
         pass
 
@@ -285,19 +414,106 @@ def validate_tables(tables_dir=None, secondary_platform=None):
             if not isinstance(item, dict) or not item.get("firearm"):
                 continue
             name = item.get("name") or "<unnamed>"
-            calib = item.get("caliber")
-            if calib:
-                calibs = calib if isinstance(calib, list) else [calib]
-                missing = [c for c in calibs if str(c).strip().lower() not in ammo_calibers_present]
-                if missing:
-                    msg = f"Firearm '{name}' in table '{table_pretty_names.get(tf, tf)}' references caliber '{missing}' but no ammunition with that caliber found."
+            display = table_pretty_names.get(tf, tf)
+            table_id_map = id_to_item_by_table.get(tf, {})
+            profiles = _collect_firearm_ammo_profiles(item, table_id_map)
+
+            required_calibers = set()
+            for src, prof_ammo_names, prof_calibers in profiles:
+                required_calibers |= prof_calibers
+
+                missing_profile_ammo = sorted(prof_ammo_names - ammo_names_present)
+                if missing_profile_ammo:
+                    msg = (
+                        f"Firearm '{name}' in table '{display}' has {src} override/profile requiring ammunition "
+                        f"{missing_profile_ammo} but no matching ammunition entry found."
+                    )
                     errors.append(("Ammunition", msg))
                     error_source.append((msg, tf))
-            ammo_type = item.get("ammo_type") or item.get("ammunition")
-            if ammo_type and str(ammo_type).strip().lower() not in ammo_names_present:
-                msg = f"Firearm '{name}' in table '{table_pretty_names.get(tf, tf)}' references ammunition '{ammo_type}' but no matching ammunition entry found."
-                errors.append(("Ammunition", msg))
-                error_source.append((msg, tf))
+
+                missing_profile_calibers = sorted(prof_calibers - ammo_calibers_present)
+                if missing_profile_calibers:
+                    msg = (
+                        f"Firearm '{name}' in table '{display}' has {src} override/profile requiring caliber(s) "
+                        f"{missing_profile_calibers} but no ammunition with those caliber(s) exists."
+                    )
+                    errors.append(("Ammunition", msg))
+                    error_source.append((msg, tf))
+
+            if item.get("has_magazine_in_pool") is not False and str(item.get("magazinetype", "")).lower() == "detachable box":
+                required_systems = _token_set(item.get("magazinesystem"))
+                if item.get("dualfeed"):
+                    required_systems |= _token_set(item.get("submagazinesystem"))
+
+                compatible_mags = [
+                    mag for mag in (table_magazines_by_file.get(tf) or [])
+                    if _magazine_matches_systems(mag, required_systems)
+                ]
+
+                if required_systems and not compatible_mags:
+                    msg = (
+                        f"Table '{display}': Firearm '{name}' has no compatible magazine items for "
+                        f"magazine systems {sorted(required_systems)}."
+                    )
+                    errors.append(("Magazine Compatibility", msg))
+                    error_source.append((msg, tf))
+                else:
+                    missing_mag_calibers = []
+                    for cal in sorted(required_calibers):
+                        if not any(_caliber_supported(mag, cal) for mag in compatible_mags):
+                            missing_mag_calibers.append(cal)
+                    if missing_mag_calibers:
+                        msg = (
+                            f"Table '{display}': Firearm '{name}' can accept caliber(s) {missing_mag_calibers} "
+                            f"across its ammo profiles, but no compatible magazine covers those caliber(s)."
+                        )
+                        errors.append(("Magazine Compatibility", msg))
+                        error_source.append((msg, tf))
+
+            firearm_platform = item.get("platform") or ""
+            item_secondary = item.get("secondary_platform") if isinstance(item, dict) else None
+            item_secondary = item_secondary or secondary_platform
+
+            # If the `parts` key is explicitly present and set to null,
+            # the firearm intentionally has no wear/replaceable parts.
+            # In that case, skip the part-compatibility checks so we
+            # don't raise spurious errors for weapons that simply don't use parts.
+            parts_key_present = isinstance(item, dict) and ("parts" in item)
+            parts_explicitly_null = parts_key_present and item.get("parts") is None
+
+            if not parts_explicitly_null:
+                part_candidates = []
+                for part_item, part_tf, part_sub in all_table_items:
+                    if part_tf != tf:
+                        continue
+                    if not isinstance(part_item, dict):
+                        continue
+                    if str(part_sub).lower() != "parts":
+                        continue
+                    pplat = part_item.get("platform") or ""
+                    if str(firearm_platform).strip() and str(pplat).strip() and not _platforms_compatible(firearm_platform, pplat, item_secondary):
+                        continue
+                    part_candidates.append(part_item)
+
+                for p in item.get("parts") or []:
+                    if not isinstance(p, dict):
+                        continue
+                    resolved = _resolve_current_item(p.get("current"), table_id_map, 'parts')
+                    if isinstance(resolved, dict):
+                        part_candidates.append(resolved)
+
+                missing_part_calibers = []
+                for cal in sorted(required_calibers):
+                    if not any(_caliber_supported(pc, cal) for pc in part_candidates):
+                        missing_part_calibers.append(cal)
+
+                if missing_part_calibers:
+                    msg = (
+                        f"Table '{display}': Firearm '{name}' can accept caliber(s) {missing_part_calibers}, "
+                        f"but no compatible part supports those caliber(s)."
+                    )
+                    errors.append(("Ammunition", msg))
+                    error_source.append((msg, tf))
     except Exception as e:
         warnings.append(("Ammunition", f"Ammunition check failed: {e}"))
 

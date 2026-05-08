@@ -26,6 +26,8 @@ from pathlib import Path
 from tkinter import Tk, filedialog
 from urllib.request import urlopen, Request
 import sys
+from datetime import datetime
+import base64
 
 os.system('cls' if os.name == 'nt' else 'clear')
 
@@ -226,6 +228,22 @@ def convert_to_ogg(src: Path, dst: Path, ffmpeg: Path) -> None:
         except Exception:
             pass
     
+    # Build metadata flags from source tags so ffmpeg writes Vorbis comments directly
+    try:
+        meta_map = extract_vorbis_tag_map(src)
+    except Exception:
+        meta_map = {}
+    metadata_flags: list[str] = []
+    for mk, mv in meta_map.items():
+        # Use only the first value for ffmpeg metadata and sanitize newlines
+        try:
+            val = (mv[0] if isinstance(mv, (list, tuple)) else mv) or ''
+            val = str(val).replace('\n', ' ').replace('\r', '')
+            # ffmpeg will write these as Vorbis comments; use lowercase keys
+            metadata_flags.extend(['-metadata', f'{mk}={val}'])
+        except Exception:
+            continue
+
     # Try each sample rate from highest to lowest until file is under MAX_FILE_SIZE
     for sample_rate in SAMPLE_RATES:
         if dst.exists():
@@ -237,9 +255,13 @@ def convert_to_ogg(src: Path, dst: Path, ffmpeg: Path) -> None:
         cmd = [
             str(ffmpeg), '-hide_banner', '-loglevel', 'error', '-y',
             '-i', str(src),
-            '-vn',  # Strip any video streams (audio only)
+            '-map', '0:a',  # map audio streams
+            '-map', '0:v?',  # map optional video streams (cover art)
+            '-map_metadata', '0',  # copy input metadata to output
+        ] + metadata_flags + [
             '-ar', str(sample_rate),
             '-c:a', 'libvorbis',
+            '-c:v', 'copy',
             str(dst)
         ]
         subprocess.run(cmd, check=True)
@@ -248,12 +270,270 @@ def convert_to_ogg(src: Path, dst: Path, ffmpeg: Path) -> None:
         if file_size <= MAX_FILE_SIZE:
             if sample_rate != SAMPLE_RATES[0]:
                 logging.info(f'  (resampled to {sample_rate} Hz, {file_size / 1024 / 1024:.2f} MB)')
+            try:
+                # Preserve original file timestamps and permissions where possible
+                shutil.copystat(src, dst)
+            except Exception:
+                pass
+            try:
+                copy_metadata_with_mutagen(src, dst)
+            except Exception:
+                pass
             break
-        
-        if sample_rate == MIN_SAMPLE_RATE:
-            # Already at minimum sample rate, keep the file as is
+        # If we've reached the minimum sample rate and the file is still too large,
+        # emit a warning and keep the current output as-is.
+        if file_size > MAX_FILE_SIZE and sample_rate == MIN_SAMPLE_RATE:
             logging.warning(f'  (warning: {file_size / 1024 / 1024:.2f} MB at minimum {MIN_SAMPLE_RATE} Hz)')
             break
+
+
+def copy_metadata_with_mutagen(src: Path, dst: Path) -> None:
+    """Attempt to copy metadata and embedded cover art from src to dst using mutagen.
+
+    This is a best-effort operation; failures are logged but do not stop conversion.
+    """
+    try:
+        from mutagen import File as MutagenFile
+        from mutagen.oggvorbis import OggVorbis
+        from mutagen.flac import Picture
+        import mutagen
+    except Exception as e:
+        logging.debug(f'mutagen not available or failed to import: {e}')
+        return
+
+    try:
+        src_file = MutagenFile(str(src))
+        if src_file is None:
+            logging.debug('mutagen could not open source file for metadata copy')
+            return
+
+        # Build a normalized Vorbis-comment style tag dictionary (lowercase keys)
+        vorbis_tags: dict[str, list[str]] = {}
+
+        # Prefer easy tags when available (already normalized)
+        try:
+            easy = MutagenFile(str(src), easy=True)
+            if easy and getattr(easy, 'tags', None):
+                for k, v in easy.tags.items():
+                    key = str(k).lower()
+                    if isinstance(v, (list, tuple)):
+                        vorbis_tags[key] = [str(x) for x in v]
+                    else:
+                        vorbis_tags[key] = [str(v)]
+        except Exception:
+            pass
+
+        # If no easy tags found, attempt to map ID3 frames to Vorbis-like keys
+        if not vorbis_tags:
+            try:
+                id3 = getattr(src_file, 'tags', None)
+                if id3 is not None:
+                    id3_map = {
+                        'TIT2': 'title', 'TPE1': 'artist', 'TALB': 'album',
+                        'TRCK': 'tracknumber', 'TDRC': 'date', 'TYER': 'date',
+                        'TCON': 'genre', 'TIT1': 'title'
+                    }
+                    # Handle ID3 frames
+                    for key in list(id3.keys()):
+                        try:
+                            frame = id3.get(key)
+                            if key.startswith('TXXX'):
+                                # TXXX: user-defined text frame with description
+                                for f in id3.getall('TXXX'):
+                                    desc = (getattr(f, 'desc', '') or '').strip()
+                                    tag_key = desc.lower() if desc else 'comment'
+                                    txt = getattr(f, 'text', None)
+                                    if txt:
+                                        vorbis_tags.setdefault(tag_key, []).extend([str(x) for x in txt])
+                            elif key.startswith('COMM'):
+                                for f in id3.getall('COMM'):
+                                    txt = getattr(f, 'text', None)
+                                    if txt:
+                                        vorbis_tags.setdefault('comment', []).extend([str(x) for x in txt])
+                            else:
+                                mapped = id3_map.get(key)
+                                if mapped:
+                                    txt = getattr(frame, 'text', None)
+                                    if txt:
+                                        vorbis_tags.setdefault(mapped, []).extend([str(x) for x in txt])
+                        except Exception:
+                            continue
+            except Exception:
+                pass
+
+        # Extract picture data if present in common containers
+        picture_data = None
+        picture_mime = None
+        try:
+            # MP3 ID3 APIC
+            if src_file.__class__.__name__.lower().startswith('mp3'):
+                id3 = getattr(src_file, 'tags', None)
+                if id3 and hasattr(id3, 'getall'):
+                    apics = id3.getall('APIC')
+                    if apics:
+                        picture_data = apics[0].data
+                        picture_mime = apics[0].mime
+        except Exception:
+            pass
+
+        try:
+            # FLAC pictures
+            if hasattr(src_file, 'pictures') and src_file.pictures:
+                pic = src_file.pictures[0]
+                picture_data = pic.data
+                picture_mime = getattr(pic, 'mime', None)
+        except Exception:
+            pass
+
+        try:
+            # MP4 / M4A cover art
+            if src_file.__class__.__name__.lower().startswith('mp4'):
+                tags = getattr(src_file, 'tags', None)
+                if tags and 'covr' in tags:
+                    covr = tags['covr']
+                    if covr:
+                        cover = covr[0]
+                        picture_data = bytes(cover)
+                        import imghdr
+                        imgtype = imghdr.what(None, picture_data)
+                        if imgtype:
+                            picture_mime = f'image/{imgtype}'
+        except Exception:
+            pass
+
+        # Open destination as OggVorbis to write Vorbis comments
+        try:
+            dst_vorbis = OggVorbis(str(dst))
+        except Exception:
+            dst_vorbis = MutagenFile(str(dst))
+            if dst_vorbis is None:
+                logging.debug('mutagen could not open destination file for metadata writing')
+                return
+
+        # Ensure tags container exists
+        if getattr(dst_vorbis, 'tags', None) is None:
+            try:
+                dst_vorbis.add_tags()
+            except Exception:
+                dst_vorbis.tags = {}
+
+        # Build a clean set of Vorbis-comment keys (prefer lowercase keys)
+        clean_tags: dict[str, list[str]] = {}
+        for k, v in list(vorbis_tags.items()):
+            key = str(k).lower()
+            vals = [str(x) for x in (v if isinstance(v, (list, tuple)) else [v])]
+            clean_tags[key] = vals
+
+        # Remove all existing tags to ensure only normalized Vorbis-comments remain
+        try:
+            for ek in list(getattr(dst_vorbis, 'tags', {}).keys()):
+                try:
+                    del dst_vorbis.tags[ek]
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+        # Write cleaned/normalized tags, add both lowercase and uppercase versions for compatibility
+        for key, vals in clean_tags.items():
+            try:
+                dst_vorbis.tags[key] = vals
+            except Exception:
+                logging.debug(f'Failed to set tag {key} on destination')
+            try:
+                dst_vorbis.tags[key.upper()] = vals
+            except Exception:
+                pass
+
+        # If we found a picture, encode as FLAC Picture and store as METADATA_BLOCK_PICTURE
+        if picture_data:
+            try:
+                pic = Picture()
+                pic.data = picture_data
+                pic.type = 3
+                pic.mime = picture_mime or 'image/jpeg'
+                pic.desc = ''
+                encoded = base64.b64encode(pic.write()).decode('ascii')
+                dst_vorbis.tags['METADATA_BLOCK_PICTURE'] = [encoded]
+            except Exception as e:
+                logging.debug(f'Failed to embed picture into destination: {e}')
+
+        try:
+            dst_vorbis.save()
+        except Exception as e:
+            logging.debug(f'Failed to save destination tags: {e}')
+
+    except Exception as e:
+        logging.debug(f'Unexpected error copying metadata: {e}')
+
+
+def extract_vorbis_tag_map(src: Path) -> dict[str, list[str]]:
+    """Extract a normalized Vorbis-comment style tag map from src (best-effort)."""
+    try:
+        from mutagen import File as MutagenFile
+    except Exception:
+        return {}
+
+    vorbis_tags: dict[str, list[str]] = {}
+    try:
+        src_file = MutagenFile(str(src))
+        if src_file is None:
+            return {}
+
+        # Try easy tags first
+        try:
+            easy = MutagenFile(str(src), easy=True)
+            if easy and getattr(easy, 'tags', None):
+                for k, v in easy.tags.items():
+                    key = str(k).lower()
+                    if isinstance(v, (list, tuple)):
+                        vorbis_tags[key] = [str(x) for x in v]
+                    else:
+                        vorbis_tags[key] = [str(v)]
+        except Exception:
+            pass
+
+        # If still empty, map ID3 frames
+        if not vorbis_tags:
+            try:
+                id3 = getattr(src_file, 'tags', None)
+                if id3 is not None:
+                    id3_map = {
+                        'TIT2': 'title', 'TPE1': 'artist', 'TALB': 'album',
+                        'TRCK': 'tracknumber', 'TDRC': 'date', 'TYER': 'date',
+                        'TCON': 'genre', 'TIT1': 'title'
+                    }
+                    for key in list(id3.keys()):
+                        try:
+                            frame = id3.get(key)
+                            if key.startswith('TXXX'):
+                                for f in id3.getall('TXXX'):
+                                    desc = (getattr(f, 'desc', '') or '').strip()
+                                    tag_key = desc.lower() if desc else 'comment'
+                                    txt = getattr(f, 'text', None)
+                                    if txt:
+                                        vorbis_tags.setdefault(tag_key, []).extend([str(x) for x in txt])
+                            elif key.startswith('COMM'):
+                                for f in id3.getall('COMM'):
+                                    txt = getattr(f, 'text', None)
+                                    if txt:
+                                        vorbis_tags.setdefault('comment', []).extend([str(x) for x in txt])
+                            else:
+                                mapped = id3_map.get(key)
+                                if mapped:
+                                    txt = getattr(frame, 'text', None)
+                                    if txt:
+                                        vorbis_tags.setdefault(mapped, []).extend([str(x) for x in txt])
+                        except Exception:
+                            continue
+            except Exception:
+                pass
+
+    except Exception:
+        return {}
+
+    return vorbis_tags
+        
 
 
 def main() -> int:
@@ -274,27 +554,65 @@ def main() -> int:
         return 2
 
     logging.info(f'Found {len(files)} audio file(s). Converting and renaming to track0..')
+    # Create a backup folder to store all originals before conversion
+    base_backup = folder / 'pre_conversion'
+    if base_backup.exists():
+        ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+        backup_dir = folder / f'pre_conversion_{ts}'
+    else:
+        backup_dir = base_backup
+    backup_dir.mkdir(parents=True, exist_ok=True)
+    logging.info(f'Original files will be moved to: {backup_dir}')
+
     converted_count = 0
     error_count = 0
     for i, src in enumerate(files):
         target = folder / f'track{i}.ogg'
         try:
-            # If already an ogg file and under size limit, just rename
-            if src.suffix.lower() == '.ogg' and src.stat().st_size <= MAX_FILE_SIZE:
-                # Remove target if exists, then rename
+            # Move the original into the backup folder first
+            backup_src = backup_dir / src.name
+            try:
+                # If src and backup_src are the same path, skip move
+                if src.resolve() != backup_src.resolve():
+                    shutil.move(str(src), str(backup_src))
+            except Exception as mov_exc:
+                logging.warning(f'Could not move {src.name} to backup folder: {mov_exc}')
+                backup_src = src
+
+            # If already an ogg file and under size limit, copy to target (preserve original in backup)
+            if backup_src.suffix.lower() == '.ogg' and backup_src.stat().st_size <= MAX_FILE_SIZE:
                 if target.exists():
-                    target.unlink()
-                src.rename(target)
+                    try:
+                        target.unlink()
+                    except Exception:
+                        pass
+                shutil.copy2(str(backup_src), str(target))
+                try:
+                    copy_metadata_with_mutagen(backup_src, target)
+                except Exception:
+                    pass
             else:
                 # Convert (and resample if needed) for non-ogg or oversized ogg files
-                convert_to_ogg(src, target, ffmpeg)
-            logging.info(f'{src.name} -> {target.name}')
+                convert_to_ogg(backup_src, target, ffmpeg)
+
+            logging.info(f'{src.name} -> {target.name} (original moved to {backup_dir.name})')
             converted_count += 1
         except subprocess.CalledProcessError:
             logging.error(f'Error converting {src.name}. Skipping.')
+            # Remove potentially partial target file
+            try:
+                if target.exists():
+                    target.unlink()
+            except Exception:
+                pass
             error_count += 1
         except Exception as exc:
             logging.error(f'Unexpected error for {src.name}: {exc}')
+            try:
+                if target.exists():
+                    target.unlink()
+            except Exception:
+                pass
             error_count += 1
 
     logging.info('Done.')
