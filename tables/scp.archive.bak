@@ -1161,7 +1161,7 @@
                     {"name": "Dovetail NVG Mount", "slot": "nvg_mount", "current": null},
                     {"name": "NVG battery pack", "slot": "nvg_battery", "current": null},
                     {"name": "Ear protection", "slot": "ear_protection", "current": null},
-                    {"name": "CSAD Mount", "slot": "CSAD", "current": null, "conflicts_with": ["face"]}
+                    {"name": "CSAD Mount", "slot": "CSAD", "current": null, "conflicts_with": {"type": "main", "slot": "face"}}
                 ]
             },
             {

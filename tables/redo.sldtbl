@@ -6610,7 +6610,7 @@
                 "id": 1051,
                 "firearm": true,
                 "type": "conventional",
-                "subtype": "submachine_gun",
+                "subtype": "smg",
                 "platform": "Bizon",
                 "caliber": ["9x19mm Parabellum", "9x19mm NATO"],
                 "action": ["Semi", "Auto"],
@@ -6643,7 +6643,7 @@
                 "id": 1052,
                 "firearm": true,
                 "type": "conventional",
-                "subtype": "submachine_gun",
+                "subtype": "smg",
                 "platform": "Vityaz",
                 "caliber": ["9x19mm Parabellum", "9x19mm NATO"],
                 "action": ["Semi", "Auto"],
@@ -6676,7 +6676,7 @@
                 "id": 1053,
                 "firearm": true,
                 "type": "conventional",
-                "subtype": "submachine_gun",
+                "subtype": "smg",
                 "platform": "Vityaz",
                 "caliber": ["9x19mm Parabellum", "9x19mm NATO"],
                 "action": ["Semi", "Auto"],
@@ -8831,7 +8831,7 @@
             },
             {
                 "name": "Izhevsk AK-47 Type 1",
-                "value": 10000,
+                "value": 50000,
                 "description": "The AK-47 Type 1 was the original version of the AK-47 assault rifle, developed by the Soviet arms designer Mikhail Kalashnikov in the late 1940s. It was chambered in 7.62x39mm and featured a gas-operated mechanism with a rotating bolt. The AK-47 Type 1 was widely used by Soviet forces and their allies during the Cold War, and it became one of the most iconic and widely produced assault rifles in history.",
                 "rarity": "Legendary",
                 "random_quantity": false,
@@ -11564,7 +11564,7 @@
                 "name": "General Motors Frigidaire Division M2HB Browning Machine Gun",
                 "value": 35000,
                 "description": "Heavy machine gun, designed for sustained fire support and suppression. It features a robust design and is chambered in .50 BMG, offering significant stopping power and long-range accuracy.",
-                "rarity": "Uncommon",
+                "rarity": "Mythic",
                 "random_quantity": false,
                 "weight": 58.0,
                 "id": 829,
@@ -33567,7 +33567,7 @@
                     {
                         "name": "M855 Ball",
                         "type": "FMJ",
-                        "pen": "IIIa",
+                        "pen": "III",
                         "modifiers": null,
                         "rarity": "Common",
                         "tip": "#087300",
@@ -33576,7 +33576,7 @@
                     {
                         "name": "M855LF Ball",
                         "type": "FMJ",
-                        "pen": "IIIa",
+                        "pen": "III",
                         "modifiers": null,
                         "rarity": "Uncommon",
                         "tip": "#087300",
@@ -33585,7 +33585,7 @@
                     {
                         "name": "M855A1 EPR",
                         "type": "FMJ",
-                        "pen": "III",
+                        "pen": "III+",
                         "modifiers": null,
                         "rarity": "Uncommon",
                         "tip": "#787168",
@@ -33594,7 +33594,7 @@
                     {
                         "name": "M856 Tracer",
                         "type": "Tracer",
-                        "pen": "IIIa",
+                        "pen": "III",
                         "modifiers": {"stats": {"aim": 1, "stealth": -1}},
                         "rarity": "Uncommon",
                         "tip": "#ff7700",
@@ -33603,7 +33603,7 @@
                     {
                         "name": "M856A1 Tracer",
                         "type": "Tracer",
-                        "pen": "III",
+                        "pen": "III+",
                         "modifiers": {"stats": {"aim": 1, "stealth": -1}},
                         "rarity": "Rare",
                         "tip": "#c71414",
@@ -33639,7 +33639,7 @@
                     {
                         "name": "Mk 262 Mod 1 Match",
                         "type": "FMJ",
-                        "pen": "IIIa",
+                        "pen": "III",
                         "modifiers": {"stats": {"aim": 1}},
                         "rarity": "Rare",
                         "tip": null,
@@ -33648,7 +33648,7 @@
                     {
                         "name": "SS109 Ball",
                         "type": "FMJ",
-                        "pen": "IIIa",
+                        "pen": "III",
                         "modifiers": null,
                         "rarity": "Common",
                         "tip": "#087300",
@@ -33657,7 +33657,7 @@
                     {
                         "name": "C77 Ball",
                         "type": "FMJ",
-                        "pen": "IIIa",
+                        "pen": "III",
                         "modifiers": null,
                         "rarity": "Common",
                         "tip": "#087300",
@@ -33666,7 +33666,7 @@
                     {
                         "name": "C78 Tracer",
                         "type": "Tracer",
-                        "pen": "IIIa",
+                        "pen": "III",
                         "modifiers": {"stats": {"aim": 1, "stealth": -1}},
                         "rarity": "Uncommon",
                         "tip": "#ff7700",
@@ -33675,7 +33675,7 @@
                     {
                         "name": "Type O Ball",
                         "type": "FMJ",
-                        "pen": "IIIa",
+                        "pen": "III",
                         "modifiers": null,
                         "rarity": "Common",
                         "tip": "#087300",
@@ -33684,7 +33684,7 @@
                     {
                         "name": "Type T Tracer",
                         "type": "Tracer",
-                        "pen": "IIIa",
+                        "pen": "III",
                         "modifiers": {"stats": {"aim": 1, "stealth": -1}},
                         "rarity": "Uncommon",
                         "tip": "#ff7700",
@@ -33693,7 +33693,7 @@
                     {
                         "name": "DM11 Ball",
                         "type": "FMJ",
-                        "pen": "IIIa",
+                        "pen": "III",
                         "modifiers": null,
                         "rarity": "Common",
                         "tip": "#087300",
@@ -33702,7 +33702,7 @@
                     {
                         "name": "DM11A1 EPR",
                         "type": "FMJ",
-                        "pen": "III",
+                        "pen": "III+",
                         "modifiers": null,
                         "rarity": "Uncommon",
                         "tip": "#787168",
@@ -33711,7 +33711,7 @@
                     {
                         "name": "DM21 Tracer",
                         "type": "Tracer",
-                        "pen": "IIIa",
+                        "pen": "III",
                         "modifiers": {"stats": {"aim": 1, "stealth": -1}},
                         "rarity": "Uncommon",
                         "tip": "#ff7700",
@@ -38826,6 +38826,32 @@
                 "armory_subcategory": "Handgun Ammunition",
                 "shop_category": "Ammunition",
                 "shop_subcategory": "Handgun Ammunition"
+            }
+        ],
+        "stores": [
+            {
+                "name": "Arms Dealer",
+                "type": "store",
+                "shopkeeper": "John Doe",
+                "music": true,
+                "playlist": ["market"],
+                "used_firearm_chance": 45,
+                "inventory": [
+                    {"type": "table", "table": "civilian_firearms", "rarity": "common"},
+                    {"type": "table", "table": "military_firearms", "rarity": "rare"},
+                    {"type": "table", "table": "historical_firearms", "rarity": "legendary"},
+                    {"type": "table", "table": "ammunition", "rarity": "common"},
+                    {"type": "table", "table": "magazines", "rarity": "common"},
+                    {"type": "table", "table": "parts", "rarity": "common"}
+                ],
+                "inventory_quantity": {"min": 100, "max": 150},
+                "prices": {
+                    "buy": 0.75,
+                    "sell": 1.25
+                },
+                "can_order_ammo": true,
+                "restock_time_minutes": 30,
+                "accepts_trades": true
             }
         ]
     }

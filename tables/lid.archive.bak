@@ -9421,7 +9421,7 @@
                     {"name": "Dovetail NVG Mount", "slot": "nvg_mount", "current": null},
                     {"name": "NVG battery pack", "slot": "nvg_battery", "current": null},
                     {"name": "Ear protection", "slot": "ear_protection", "current": null},
-                    {"name": "CSAD Mount", "slot": "CSAD", "current": null, "conflicts_with": ["face"]}
+                    {"name": "CSAD Mount", "slot": "CSAD", "current": null, "conflicts_with": {"type": "main", "slot": "face"}}
                 ]
             },
             {
@@ -9550,7 +9550,7 @@
                     {"name": "Left 6x6 Armor Slot", "slot": "6x6_armor", "current": null},
                     {"name": "Right 6x6 Armor Slot", "slot": "6x6_armor", "current": null},
                     {"name": "MOLLE Webbing front", "slot": "molle_front", "current": null},
-                    {"name": "MOLLE Webbing back", "slot": "molle_back", "current": null, "conflicts_with": ["back"]},
+                    {"name": "MOLLE Webbing back", "slot": "molle_back", "current": null, "conflicts_with": {"type": "main", "slot": "back"}},
                     {"name": "MOLLE Webbing left side", "slot": "molle_side", "current": null},
                     {"name": "MOLLE Webbing right side", "slot": "molle_side", "current": null}
                 ],
@@ -9788,7 +9788,7 @@
                     {"name": "Left 6x6 Armor Slot", "slot": "6x6_armor", "current": null},
                     {"name": "Right 6x6 Armor Slot", "slot": "6x6_armor", "current": null},
                     {"name": "MOLLE Webbing front", "slot": "molle_front", "current": null},
-                    {"name": "MOLLE Webbing back", "slot": "molle_back", "current": null, "conflicts_with": ["back"]},
+                    {"name": "MOLLE Webbing back", "slot": "molle_back", "current": null, "conflicts_with": {"type": "main", "slot": "back"}},
                     {"name": "MOLLE Webbing left side", "slot": "molle_side", "current": null},
                     {"name": "MOLLE Webbing right side", "slot": "molle_side", "current": null}
                 ],
@@ -10116,7 +10116,7 @@
                     {"name": "Left 6x6 Armor Slot", "slot": "6x6_armor", "current": null},
                     {"name": "Right 6x6 Armor Slot", "slot": "6x6_armor", "current": null},
                     {"name": "MOLLE Webbing front", "slot": "molle_front", "current": null},
-                    {"name": "MOLLE Webbing back", "slot": "molle_back", "current": null, "conflicts_with": ["back"]},
+                    {"name": "MOLLE Webbing back", "slot": "molle_back", "current": null, "conflicts_with": {"type": "main", "slot": "back"}},
                     {"name": "MOLLE Webbing left side", "slot": "molle_side", "current": null},
                     {"name": "MOLLE Webbing right side", "slot": "molle_side", "current": null}
                 ],
@@ -10383,7 +10383,7 @@
                     {"name": "Left 6x6 Armor Slot", "slot": "6x6_armor", "current": null},
                     {"name": "Right 6x6 Armor Slot", "slot": "6x6_armor", "current": null},
                     {"name": "MOLLE Webbing front", "slot": "molle_front", "current": null},
-                    {"name": "MOLLE Webbing back", "slot": "molle_back", "current": null, "conflicts_with": ["back"]},
+                    {"name": "MOLLE Webbing back", "slot": "molle_back", "current": null, "conflicts_with": {"type": "main", "slot": "back"}},
                     {"name": "MOLLE Webbing left side", "slot": "molle_side", "current": null},
                     {"name": "MOLLE Webbing right side", "slot": "molle_side", "current": null}
                 ],
@@ -10407,7 +10407,7 @@
                     {"name": "Front Armor Slot", "slot": "front_armor", "current": null},
                     {"name": "Back Armor Slot", "slot": "back_armor", "current": null},
                     {"name": "MOLLE Webbing front", "slot": "molle_front", "current": null},
-                    {"name": "MOLLE Webbing back", "slot": "molle_back", "current": null, "conflicts_with": ["back"]},
+                    {"name": "MOLLE Webbing back", "slot": "molle_back", "current": null, "conflicts_with": {"type": "main", "slot": "back"}},
                     {"name": "MOLLE Webbing left side", "slot": "molle_side", "current": null},
                     {"name": "MOLLE Webbing right side", "slot": "molle_side", "current": null}
                 ],
@@ -10432,7 +10432,7 @@
                     {"name": "Front Armor Slot", "slot": "front_armor", "current": null},
                     {"name": "Back Armor Slot", "slot": "back_armor", "current": null},
                     {"name": "MOLLE Webbing front", "slot": "molle_front", "current": null},
-                    {"name": "MOLLE Webbing back", "slot": "molle_back", "current": null, "conflicts_with": ["back"]},
+                    {"name": "MOLLE Webbing back", "slot": "molle_back", "current": null, "conflicts_with": {"type": "main", "slot": "back"}},
                     {"name": "MOLLE Webbing left side", "slot": "molle_side", "current": null},
                     {"name": "MOLLE Webbing right side", "slot": "molle_side", "current": null}
                 ],
@@ -10459,7 +10459,7 @@
                     {"name": "Left 6x6 Armor Slot", "slot": "6x6_armor", "current": null},
                     {"name": "Right 6x6 Armor Slot", "slot": "6x6_armor", "current": null},
                     {"name": "MOLLE Webbing front", "slot": "molle_front", "current": null},
-                    {"name": "MOLLE Webbing back", "slot": "molle_back", "current": null, "conflicts_with": ["back"]},
+                    {"name": "MOLLE Webbing back", "slot": "molle_back", "current": null, "conflicts_with": {"type": "main", "slot": "back"}},
                     {"name": "MOLLE Webbing left side", "slot": "molle_side", "current": null},
                     {"name": "MOLLE Webbing right side", "slot": "molle_side", "current": null}
                 ],
@@ -10486,7 +10486,7 @@
                     {"name": "Left 6x6 Armor Slot", "slot": "6x6_armor", "current": null},
                     {"name": "Right 6x6 Armor Slot", "slot": "6x6_armor", "current": null},
                     {"name": "MOLLE Webbing front", "slot": "molle_front", "current": null},
-                    {"name": "MOLLE Webbing back", "slot": "molle_back", "current": null, "conflicts_with": ["back"]},
+                    {"name": "MOLLE Webbing back", "slot": "molle_back", "current": null, "conflicts_with": {"type": "main", "slot": "back"}},
                     {"name": "MOLLE Webbing left side", "slot": "molle_side", "current": null},
                     {"name": "MOLLE Webbing right side", "slot": "molle_side", "current": null}
                 ],
@@ -10511,7 +10511,7 @@
                     {"name": "Left 6x6 Armor Slot", "slot": "6x6_armor", "current": null},
                     {"name": "Right 6x6 Armor Slot", "slot": "6x6_armor", "current": null},
                     {"name": "MOLLE Webbing front", "slot": "molle_front", "current": null},
-                    {"name": "MOLLE Webbing back", "slot": "molle_back", "current": null, "conflicts_with": ["back"]},
+                    {"name": "MOLLE Webbing back", "slot": "molle_back", "current": null, "conflicts_with": {"type": "main", "slot": "back"}},
                     {"name": "MOLLE Webbing left side", "slot": "molle_side", "current": null},
                     {"name": "MOLLE Webbing right side", "slot": "molle_side", "current": null}
                 ],

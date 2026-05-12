@@ -649,6 +649,7 @@ def get_current_table_path():
     return None
 
 _currency_cache = {"rates": {}, "last_fetched": 0, "lock": threading.Lock()}
+_table_currency_cache = {"path": None, "mtime": None, "currency": "USD", "lock": threading.Lock()}
 
 _currency_symbols = {
     "USD": "$", "EUR": "€", "GBP": "£", "JPY": "¥", "CNY": "¥",
@@ -681,9 +682,32 @@ def _fetch_exchange_rates():
 
 def _get_table_currency():
     try:
+        table_path = get_current_table_path()
+        if table_path and os.path.exists(table_path):
+            try:
+                mtime = os.path.getmtime(table_path)
+            except Exception:
+                mtime = None
+            with _table_currency_cache["lock"]:
+                if _table_currency_cache["path"] == table_path and _table_currency_cache["mtime"] == mtime:
+                    return _table_currency_cache["currency"] or 'USD'
+            try:
+                with open(table_path, 'r', encoding='utf-8') as tf:
+                    td = json.load(tf)
+                cur = ((td or {}).get('additional_settings') or {}).get('currency', 'USD') or 'USD'
+                with _table_currency_cache["lock"]:
+                    _table_currency_cache["path"] = table_path
+                    _table_currency_cache["mtime"] = mtime
+                    _table_currency_cache["currency"] = cur
+                return cur
+            except Exception:
+                pass
+
         tbl = globals().get('table_data')
         if isinstance(tbl, dict):
-            return (tbl.get('additional_settings') or {}).get('currency', 'USD') or 'USD'
+            cur = (tbl.get('additional_settings') or {}).get('currency')
+            if cur:
+                return cur
     except Exception:
         pass
     return 'USD'
@@ -696,10 +720,12 @@ def format_price(amount_usd):
         with _currency_cache["lock"]:
             rates = _currency_cache["rates"]
         rate = rates.get(currency)
-        if rate is None:
-            return f"${amount_usd:,.2f}" if isinstance(amount_usd, float) else f"${amount_usd:,}"
-        converted = float(amount_usd) * float(rate)
         symbol = _currency_symbols.get(currency, currency + " ")
+        if rate is None:
+            if currency in ("JPY", "KRW"):
+                return f"{symbol}{float(amount_usd):,.0f}"
+            return f"{symbol}{float(amount_usd):,.2f}"
+        converted = float(amount_usd) * float(rate)
         if currency in ("JPY", "KRW"):
             return f"{symbol}{converted:,.0f}"
         return f"{symbol}{converted:,.2f}"
@@ -2960,6 +2986,63 @@ RARITY_SALE_MULTIPLIERS = {
     "Mythic": 4.0,
 }
 
+def _safe_float(val, default = None):
+    try:
+        return float(val)
+    except (TypeError, ValueError):
+        return default
+
+def _get_ammo_variant_labels(variant_info):
+    labels = []
+    if not isinstance(variant_info, dict):
+        return labels
+
+    dirtiness_modifier = _safe_float(variant_info.get("dirtiness_modifier"), 1.0)
+    if dirtiness_modifier is not None and dirtiness_modifier > 1.0:
+        labels.append("Corrosive")
+
+    usable_casing_chance = _safe_float(variant_info.get("usable_casing_chance"), None)
+    if usable_casing_chance is not None and abs(usable_casing_chance - 10.0) < 1e-9:
+        labels.append("Steel Case")
+
+    return labels
+
+def _apply_ammo_variant_data(item_obj, ammo_def = None, variant_info = None):
+    if not isinstance(item_obj, dict) or not isinstance(variant_info, dict):
+        return item_obj
+
+    for key in [
+        "type", "pen", "modifiers", "tip", "lead_free", "jam_modifier",
+        "price_modifier", "usable_casing_chance", "dirtiness_modifier"
+    ]:
+        if key in variant_info:
+            item_obj[key] = variant_info.get(key)
+
+    if variant_info.get("pressure_override"):
+        item_obj["pressure"] = variant_info.get("pressure_override")
+
+    rarity_val = variant_info.get("rarity") or item_obj.get("rarity")
+    if not rarity_val and isinstance(ammo_def, dict):
+        rarity_val = ammo_def.get("rarity")
+    item_obj["rarity"] = rarity_val or "Common"
+
+    labels = _get_ammo_variant_labels(variant_info)
+    if labels:
+        item_obj["ammo_labels"] = labels
+    item_obj["corrosive"] = "Corrosive" in labels
+    if "Steel Case" in labels:
+        item_obj["casing_material"] = "Steel"
+
+    base_value = _safe_float(item_obj.get("value"), None)
+    if base_value is None and isinstance(ammo_def, dict):
+        base_value = _safe_float(ammo_def.get("value"), 0.0)
+    if base_value is not None:
+        price_modifier = _safe_float(variant_info.get("price_modifier"), 1.0) or 1.0
+        rarity_mult = _safe_float(RARITY_SALE_MULTIPLIERS.get(item_obj.get("rarity") or "Common", 1.0), 1.0) or 1.0
+        item_obj["value"] = max(0.01, float(base_value) * price_modifier * rarity_mult)
+
+    return item_obj
+
 # ── Market system ─────────────────────────────────────────────────────────────
 # Table-category → market segment mapping
 _MARKET_TABLE_SEGMENTS = {
@@ -3157,6 +3240,26 @@ def _get_market_seed_for_store(store_name):
     day_key = _get_market_day_key()
     seed_int = int(_hashlib.sha256(f"store_stock_v1_{day_key}_{store_name}".encode()).hexdigest(), 16) & 0xFFFFFFFF
     return seed_int
+
+def _get_seeded_store_firearm_rounds_fired(item, store_name, item_position, used_chance = 0.40):
+    """Return deterministic rounds_fired for shop firearms, or None for new stock."""
+    day_key = _get_market_day_key()
+    item_id = item.get("id", "")
+    item_name = item.get("name", "")
+    seed_payload = f"store_condition_v1_{day_key}_{store_name}_{item_id}_{item_name}_{item_position}"
+    seed_int = int(_hashlib.sha256(seed_payload.encode()).hexdigest(), 16) & 0xFFFFFFFF
+    rng = random.Random(seed_int)
+
+    if rng.random() >= max(0.0, min(1.0, float(used_chance))):
+        return None
+
+    # Bias hard toward lightly-used guns, keep a rare absurd high-mileage tail.
+    roll = rng.random()
+    if roll < 0.82:
+        return int(1000 + ((rng.random() ** 1.5) * 4000))
+    if roll < 0.97:
+        return int(5000 + ((rng.random() ** 1.2) * 25000))
+    return int(60000 + (rng.random() * 30000))
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _apply_sale_modifiers(base_value, item, table_data=None):
@@ -3172,6 +3275,20 @@ def _apply_sale_modifiers(base_value, item, table_data=None):
         rf = item.get("rounds_fired", 0)
         if isinstance(rf, (int, float)) and rf > 0:
             value *= max(0.1, 1.0 - (rf / 75000.0))
+    return value
+
+def _get_depreciated_item_value(base_value, item):
+    """Return base value after firearm wear depreciation."""
+    value = float(base_value or 0)
+    if not isinstance(item, dict) or not item.get("firearm"):
+        return value
+    rf = item.get("rounds_fired")
+    try:
+        rf = float(rf) if rf is not None else 0.0
+    except (TypeError, ValueError):
+        rf = 0.0
+    if rf > 0:
+        value *= max(0.1, 1.0 - (rf / 75000.0))
     return value
 
 def _randomize_part_durability(weapon):
@@ -3878,9 +3995,6 @@ class App:
         if not isinstance(round_data, dict):
             return round_data
 
-        if round_data.get("variant")and round_data.get("variant")not in["Unknown", "unknown", None, ""]:
-            return round_data
-
         if ammo_table is None:
             ammo_table = self._get_ammo_table_data()
 
@@ -3903,17 +4017,19 @@ class App:
 
                 if cal_match:
                     variants = ammo.get("variants", [])
-                    if variants:
-                        first_variant = variants[0]
-                        round_data["variant"]= first_variant.get("name", "FMJ")
-                        if first_variant.get("type"):
-                            round_data["type"]= first_variant.get("type")
-                        if first_variant.get("pen"):
-                            round_data["pen"]= first_variant.get("pen")
-                        if first_variant.get("tip"):
-                            round_data["tip"]= first_variant.get("tip")
-                        if first_variant.get("modifiers"):
-                            round_data["modifiers"]= first_variant.get("modifiers")
+                    chosen_variant = None
+                    existing_variant_name = round_data.get("variant")
+                    if existing_variant_name and existing_variant_name not in["Unknown", "unknown", None, ""]:
+                        for _v in variants:
+                            if isinstance(_v, dict) and _v.get("name") == existing_variant_name:
+                                chosen_variant = _v
+                                break
+                    if chosen_variant is None and variants:
+                        chosen_variant = variants[0]
+
+                    if chosen_variant:
+                        round_data["variant"] = chosen_variant.get("name", existing_variant_name or "FMJ")
+                        _apply_ammo_variant_data(round_data, ammo, chosen_variant)
                         return round_data
                     break
 
@@ -9255,6 +9371,12 @@ class App:
                         info_parts.append(f"Caliber: {cal}")
                     if item.get("rarity"):
                         info_parts.append(f"Rarity: {item.get('rarity')}")
+                    if item.get("type"):
+                        info_parts.append(f"Type: {item.get('type')}")
+                    if item.get("pen"):
+                        info_parts.append(f"Pen: {item.get('pen')}")
+                    if item.get("ammo_labels") and isinstance(item.get("ammo_labels"), list):
+                        info_parts.append(" / ".join(str(x) for x in item.get("ammo_labels") if x))
 
                     if info_parts:
                         info_label = customtkinter.CTkLabel(item_frame, text = " | ".join(info_parts), font = customtkinter.CTkFont(size = 10), text_color = "orange")
@@ -9264,11 +9386,14 @@ class App:
                         variant_info_parts =[]
                         for v in variants:
                             pen = v.get("pen", "?")
+                            ammo_type = v.get("type", "?")
                             lf = v.get("lead_free", False)
                             lf_indicator = " 🌿"if lf else ""
                             if lead_free_only[0]and not lf:
                                 continue
-                            variant_info_parts.append(f"{v.get('name', 'Unknown')}(Pen: {pen}{lf_indicator})")
+                            labels = _get_ammo_variant_labels(v)
+                            label_suffix = f" [{' / '.join(labels)}]" if labels else ""
+                            variant_info_parts.append(f"{v.get('name', 'Unknown')}(Type: {ammo_type} | Pen: {pen}{lf_indicator}){label_suffix}")
                         if variant_info_parts:
                             variants_text = "Variants: "+", ".join(variant_info_parts)
                             variants_label = customtkinter.CTkLabel(item_frame, text = variants_text, font = customtkinter.CTkFont(size = 9), text_color = "#88aaff", wraplength = 500, justify = "left", anchor = "w")
@@ -9446,6 +9571,7 @@ class App:
                                         cal_val = mag_cal[0] if mag_cal and isinstance(mag_cal, (list, tuple)) else (mag_cal if mag_cal else ammo_def.get('caliber'))
                                         rd = {'name': ammo_def.get('name'), 'caliber': cal_val, 'variant': var.get('name'),
                                               'type': var.get('type'), 'pen': var.get('pen'), 'modifiers': var.get('modifiers'), 'tip': var.get('tip')}
+                                        _apply_ammo_variant_data(rd, ammo_def, var)
                                         return rd
 
                                     def _play_insert():
@@ -9771,13 +9897,16 @@ class App:
                                 opts =[]
                                 for v in variants:
                                     pen = v.get("pen", "?")
+                                    ammo_type = v.get("type", "?")
                                     lf = v.get("lead_free", False)
                                     lf_indicator = " 🌿"if lf else ""
-                                    opts.append(f"{v.get('name')}(Pen: {pen}{lf_indicator})")
+                                    labels = _get_ammo_variant_labels(v)
+                                    label_suffix = f" [{' / '.join(labels)}]" if labels else ""
+                                    opts.append(f"{v.get('name')}(Type: {ammo_type} | Pen: {pen}{lf_indicator}){label_suffix}")
                                 sel_var = self._popup_select_option("Ammo Variant", "Choose ammo variant:", opts)
                                 if sel_var is None:
                                     return
-                                sel_name = sel_var.split("(Pen:")[0]
+                                sel_name = sel_var.split("(Type:")[0].strip()
                                 chosen = next((v for v in variants if v.get("name")==sel_name), None)
                             else:
                                 chosen = None
@@ -9808,11 +9937,12 @@ class App:
                             if unit_weight is not None:
                                 stack_item["weight"]= unit_weight
 
-                            for k in["type", "pen", "modifiers", "tip", "rarity"]:
-                                if chosen and k in chosen:
-                                    stack_item[k]= chosen.get(k)
-                                elif k in ammo_def:
-                                    stack_item[k]= ammo_def.get(k)
+                            if chosen:
+                                _apply_ammo_variant_data(stack_item, ammo_def, chosen)
+                            else:
+                                for k in["type", "pen", "modifiers", "tip", "rarity"]:
+                                    if k in ammo_def:
+                                        stack_item[k]= ammo_def.get(k)
 
                             cart.append(stack_item)
                             cart_points[0]+=1
@@ -10365,7 +10495,346 @@ class App:
     def _open_crafting_menu(self, store, table_data):
         self._popup_show_info("Crafting Menu", "Crafting system is not implemented yet.", sound = "popup")
 
-    def _open_shop_item_inspect(self, item, buy_price, table_data, current_store=None):
+    def _start_shop_firearm_test(self, firearm_item, table_data, on_test_purchase = None):
+        test_cost = 10.0
+        if not isinstance(firearm_item, dict) or not firearm_item.get("firearm"):
+            self._popup_show_info("Test Firearm", "Only firearms can be tested.", sound = "error")
+            return
+        if currentsave is None:
+            self._popup_show_info("Test Firearm", "No character loaded.", sound = "error")
+            return
+
+        save_filename = (currentsave or "") + ".sldsv"
+        save_data_local = self._load_file(save_filename)
+        if not isinstance(save_data_local, dict):
+            self._popup_show_info("Test Firearm", "Failed to load your character save.", sound = "error")
+            return
+
+        try:
+            current_money = float(save_data_local.get("money", 0) or 0)
+        except Exception:
+            current_money = 0.0
+        if current_money < test_cost:
+            self._popup_show_info(
+                "Not Enough Money",
+                f"Testing costs {format_price(test_cost)} and you only have {format_price(current_money)}.",
+                sound = "error"
+            )
+            return
+
+        save_data_local["money"] = round(current_money - test_cost, 2)
+        save_path = os.path.join(saves_folder or "", save_filename)
+        self._write_save_to_path(save_path, save_data_local)
+        globals()["save_data"] = save_data_local
+        self._current_save_data = save_data_local
+
+        if callable(on_test_purchase):
+            try:
+                on_test_purchase(save_data_local["money"])
+            except Exception:
+                pass
+
+        self._open_firearm_test_mode(firearm_item, table_data)
+
+    def _open_firearm_test_mode(self, firearm_item, table_data):
+        if not isinstance(firearm_item, dict):
+            self._popup_show_info("Test Firearm", "Invalid firearm data.", sound = "error")
+            return
+
+        def _to_lower_set(value):
+            if isinstance(value, (list, tuple, set)):
+                return {str(v).strip().lower() for v in value if str(v).strip()}
+            if value is None:
+                return set()
+            text = str(value).strip().lower()
+            return {text} if text else set()
+
+        def _is_civilian_text(text):
+            t = str(text or "").lower()
+            positive = ("remington", "umc", "jhp", "jsp", "soft point", "hollow point", ".223", ".308", "winchester", "civilian")
+            negative = ("nato", "mil", "m855", "m193", "ss109", "tracer", "armor piercing", "ap")
+            score = 0
+            for tok in positive:
+                if tok in t:
+                    score += 3
+            for tok in negative:
+                if tok in t:
+                    score -= 4
+            return score
+
+        def _select_preferred_round(weapon_obj, tbl_data):
+            ammo_table = (tbl_data or {}).get("tables", {}).get("ammunition", []) or []
+            weapon_calibers = _to_lower_set(weapon_obj.get("caliber"))
+            alt_map = {
+                "5.56x45mm nato": [".223 remington", ".223", "223 remington"],
+                "5.56 nato": [".223 remington", ".223", "223 remington"],
+                "7.62x51mm nato": [".308 winchester", ".308", "308 winchester"],
+                "7.62 nato": [".308 winchester", ".308", "308 winchester"],
+            }
+
+            alt_targets = set()
+            for wc in weapon_calibers:
+                for alt in alt_map.get(wc, []):
+                    alt_targets.add(alt.lower())
+
+            best_entry = None
+            best_score = -10**9
+            for ammo in ammo_table:
+                if not isinstance(ammo, dict):
+                    continue
+                cal = str(ammo.get("caliber", "") or "").strip().lower()
+                if not cal:
+                    continue
+                score = 0
+                if cal in weapon_calibers:
+                    score += 100
+                if cal in alt_targets or any(alt in cal for alt in alt_targets):
+                    score += 95
+                score += _is_civilian_text(cal)
+                score += _is_civilian_text(ammo.get("name", ""))
+                if score > best_score:
+                    best_score = score
+                    best_entry = ammo
+
+            if not isinstance(best_entry, dict):
+                fallback_cal = None
+                raw_cal = weapon_obj.get("caliber")
+                if isinstance(raw_cal, list) and raw_cal:
+                    fallback_cal = str(raw_cal[0])
+                elif raw_cal is not None:
+                    fallback_cal = str(raw_cal)
+                if not fallback_cal:
+                    fallback_cal = "Unknown"
+                return {
+                    "name": f"{fallback_cal} | Training",
+                    "caliber": fallback_cal,
+                    "variant": "Training"
+                }
+
+            chosen_cal = str(best_entry.get("caliber", "Unknown"))
+            variants = best_entry.get("variants") or []
+            chosen_variant = None
+            chosen_variant_name = "Ball"
+            best_variant_score = -10**9
+            for var in variants:
+                if isinstance(var, dict):
+                    vname = str(var.get("name") or var.get("variant") or var.get("variant_name") or "")
+                    score = _is_civilian_text(vname)
+                    if score > best_variant_score:
+                        best_variant_score = score
+                        chosen_variant = var
+                        chosen_variant_name = vname or chosen_variant_name
+                elif isinstance(var, str):
+                    score = _is_civilian_text(var)
+                    if score > best_variant_score:
+                        best_variant_score = score
+                        chosen_variant = var
+                        chosen_variant_name = var
+
+            round_obj = {
+                "name": f"{chosen_cal} | {chosen_variant_name}",
+                "caliber": chosen_cal,
+                "variant": chosen_variant_name
+            }
+            if isinstance(chosen_variant, dict):
+                for key in ("pen", "type", "ammo_labels", "modifiers"):
+                    if key in chosen_variant:
+                        round_obj[key] = chosen_variant.get(key)
+            return round_obj
+
+        weapon = json.loads(json.dumps(firearm_item))
+        preferred_round = _select_preferred_round(weapon, table_data)
+
+        mag_type = str(weapon.get("magazinetype", "") or "").lower()
+        platform = str(weapon.get("platform", "") or "").lower()
+        is_internal = any(k in mag_type for k in ("internal", "tube", "cylinder", "break", "en bloc", "belt")) or "revolver" in platform
+
+        def _make_round_list(count):
+            return [json.loads(json.dumps(preferred_round)) for _ in range(max(0, int(count)))]
+
+        def _find_mag_template(weapon_obj, tbl_data):
+            mags = (tbl_data or {}).get("tables", {}).get("magazines", []) or []
+            target_systems = _to_lower_set(weapon_obj.get("magazinesystem"))
+            target_calibers = _to_lower_set(weapon_obj.get("caliber"))
+            for mag in mags:
+                if not isinstance(mag, dict):
+                    continue
+                mag_systems = _to_lower_set(mag.get("magazinesystem"))
+                if target_systems and not mag_systems.intersection(target_systems):
+                    continue
+                mag_calibers = _to_lower_set(mag.get("caliber"))
+                if target_calibers and mag_calibers and not mag_calibers.intersection(target_calibers):
+                    continue
+                return mag
+            return None
+
+        mag_template = _find_mag_template(weapon, table_data)
+        capacity = 30
+        try:
+            if isinstance(mag_template, dict):
+                capacity = int(mag_template.get("capacity", capacity) or capacity)
+            elif weapon.get("capacity") is not None:
+                capacity = int(weapon.get("capacity") or capacity)
+        except Exception:
+            capacity = 30
+        capacity = max(1, capacity)
+
+        test_state = {
+            "spare_mags": [],
+            "internal_reserve": 0
+        }
+
+        if is_internal:
+            weapon["loaded"] = None
+            weapon["rounds"] = _make_round_list(capacity)
+            weapon["chambered"] = weapon["rounds"].pop(0) if weapon.get("rounds") else None
+            test_state["internal_reserve"] = capacity * 2
+        else:
+            mags = []
+            for _ in range(3):
+                if isinstance(mag_template, dict):
+                    mag_obj = json.loads(json.dumps(mag_template))
+                else:
+                    mag_obj = {
+                        "name": f"Test Magazine ({capacity}rnd)",
+                        "capacity": capacity,
+                        "magazinesystem": weapon.get("magazinesystem"),
+                        "magazinetype": weapon.get("magazinetype", "Detachable box")
+                    }
+                mag_obj["rounds"] = _make_round_list(capacity)
+                mags.append(mag_obj)
+            weapon["loaded"] = mags[0]
+            weapon["rounds"] = []
+            weapon["chambered"] = weapon["loaded"]["rounds"].pop(0) if weapon.get("loaded", {}).get("rounds") else None
+            test_state["spare_mags"] = mags[1:]
+
+        combat_state = {
+            "barrel_temperatures": {},
+            "barrel_cleanliness": {},
+            "ambient_temperature": 70,
+            "weapon_last_used": {},
+            "weather": {"weather": "clear", "wind_severity": 0, "temperature_f": 70}
+        }
+
+        popup = customtkinter.CTkToplevel(self.root)
+        popup.title(f"Test Firearm: {self._format_item_name(firearm_item)}")
+        popup.transient(self.root)
+        popup.grab_set()
+        popup.withdraw()
+        self._center_popup_on_window(popup, 760, 440)
+
+        frame = customtkinter.CTkFrame(popup, fg_color = "transparent")
+        frame.pack(fill = "both", expand = True, padx = 20, pady = 16)
+
+        customtkinter.CTkLabel(
+            frame,
+            text = f"Firearm Test Mode: {self._format_item_name(firearm_item)}",
+            font = customtkinter.CTkFont(size = 18, weight = "bold"),
+            wraplength = 700,
+            justify = "center"
+        ).pack(pady = (0, 8))
+
+        customtkinter.CTkLabel(
+            frame,
+            text = f"Test fee paid: {format_price(10)} | Clipboard output disabled | Attachment/part edits disabled",
+            font = customtkinter.CTkFont(size = 12),
+            text_color = "#aaaaaa",
+            wraplength = 700,
+            justify = "center"
+        ).pack(pady = (0, 10))
+
+        status_label = customtkinter.CTkLabel(frame, text = "", font = customtkinter.CTkFont(size = 12), justify = "left", anchor = "w")
+        status_label.pack(fill = "x", pady = (0, 8))
+
+        result_label = customtkinter.CTkLabel(frame, text = "Ready.", font = customtkinter.CTkFont(size = 12), justify = "left", anchor = "w", wraplength = 700)
+        result_label.pack(fill = "x", pady = (0, 12))
+
+        def _get_firearm_rounds_fired(obj):
+            try:
+                return int(obj.get("rounds_fired", 0) or 0)
+            except Exception:
+                return 0
+
+        def _update_status():
+            rf = _get_firearm_rounds_fired(firearm_item)
+            if is_internal:
+                in_weapon = len(weapon.get("rounds", []) or []) + (1 if weapon.get("chambered") else 0)
+                reserve = int(test_state.get("internal_reserve", 0) or 0)
+                text = f"Rounds in weapon: {in_weapon} | Reserve rounds: {reserve} | Firearm rounds fired: {rf:,}"
+            else:
+                loaded = weapon.get("loaded") if isinstance(weapon.get("loaded"), dict) else {}
+                in_mag = len((loaded or {}).get("rounds", []) or [])
+                chambered = 1 if weapon.get("chambered") else 0
+                reserve_mags = len(test_state.get("spare_mags", []) or [])
+                text = f"Loaded mag: {in_mag} + {chambered} chambered | Spare mags: {reserve_mags} | Firearm rounds fired: {rf:,}"
+            status_label.configure(text = text)
+
+        def _apply_fired_rounds_to_shop_item(message):
+            try:
+                m = re.search(r"Fired\s+(\d+)\s+round", str(message or ""), re.IGNORECASE)
+                fired_count = int(m.group(1)) if m else 0
+            except Exception:
+                fired_count = 0
+            if fired_count <= 0:
+                return
+            current_rf = _get_firearm_rounds_fired(firearm_item)
+            firearm_item["rounds_fired"] = current_rf + fired_count
+            weapon["rounds_fired"] = firearm_item.get("rounds_fired", current_rf + fired_count)
+
+        def _fire(rounds_to_fire):
+            prev_clipboard_state = bool(getattr(self, "_suppress_clipboard_copy", False))
+            self._suppress_clipboard_copy = True
+            try:
+                result = self._fire_weapon(weapon, combat_state, rounds_to_fire = rounds_to_fire, fire_mode = None, save_data = None)
+            finally:
+                self._suppress_clipboard_copy = prev_clipboard_state
+            _apply_fired_rounds_to_shop_item(result)
+            result_label.configure(text = str(result))
+            _update_status()
+
+        def _reload_test_weapon():
+            if is_internal:
+                cur_rounds = weapon.get("rounds", []) or []
+                current_count = len(cur_rounds)
+                needed = max(0, capacity - current_count)
+                reserve = int(test_state.get("internal_reserve", 0) or 0)
+                to_load = min(needed, reserve)
+                if to_load <= 0:
+                    result_label.configure(text = "No reserve rounds left to reload.")
+                    return
+                cur_rounds.extend(_make_round_list(to_load))
+                weapon["rounds"] = cur_rounds
+                test_state["internal_reserve"] = reserve - to_load
+                result_label.configure(text = f"Reloaded internal magazine with {to_load} round(s).")
+                _update_status()
+                return
+
+            spares = test_state.get("spare_mags", []) or []
+            if not spares:
+                result_label.configure(text = "No spare magazines left.")
+                return
+            weapon["loaded"] = spares.pop(0)
+            if not weapon.get("chambered") and isinstance(weapon.get("loaded"), dict):
+                rounds = weapon["loaded"].get("rounds", []) or []
+                if rounds:
+                    weapon["chambered"] = rounds.pop(0)
+                    weapon["loaded"]["rounds"] = rounds
+            test_state["spare_mags"] = spares
+            result_label.configure(text = "Reloaded next test magazine.")
+            _update_status()
+
+        button_row = customtkinter.CTkFrame(frame, fg_color = "transparent")
+        button_row.pack(fill = "x", pady = (4, 0))
+
+        self._create_sound_button(button_row, "Fire 1", lambda: _fire(1), width = 120, height = 36).pack(side = "left", padx = (0, 8))
+        self._create_sound_button(button_row, "Fire 3", lambda: _fire(3), width = 120, height = 36).pack(side = "left", padx = (0, 8))
+        self._create_sound_button(button_row, "Reload", _reload_test_weapon, width = 120, height = 36).pack(side = "left", padx = (0, 8))
+        self._create_sound_button(button_row, "Close", popup.destroy, width = 120, height = 36).pack(side = "right")
+
+        _update_status()
+        popup.deiconify()
+
+    def _open_shop_item_inspect(self, item, buy_price, table_data, current_store=None, on_test_purchase=None):
         """Show a popup with detailed inspection info for a shop item."""
         base_value = item.get("value", 0) or 0
 
@@ -10405,9 +10874,12 @@ class App:
                     for match in matches:
                         match_copy = match.copy()
                         match_copy.setdefault("_table_category", inv_entry.get("table", ""))
-                        other_price = int((match_copy.get("value", 0) or 0)
-                                         * other_sell_mult
-                                         * _get_item_market_multiplier(match_copy, other_demand))
+                        raw_other_price = ((match_copy.get("value", 0) or 0)
+                                           * other_sell_mult
+                                           * _get_item_market_multiplier(match_copy, other_demand))
+                        other_price = round(raw_other_price, 2)
+                        if str(match_copy.get("_table_category", "")).lower() == "ammunition" and raw_other_price > 0 and other_price < 0.01:
+                            other_price = 0.01
                         if other_price < buy_price:
                             cheaper_stores.append((other_store.get("name", "Unknown"), other_price))
                         break  # one match per store is enough
@@ -10415,13 +10887,13 @@ class App:
             pass
         cheaper_stores.sort(key=lambda x: x[1])
 
-        popup_height = 320 + (len(cheaper_stores) > 0) * 60 + len(cheaper_stores) * 26
+        popup_height = 420 + (len(cheaper_stores) > 0) * 60 + len(cheaper_stores) * 26
         popup = customtkinter.CTkToplevel(self.root)
         popup.title(f"Inspect: {self._format_item_name(item)}")
         popup.transient(self.root)
         popup.grab_set()
         popup.withdraw()
-        self._center_popup_on_window(popup, 420, popup_height)
+        self._center_popup_on_window(popup, 620, popup_height)
 
         frame = customtkinter.CTkFrame(popup, fg_color="transparent")
         frame.pack(fill="both", expand=True, padx=20, pady=16)
@@ -10430,7 +10902,7 @@ class App:
             frame,
             text=self._format_item_name(item),
             font=customtkinter.CTkFont(size=15, weight="bold"),
-            wraplength=360, justify="center"
+            wraplength=560, justify="center"
         ).pack(pady=(0, 14))
 
         def add_row(label, value_text, value_color="white"):
@@ -10447,20 +10919,24 @@ class App:
                 anchor="w"
             ).pack(side="left", padx=(8, 0))
 
-        add_row("Base Value:", format_price(int(base_value)))
-        add_row("Shop Price:", format_price(int(buy_price)))
+        depreciated_value = _get_depreciated_item_value(base_value, item)
 
-        if base_value > 0:
-            diff = buy_price - base_value
-            diff_pct = (diff / base_value) * 100
+        add_row("Base Value:", format_price(float(base_value)))
+        add_row("Depreciated Value:", format_price(float(depreciated_value)))
+        add_row("Shop Price:", format_price(float(buy_price)))
+
+        compare_value = float(depreciated_value)
+        if compare_value > 0:
+            diff = buy_price - compare_value
+            diff_pct = (diff / compare_value) * 100
             if diff > 0:
-                diff_str = f"+{format_price(int(diff))}  (+{diff_pct:.0f}%)"
+                diff_str = f"+{format_price(float(diff))}  (+{diff_pct:.0f}%)"
                 diff_color = "#ff6644"
             elif diff < 0:
-                diff_str = f"-{format_price(int(abs(diff)))}  ({diff_pct:.0f}%)"
+                diff_str = f"-{format_price(float(abs(diff)))}  ({diff_pct:.0f}%)"
                 diff_color = "#44cc44"
             else:
-                diff_str = "At base value"
+                diff_str = "At depreciated value"
                 diff_color = "gray"
         else:
             diff_str = "N/A"
@@ -10469,13 +10945,23 @@ class App:
 
         if item.get("firearm"):
             rf = item.get("rounds_fired")
+            firearm_state = "New (unissued)"
+            firearm_state_color = "#44cc44"
             if rf is not None:
                 try:
-                    add_row("Rounds Fired:", f"{int(rf):,}")
+                    rf_int = int(rf)
+                    add_row("Rounds Fired:", f"{rf_int:,}")
+                    if rf_int > 0:
+                        firearm_state = "Used"
+                        firearm_state_color = "#ffaa44"
                 except (ValueError, TypeError):
                     add_row("Rounds Fired:", str(rf))
+                    firearm_state = "Used"
+                    firearm_state_color = "#ffaa44"
             else:
                 add_row("Rounds Fired:", "New (unissued)", "#888888")
+
+            add_row("State:", firearm_state, firearm_state_color)
 
             cond_text, cond_color = _get_weapon_condition_label(item)
             add_row("Condition:", cond_text, cond_color)
@@ -10492,9 +10978,22 @@ class App:
                 saving = buy_price - sprice
                 add_row(f"  {sname}:", f"{format_price(sprice)}  (save {format_price(saving)})", "#44cc44")
 
+        btn_row = customtkinter.CTkFrame(frame, fg_color = "transparent")
+        btn_row.pack(pady = (18, 0))
+
+        if item.get("firearm"):
+            self._create_sound_button(
+                btn_row,
+                "Test Firearm ($10)",
+                lambda: self._start_shop_firearm_test(item, table_data, on_test_purchase = on_test_purchase),
+                width = 170,
+                height = 32,
+                font = customtkinter.CTkFont(size = 12)
+            ).pack(side = "left", padx = (0, 8))
+
         customtkinter.CTkButton(
-            frame, text="Close", command=popup.destroy, width=120
-        ).pack(pady=(18, 0))
+            btn_row, text = "Close", command = popup.destroy, width = 120
+        ).pack(side = "left")
 
         popup.deiconify()
 
@@ -10975,7 +11474,61 @@ class App:
 
         store_inventory =[]
         store_inv_config = store.get("inventory", [])
+        used_firearm_chance = store.get("used_firearm_chance", 40.0)
+        try:
+            used_firearm_chance = float(used_firearm_chance)
+        except (TypeError, ValueError):
+            used_firearm_chance = 40.0
+        used_firearm_chance = max(0.0, min(100.0, used_firearm_chance)) / 100.0
         tables = table_data.get("tables", {})
+
+        def _expand_ammo_variants_for_store(items):
+            expanded = []
+            for base_item in items:
+                if not isinstance(base_item, dict):
+                    continue
+                is_ammo = str(base_item.get("_table_category", "")).lower() == "ammunition"
+                variants = base_item.get("variants", []) if is_ammo else []
+                caliber = base_item.get("caliber")
+
+                if is_ammo and isinstance(variants, list) and variants:
+                    if isinstance(caliber, list):
+                        caliber_name = ", ".join(str(c) for c in caliber)
+                    else:
+                        caliber_name = str(caliber or base_item.get("name", "Ammunition"))
+
+                    for var in variants:
+                        if not isinstance(var, dict):
+                            continue
+                        var_name = str(var.get("name") or var.get("type") or "FMJ")
+                        item_copy = base_item.copy()
+                        item_copy["name"] = f"{var_name} ({caliber_name})"
+                        item_copy["variant"] = var_name
+                        item_copy["caliber"] = caliber_name
+                        _apply_ammo_variant_data(item_copy, base_item, var)
+
+                        labels = item_copy.get("ammo_labels", [])
+                        if labels:
+                            item_copy["name"] = f"{item_copy['name']} [{' / '.join(labels)}]"
+
+                        item_copy.pop("variants", None)
+                        expanded.append(item_copy)
+                else:
+                    expanded.append(base_item)
+
+            return expanded
+
+        def _get_store_buy_price(item_obj):
+            base_value = float(item_obj.get("value", 0) or 0)
+            effective_value = _get_depreciated_item_value(base_value, item_obj)
+
+            raw_price = effective_value * sell_mult * _get_item_market_multiplier(item_obj, market_demand)
+            buy_price_value = round(raw_price, 2)
+
+            # Prevent tiny positive ammunition prices from rounding down to zero.
+            if str(item_obj.get("_table_category", "")).lower() == "ammunition" and raw_price > 0 and buy_price_value < 0.01:
+                return 0.01
+            return max(0.0, buy_price_value)
 
         for inv_entry in store_inv_config:
             if inv_entry.get("type")=="table":
@@ -10997,6 +11550,17 @@ class App:
                                 store_inventory.append(item_copy)
                                 break
 
+        store_inventory = _expand_ammo_variants_for_store(store_inventory)
+
+        for item_idx, inv_item in enumerate(store_inventory):
+            if not isinstance(inv_item, dict) or not inv_item.get("firearm"):
+                continue
+            if inv_item.get("rounds_fired") is not None:
+                continue
+            seeded_rf = _get_seeded_store_firearm_rounds_fired(inv_item, store.get("name", ""), item_idx, used_firearm_chance)
+            if seeded_rf is not None:
+                inv_item["rounds_fired"] = seeded_rf
+
         inv_qty = store.get("inventory_quantity", "disabled")
         if inv_qty !="disabled"and isinstance(inv_qty, dict):
             min_qty = inv_qty.get("min", 20)
@@ -11015,10 +11579,17 @@ class App:
             trade_tab = tab_view.add("Trade")
 
         buy_cart =[]
-        buy_total =[0]
+        buy_total =[0.0]
 
         def update_buy_display():
             money_label.configure(text = f"Your Money: {format_price(player_money[0])} | Cart Total: {format_price(buy_total[0])}")
+
+        def on_test_firearm_purchase(new_money):
+            try:
+                player_money[0] = float(new_money)
+            except Exception:
+                player_money[0] = new_money
+            update_buy_display()
 
         shop_categories = {}
         for item in store_inventory:
@@ -11034,8 +11605,7 @@ class App:
                 item_frame = customtkinter.CTkFrame(buy_scroll)
                 item_frame.pack(fill = "x", pady = 5, padx = 10)
 
-                base_value = item.get("value", 0)
-                buy_price = int(base_value * sell_mult * _get_item_market_multiplier(item, market_demand))
+                buy_price = _get_store_buy_price(item)
 
                 name_label = customtkinter.CTkLabel(item_frame, text = f"{self._format_item_name(item)} - {format_price(buy_price)}", font = customtkinter.CTkFont(size = 13, weight = "bold"), anchor = "w")
                 name_label.pack(anchor = "w", padx = 10, pady =(8, 2))
@@ -11043,6 +11613,27 @@ class App:
                 if item.get("description"):
                     desc_label = customtkinter.CTkLabel(item_frame, text = item.get("description")[:100]+"..."if len(item.get("description", ""))>100 else item.get("description", ""), font = customtkinter.CTkFont(size = 10), text_color = "gray", wraplength = 400, justify = "left", anchor = "w")
                     desc_label.pack(anchor = "w", padx = 10, pady =(0, 5))
+
+                info_parts = []
+                if item.get("weight"):
+                    info_parts.append(f"Weight: {self._format_weight(item.get('weight'))}")
+                if item.get("caliber"):
+                    cal = item.get("caliber")
+                    if isinstance(cal, list):
+                        cal = ", ".join(str(c) for c in cal)
+                    info_parts.append(f"Caliber: {cal}")
+                if item.get("rarity"):
+                    info_parts.append(f"Rarity: {item.get('rarity')}")
+                if item.get("type"):
+                    info_parts.append(f"Type: {item.get('type')}")
+                if item.get("pen"):
+                    info_parts.append(f"Pen: {item.get('pen')}")
+                if item.get("ammo_labels") and isinstance(item.get("ammo_labels"), list):
+                    info_parts.append(" / ".join(str(x) for x in item.get("ammo_labels") if x))
+
+                if info_parts:
+                    info_label = customtkinter.CTkLabel(item_frame, text = " | ".join(info_parts), font = customtkinter.CTkFont(size = 10), text_color = "orange")
+                    info_label.pack(anchor = "w", padx = 10, pady =(0, 5))
 
                 def add_to_buy_cart(it = item, price = buy_price):
                     if player_money[0]-buy_total[0]<price:
@@ -11055,7 +11646,7 @@ class App:
 
                 btn_row = customtkinter.CTkFrame(item_frame, fg_color = "transparent")
                 btn_row.pack(anchor = "e", padx = 10, pady = 8)
-                inspect_btn = self._create_sound_button(btn_row, "Inspect", lambda it = item, pr = buy_price: self._open_shop_item_inspect(it, pr, table_data, store), width = 80, height = 30, font = customtkinter.CTkFont(size = 11))
+                inspect_btn = self._create_sound_button(btn_row, "Inspect", lambda it = item, pr = buy_price: self._open_shop_item_inspect(it, pr, table_data, store, on_test_firearm_purchase), width = 80, height = 30, font = customtkinter.CTkFont(size = 11))
                 inspect_btn.pack(side = "left", padx = (0, 6))
                 add_btn = self._create_sound_button(btn_row, f"Buy({format_price(buy_price)})", add_to_buy_cart, width = 120, height = 30, font = customtkinter.CTkFont(size = 11))
                 add_btn.pack(side = "left")
@@ -11084,8 +11675,7 @@ class App:
                     item_frame = customtkinter.CTkFrame(parent)
                     item_frame.pack(fill = "x", pady = 5, padx = 10)
 
-                    base_value = item.get("value", 0)
-                    buy_price = int(base_value * sell_mult * _get_item_market_multiplier(item, market_demand))
+                    buy_price = _get_store_buy_price(item)
 
                     name_label = customtkinter.CTkLabel(item_frame, text = f"{self._format_item_name(item)} - {format_price(buy_price)}", font = customtkinter.CTkFont(size = 13, weight = "bold"), anchor = "w")
                     name_label.pack(anchor = "w", padx = 10, pady =(8, 2))
@@ -11104,6 +11694,12 @@ class App:
                         info_parts.append(f"Caliber: {cal}")
                     if item.get("rarity"):
                         info_parts.append(f"Rarity: {item.get('rarity')}")
+                    if item.get("type"):
+                        info_parts.append(f"Type: {item.get('type')}")
+                    if item.get("pen"):
+                        info_parts.append(f"Pen: {item.get('pen')}")
+                    if item.get("ammo_labels") and isinstance(item.get("ammo_labels"), list):
+                        info_parts.append(" / ".join(str(x) for x in item.get("ammo_labels") if x))
 
                     if info_parts:
                         info_label = customtkinter.CTkLabel(item_frame, text = " | ".join(info_parts), font = customtkinter.CTkFont(size = 10), text_color = "orange")
@@ -11120,7 +11716,7 @@ class App:
 
                     btn_row = customtkinter.CTkFrame(item_frame, fg_color = "transparent")
                     btn_row.pack(anchor = "e", padx = 10, pady = 8)
-                    inspect_btn = self._create_sound_button(btn_row, "Inspect", lambda it = item, pr = buy_price: self._open_shop_item_inspect(it, pr, table_data, store), width = 80, height = 30, font = customtkinter.CTkFont(size = 11))
+                    inspect_btn = self._create_sound_button(btn_row, "Inspect", lambda it = item, pr = buy_price: self._open_shop_item_inspect(it, pr, table_data, store, on_test_firearm_purchase), width = 80, height = 30, font = customtkinter.CTkFont(size = 11))
                     inspect_btn.pack(side = "left", padx = (0, 6))
                     add_btn = self._create_sound_button(btn_row, f"Buy({format_price(buy_price)})", add_to_buy_cart, width = 120, height = 30, font = customtkinter.CTkFont(size = 11))
                     add_btn.pack(side = "left")
@@ -11202,24 +11798,39 @@ class App:
                     selected_subcat = [None]
 
                     def _render_shop_subcat_items(sname, sub_items, target_frame, scroll_holder):
+                        for _w in target_frame.winfo_children():
+                            try:
+                                _w.destroy()
+                            except Exception:
+                                pass
+
                         sub2cats = {}
                         for it2 in sub_items:
                             s2 = it2.get("shop_subcategory2") or it2.get("armory_subcategory2") or "General"
                             sub2cats.setdefault(s2, []).append(it2)
 
                         if len(sub2cats) <= 1:
-                            sub_title = customtkinter.CTkLabel(target_frame, text = sname, font = customtkinter.CTkFont(size = 16, weight = "bold"))
-                            sub_title.pack(pady =(6, 12), anchor = "w", padx = 10)
-                            render_shop_item_list(sub_items, scroll_holder if scroll_holder is not None else target_frame)
-                        else:
-                            target_frame.grid_rowconfigure(0, weight = 1)
-                            target_frame.grid_columnconfigure(0, weight = 0)
-                            target_frame.grid_columnconfigure(1, weight = 1)
+                            try:
+                                _single_scroll = customtkinter.CTkScrollableFrame(target_frame)
+                                _single_scroll.pack(fill = "both", expand = True)
+                            except Exception:
+                                _single_scroll = target_frame
 
-                            sub2_scroll = customtkinter.CTkScrollableFrame(target_frame, width = 130)
+                            sub_title = customtkinter.CTkLabel(_single_scroll, text = sname, font = customtkinter.CTkFont(size = 16, weight = "bold"))
+                            sub_title.pack(pady =(6, 12), anchor = "w", padx = 10)
+                            render_shop_item_list(sub_items, _single_scroll)
+                        else:
+                            sub2_layout = customtkinter.CTkFrame(target_frame, fg_color = "transparent")
+                            sub2_layout.pack(fill = "both", expand = True)
+
+                            sub2_layout.grid_rowconfigure(0, weight = 1)
+                            sub2_layout.grid_columnconfigure(0, weight = 0)
+                            sub2_layout.grid_columnconfigure(1, weight = 1)
+
+                            sub2_scroll = customtkinter.CTkScrollableFrame(sub2_layout, width = 130)
                             sub2_scroll.grid(row = 0, column = 0, sticky = "ns", padx =(0, 6))
 
-                            sub2_right = customtkinter.CTkFrame(target_frame)
+                            sub2_right = customtkinter.CTkFrame(sub2_layout)
                             sub2_right.grid(row = 0, column = 1, sticky = "nsew")
 
                             try:
@@ -11275,13 +11886,7 @@ class App:
 
                     def make_subcat_btn(sname):
                         def on_click():
-                            for w in content_right.winfo_children():
-                                w.destroy()
-                            try:
-                                shop_items_scroll[0] = customtkinter.CTkScrollableFrame(content_right) # type: ignore
-                                shop_items_scroll[0].pack(fill = "both", expand = True)
-                            except Exception:
-                                shop_items_scroll[0] = None
+                            shop_items_scroll[0] = None
                             _render_shop_subcat_items(sname, subcats.get(sname, []), content_right, shop_items_scroll[0])
                             selected_subcat[0] = sname
                             for nm, b in subcat_buttons.items():
@@ -16447,55 +17052,64 @@ class App:
         tabview.configure(command = lambda value = None:refresh_enc_info())
 
         def get_containers():
-            containers =[]
+            containers = []
             equipment = save_data.get("equipment", {})
+
+            def _resolve_conflicts(conflicts):
+                targets = []
+                try:
+                    if isinstance(conflicts, dict):
+                        slot_field = conflicts.get('slot')
+                        if slot_field:
+                            if isinstance(slot_field, (list, tuple)):
+                                targets = [str(c) for c in slot_field]
+                            else:
+                                targets = [str(slot_field)]
+                    elif isinstance(conflicts, (list, tuple)):
+                        targets = [str(c) for c in conflicts]
+                    elif conflicts:
+                        targets = [str(conflicts)]
+                except Exception:
+                    targets = []
+                return [t.lower() for t in targets if t is not None]
 
             def _slot_blocked_by_subslots(slot_name):
                 try:
-                    slot_name_l = str(slot_name).lower()if slot_name is not None else ''
+                    slot_name_l = str(slot_name).lower() if slot_name is not None else ''
                     for other_slot, other_item in equipment.items():
                         if not other_item:
                             continue
-                        items_to_check =[]
+                        items_to_check = []
                         if isinstance(other_item, dict):
-                            items_to_check =[other_item]
+                            items_to_check = [other_item]
                         elif isinstance(other_item, list):
-                            items_to_check =[it for it in other_item if isinstance(it, dict)]
+                            items_to_check = [it for it in other_item if isinstance(it, dict)]
 
                         for oi in items_to_check:
 
-                            for subslot_data in oi.get('subslots', [])or[]:
+                            for subslot_data in oi.get('subslots', []) or []:
                                 try:
                                     conflicts = subslot_data.get('conflicts_with')
-
-                                    if isinstance(conflicts, dict):
-                                        if conflicts.get('type')=='main'and str(conflicts.get('slot')).lower()==slot_name_l:
-                                            return True
-                                    elif isinstance(conflicts, (list, tuple)):
-                                        for conflict_slot in conflicts:
-                                            if str(conflict_slot).lower()==slot_name_l:
-                                                return True
+                                    targets_l = _resolve_conflicts(conflicts)
+                                    if slot_name_l in targets_l:
+                                        return True
                                 except Exception:
                                     pass
 
-                            for acc in oi.get('accessories', [])or[]:
+                            for acc in oi.get('accessories', []) or []:
                                 try:
                                     curacc = acc.get('current')
                                     if not isinstance(curacc, dict):
                                         continue
-                                    for subslot_data in curacc.get('subslots', [])or[]:
+                                    for subslot_data in curacc.get('subslots', []) or []:
                                         try:
                                             conflicts = subslot_data.get('conflicts_with')
                                             cur = subslot_data.get('current')
                                             if not cur:
                                                 continue
-                                            if isinstance(conflicts, dict):
-                                                if conflicts.get('type')=='main'and str(conflicts.get('slot')).lower()==slot_name_l:
-                                                    return True
-                                            elif isinstance(conflicts, (list, tuple)):
-                                                for conflict_slot in conflicts:
-                                                    if str(conflict_slot).lower()==slot_name_l:
-                                                        return True
+                                            targets_l = _resolve_conflicts(conflicts)
+                                            if slot_name_l in targets_l:
+                                                return True
                                         except Exception:
                                             pass
                                 except Exception:
@@ -16505,63 +17119,45 @@ class App:
                     return False
 
             def _get_conflict_sources(slot_name):
-                sources =[]
+                sources = []
                 try:
-                    slot_name_l = str(slot_name).lower()if slot_name is not None else ''
+                    slot_name_l = str(slot_name).lower() if slot_name is not None else ''
                     for other_slot, other_item in equipment.items():
                         if not other_item:
                             continue
-                        items_to_check =[]
+                        items_to_check = []
                         if isinstance(other_item, dict):
-                            items_to_check =[other_item]
+                            items_to_check = [other_item]
                         elif isinstance(other_item, list):
-                            items_to_check =[it for it in other_item if isinstance(it, dict)]
+                            items_to_check = [it for it in other_item if isinstance(it, dict)]
 
                         for oi in items_to_check:
-                            for subslot_data in oi.get('subslots', [])or[]:
+                            for subslot_data in oi.get('subslots', []) or []:
                                 try:
                                     conflicts = subslot_data.get('conflicts_with')
                                     cur = subslot_data.get('current')
                                     if not cur:
                                         continue
 
-                                    targets =[]
-                                    if isinstance(conflicts, dict):
-                                        if conflicts.get('type')=='main'and conflicts.get('slot'):
-                                            targets =[conflicts.get('slot')]
-                                    elif isinstance(conflicts, (list, tuple)):
-                                        targets =[str(c)for c in conflicts]
-                                    elif conflicts:
-                                        targets =[str(conflicts)]
-
-                                    targets_l =[str(t).lower()for t in targets]
+                                    targets_l = _resolve_conflicts(conflicts)
                                     if slot_name_l in targets_l:
-                                        subname = subslot_data.get('name')or subslot_data.get('slot')or 'subslot'
+                                        subname = subslot_data.get('name') or subslot_data.get('slot') or 'subslot'
                                         sources.append(f"{other_slot}.{subname}")
                                 except Exception:
                                     pass
 
-                            for acc in oi.get('accessories', [])or[]:
+                            for acc in oi.get('accessories', []) or []:
                                 try:
                                     curacc = acc.get('current')
                                     if not isinstance(curacc, dict):
                                         continue
-                                    for subslot_data in curacc.get('subslots', [])or[]:
+                                    for subslot_data in curacc.get('subslots', []) or []:
                                         try:
                                             conflicts = subslot_data.get('conflicts_with')
 
-                                            targets =[]
-                                            if isinstance(conflicts, dict):
-                                                if conflicts.get('type')=='main'and conflicts.get('slot'):
-                                                    targets =[conflicts.get('slot')]
-                                            elif isinstance(conflicts, (list, tuple)):
-                                                targets =[str(c)for c in conflicts]
-                                            elif conflicts:
-                                                targets =[str(conflicts)]
-
-                                            targets_l =[str(t).lower()for t in targets]
+                                            targets_l = _resolve_conflicts(conflicts)
                                             if slot_name_l in targets_l:
-                                                subname = subslot_data.get('name')or subslot_data.get('slot')or 'subslot'
+                                                subname = subslot_data.get('name') or subslot_data.get('slot') or 'subslot'
                                                 sources.append(f"{other_slot}.{subname}")
                                         except Exception:
                                             pass
@@ -16571,7 +17167,7 @@ class App:
                     pass
 
                 seen = set()
-                out =[]
+                out = []
                 for s in sources:
                     if s not in seen:
                         seen.add(s)
@@ -16579,44 +17175,36 @@ class App:
                 return out
 
             def _get_conflicting_item_names(slot_name):
-                names =[]
+                names = []
                 try:
-                    slot_name_l = str(slot_name).lower()if slot_name is not None else ''
+                    slot_name_l = str(slot_name).lower() if slot_name is not None else ''
                     for other_slot, other_item in equipment.items():
                         if not other_item:
                             continue
-                        items_to_check =[]
+                        items_to_check = []
                         if isinstance(other_item, dict):
-                            items_to_check =[other_item]
+                            items_to_check = [other_item]
                         elif isinstance(other_item, list):
-                            items_to_check =[it for it in other_item if isinstance(it, dict)]
+                            items_to_check = [it for it in other_item if isinstance(it, dict)]
 
                         for oi in items_to_check:
-                            for subslot_data in oi.get('subslots', [])or[]:
+                            for subslot_data in oi.get('subslots', []) or []:
                                 try:
                                     conflicts = subslot_data.get('conflicts_with')
 
-                                    targets =[]
-                                    if isinstance(conflicts, dict):
-                                        if conflicts.get('type')=='main'and conflicts.get('slot'):
-                                            targets =[conflicts.get('slot')]
-                                    elif isinstance(conflicts, (list, tuple)):
-                                        targets =[str(c)for c in conflicts]
-                                    elif conflicts:
-                                        targets =[str(conflicts)]
-                                    targets_l =[t.lower()for t in targets]
+                                    targets_l = _resolve_conflicts(conflicts)
                                     if slot_name_l in targets_l:
 
                                         nm = None
                                         try:
                                             if isinstance(oi, dict):
-                                                nm = oi.get('name')or oi.get('id')
+                                                nm = oi.get('name') or oi.get('id')
                                         except Exception:
                                             nm = None
                                         if not nm:
                                             cur = subslot_data.get('current')
                                             if isinstance(cur, dict):
-                                                nm = cur.get('name')or cur.get('id')
+                                                nm = cur.get('name') or cur.get('id')
                                         if not nm:
                                             nm = other_slot
                                         if nm:
@@ -16624,46 +17212,38 @@ class App:
                                 except Exception:
                                     pass
 
-                            for acc in oi.get('accessories', [])or[]:
+                            for acc in oi.get('accessories', []) or []:
                                 try:
 
-                                    curacc = acc.get('current')if isinstance(acc, dict)else None
-                                    acc_subslots =[]
+                                    curacc = acc.get('current') if isinstance(acc, dict) else None
+                                    acc_subslots = []
                                     if isinstance(curacc, dict):
-                                        acc_subslots.extend(curacc.get('subslots', [])or[])
+                                        acc_subslots.extend(curacc.get('subslots', []) or [])
                                     if isinstance(acc, dict):
-                                        acc_subslots.extend(acc.get('subslots', [])or[])
+                                        acc_subslots.extend(acc.get('subslots', []) or [])
 
                                     for subslot_data in acc_subslots:
                                         try:
                                             conflicts = subslot_data.get('conflicts_with')
-                                            targets =[]
-                                            if isinstance(conflicts, dict):
-                                                if conflicts.get('type')=='main'and conflicts.get('slot'):
-                                                    targets =[conflicts.get('slot')]
-                                            elif isinstance(conflicts, (list, tuple)):
-                                                targets =[str(c)for c in conflicts]
-                                            elif conflicts:
-                                                targets =[str(conflicts)]
-                                            targets_l =[t.lower()for t in targets]
+                                            targets_l = _resolve_conflicts(conflicts)
                                             if slot_name_l in targets_l:
 
                                                 nm = None
                                                 try:
                                                     if isinstance(curacc, dict):
-                                                        nm = curacc.get('name')or curacc.get('id')
+                                                        nm = curacc.get('name') or curacc.get('id')
                                                 except Exception:
                                                     nm = None
                                                 if not nm:
                                                     try:
                                                         if isinstance(acc, dict):
-                                                            nm = acc.get('name')or acc.get('id')
+                                                            nm = acc.get('name') or acc.get('id')
                                                     except Exception:
                                                         nm = None
                                                 if not nm:
                                                     try:
                                                         if isinstance(oi, dict):
-                                                            nm = oi.get('name')or oi.get('id')
+                                                            nm = oi.get('name') or oi.get('id')
                                                     except Exception:
                                                         nm = None
                                                 if not nm:
@@ -16677,56 +17257,42 @@ class App:
                 except Exception:
                     pass
 
-                seen = set();out =[]
+                seen = set(); out = []
                 for n in names:
                     if n not in seen:
-                        seen.add(n);out.append(n)
+                        seen.add(n); out.append(n)
                 return out
 
             def _find_any_item_with_conflict(slot_name):
 
                 try:
-                    slot_name_l = str(slot_name).lower()if slot_name is not None else ''
+                    slot_name_l = str(slot_name).lower() if slot_name is not None else ''
                     def check_item(it):
                         if not isinstance(it, dict):
                             return None
 
-                        for ss in it.get('subslots', [])or[]:
+                        for ss in it.get('subslots', []) or []:
                             try:
                                 conflicts = ss.get('conflicts_with')
-                                targets =[]
-                                if isinstance(conflicts, dict):
-                                    if conflicts.get('type')=='main'and conflicts.get('slot'):
-                                        targets =[conflicts.get('slot')]
-                                elif isinstance(conflicts, (list, tuple)):
-                                    targets =[str(c)for c in conflicts]
-                                elif conflicts:
-                                    targets =[str(conflicts)]
-                                if any(slot_name_l ==t.lower()for t in targets):
-                                    return it.get('name')or it.get('id')
+                                targets_l = _resolve_conflicts(conflicts)
+                                if any(slot_name_l == t for t in targets_l):
+                                    return it.get('name') or it.get('id')
                             except Exception:
                                 pass
 
-                        for acc in it.get('accessories', [])or[]:
+                        for acc in it.get('accessories', []) or []:
                             try:
 
-                                for src in(acc, acc.get('current')):
+                                for src in (acc, acc.get('current')):
                                     if not isinstance(src, dict):
                                         continue
-                                    for ss in src.get('subslots', [])or[]:
+                                    for ss in src.get('subslots', []) or []:
                                         try:
                                             conflicts = ss.get('conflicts_with')
-                                            targets =[]
-                                            if isinstance(conflicts, dict):
-                                                if conflicts.get('type')=='main'and conflicts.get('slot'):
-                                                    targets =[conflicts.get('slot')]
-                                            elif isinstance(conflicts, (list, tuple)):
-                                                targets =[str(c)for c in conflicts]
-                                            elif conflicts:
-                                                targets =[str(conflicts)]
-                                            if any(slot_name_l ==t.lower()for t in targets):
+                                            targets_l = _resolve_conflicts(conflicts)
+                                            if any(slot_name_l == t for t in targets_l):
 
-                                                return(src.get('name')or src.get('id')or it.get('name')or it.get('id'))
+                                                return(src.get('name') or src.get('id') or it.get('name') or it.get('id'))
                                         except Exception:
                                             pass
                             except Exception:
@@ -16744,12 +17310,12 @@ class App:
                                 if nm:
                                     return str(nm)
 
-                    for it in save_data.get('storage', [])or[]:
+                    for it in save_data.get('storage', []) or []:
                         nm = check_item(it)
                         if nm:
                             return str(nm)
 
-                    for it in(save_data.get('hands')or {}).get('items', [])or[]:
+                    for it in (save_data.get('hands') or {}).get('items', []) or []:
                         nm = check_item(it)
                         if nm:
                             return str(nm)
@@ -17820,52 +18386,62 @@ class App:
 
             def _slot_blocked_by_subslots(slot_name):
                 try:
-                    slot_name_l = str(slot_name).lower()if slot_name is not None else ''
+                    def _resolve_conflicts(conflicts):
+                        targets = []
+                        try:
+                            if isinstance(conflicts, dict):
+                                slot_field = conflicts.get('slot')
+                                if slot_field:
+                                    if isinstance(slot_field, (list, tuple)):
+                                        targets = [str(c) for c in slot_field]
+                                    else:
+                                        targets = [str(slot_field)]
+                            elif isinstance(conflicts, (list, tuple)):
+                                targets = [str(c) for c in conflicts]
+                            elif conflicts:
+                                targets = [str(conflicts)]
+                        except Exception:
+                            targets = []
+                        return [t.lower() for t in targets if t is not None]
+
+                    slot_name_l = str(slot_name).lower() if slot_name is not None else ''
                     for other_slot, other_item in equipment.items():
                         if not other_item:
                             continue
-                        items_to_check =[]
+                        items_to_check = []
                         if isinstance(other_item, dict):
-                            items_to_check =[other_item]
+                            items_to_check = [other_item]
                         elif isinstance(other_item, list):
-                            items_to_check =[it for it in other_item if isinstance(it, dict)]
+                            items_to_check = [it for it in other_item if isinstance(it, dict)]
 
                         for oi in items_to_check:
 
-                            for subslot_data in oi.get('subslots', [])or[]:
+                            for subslot_data in oi.get('subslots', []) or []:
                                 try:
                                     conflicts = subslot_data.get('conflicts_with')
                                     cur = subslot_data.get('current')
                                     if not cur:
                                         continue
-                                    if isinstance(conflicts, dict):
-                                        if conflicts.get('type')=='main'and str(conflicts.get('slot')).lower()==slot_name_l:
-                                            return True
-                                    elif isinstance(conflicts, (list, tuple)):
-                                        for conflict_slot in conflicts:
-                                            if str(conflict_slot).lower()==slot_name_l:
-                                                return True
+                                    targets_l = _resolve_conflicts(conflicts)
+                                    if slot_name_l in targets_l:
+                                        return True
                                 except Exception:
                                     pass
 
-                            for acc in oi.get('accessories', [])or[]:
+                            for acc in oi.get('accessories', []) or []:
                                 try:
                                     curacc = acc.get('current')
                                     if not isinstance(curacc, dict):
                                         continue
-                                    for subslot_data in curacc.get('subslots', [])or[]:
+                                    for subslot_data in curacc.get('subslots', []) or []:
                                         try:
                                             conflicts = subslot_data.get('conflicts_with')
                                             cur = subslot_data.get('current')
                                             if not cur:
                                                 continue
-                                            if isinstance(conflicts, dict):
-                                                if conflicts.get('type')=='main'and str(conflicts.get('slot')).lower()==slot_name_l:
-                                                    return True
-                                            elif isinstance(conflicts, (list, tuple)):
-                                                for conflict_slot in conflicts:
-                                                    if str(conflict_slot).lower()==slot_name_l:
-                                                        return True
+                                            targets_l = _resolve_conflicts(conflicts)
+                                            if slot_name_l in targets_l:
+                                                return True
                                         except Exception:
                                             pass
                                 except Exception:
@@ -18445,10 +19021,28 @@ class App:
             try:
                 equipment = save_data.get("equipment", {})
 
-                choices =[]
+                choices = []
 
                 def add_choice(label, slot = None, parent_slot = None, subslot = None):
-                    choices.append({"label":label, "slot":slot, "parent_slot":parent_slot, "subslot":subslot})
+                    choices.append({"label": label, "slot": slot, "parent_slot": parent_slot, "subslot": subslot})
+
+                def _resolve_conflict_slots(conflicts):
+                    out = []
+                    try:
+                        if isinstance(conflicts, dict):
+                            slot_field = conflicts.get('slot')
+                            if slot_field:
+                                if isinstance(slot_field, (list, tuple)):
+                                    out = [str(c) for c in slot_field]
+                                else:
+                                    out = [str(slot_field)]
+                        elif isinstance(conflicts, (list, tuple)):
+                            out = [str(c) for c in conflicts]
+                        elif conflicts:
+                            out = [str(conflicts)]
+                    except Exception:
+                        out = []
+                    return out
 
                 is_weapon = item.get("firearm", False)or item.get("melee", False)
 
@@ -18458,45 +19052,39 @@ class App:
 
                     def _slot_blocked_by_subslots(slot_name):
                         try:
-                            slot_name_l = str(slot_name).lower()if slot_name is not None else ''
+                            slot_name_l = str(slot_name).lower() if slot_name is not None else ''
                             for other_slot, other_item in equipment.items():
                                 if not other_item or not isinstance(other_item, dict):
                                     continue
 
-                                for subslot_data in other_item.get('subslots', [])or[]:
+                                for subslot_data in other_item.get('subslots', []) or []:
                                     try:
                                         conflicts = subslot_data.get('conflicts_with')
                                         cur = subslot_data.get('current')
                                         if not cur:
                                             continue
-                                        if isinstance(conflicts, dict):
-                                            if conflicts.get('type')=='main'and str(conflicts.get('slot')).lower()==slot_name_l:
+                                        targets = _resolve_conflict_slots(conflicts)
+                                        for conflict_slot in targets:
+                                            if str(conflict_slot).lower() == slot_name_l:
                                                 return True
-                                        elif isinstance(conflicts, (list, tuple)):
-                                            for conflict_slot in conflicts:
-                                                if str(conflict_slot).lower()==slot_name_l:
-                                                    return True
                                     except Exception:
                                         pass
 
-                                for acc in other_item.get('accessories', [])or[]:
+                                for acc in other_item.get('accessories', []) or []:
                                     try:
                                         curacc = acc.get('current')
                                         if not isinstance(curacc, dict):
                                             continue
-                                        for subslot_data in curacc.get('subslots', [])or[]:
+                                        for subslot_data in curacc.get('subslots', []) or []:
                                             try:
                                                 conflicts = subslot_data.get('conflicts_with')
                                                 cur = subslot_data.get('current')
                                                 if not cur:
                                                     continue
-                                                if isinstance(conflicts, dict):
-                                                    if conflicts.get('type')=='main'and str(conflicts.get('slot')).lower()==slot_name_l:
+                                                targets = _resolve_conflict_slots(conflicts)
+                                                for conflict_slot in targets:
+                                                    if str(conflict_slot).lower() == slot_name_l:
                                                         return True
-                                                elif isinstance(conflicts, (list, tuple)):
-                                                    for conflict_slot in conflicts:
-                                                        if str(conflict_slot).lower()==slot_name_l:
-                                                            return True
                                             except Exception:
                                                 pass
                                     except Exception:
@@ -18509,26 +19097,21 @@ class App:
                         add_choice("Waistband", slot = "waistband")
 
                     def _check_holster_sling(equipped_item, parent_slot, label_prefix = None):
-                        if not isinstance(equipped_item, dict)or not equipped_item.get("holster_sling", False):
+                        if not isinstance(equipped_item, dict) or not equipped_item.get("holster_sling", False):
                             return
                         compatible_types = equipped_item.get("weapon_types", [])
                         if weapon_subtype in compatible_types or weapon_melee_type in compatible_types:
                             for subslot_data in equipped_item.get("subslots", []):
-                                if subslot_data.get("slot")!="weapon_slot"or subslot_data.get("current")is not None:
+                                if subslot_data.get("slot") != "weapon_slot" or subslot_data.get("current") is not None:
                                     continue
                                 conflicts = subslot_data.get("conflicts_with")
                                 blocked = False
                                 if conflicts:
-                                    if isinstance(conflicts, dict):
-                                        conflict_type = conflicts.get("type")
-                                        conflict_slot = conflicts.get("slot")
-                                        if conflict_type =="main"and conflict_slot in equipment and equipment.get(conflict_slot)is not None:
+                                    targets = _resolve_conflict_slots(conflicts)
+                                    for conflict_slot in targets:
+                                        if conflict_slot in equipment and equipment.get(conflict_slot) is not None:
                                             blocked = True
-                                    elif isinstance(conflicts, (list, tuple)):
-                                        for conflict_slot in conflicts:
-                                            if conflict_slot in equipment and equipment.get(conflict_slot)is not None:
-                                                blocked = True
-                                                break
+                                            break
                                 if blocked:
                                     continue
                                 lbl = label_prefix or parent_slot.title()
@@ -18558,43 +19141,37 @@ class App:
 
                     def _slot_blocked_by_subslots(slot_name):
                         try:
-                            slot_name_l = str(slot_name).lower()if slot_name is not None else ''
+                            slot_name_l = str(slot_name).lower() if slot_name is not None else ''
                             for other_slot, other_item in equipment.items():
                                 if not other_item or not isinstance(other_item, dict):
                                     continue
-                                for subslot_data in other_item.get('subslots', [])or[]:
+                                for subslot_data in other_item.get('subslots', []) or []:
                                     try:
                                         conflicts = subslot_data.get('conflicts_with')
                                         cur = subslot_data.get('current')
                                         if not cur:
                                             continue
-                                        if isinstance(conflicts, dict):
-                                            if conflicts.get('type')=='main'and str(conflicts.get('slot')).lower()==slot_name_l:
+                                        targets = _resolve_conflict_slots(conflicts)
+                                        for conflict_slot in targets:
+                                            if str(conflict_slot).lower() == slot_name_l:
                                                 return True
-                                        elif isinstance(conflicts, (list, tuple)):
-                                            for conflict_slot in conflicts:
-                                                if str(conflict_slot).lower()==slot_name_l:
-                                                    return True
                                     except Exception:
                                         pass
-                                for acc in other_item.get('accessories', [])or[]:
+                                for acc in other_item.get('accessories', []) or []:
                                     try:
                                         curacc = acc.get('current')
                                         if not isinstance(curacc, dict):
                                             continue
-                                        for subslot_data in curacc.get('subslots', [])or[]:
+                                        for subslot_data in curacc.get('subslots', []) or []:
                                             try:
                                                 conflicts = subslot_data.get('conflicts_with')
                                                 cur = subslot_data.get('current')
                                                 if not cur:
                                                     continue
-                                                if isinstance(conflicts, dict):
-                                                    if conflicts.get('type')=='main'and str(conflicts.get('slot')).lower()==slot_name_l:
+                                                targets = _resolve_conflict_slots(conflicts)
+                                                for conflict_slot in targets:
+                                                    if str(conflict_slot).lower() == slot_name_l:
                                                         return True
-                                                elif isinstance(conflicts, (list, tuple)):
-                                                    for conflict_slot in conflicts:
-                                                        if str(conflict_slot).lower()==slot_name_l:
-                                                            return True
                                             except Exception:
                                                 pass
                                     except Exception:
@@ -18646,27 +19223,22 @@ class App:
                         try:
                             if not container or not isinstance(container, dict):
                                 return
-                            for subslot_data in container.get('subslots', [])or[]:
+                            for subslot_data in container.get('subslots', []) or []:
                                 try:
                                     subslot_type = subslot_data.get('slot', '')
 
                                     lbl_suffix = subslot_data.get('name', subslot_type)
-                                    label = f"{root_slot.title()} - {lbl_suffix}"if not label_prefix else f"{label_prefix} -> {lbl_suffix}"
+                                    label = f"{root_slot.title()} - {lbl_suffix}" if not label_prefix else f"{label_prefix} -> {lbl_suffix}"
 
-                                    if subslot_type in valid_slots and subslot_data.get('current')is None:
+                                    if subslot_type in valid_slots and subslot_data.get('current') is None:
                                         conflicts = subslot_data.get('conflicts_with')
                                         blocked = False
                                         if conflicts:
-                                            if isinstance(conflicts, dict):
-                                                conflict_type = conflicts.get('type')
-                                                conflict_slot = conflicts.get('slot')
-                                                if conflict_type =='main'and conflict_slot in equipment and equipment.get(conflict_slot)is not None:
+                                            targets = _resolve_conflict_slots(conflicts)
+                                            for conflict_slot in targets:
+                                                if conflict_slot in equipment and equipment.get(conflict_slot) is not None:
                                                     blocked = True
-                                            elif isinstance(conflicts, (list, tuple)):
-                                                for conflict_slot in conflicts:
-                                                    if conflict_slot in equipment and equipment.get(conflict_slot)is not None:
-                                                        blocked = True
-                                                        break
+                                                    break
                                         if not blocked:
                                             add_choice(label, parent_slot = root_slot, subslot = subslot_data)
 
@@ -32306,14 +32878,7 @@ class App:
                     "description":f"{caliber} - {variant_name}"
                     }
                     if variant_info:
-                        if variant_info.get("type"):
-                            single_round["type"]= variant_info.get("type")
-                        if variant_info.get("pen"):
-                            single_round["pen"]= variant_info.get("pen")
-                        if variant_info.get("tip"):
-                            single_round["tip"]= variant_info.get("tip")
-                        if variant_info.get("modifiers"):
-                            single_round["modifiers"]= variant_info.get("modifiers")
+                        _apply_ammo_variant_data(single_round, ammo_def, variant_info)
 
                     hands = save_data.get("hands", {})
                     if "items"not in hands or not isinstance(hands.get("items"), list):
@@ -32400,14 +32965,7 @@ class App:
                             "description":f"{caliber} - {variant_name}"
                             }
                             if variant_info:
-                                if variant_info.get("type"):
-                                    single_round["type"]= variant_info.get("type")
-                                if variant_info.get("pen"):
-                                    single_round["pen"]= variant_info.get("pen")
-                                if variant_info.get("tip"):
-                                    single_round["tip"]= variant_info.get("tip")
-                                if variant_info.get("modifiers"):
-                                    single_round["modifiers"]= variant_info.get("modifiers")
+                                _apply_ammo_variant_data(single_round, ammo_def, variant_info)
 
                             rounds =[dict(single_round)for _ in range(capacity)]
                     except Exception:
@@ -35688,6 +36246,9 @@ class App:
         return rolls, rounded
 
     def _copy_to_clipboard(self, text):
+        if getattr(self, "_suppress_clipboard_copy", False):
+            logging.info("Clipboard copy suppressed")
+            return False
         try:
             pyperclip.copy(text)
             logging.info(f"Copied to clipboard: {text}")
@@ -36135,7 +36696,26 @@ class App:
 
             _shot_start_time = time.perf_counter()
 
-            if random.random()<total_jamrate:
+            next_round_for_jam = None
+            try:
+                if chambered and isinstance(chambered, dict):
+                    next_round_for_jam = chambered
+                elif is_internal and weapon.get("rounds"):
+                    rr = weapon.get("rounds") or []
+                    next_round_for_jam = rr[0] if rr else None
+                elif loaded_mag and loaded_mag.get("rounds"):
+                    rr = loaded_mag.get("rounds") or []
+                    next_round_for_jam = rr[0] if rr else None
+            except Exception:
+                next_round_for_jam = None
+
+            shot_jamrate = total_jamrate
+            if isinstance(next_round_for_jam, dict):
+                jam_modifier = _safe_float(next_round_for_jam.get("jam_modifier"), 1.0)
+                if jam_modifier is not None:
+                    shot_jamrate *= max(0.05, jam_modifier)
+
+            if random.random()<shot_jamrate:
                 jammed = True
                 logging.info(f"Weapon jammed after {rounds_fired} rounds!")
                 break
@@ -36393,7 +36973,10 @@ class App:
                 is_bolt = True
                 logging.warning("Weapon %s gas system MELTED at %.1f°F(in-shot)", weapon.get("name", weapon_id), temperature)
 
-            cleanliness -=random.uniform(0.1, 0.3)
+            dirtiness_modifier = 1.0
+            if isinstance(fired_round, dict):
+                dirtiness_modifier = _safe_float(fired_round.get("dirtiness_modifier"), 1.0) or 1.0
+            cleanliness -= random.uniform(0.1, 0.3) * max(0.0, dirtiness_modifier)
             cleanliness = max(0, cleanliness)
 
             try:
@@ -36970,9 +37553,28 @@ class App:
             except Exception:
                 pen_val = None
 
+            type_val = None
+            round_labels = []
             try:
+                if isinstance(src_round, dict):
+                    type_val = src_round.get('type')
+                    _rl = src_round.get('ammo_labels')
+                    if isinstance(_rl, list):
+                        round_labels = [str(x) for x in _rl if x]
+            except Exception:
+                type_val = None
+                round_labels = []
+
+            try:
+                detail_bits = []
+                if type_val is not None and str(type_val).strip() != '':
+                    detail_bits.append(f"Type: {type_val}")
                 if pen_val is not None and str(pen_val).strip() != '':
-                    round_display = f"{round_display} (Pen: {pen_val})"
+                    detail_bits.append(f"Pen: {pen_val}")
+                if round_labels:
+                    detail_bits.extend(round_labels)
+                if detail_bits:
+                    round_display = f"{round_display} ({' | '.join(detail_bits)})"
             except Exception:
                 pass
 
@@ -41676,9 +42278,9 @@ class App:
         df_row.pack(pady = 6, anchor = "center")
         customtkinter.CTkLabel(df_row, text = "Default", font = customtkinter.CTkFont(size = 14, weight = "bold"), width = 60).pack(side = "left", padx = (0, 8))
         customtkinter.CTkLabel(df_row, text = "Type:").pack(side = "left", padx = (0, 2))
-        customtkinter.CTkOptionMenu(df_row, variable = default_weather_var, values = list(VALID_WEATHER), width = 130).pack(side = "left", padx = (0, 8))
+        customtkinter.CTkSegmentedButton(df_row, values = list(VALID_WEATHER), variable = default_weather_var, width = 360).pack(side = "left", padx = (0, 8))
         customtkinter.CTkLabel(df_row, text = "Wind:").pack(side = "left", padx = (0, 2))
-        customtkinter.CTkOptionMenu(df_row, variable = default_wind_var, values = ["0", "1", "2", "3"], width = 55).pack(side = "left", padx = (0, 8))
+        customtkinter.CTkSegmentedButton(df_row, values = ["0", "1", "2", "3"], variable = default_wind_var, width = 120).pack(side = "left", padx = (0, 8))
         customtkinter.CTkLabel(df_row, text = f"Temp {temp_unit}:").pack(side = "left", padx = (0, 2))
         customtkinter.CTkEntry(df_row, textvariable = default_temp_var, width = 55).pack(side = "left")
 
@@ -41688,19 +42290,6 @@ class App:
 
         nav_frame = customtkinter.CTkFrame(cal_frame, fg_color = "transparent")
         nav_frame.pack(pady = (6, 2), anchor = "center")
-
-        month_names_list = [cal_module.month_name[i] for i in range(1, 13)]
-        year_list = [str(y) for y in range(now.year - 2, now.year + 6)]
-        month_var = customtkinter.StringVar(value = cal_module.month_name[current_month[0]])
-        year_var = customtkinter.StringVar(value = str(current_year[0]))
-
-        def _on_month_dropdown(choice):
-            current_month[0] = month_names_list.index(choice) + 1
-            render_calendar()
-
-        def _on_year_dropdown(choice):
-            current_year[0] = int(choice)
-            render_calendar()
 
         month_label = customtkinter.CTkLabel(nav_frame, text = "", font = customtkinter.CTkFont(size = 16, weight = "bold"))
 
@@ -41760,8 +42349,6 @@ class App:
             y = current_year[0]
             m = current_month[0]
             month_label.configure(text = f"{cal_module.month_name[m]} {y}")
-            month_var.set(cal_module.month_name[m])
-            year_var.set(str(y))
 
             day_names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
             for col, dn in enumerate(day_names):
@@ -41803,20 +42390,9 @@ class App:
                 current_year[0] += 1
             render_calendar()
 
-        def prev_month_nav():
-            prev_month()
-            month_var.set(cal_module.month_name[current_month[0]])
-            year_var.set(str(current_year[0]))
-
-        def next_month_nav():
-            next_month()
-            month_var.set(cal_module.month_name[current_month[0]])
-            year_var.set(str(current_year[0]))
-
-        self._create_sound_button(nav_frame, "\u25c0", prev_month_nav, width = 32, height = 28).pack(side = "left", padx = (0, 4))
-        customtkinter.CTkOptionMenu(nav_frame, variable = month_var, values = month_names_list, width = 110, command = _on_month_dropdown).pack(side = "left", padx = 2)
-        customtkinter.CTkOptionMenu(nav_frame, variable = year_var, values = year_list, width = 70, command = _on_year_dropdown).pack(side = "left", padx = 2)
-        self._create_sound_button(nav_frame, "\u25b6", next_month_nav, width = 32, height = 28).pack(side = "left", padx = (4, 0))
+        self._create_sound_button(nav_frame, "\u25c0", prev_month, width = 32, height = 28).pack(side = "left", padx = (0, 4))
+        month_label.pack(side = "left", padx = 8)
+        self._create_sound_button(nav_frame, "\u25b6", next_month, width = 32, height = 28).pack(side = "left", padx = (4, 0))
 
         render_calendar()
 
@@ -41835,9 +42411,9 @@ class App:
         day_temp_var = customtkinter.StringVar(value = "70")
 
         customtkinter.CTkLabel(detail_row, text = "Type:").pack(side = "left", padx = (0, 2))
-        customtkinter.CTkOptionMenu(detail_row, variable = day_weather_var, values = list(VALID_WEATHER), width = 130).pack(side = "left", padx = (0, 8))
+        customtkinter.CTkSegmentedButton(detail_row, values = list(VALID_WEATHER), variable = day_weather_var, width = 360).pack(side = "left", padx = (0, 8))
         customtkinter.CTkLabel(detail_row, text = "Wind:").pack(side = "left", padx = (0, 2))
-        customtkinter.CTkOptionMenu(detail_row, variable = day_wind_var, values = ["0", "1", "2", "3"], width = 55).pack(side = "left", padx = (0, 8))
+        customtkinter.CTkSegmentedButton(detail_row, values = ["0", "1", "2", "3"], variable = day_wind_var, width = 120).pack(side = "left", padx = (0, 8))
         customtkinter.CTkLabel(detail_row, text = f"Temp {temp_unit}:").pack(side = "left", padx = (0, 2))
         customtkinter.CTkEntry(detail_row, textvariable = day_temp_var, width = 55).pack(side = "left")
 
@@ -41872,6 +42448,9 @@ class App:
             grid_frame = customtkinter.CTkFrame(hourly_scroll, fg_color = "transparent")
             grid_frame.pack(anchor = "center", pady = 2)
 
+            WEATHER_OPTIONS = ["(none)"] + list(VALID_WEATHER)
+            WIND_OPTIONS = ["(none)", "0", "1", "2", "3"]
+
             for h in range(24):
                 h_key = f"{h:02d}"
                 h_data = existing_hourly.get(h_key, {})
@@ -41884,14 +42463,20 @@ class App:
                 top_row = customtkinter.CTkFrame(cell, fg_color = "transparent")
                 top_row.pack(fill = "x", padx = 2, pady = (2, 0))
                 customtkinter.CTkLabel(top_row, text = f"{h:02d}:00", font = customtkinter.CTkFont(size = 11, weight = "bold"), width = 40).pack(side = "left")
-                w_var = customtkinter.StringVar(value = h_data.get("weather", ""))
-                customtkinter.CTkOptionMenu(top_row, variable = w_var, values = [""] + list(VALID_WEATHER), width = 100).pack(side = "left", padx = 2)
+
+                # Use OptionMenu (dropdown) instead of SegmentedButton to avoid width overflow with 6 values
+                raw_weather = h_data.get("weather", "")
+                w_var = customtkinter.StringVar(value = raw_weather if raw_weather in VALID_WEATHER else "(none)")
+                customtkinter.CTkOptionMenu(top_row, values = WEATHER_OPTIONS, variable = w_var, width = 140).pack(side = "left", padx = 2)
 
                 bot_row = customtkinter.CTkFrame(cell, fg_color = "transparent")
                 bot_row.pack(fill = "x", padx = 2, pady = (0, 2))
                 customtkinter.CTkLabel(bot_row, text = "W:", font = customtkinter.CTkFont(size = 10)).pack(side = "left")
-                wnd_var = customtkinter.StringVar(value = str(h_data.get("wind_severity", "")) if "wind_severity" in h_data else "")
-                customtkinter.CTkOptionMenu(bot_row, variable = wnd_var, values = ["", "0", "1", "2", "3"], width = 45).pack(side = "left", padx = 2)
+
+                raw_wind = str(h_data.get("wind_severity", "")) if "wind_severity" in h_data else ""
+                wnd_var = customtkinter.StringVar(value = raw_wind if raw_wind in ("0", "1", "2", "3") else "(none)")
+                customtkinter.CTkOptionMenu(bot_row, values = WIND_OPTIONS, variable = wnd_var, width = 90).pack(side = "left", padx = 2)
+
                 customtkinter.CTkLabel(bot_row, text = f"T{temp_unit}:", font = customtkinter.CTkFont(size = 10)).pack(side = "left")
                 stored_f = h_data.get("temperature_f")
                 display_t = str(_f_to_display(stored_f)) if stored_f is not None else ""
@@ -41905,14 +42490,17 @@ class App:
                 w = vars_dict["weather"].get().strip()
                 wnd = vars_dict["wind"].get().strip()
                 tmp = vars_dict["temp"].get().strip()
-                if not w and not wnd and not tmp:
+                # "(none)" is the empty sentinel from the OptionMenu dropdowns
+                w_val = w if w not in ("", "(none)") else ""
+                wnd_val = wnd if wnd not in ("", "(none)") else ""
+                if not w_val and not wnd_val and not tmp:
                     continue
                 entry = {}
-                if w:
-                    entry["weather"] = w
-                if wnd:
+                if w_val:
+                    entry["weather"] = w_val
+                if wnd_val:
                     try:
-                        entry["wind_severity"] = int(wnd)
+                        entry["wind_severity"] = int(wnd_val)
                     except ValueError:
                         pass
                 if tmp:
@@ -42035,6 +42623,188 @@ class App:
             except Exception as e:
                 self._popup_show_info("Error", f"Download failed: {e}", sound = "error")
 
+        # --- Generation settings ---
+        gen_config_frame = customtkinter.CTkFrame(outer_frame, fg_color = "transparent")
+        gen_config_frame.pack(pady = (2, 0), anchor = "center")
+        customtkinter.CTkLabel(gen_config_frame, text = "Season for generator:").pack(side = "left", padx = (0, 6))
+        _month_to_season = {12: "Winter", 1: "Winter", 2: "Winter", 3: "Spring", 4: "Spring", 5: "Spring",
+                            6: "Summer", 7: "Summer", 8: "Summer", 9: "Fall", 10: "Fall", 11: "Fall"}
+        season_var = customtkinter.StringVar(value = _month_to_season.get(current_month[0], "Spring"))
+        customtkinter.CTkSegmentedButton(gen_config_frame, values = ["Winter", "Spring", "Summer", "Fall"],
+                                         variable = season_var, width = 300).pack(side = "left")
+
+        def generate_realistic_weather():
+            """Generate realistic weather for the currently displayed month with seasonal parameters and previous-month continuity."""
+            rng = random.Random()
+            season = season_var.get()
+            target_year = current_year[0]
+            target_month = current_month[0]
+            days_in_month = cal_module.monthrange(target_year, target_month)[1]
+
+            season_params = {
+                "Winter": {
+                    "temp_mid": 18.0, "temp_min": -15.0, "temp_max": 38.0,
+                    "transitions": {
+                        "clear":        {"clear": 0.50, "snowstorm": 0.35, "thundersnow": 0.15},
+                        "snowstorm":    {"clear": 0.20, "snowstorm": 0.55, "thundersnow": 0.25},
+                        "thundersnow":  {"snowstorm": 0.50, "clear": 0.20, "thundersnow": 0.30},
+                        "rain":         {"clear": 0.55, "snowstorm": 0.35, "thunderstorm": 0.10},
+                        "thunderstorm": {"rain": 0.35, "clear": 0.40, "snowstorm": 0.25},
+                    },
+                    "wind_weights": [0.20, 0.30, 0.28, 0.22],
+                },
+                "Spring": {
+                    "temp_mid": 52.0, "temp_min": 30.0, "temp_max": 72.0,
+                    "transitions": {
+                        "clear":        {"clear": 0.50, "rain": 0.30, "thunderstorm": 0.10, "snowstorm": 0.08, "thundersnow": 0.02},
+                        "rain":         {"clear": 0.30, "rain": 0.45, "thunderstorm": 0.25},
+                        "thunderstorm": {"rain": 0.40, "thunderstorm": 0.35, "clear": 0.25},
+                        "snowstorm":    {"clear": 0.50, "rain": 0.30, "snowstorm": 0.20},
+                        "thundersnow":  {"snowstorm": 0.30, "rain": 0.40, "clear": 0.30},
+                    },
+                    "wind_weights": [0.40, 0.35, 0.15, 0.10],
+                },
+                "Summer": {
+                    "temp_mid": 80.0, "temp_min": 60.0, "temp_max": 98.0,
+                    "transitions": {
+                        "clear":        {"clear": 0.60, "rain": 0.25, "thunderstorm": 0.15},
+                        "rain":         {"clear": 0.35, "rain": 0.40, "thunderstorm": 0.25},
+                        "thunderstorm": {"rain": 0.45, "thunderstorm": 0.35, "clear": 0.20},
+                        "snowstorm":    {"clear": 1.0},
+                        "thundersnow":  {"clear": 1.0},
+                    },
+                    "wind_weights": [0.50, 0.30, 0.15, 0.05],
+                },
+                "Fall": {
+                    "temp_mid": 48.0, "temp_min": 28.0, "temp_max": 68.0,
+                    "transitions": {
+                        "clear":        {"clear": 0.55, "rain": 0.25, "thunderstorm": 0.08, "snowstorm": 0.10, "thundersnow": 0.02},
+                        "rain":         {"clear": 0.30, "rain": 0.42, "thunderstorm": 0.15, "snowstorm": 0.10, "thundersnow": 0.03},
+                        "thunderstorm": {"rain": 0.40, "thunderstorm": 0.30, "clear": 0.20, "snowstorm": 0.10},
+                        "snowstorm":    {"clear": 0.30, "snowstorm": 0.50, "thundersnow": 0.20},
+                        "thundersnow":  {"snowstorm": 0.40, "clear": 0.30, "thundersnow": 0.30},
+                    },
+                    "wind_weights": [0.35, 0.30, 0.20, 0.15],
+                },
+            }
+
+            params = season_params.get(season, season_params["Spring"])
+            transition_map = params["transitions"]
+            temp_mid = params["temp_mid"]
+            temp_min = params["temp_min"]
+            temp_max = params["temp_max"]
+            wind_weights = params["wind_weights"]
+
+            # Look back at the previous month for temperature and weather continuity
+            prev_month = target_month - 1
+            prev_year = target_year
+            if prev_month < 1:
+                prev_month = 12
+                prev_year -= 1
+            prev_days_in_month = cal_module.monthrange(prev_year, prev_month)[1]
+
+            lookback_temps = []
+            current_weather = "clear"
+            found_prev_weather = False
+            for d in range(prev_days_in_month, max(prev_days_in_month - 7, 0), -1):
+                pk = f"{prev_year}-{prev_month:02d}-{d:02d}"
+                if pk in forecast:
+                    entry = forecast[pk]
+                    t = entry.get("temperature_f")
+                    if t is not None:
+                        lookback_temps.append(t)
+                    if not found_prev_weather:
+                        current_weather = entry.get("weather", "clear")
+                        found_prev_weather = True
+
+            if lookback_temps:
+                current_temp = sum(lookback_temps) / len(lookback_temps)
+            else:
+                current_temp = temp_mid
+
+            # Clamp starting temp loosely within seasonal range to allow gradual drift
+            current_temp = max(temp_min - 10.0, min(temp_max + 10.0, current_temp))
+
+            days_generated = 0
+            for day_num in range(1, days_in_month + 1):
+                date_key = f"{target_year}-{target_month:02d}-{day_num:02d}"
+
+                if date_key in forecast:
+                    # Use existing entry as a continuity anchor without overwriting it
+                    current_temp = forecast[date_key].get("temperature_f", current_temp)
+                    current_weather = forecast[date_key].get("weather", current_weather)
+                    continue
+
+                # Pick today's weather via seasonal transition probabilities
+                day_transitions = transition_map.get(current_weather, {"clear": 1.0})
+                weather_options = list(day_transitions.keys())
+                weather_probs = [day_transitions[w] for w in weather_options]
+                today_weather = rng.choices(weather_options, weights = weather_probs, k = 1)[0]
+
+                # Drift temperature with mean reversion toward seasonal midpoint
+                temp_pull = (temp_mid - current_temp) * 0.08
+                if today_weather in RAIN_TYPES:
+                    current_temp += temp_pull + rng.uniform(-6.0, 2.0)
+                    current_temp = max(33.0, current_temp)
+                elif today_weather in SNOW_TYPES:
+                    current_temp += temp_pull + rng.uniform(-10.0, -1.0)
+                    current_temp = max(-20.0, current_temp)
+                else:
+                    current_temp += temp_pull + rng.uniform(-4.0, 4.0)
+                current_temp = max(temp_min - 15.0, min(temp_max + 15.0, current_temp))
+
+                # Validate weather/temp consistency
+                if today_weather in SNOW_TYPES and current_temp >= 32.0:
+                    today_weather = "thunderstorm" if today_weather == "thundersnow" else "rain"
+                elif today_weather in RAIN_TYPES and current_temp <= 32.0:
+                    today_weather = "thundersnow" if today_weather == "thunderstorm" else "snowstorm"
+
+                current_weather = today_weather
+                day_wind = rng.choices([0, 1, 2, 3], weights = wind_weights, k = 1)[0]
+
+                # Generate hourly with diurnal curve: coldest ~5am, warmest ~2pm
+                hourly = {}
+                for hour in range(24):
+                    hour_weather = today_weather
+                    if rng.random() < 0.15:
+                        h_transitions = transition_map.get(today_weather, {"clear": 1.0})
+                        h_options = list(h_transitions.keys())
+                        h_probs = [h_transitions[w] for w in h_options]
+                        if h_options:
+                            hour_weather = rng.choices(h_options, weights = h_probs, k = 1)[0]
+
+                    diurnal = -5.0 * math.cos(2.0 * math.pi * (hour - 14) / 24.0)
+                    hour_temp = current_temp + diurnal + rng.uniform(-1.5, 1.5)
+
+                    if hour_weather in SNOW_TYPES and hour_temp >= 32.0:
+                        hour_weather = "thunderstorm" if hour_weather == "thundersnow" else "rain"
+                    elif hour_weather in RAIN_TYPES and hour_temp <= 32.0:
+                        hour_weather = "thundersnow" if hour_weather == "thunderstorm" else "snowstorm"
+
+                    hour_wind = max(0, min(3, day_wind + rng.randint(-1, 1)))
+                    hourly[f"{hour:02d}"] = {
+                        "weather": hour_weather,
+                        "wind_severity": int(hour_wind),
+                        "temperature_f": round(hour_temp, 1)
+                    }
+
+                forecast[date_key] = {
+                    "weather": today_weather,
+                    "wind_severity": int(day_wind),
+                    "temperature_f": round(current_temp, 1),
+                    "hourly": hourly
+                }
+                days_generated += 1
+
+            selected_date[0] = None
+            detail_title.configure(text = "Select a day to edit")
+            hourly_toggle_var.set(False)
+            hourly_scroll.pack_forget()
+            render_calendar()
+            month_name_str = cal_module.month_name[target_month]
+            self._popup_show_info("Generated", f"Weather generated for {days_generated} days in {month_name_str} {target_year} ({season}).", sound = "success")
+
+        self._create_sound_button(bottom_frame, "Generate Weather", generate_realistic_weather, width = 180, height = 36, fg_color = "#FF8C00").pack(side = "left", padx = 6)
         self._create_sound_button(bottom_frame, "Download from GitHub", download_weather, width = 180, height = 36).pack(side = "left", padx = 6)
         self._create_sound_button(bottom_frame, "Save Locally", save_weather, width = 180, height = 36, fg_color = "#006400").pack(side = "left", padx = 6)
         self._create_sound_button(
