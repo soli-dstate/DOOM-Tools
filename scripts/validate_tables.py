@@ -87,7 +87,7 @@ def _extract_ammo_fields(item):
     return ammo_names, calibers
 
 
-def _resolve_current_item(cur, id_map):
+def _resolve_current_item(cur, id_map, source=None):
     if isinstance(cur, int):
         target = id_map.get(cur)
         ref_overrides = {}
@@ -345,9 +345,11 @@ def validate_tables(tables_dir=None, secondary_platform=None):
             error_source.append((msg, table_file))
 
     id_to_item_by_table = {}
+    id_subtable_map = {}  # (table_file, item_id) -> subtable_name
     for it, tf, sub in all_table_items:
         if isinstance(it, dict) and "id" in it:
             id_to_item_by_table.setdefault(tf, {})[it["id"]] = it
+            id_subtable_map[(tf, it["id"])] = sub
 
     # ── 3. Hardcore mode validation ───────────────────────────────────────
     try:
@@ -394,6 +396,64 @@ def validate_tables(tables_dir=None, secondary_platform=None):
                     error_source.append((msg, tf))
     except Exception as e:
         warnings.append(("Hardcore Mode", f"Hardcore mode check failed: {e}"))
+
+    # ── 3b. Part reference validation (all tables) ───────────────────────
+    try:
+        for item, tf, sub in all_table_items:
+            if not isinstance(item, dict) or not item.get("firearm"):
+                continue
+            fname = item.get("name") or "<unnamed>"
+            display = table_pretty_names.get(tf, tf)
+            firearm_platform = item.get("platform") or ""
+            item_secondary = item.get("secondary_platform") if isinstance(item, dict) else None
+            item_secondary = item_secondary or secondary_platform
+            table_id_map = id_to_item_by_table.get(tf, {})
+
+            for p in item.get("parts") or []:
+                if not isinstance(p, dict):
+                    continue
+                cur = p.get("current")
+                if cur is None:
+                    continue
+                target_id = None
+                if isinstance(cur, int):
+                    target_id = cur
+                elif isinstance(cur, dict) and "id" in cur:
+                    target_id = cur["id"]
+                if target_id is None:
+                    continue
+
+                target_item = table_id_map.get(target_id)
+                if target_item is None:
+                    # Missing IDs are reported by the Hardcore Mode check
+                    continue
+
+                # The resolved item must live in the 'parts' subtable
+                resolved_sub = id_subtable_map.get((tf, target_id), "")
+                if str(resolved_sub).lower() != "parts":
+                    msg = (
+                        f"Table '{display}': Firearm '{fname}' part slot "
+                        f"'{p.get('name', '?')}' references item ID {target_id} "
+                        f"('{target_item.get('name', '?')}') which is in subtable "
+                        f"'{resolved_sub}', not 'parts'."
+                    )
+                    errors.append(("Part References", msg))
+                    error_source.append((msg, tf))
+                    continue
+
+                # Platform of the referenced part must match the firearm
+                tplat = target_item.get("platform") or ""
+                if str(firearm_platform).strip() and str(tplat).strip() and not _platforms_compatible(firearm_platform, tplat, item_secondary):
+                    msg = (
+                        f"Table '{display}': Firearm '{fname}' part slot "
+                        f"'{p.get('name', '?')}' references item ID {target_id} "
+                        f"('{target_item.get('name', '?')}') with platform '{tplat}', "
+                        f"incompatible with firearm platform '{firearm_platform}'."
+                    )
+                    errors.append(("Part References", msg))
+                    error_source.append((msg, tf))
+    except Exception as e:
+        warnings.append(("Part References", f"Part reference check failed: {e}"))
 
     # ── 4. Ammunition compatibility ───────────────────────────────────────
     ammo_names_present = set()
@@ -635,6 +695,59 @@ def validate_tables(tables_dir=None, secondary_platform=None):
             display_cat = table_pretty_names.get(tf_cat, tf_cat)
             warnings.append(("Missing Categories", f"Table '{display_cat}': Item '{item_name_cat}' in subtable '{sub_cat}' is missing both 'armory_category' and 'shop_category' fields."))
 
+    # ── 10. Equipment slot coverage ───────────────────────────────────────
+    KNOWN_EQUIPMENT_SLOTS = {
+        "head", "face", "torso", "left wrist", "right wrist",
+        "left hand", "right hand", "legs", "feet", "neck", "chest",
+        "back", "waist", "waistband", "left shoulder", "right shoulder",
+        "left arm", "right arm", "left leg", "right leg",
+    }
+    try:
+        # First pass: collect every slot name referenced inside a subslots[] list
+        # so that items designed to fill subslots (NVGs, ARC accessories, etc.)
+        # are not mistakenly treated as main body-slot items.
+        known_subslot_names: set = set()
+        for item_eq, _tf_eq, _sub_eq in all_table_items:
+            if not isinstance(item_eq, dict):
+                continue
+            for ss in (item_eq.get("subslots") or []):
+                if isinstance(ss, dict) and ss.get("slot"):
+                    known_subslot_names.add(str(ss["slot"]).strip().lower())
+
+        # Second pass: coverage check — only consider items whose slot is a
+        # known body slot, not items filling equipment subslots.
+        globally_covered: set = set()
+        any_equippable = False
+        for item_eq, tf_eq, _sub_eq in all_table_items:
+            if not isinstance(item_eq, dict) or not item_eq.get("equippable"):
+                continue
+            slot_val = item_eq.get("slot")
+            if not slot_val or not isinstance(slot_val, str):
+                continue
+            slot_norm = slot_val.strip().lower()
+            any_equippable = True
+
+            if slot_norm in KNOWN_EQUIPMENT_SLOTS:
+                globally_covered.add(slot_norm)
+            elif slot_norm not in known_subslot_names:
+                # Not a body slot and not a known subslot filler — likely a typo
+                item_name_eq = item_eq.get("name") or f"ID {item_eq.get('id', '?')}"
+                display_eq = table_pretty_names.get(tf_eq, tf_eq)
+                warnings.append((
+                    "Equipment Slots",
+                    f"Table '{display_eq}': Equippable item '{item_name_eq}' uses unrecognized equipment slot '{slot_val}'.",
+                ))
+
+        if any_equippable:
+            for known_slot in sorted(KNOWN_EQUIPMENT_SLOTS):
+                if known_slot not in globally_covered:
+                    warnings.append((
+                        "Equipment Slots",
+                        f"Equipment slot '{known_slot}' has no items available in any table.",
+                    ))
+    except Exception as e:
+        warnings.append(("Equipment Slots", f"Equipment slot check failed: {e}"))
+
     # ── Split disabled vs active errors ──────────────────────────────────
     disabled_err_set = set()
     for msg, tf in error_source:
@@ -661,6 +774,7 @@ ALL_CATEGORIES = [
     "Duplicate IDs",
     "Weapon Sounds",
     "Slot References",
+    "Equipment Slots",
     "Store Categories",
     "Missing Categories",
 ]

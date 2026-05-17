@@ -2028,13 +2028,13 @@ emptysave = {
 },
 "equipment":{
 "head":None,
+"ears":None,
 "face":None,
 "torso":None,
 "left wrist":None,
 "right wrist":None,
 "left hand":None,
 "right hand":None,
-"legs":None,
 "feet":None,
 "neck":None,
 "chest":None,
@@ -3328,6 +3328,69 @@ def _set_full_part_durability(item):
     if item.get("spring_durability") == "set_by_looting":
         item["spring_durability"] = float(PART_DURABILITY_MAX)
 
+def _repair_item_parts_durability_recursive(node, fallback_value = 100.0):
+    """Recursively normalize broken part durability values.
+
+    Invalid or missing `current_durability` values under any `parts` list are
+    repaired. If no usable durability source exists, fallback_value is used.
+    """
+    try:
+        fallback_num = float(fallback_value)
+    except (TypeError, ValueError):
+        fallback_num = 100.0
+
+    def _to_float_or_none(value):
+        try:
+            num = float(value)
+            if math.isnan(num) or math.isinf(num):
+                return None
+            return num
+        except (TypeError, ValueError):
+            return None
+
+    def _repair_part_dict(part_dict):
+        if not isinstance(part_dict, dict):
+            return
+
+        current_val = part_dict.get("current_durability")
+        current_num = _to_float_or_none(current_val)
+        if current_num is not None:
+            part_dict["current_durability"] = current_num
+            return
+
+        base_num = _to_float_or_none(part_dict.get("durability"))
+        if base_num is not None:
+            part_dict["current_durability"] = base_num
+            return
+
+        current_text = str(current_val).strip().lower() if current_val is not None else ""
+        if current_text in ("", "n/a", "na", "none", "null", "set_by_looting") or "current_durability" not in part_dict:
+            part_dict["current_durability"] = fallback_num
+
+    def _walk(obj):
+        if isinstance(obj, dict):
+            parts_list = obj.get("parts")
+            if isinstance(parts_list, list):
+                for part_entry in parts_list:
+                    if isinstance(part_entry, dict):
+                        _repair_part_dict(part_entry)
+                        part_current = part_entry.get("current")
+                        if isinstance(part_current, dict):
+                            _repair_part_dict(part_current)
+                            _walk(part_current)
+                        _walk(part_entry)
+
+            for value in obj.values():
+                if isinstance(value, (dict, list)):
+                    _walk(value)
+        elif isinstance(obj, list):
+            for value in obj:
+                if isinstance(value, (dict, list)):
+                    _walk(value)
+
+    _walk(node)
+    return node
+
 def _get_weapon_condition_label(item):
     """Return (condition_str, color) for a weapon item.
     Uses actual part current_durability if available, otherwise estimates from rounds_fired."""
@@ -3448,6 +3511,67 @@ def _get_weapon_part_effects(weapon):
             elif ptype == "buffer_spring":
                 effects["inconsistent_feeding"] = True
     return effects
+
+def _get_weapon_part_jam_data(weapon):
+    """Return (jam_multiplier, low_part_labels) from current part durability."""
+    parts = weapon.get("parts")
+    if not parts or not isinstance(parts, list):
+        return 1.0, []
+
+    part_weights = {
+        "barrel": 1.2,
+        "trigger_spring": 1.55,
+        "recoil_spring": 1.65,
+        "gas_piston": 1.2,
+        "bolt_carrier_group": 1.7,
+        "feed_tray": 1.5,
+        "buffer_spring": 1.35,
+        "bolt": 1.6,
+    }
+
+    severity_sum = 0.0
+    worst_pct = 1.0
+    low_part_labels = []
+
+    for p in parts:
+        if not isinstance(p, dict):
+            continue
+        ptype = str(p.get("type", "") or "").strip()
+        if not ptype:
+            continue
+
+        dur_val = p.get("current_durability")
+        if dur_val is None or str(dur_val).strip().lower() in ("", "null", "set_by_looting"):
+            continue
+
+        try:
+            dur_num = float(dur_val)
+        except (ValueError, TypeError):
+            continue
+
+        pct = max(0.0, min(1.0, dur_num / float(PART_DURABILITY_MAX)))
+        worst_pct = min(worst_pct, pct)
+
+        if pct <= 0.35:
+            label = p.get("name") or ptype.replace("_", " ").title()
+            low_part_labels.append(f"{label} ({pct * 100:.0f}%)")
+
+        weight = part_weights.get(ptype)
+        if weight is None:
+            continue
+
+        # Start increasing jam risk once a part drops below ~85% condition.
+        severity = max(0.0, (0.85 - pct) / 0.85)
+        severity_sum += severity * weight
+
+    if severity_sum <= 0.0:
+        return 1.0, low_part_labels
+
+    jam_mult = 1.0 + min(4.5, severity_sum * 0.55)
+    if worst_pct <= 0.10:
+        jam_mult *= 1.35
+
+    return min(8.0, jam_mult), low_part_labels
 
 MAGPUL_DOT_MATRIX = {
     "1": [[0,1,0],[1,1,0],[0,1,0],[0,1,0],[1,1,1]],
@@ -10495,11 +10619,23 @@ class App:
     def _open_crafting_menu(self, store, table_data):
         self._popup_show_info("Crafting Menu", "Crafting system is not implemented yet.", sound = "popup")
 
-    def _start_shop_firearm_test(self, firearm_item, table_data, on_test_purchase = None):
-        test_cost = 10.0
+    def _start_shop_firearm_test(self, firearm_item, table_data, on_test_purchase = None, buy_price = 0.0, on_test_started = None):
         if not isinstance(firearm_item, dict) or not firearm_item.get("firearm"):
             self._popup_show_info("Test Firearm", "Only firearms can be tested.", sound = "error")
             return
+        if firearm_item.get("_test_used"):
+            self._popup_show_info("Test Firearm", "This firearm has already been test-fired.", sound = "error")
+            return
+        try:
+            _rf_val = firearm_item.get("rounds_fired")
+            _is_new_gun = (_rf_val is None or int(_rf_val or 0) == 0)
+        except Exception:
+            _is_new_gun = True
+        try:
+            _bp = float(buy_price or 0)
+        except Exception:
+            _bp = 0.0
+        test_cost = max(25.0, round(_bp * 0.04, 2)) if (_is_new_gun and _bp > 0) else 10.0
         if currentsave is None:
             self._popup_show_info("Test Firearm", "No character loaded.", sound = "error")
             return
@@ -10528,15 +10664,21 @@ class App:
         globals()["save_data"] = save_data_local
         self._current_save_data = save_data_local
 
+        firearm_item["_test_used"] = True
+        if callable(on_test_started):
+            try:
+                on_test_started()
+            except Exception:
+                pass
         if callable(on_test_purchase):
             try:
                 on_test_purchase(save_data_local["money"])
             except Exception:
                 pass
 
-        self._open_firearm_test_mode(firearm_item, table_data)
+        self._open_firearm_test_mode(firearm_item, table_data, test_cost = test_cost)
 
-    def _open_firearm_test_mode(self, firearm_item, table_data):
+    def _open_firearm_test_mode(self, firearm_item, table_data, test_cost = 10.0):
         if not isinstance(firearm_item, dict):
             self._popup_show_info("Test Firearm", "Invalid firearm data.", sound = "error")
             return
@@ -10736,7 +10878,7 @@ class App:
 
         customtkinter.CTkLabel(
             frame,
-            text = f"Test fee paid: {format_price(10)} | Clipboard output disabled | Attachment/part edits disabled",
+            text = f"Test fee paid: {format_price(test_cost)} | Clipboard output disabled | Attachment/part edits disabled",
             font = customtkinter.CTkFont(size = 12),
             text_color = "#aaaaaa",
             wraplength = 700,
@@ -10781,16 +10923,43 @@ class App:
             firearm_item["rounds_fired"] = current_rf + fired_count
             weapon["rounds_fired"] = firearm_item.get("rounds_fired", current_rf + fired_count)
 
+        _fire_btns = []
+
         def _fire(rounds_to_fire):
+            if getattr(popup, "_firing", False):
+                return
+            popup._firing = True
+            for _b in _fire_btns:
+                try:
+                    _b.configure(state = "disabled")
+                except Exception:
+                    pass
+            result_label.configure(text = "Firing...")
             prev_clipboard_state = bool(getattr(self, "_suppress_clipboard_copy", False))
             self._suppress_clipboard_copy = True
-            try:
-                result = self._fire_weapon(weapon, combat_state, rounds_to_fire = rounds_to_fire, fire_mode = None, save_data = None)
-            finally:
-                self._suppress_clipboard_copy = prev_clipboard_state
-            _apply_fired_rounds_to_shop_item(result)
-            result_label.configure(text = str(result))
-            _update_status()
+            def _do_fire():
+                try:
+                    result = self._fire_weapon(weapon, combat_state, rounds_to_fire = rounds_to_fire, fire_mode = None, save_data = None)
+                except Exception:
+                    result = "Firing failed due to an internal error."
+                finally:
+                    self._suppress_clipboard_copy = prev_clipboard_state
+                def _after():
+                    _apply_fired_rounds_to_shop_item(result)
+                    result_label.configure(text = str(result))
+                    _update_status()
+                    for _b in _fire_btns:
+                        try:
+                            _b.configure(state = "normal")
+                        except Exception:
+                            pass
+                    popup._firing = False
+                try:
+                    popup.after(0, _after)
+                except Exception:
+                    pass
+            import threading as _test_threading
+            _test_threading.Thread(target = _do_fire, daemon = True).start()
 
         def _reload_test_weapon():
             if is_internal:
@@ -10826,8 +10995,12 @@ class App:
         button_row = customtkinter.CTkFrame(frame, fg_color = "transparent")
         button_row.pack(fill = "x", pady = (4, 0))
 
-        self._create_sound_button(button_row, "Fire 1", lambda: _fire(1), width = 120, height = 36).pack(side = "left", padx = (0, 8))
-        self._create_sound_button(button_row, "Fire 3", lambda: _fire(3), width = 120, height = 36).pack(side = "left", padx = (0, 8))
+        _f1_btn = self._create_sound_button(button_row, "Fire 1", lambda: _fire(1), width = 120, height = 36)
+        _f1_btn.pack(side = "left", padx = (0, 8))
+        _fire_btns.append(_f1_btn)
+        _f3_btn = self._create_sound_button(button_row, "Fire 3", lambda: _fire(3), width = 120, height = 36)
+        _f3_btn.pack(side = "left", padx = (0, 8))
+        _fire_btns.append(_f3_btn)
         self._create_sound_button(button_row, "Reload", _reload_test_weapon, width = 120, height = 36).pack(side = "left", padx = (0, 8))
         self._create_sound_button(button_row, "Close", popup.destroy, width = 120, height = 36).pack(side = "right")
 
@@ -10982,14 +11155,36 @@ class App:
         btn_row.pack(pady = (18, 0))
 
         if item.get("firearm"):
-            self._create_sound_button(
+            try:
+                _trf = item.get("rounds_fired")
+                _t_is_new = (_trf is None or int(_trf or 0) == 0)
+            except Exception:
+                _t_is_new = True
+            try:
+                _t_bp = float(buy_price or 0)
+            except Exception:
+                _t_bp = 0.0
+            _t_cost = max(25.0, round(_t_bp * 0.04, 2)) if (_t_is_new and _t_bp > 0) else 10.0
+            _t_already_used = bool(item.get("_test_used"))
+            _t_btn_ref = [None]
+            def _on_test_started_cb(ref = _t_btn_ref):
+                if ref[0]:
+                    try:
+                        ref[0].configure(state = "disabled", text = "Already Tested")
+                    except Exception:
+                        pass
+            _t_btn = self._create_sound_button(
                 btn_row,
-                "Test Firearm ($10)",
-                lambda: self._start_shop_firearm_test(item, table_data, on_test_purchase = on_test_purchase),
+                "Already Tested" if _t_already_used else f"Test Firearm ({format_price(_t_cost)})",
+                lambda: self._start_shop_firearm_test(item, table_data, on_test_purchase = on_test_purchase, buy_price = buy_price, on_test_started = _on_test_started_cb),
                 width = 170,
                 height = 32,
-                font = customtkinter.CTkFont(size = 12)
-            ).pack(side = "left", padx = (0, 8))
+                font = customtkinter.CTkFont(size = 12),
+            )
+            if _t_already_used:
+                _t_btn.configure(state = "disabled")
+            _t_btn.pack(side = "left", padx = (0, 8))
+            _t_btn_ref[0] = _t_btn
 
         customtkinter.CTkButton(
             btn_row, text = "Close", command = popup.destroy, width = 120
@@ -11033,6 +11228,62 @@ class App:
             except Exception:
                 pass
             return
+
+        equipped_weapons = self._get_equipped_weapons(save_data, table_data)
+        equipped_calibers = set()
+        equipped_magazine_systems = set()
+        equipped_attachment_slots = set()
+
+        for wpn in equipped_weapons:
+            item = wpn.get("item", {})
+            calibers = item.get("caliber", [])
+            if isinstance(calibers, str):
+                calibers = [calibers]
+            for cal in calibers:
+                if cal:
+                    equipped_calibers.add(cal)
+
+            mag_system = item.get("magazinesystem")
+            if mag_system:
+                equipped_magazine_systems.add(mag_system)
+
+        for wpn in equipped_weapons:
+            for acc in (wpn.get("accessories") or []):
+                if isinstance(acc, dict):
+                    slot_name = acc.get("slot")
+                    if slot_name:
+                        equipped_attachment_slots.add(slot_name)
+
+        def _is_shop_item_relevant(item):
+            if not isinstance(item, dict):
+                return False
+
+            calibers = item.get("caliber", [])
+            if isinstance(calibers, str):
+                calibers = [calibers]
+
+            if item.get("_table_category") == "ammunition":
+                for cal in calibers:
+                    if cal in equipped_calibers:
+                        return True
+
+            if item.get("_table_category") == "magazines":
+                mag_system = item.get("magazinesystem")
+                if mag_system in equipped_magazine_systems:
+                    for cal in calibers:
+                        if cal in equipped_calibers:
+                            return True
+
+            is_attachment = bool(item.get("attachment") or item.get("accessory") or (item.get("_table_category") in ("attachments", "accessories")))
+            if is_attachment:
+                item_slots = item.get("slot") or item.get("attach_to") or item.get("accessory_slot") or item.get("parent_accessory_slot") or []
+                if isinstance(item_slots, str):
+                    item_slots = [item_slots]
+                for slot_name in item_slots:
+                    if slot_name and slot_name in equipped_attachment_slots:
+                        return True
+
+            return False
 
         player_money =[save_data.get("money", 0)]
 
@@ -11552,6 +11803,41 @@ class App:
 
         store_inventory = _expand_ammo_variants_for_store(store_inventory)
 
+        stock_count_by_key = {}
+
+        def _hashable_key_value(value):
+            if isinstance(value, dict):
+                try:
+                    return tuple(sorted((str(k), _hashable_key_value(v)) for k, v in value.items()))
+                except Exception:
+                    return str(value)
+            if isinstance(value, (list, tuple, set)):
+                try:
+                    return tuple(_hashable_key_value(v) for v in value)
+                except Exception:
+                    return str(value)
+            return value
+
+        def _shop_stock_key(item_obj):
+            return (
+                _hashable_key_value(item_obj.get("id")),
+                _hashable_key_value(item_obj.get("name")),
+                _hashable_key_value(item_obj.get("caliber")),
+                _hashable_key_value(item_obj.get("variant")),
+                _hashable_key_value(item_obj.get("_table_category")),
+            )
+
+        for inv_item in store_inventory:
+            if not isinstance(inv_item, dict):
+                continue
+            _k = _shop_stock_key(inv_item)
+            stock_count_by_key[_k] = stock_count_by_key.get(_k, 0) + 1
+
+        for inv_item in store_inventory:
+            if not isinstance(inv_item, dict):
+                continue
+            inv_item["_shop_available_qty"] = stock_count_by_key.get(_shop_stock_key(inv_item), 1)
+
         for item_idx, inv_item in enumerate(store_inventory):
             if not isinstance(inv_item, dict) or not inv_item.get("firearm"):
                 continue
@@ -11591,6 +11877,150 @@ class App:
                 player_money[0] = new_money
             update_buy_display()
 
+        def _is_store_item_stackable(item_obj):
+            if not isinstance(item_obj, dict):
+                return False
+            if str(item_obj.get("_table_category", "")).lower() == "ammunition":
+                return True
+            if item_obj.get("can_stack") is False:
+                return False
+            non_stackable_keys = ["magazinesystem", "capacity", "firearm", "attachment", "subslots", "loaded", "chambered"]
+            return not any(k in item_obj for k in non_stackable_keys)
+
+        def _cart_stack_key(item_obj):
+            return (
+                item_obj.get("name"),
+                item_obj.get("id"),
+                item_obj.get("caliber"),
+                item_obj.get("variant"),
+                item_obj.get("_table_category"),
+            )
+
+        def _buy_cart_units():
+            total_units = 0
+            for entry in buy_cart:
+                try:
+                    total_units += max(1, int(entry.get("quantity", 1)))
+                except Exception:
+                    total_units += 1
+            return total_units
+
+        def _add_item_to_buy_cart(item_obj, unit_price, quantity = 1):
+            try:
+                qty = max(1, int(quantity))
+            except Exception:
+                qty = 1
+
+            stackable = _is_store_item_stackable(item_obj)
+            line_total = float(unit_price) * qty
+
+            if player_money[0] - buy_total[0] < line_total:
+                self._popup_show_info(
+                    "Not Enough Money",
+                    f"You need {format_price(line_total)} but only have {format_price(player_money[0] - buy_total[0])} remaining.",
+                    sound = "error",
+                )
+                return False
+
+            if stackable:
+                key = _cart_stack_key(item_obj)
+                for entry in buy_cart:
+                    if entry.get("stackable") and entry.get("_cart_key") == key:
+                        entry_qty = max(1, int(entry.get("quantity", 1)))
+                        entry["quantity"] = entry_qty + qty
+                        entry["line_total"] = float(entry.get("line_total", 0.0)) + line_total
+                        buy_total[0] += line_total
+                        update_buy_display()
+                        self._play_ui_sound("click")
+                        return True
+
+            buy_cart.append({
+                "item": item_obj.copy(),
+                "price": float(unit_price),
+                "quantity": qty,
+                "line_total": line_total,
+                "stackable": stackable,
+                "_cart_key": _cart_stack_key(item_obj),
+                "_original_item": item_obj if isinstance(item_obj, dict) and item_obj.get("firearm") else None,
+            })
+            buy_total[0] += line_total
+            update_buy_display()
+            self._play_ui_sound("click")
+            return True
+
+        def _remove_buy_cart_index(idx):
+            if idx < 0 or idx >= len(buy_cart):
+                return
+            try:
+                removed = buy_cart.pop(idx)
+            except Exception:
+                return
+            try:
+                buy_total[0] -= float(removed.get("line_total", removed.get("price", 0.0)))
+            except Exception:
+                pass
+            buy_total[0] = max(0.0, buy_total[0])
+            update_buy_display()
+
+        def _open_buy_cart_popup():
+            if not buy_cart:
+                self._popup_show_info("Empty Cart", "Your buy cart is empty.", sound = "popup")
+                return
+
+            popup = customtkinter.CTkToplevel(self.root)
+            popup.title("Buy Cart")
+            popup.geometry("620x460")
+            popup.transient(self.root)
+
+            header = customtkinter.CTkLabel(
+                popup,
+                text = f"Cart Items: {_buy_cart_units()} | Total: {format_price(buy_total[0])}",
+                font = customtkinter.CTkFont(size = 14, weight = "bold"),
+            )
+            header.pack(pady = (10, 6))
+
+            scroll = customtkinter.CTkScrollableFrame(popup)
+            scroll.pack(fill = "both", expand = True, padx = 10, pady = 6)
+
+            def _refresh():
+                for w in scroll.winfo_children():
+                    try:
+                        w.destroy()
+                    except Exception:
+                        pass
+
+                for idx, entry in enumerate(buy_cart):
+                    item = entry.get("item", {})
+                    qty = max(1, int(entry.get("quantity", 1)))
+                    unit_price = float(entry.get("price", 0.0))
+                    line_total = float(entry.get("line_total", unit_price * qty))
+
+                    row = customtkinter.CTkFrame(scroll)
+                    row.pack(fill = "x", padx = 6, pady = 4)
+
+                    title = f"{self._format_item_name(item)} x{qty}"
+                    customtkinter.CTkLabel(row, text = title, anchor = "w", font = customtkinter.CTkFont(size = 12, weight = "bold")).pack(side = "left", padx = 8, pady = 6)
+                    customtkinter.CTkLabel(row, text = f"{format_price(unit_price)} ea | {format_price(line_total)} total", anchor = "e").pack(side = "left", padx = 8)
+
+                    rm_btn = self._create_sound_button(
+                        row,
+                        "Remove",
+                        lambda i = idx: (_remove_buy_cart_index(i), _refresh()),
+                        width = 90,
+                        height = 28,
+                        fg_color = "#8B0000",
+                    )
+                    rm_btn.pack(side = "right", padx = 8)
+
+                header.configure(text = f"Cart Items: {_buy_cart_units()} | Total: {format_price(buy_total[0])}")
+
+            footer = customtkinter.CTkFrame(popup, fg_color = "transparent")
+            footer.pack(fill = "x", padx = 10, pady = (6, 10))
+            self._create_sound_button(footer, "Clear Cart", lambda: (buy_cart.clear(), buy_total.__setitem__(0, 0.0), update_buy_display(), _refresh()), width = 120, height = 30, fg_color = "#8B0000").pack(side = "left")
+            self._create_sound_button(footer, "Close", popup.destroy, width = 120, height = 30).pack(side = "right")
+
+            _refresh()
+
         shop_categories = {}
         for item in store_inventory:
             cat = item.get("shop_category") or item.get("armory_category") or item.get("_table_category") or "Uncategorized"
@@ -11605,9 +12035,15 @@ class App:
                 item_frame = customtkinter.CTkFrame(buy_scroll)
                 item_frame.pack(fill = "x", pady = 5, padx = 10)
 
+                if _is_shop_item_relevant(item):
+                    item_frame.configure(fg_color = "#2a4a2a")
+
                 buy_price = _get_store_buy_price(item)
 
-                name_label = customtkinter.CTkLabel(item_frame, text = f"{self._format_item_name(item)} - {format_price(buy_price)}", font = customtkinter.CTkFont(size = 13, weight = "bold"), anchor = "w")
+                item_name_text = self._format_item_name(item)
+                if _is_shop_item_relevant(item):
+                    item_name_text = "⭐ " + item_name_text
+                name_label = customtkinter.CTkLabel(item_frame, text = f"{item_name_text} - {format_price(buy_price)}", font = customtkinter.CTkFont(size = 13, weight = "bold"), anchor = "w")
                 name_label.pack(anchor = "w", padx = 10, pady =(8, 2))
 
                 if item.get("description"):
@@ -11630,24 +12066,27 @@ class App:
                     info_parts.append(f"Pen: {item.get('pen')}")
                 if item.get("ammo_labels") and isinstance(item.get("ammo_labels"), list):
                     info_parts.append(" / ".join(str(x) for x in item.get("ammo_labels") if x))
+                info_parts.append(f"Available: {int(item.get('_shop_available_qty', 1) or 1)}")
 
                 if info_parts:
                     info_label = customtkinter.CTkLabel(item_frame, text = " | ".join(info_parts), font = customtkinter.CTkFont(size = 10), text_color = "orange")
                     info_label.pack(anchor = "w", padx = 10, pady =(0, 5))
 
-                def add_to_buy_cart(it = item, price = buy_price):
-                    if player_money[0]-buy_total[0]<price:
-                        self._popup_show_info("Not Enough Money", f"You need {format_price(price)} but only have {format_price(player_money[0]-buy_total[0])} remaining.", sound = "error")
-                        return
-                    buy_cart.append({"item":it.copy(), "price":price})
-                    buy_total[0]+=price
-                    update_buy_display()
-                    self._play_ui_sound("click")
+                qty_var = customtkinter.StringVar(value = "1")
+
+                def add_to_buy_cart(it = item, price = buy_price, qv = qty_var):
+                    try:
+                        qty = max(1, int((qv.get() or "1").strip()))
+                    except Exception:
+                        qty = 1
+                    _add_item_to_buy_cart(it, price, qty)
 
                 btn_row = customtkinter.CTkFrame(item_frame, fg_color = "transparent")
                 btn_row.pack(anchor = "e", padx = 10, pady = 8)
                 inspect_btn = self._create_sound_button(btn_row, "Inspect", lambda it = item, pr = buy_price: self._open_shop_item_inspect(it, pr, table_data, store, on_test_firearm_purchase), width = 80, height = 30, font = customtkinter.CTkFont(size = 11))
                 inspect_btn.pack(side = "left", padx = (0, 6))
+                customtkinter.CTkLabel(btn_row, text = "Qty:", font = customtkinter.CTkFont(size = 11)).pack(side = "left", padx = (0, 4))
+                customtkinter.CTkEntry(btn_row, textvariable = qty_var, width = 52).pack(side = "left", padx = (0, 6))
                 add_btn = self._create_sound_button(btn_row, f"Buy({format_price(buy_price)})", add_to_buy_cart, width = 120, height = 30, font = customtkinter.CTkFont(size = 11))
                 add_btn.pack(side = "left")
 
@@ -11675,9 +12114,15 @@ class App:
                     item_frame = customtkinter.CTkFrame(parent)
                     item_frame.pack(fill = "x", pady = 5, padx = 10)
 
+                    if _is_shop_item_relevant(item):
+                        item_frame.configure(fg_color = "#2a4a2a")
+
                     buy_price = _get_store_buy_price(item)
 
-                    name_label = customtkinter.CTkLabel(item_frame, text = f"{self._format_item_name(item)} - {format_price(buy_price)}", font = customtkinter.CTkFont(size = 13, weight = "bold"), anchor = "w")
+                    item_name_text = self._format_item_name(item)
+                    if _is_shop_item_relevant(item):
+                        item_name_text = "⭐ " + item_name_text
+                    name_label = customtkinter.CTkLabel(item_frame, text = f"{item_name_text} - {format_price(buy_price)}", font = customtkinter.CTkFont(size = 13, weight = "bold"), anchor = "w")
                     name_label.pack(anchor = "w", padx = 10, pady =(8, 2))
 
                     if item.get("description"):
@@ -11700,24 +12145,27 @@ class App:
                         info_parts.append(f"Pen: {item.get('pen')}")
                     if item.get("ammo_labels") and isinstance(item.get("ammo_labels"), list):
                         info_parts.append(" / ".join(str(x) for x in item.get("ammo_labels") if x))
+                    info_parts.append(f"Available: {int(item.get('_shop_available_qty', 1) or 1)}")
 
                     if info_parts:
                         info_label = customtkinter.CTkLabel(item_frame, text = " | ".join(info_parts), font = customtkinter.CTkFont(size = 10), text_color = "orange")
                         info_label.pack(anchor = "w", padx = 10, pady =(0, 5))
 
-                    def add_to_buy_cart(it = item, price = buy_price):
-                        if player_money[0] - buy_total[0] < price:
-                            self._popup_show_info("Not Enough Money", f"You need {format_price(price)} but only have {format_price(player_money[0] - buy_total[0])} remaining.", sound = "error")
-                            return
-                        buy_cart.append({"item": it.copy(), "price": price})
-                        buy_total[0] += price
-                        update_buy_display()
-                        self._play_ui_sound("click")
+                    qty_var = customtkinter.StringVar(value = "1")
+
+                    def add_to_buy_cart(it = item, price = buy_price, qv = qty_var):
+                        try:
+                            qty = max(1, int((qv.get() or "1").strip()))
+                        except Exception:
+                            qty = 1
+                        _add_item_to_buy_cart(it, price, qty)
 
                     btn_row = customtkinter.CTkFrame(item_frame, fg_color = "transparent")
                     btn_row.pack(anchor = "e", padx = 10, pady = 8)
                     inspect_btn = self._create_sound_button(btn_row, "Inspect", lambda it = item, pr = buy_price: self._open_shop_item_inspect(it, pr, table_data, store, on_test_firearm_purchase), width = 80, height = 30, font = customtkinter.CTkFont(size = 11))
                     inspect_btn.pack(side = "left", padx = (0, 6))
+                    customtkinter.CTkLabel(btn_row, text = "Qty:", font = customtkinter.CTkFont(size = 11)).pack(side = "left", padx = (0, 4))
+                    customtkinter.CTkEntry(btn_row, textvariable = qty_var, width = 52).pack(side = "left", padx = (0, 6))
                     add_btn = self._create_sound_button(btn_row, f"Buy({format_price(buy_price)})", add_to_buy_cart, width = 120, height = 30, font = customtkinter.CTkFont(size = 11))
                     add_btn.pack(side = "left")
 
@@ -11866,7 +12314,12 @@ class App:
                                 return on_click
 
                             for s2name in sorted(sub2cats.keys()):
-                                btn2 = self._create_sound_button(sub2_scroll, s2name, make_sub2_btn(s2name), width = 110, height = 30, font = customtkinter.CTkFont(size = 10))
+                                has_highlighted2 = any(_is_shop_item_relevant(it2) for it2 in sub2cats.get(s2name, []))
+                                btn_text2 = s2name if not has_highlighted2 else ("⭐ " + s2name)
+                                btn_kwargs2 = {"width":110, "height":30, "font":customtkinter.CTkFont(size = 10)}
+                                if has_highlighted2:
+                                    btn_kwargs2["fg_color"] = "#2a8a2a"
+                                btn2 = self._create_sound_button(sub2_scroll, btn_text2, make_sub2_btn(s2name), **btn_kwargs2)
                                 btn2.pack(fill = "x", pady = 3, padx = 6)
                                 sub2_buttons[s2name] = btn2
 
@@ -11900,7 +12353,12 @@ class App:
                         return on_click
 
                     for sname in sorted(subcats.keys()):
-                        btn = self._create_sound_button(subcat_scroll, sname, make_subcat_btn(sname), width = 140, height = 30, font = customtkinter.CTkFont(size = 10))
+                        has_highlighted = any(_is_shop_item_relevant(it) for it in subcats.get(sname, []))
+                        btn_text = sname if not has_highlighted else ("⭐ " + sname)
+                        btn_kwargs = {"width":140, "height":30, "font":customtkinter.CTkFont(size = 10)}
+                        if has_highlighted:
+                            btn_kwargs["fg_color"] = "#2a8a2a"
+                        btn = self._create_sound_button(subcat_scroll, btn_text, make_subcat_btn(sname), **btn_kwargs)
                         btn.pack(fill = "x", pady = 3, padx = 6)
                         subcat_buttons[sname] = btn
 
@@ -11919,7 +12377,12 @@ class App:
             sorted_shop_cats = sorted(shop_categories.keys())
 
             for cat_name in sorted_shop_cats:
-                cat_btn = self._create_sound_button(shop_cat_frame, cat_name, lambda c = cat_name: show_shop_category(c), width = 180, height = 35, font = customtkinter.CTkFont(size = 11))
+                has_highlighted = any(_is_shop_item_relevant(it) for it in shop_categories.get(cat_name, []))
+                btn_text = cat_name if not has_highlighted else ("⭐ " + cat_name)
+                cat_kwargs = {"width":180, "height":35, "font":customtkinter.CTkFont(size = 11)}
+                if has_highlighted:
+                    cat_kwargs["fg_color"] = "#2a8a2a"
+                cat_btn = self._create_sound_button(shop_cat_frame, btn_text, lambda c = cat_name: show_shop_category(c), **cat_kwargs)
                 cat_btn.pack(pady = 3, padx = 5)
                 shop_cat_buttons[cat_name] = cat_btn
 
@@ -12114,8 +12577,10 @@ class App:
                         item_copy = entry["item"].copy()
                         item_copy.pop("_table_category", None)
                         item_copy = add_subslots_to_item(item_copy)
+                        _repair_item_parts_durability_recursive(item_copy, 100.0)
                         self._add_item_to_container(hands_items, item_copy)
 
+                    _repair_item_parts_durability_recursive(save_data, 100.0)
                     save_data["hands"]["items"]= hands_items
                     save_data["money"]= player_money[0]-diff
                     self._write_save_to_path(save_path, save_data)
@@ -12158,21 +12623,44 @@ class App:
 
                 hardcore = bool(table_data.get("additional_settings", {}).get("hardcore_mode", False))
                 for cart_entry in buy_cart:
-                    item_copy = cart_entry["item"].copy()
-                    item_copy.pop("_table_category", None)
-                    item_copy["_purchase_price"] = cart_entry["price"]
-                    item_copy = add_subslots_to_item(item_copy)
-                    if hardcore and item_copy.get("firearm") and "rounds_fired" not in item_copy:
-                        item_copy["rounds_fired"] = random.randint(0, 2000)
-                    self._add_item_to_container(hands_items, item_copy)
+                    qty = max(1, int(cart_entry.get("quantity", 1)))
+                    unit_price = float(cart_entry.get("price", 0.0))
+                    is_stackable = bool(cart_entry.get("stackable", False))
 
+                    _cart_orig = cart_entry.get("_original_item")
+                    if is_stackable:
+                        item_copy = cart_entry["item"].copy()
+                        item_copy.pop("_table_category", None)
+                        item_copy["quantity"] = qty
+                        item_copy["_purchase_price"] = unit_price
+                        if isinstance(_cart_orig, dict) and _cart_orig.get("firearm") and "rounds_fired" in _cart_orig:
+                            item_copy["rounds_fired"] = _cart_orig["rounds_fired"]
+                        item_copy = add_subslots_to_item(item_copy)
+                        _repair_item_parts_durability_recursive(item_copy, 100.0)
+                        if hardcore and item_copy.get("firearm") and "rounds_fired" not in item_copy:
+                            item_copy["rounds_fired"] = random.randint(0, 2000)
+                        self._add_item_to_container(hands_items, item_copy)
+                    else:
+                        for _ in range(qty):
+                            item_copy = cart_entry["item"].copy()
+                            item_copy.pop("_table_category", None)
+                            item_copy["_purchase_price"] = unit_price
+                            if isinstance(_cart_orig, dict) and _cart_orig.get("firearm") and "rounds_fired" in _cart_orig:
+                                item_copy["rounds_fired"] = _cart_orig["rounds_fired"]
+                            item_copy = add_subslots_to_item(item_copy)
+                            _repair_item_parts_durability_recursive(item_copy, 100.0)
+                            if hardcore and item_copy.get("firearm") and "rounds_fired" not in item_copy:
+                                item_copy["rounds_fired"] = random.randint(0, 2000)
+                            self._add_item_to_container(hands_items, item_copy)
+
+                _repair_item_parts_durability_recursive(save_data, 100.0)
                 save_data["hands"]["items"]= hands_items
                 save_data["money"]= player_money[0]-buy_total[0]
                 self._write_save_to_path(save_path, save_data)
 
-                item_names =[e["item"].get("name", "Unknown")for e in buy_cart]
+                item_names = [f"{e['item'].get('name', 'Unknown')} x{max(1, int(e.get('quantity', 1)))}" for e in buy_cart]
                 logging.info(f"Purchased items for {format_price(buy_total[0])}: {item_names}")
-                self._popup_show_info("Purchase Complete", f"Purchased {len(buy_cart)} item(s) for {format_price(buy_total[0])}.", sound = "success")
+                self._popup_show_info("Purchase Complete", f"Purchased {_buy_cart_units()} item(s) for {format_price(buy_total[0])}.", sound = "success")
 
                 buy_cart.clear()
                 buy_total[0]= 0
@@ -12252,7 +12740,7 @@ class App:
                 if has_buy or has_sell:
                     parts =[]
                     if has_buy:
-                        parts.append(f"{len(buy_cart)} item(s) in buy cart")
+                        parts.append(f"{_buy_cart_units()} item(s) in buy cart")
                     if has_sell:
                         parts.append(f"{len(sell_cart)} item(s) in sell cart")
                     details = " and ".join(parts)
@@ -12266,6 +12754,9 @@ class App:
 
         buy_btn = self._create_sound_button(button_frame, "Complete Purchase", complete_purchase, width = 200, height = 40, font = customtkinter.CTkFont(size = 14))
         buy_btn.pack(side = "left", padx = 10)
+
+        cart_btn = self._create_sound_button(button_frame, "View Buy Cart", _open_buy_cart_popup, width = 180, height = 40, font = customtkinter.CTkFont(size = 14))
+        cart_btn.pack(side = "left", padx = 10)
 
         sell_btn = self._create_sound_button(button_frame, "Complete Sale", complete_sale, width = 200, height = 40, font = customtkinter.CTkFont(size = 14))
         sell_btn.pack(side = "left", padx = 10)
@@ -17114,6 +17605,15 @@ class App:
                                             pass
                                 except Exception:
                                     pass
+
+                            try:
+                                item_conflicts = oi.get('conflicts_with')
+                                if item_conflicts:
+                                    targets_l = _resolve_conflicts(item_conflicts)
+                                    if slot_name_l in targets_l:
+                                        return True
+                            except Exception:
+                                pass
                     return False
                 except Exception:
                     return False
@@ -17163,6 +17663,15 @@ class App:
                                             pass
                                 except Exception:
                                     pass
+
+                            try:
+                                item_conflicts = oi.get('conflicts_with')
+                                if item_conflicts:
+                                    targets_l = _resolve_conflicts(item_conflicts)
+                                    if slot_name_l in targets_l:
+                                        sources.append(f"{other_slot}")
+                            except Exception:
+                                pass
                 except Exception:
                     pass
 
@@ -17254,6 +17763,17 @@ class App:
                                             pass
                                 except Exception:
                                     pass
+
+                            try:
+                                item_conflicts = oi.get('conflicts_with')
+                                if item_conflicts:
+                                    targets_l = _resolve_conflicts(item_conflicts)
+                                    if slot_name_l in targets_l:
+                                        nm = oi.get('name') or oi.get('id') or other_slot
+                                        if nm:
+                                            names.append(str(nm))
+                            except Exception:
+                                pass
                 except Exception:
                     pass
 
@@ -17297,6 +17817,14 @@ class App:
                                             pass
                             except Exception:
                                 pass
+                        try:
+                            item_conflicts = it.get('conflicts_with')
+                            if item_conflicts:
+                                targets_l = _resolve_conflicts(item_conflicts)
+                                if any(slot_name_l == t for t in targets_l):
+                                    return it.get('name') or it.get('id')
+                        except Exception:
+                            pass
                         return None
 
                     for s, it in equipment.items():
@@ -18446,6 +18974,15 @@ class App:
                                             pass
                                 except Exception:
                                     pass
+
+                            try:
+                                item_conflicts = oi.get('conflicts_with')
+                                if item_conflicts:
+                                    targets_l = _resolve_conflicts(item_conflicts)
+                                    if slot_name_l in targets_l:
+                                        return True
+                            except Exception:
+                                pass
                     return False
                 except Exception:
                     return False
@@ -19089,6 +19626,16 @@ class App:
                                                 pass
                                     except Exception:
                                         pass
+
+                                try:
+                                    item_conflicts = other_item.get('conflicts_with')
+                                    if item_conflicts:
+                                        targets = _resolve_conflict_slots(item_conflicts)
+                                        for conflict_slot in targets:
+                                            if str(conflict_slot).lower() == slot_name_l:
+                                                return True
+                                except Exception:
+                                    pass
                             return False
                         except Exception:
                             return False
@@ -19176,16 +19723,49 @@ class App:
                                                 pass
                                     except Exception:
                                         pass
+
+                                try:
+                                    item_conflicts = other_item.get('conflicts_with')
+                                    if item_conflicts:
+                                        targets = _resolve_conflict_slots(item_conflicts)
+                                        for conflict_slot in targets:
+                                            if str(conflict_slot).lower() == slot_name_l:
+                                                return True
+                                except Exception:
+                                    pass
                             return False
                         except Exception:
                             return False
+
+                    def _item_own_conflicts_occupied():
+                        try:
+                            own_conflicts = item.get('conflicts_with', [])
+                            if not own_conflicts:
+                                return False
+                            targets = _resolve_conflict_slots(own_conflicts)
+                            for ct in targets:
+                                ct_l = str(ct).lower()
+                                for sk, sv in equipment.items():
+                                    if str(sk).lower() == ct_l and sv is not None:
+                                        return True
+                                for _, eq_oi in equipment.items():
+                                    if not isinstance(eq_oi, dict):
+                                        continue
+                                    for ss in eq_oi.get('subslots', []) or []:
+                                        if str(ss.get('slot', '')).lower() == ct_l and ss.get('current') is not None:
+                                            return True
+                            return False
+                        except Exception:
+                            return False
+
+                    _own_conflict_blocked = _item_own_conflicts_occupied()
 
                     for slot in valid_slots:
                         cur = equipment.get(slot)
 
                         if slot in equipment and cur is None:
 
-                            if _slot_blocked_by_subslots(slot):
+                            if _slot_blocked_by_subslots(slot) or _own_conflict_blocked:
                                 continue
                             add_choice(f"{slot.title()}", slot = slot)
                         else:
@@ -19239,7 +19819,7 @@ class App:
                                                 if conflict_slot in equipment and equipment.get(conflict_slot) is not None:
                                                     blocked = True
                                                     break
-                                        if not blocked:
+                                        if not blocked and not _own_conflict_blocked:
                                             add_choice(label, parent_slot = root_slot, subslot = subslot_data)
 
                                     cur = subslot_data.get('current')
@@ -36528,13 +37108,23 @@ class App:
         except Exception:
             mag_reliability_mult = 1.0
 
-        total_jamrate = base_jamrate *temp_mult *clean_mult * mag_reliability_mult
+        part_jam_mult = 1.0
+        low_durability_jam_parts = []
+        try:
+            part_jam_mult, low_durability_jam_parts = _get_weapon_part_jam_data(weapon)
+        except Exception:
+            part_jam_mult = 1.0
+            low_durability_jam_parts = []
+
+        total_jamrate = base_jamrate *temp_mult *clean_mult * mag_reliability_mult * part_jam_mult
 
         logging.debug(
-        "Jam calc: base=%s temp_mult=%s clean_mult=%s total=%s temp=%s clean=%s",
+        "Jam calc: base=%s temp_mult=%s clean_mult=%s mag_mult=%s part_mult=%s total=%s temp=%s clean=%s",
         base_jamrate,
         temp_mult,
         clean_mult,
+        mag_reliability_mult,
+        part_jam_mult,
         total_jamrate,
         temperature,
         cleanliness
@@ -37653,6 +38243,11 @@ class App:
                 jam_cause_parts.append(f"Dirty weapon ({cleanliness:.0f}% clean)")
             if mag_reliability_mult > 1.2:
                 jam_cause_parts.append("Poor magazine/spring condition")
+            if part_jam_mult > 1.15:
+                if low_durability_jam_parts:
+                    jam_cause_parts.append("Worn weapon parts: " + ", ".join(low_durability_jam_parts[:3]))
+                else:
+                    jam_cause_parts.append("Worn weapon parts")
             if base_jamrate >= 0.03:
                 jam_cause_parts.append("Low weapon reliability")
             if not jam_cause_parts:
