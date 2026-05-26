@@ -18,6 +18,18 @@ import customtkinter
 TABLES_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "tables")
 
 
+def _logical_table_key(table_file):
+    """Return a grouping key that treats foo.sldtbl and foo_wt.sldtbl as one table."""
+    base_name = table_file
+    if base_name.endswith(".disabled"):
+        base_name = base_name[: -len(".disabled")]
+    if base_name.endswith(".sldtbl"):
+        base_name = base_name[: -len(".sldtbl")]
+    if base_name.lower().endswith("_wt"):
+        base_name = base_name[:-3]
+    return base_name.lower()
+
+
 def load_table(path):
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
@@ -207,8 +219,14 @@ def validate_tables(tables_dir=None, secondary_platform=None):
     all_table_items = []
     table_pretty_names = {}
     table_hardcore = {}
-    table_magazines_by_file = {}
+    table_group_for_file = {}
+    table_files_by_group = {}
+    table_group_display_name = {}
+    table_group_owner_file = {}
+    table_magazines_by_group = {}
     referenced_slots_by_table = {}
+    group_ids = {}
+    group_id_first_locs = {}
     error_source = []  # (msg, table_file) — to split disabled vs active
 
     for table_file in sorted(table_files):
@@ -222,6 +240,20 @@ def validate_tables(tables_dir=None, secondary_platform=None):
 
         table_name = table_data.get("prettyname", table_file)
         table_pretty_names[table_file] = table_name
+        group_key = _logical_table_key(table_file)
+        table_group_for_file[table_file] = group_key
+        table_files_by_group.setdefault(group_key, set()).add(table_file)
+        clean_name = table_file[:-len(".disabled")] if table_file.endswith(".disabled") else table_file
+        is_working_table = clean_name.lower().endswith("_wt.sldtbl")
+        if group_key not in table_group_display_name or not is_working_table:
+            table_group_display_name[group_key] = table_name
+        owner = table_group_owner_file.get(group_key)
+        if owner is None:
+            table_group_owner_file[group_key] = table_file
+        elif owner.endswith(".disabled") and not table_file.endswith(".disabled"):
+            table_group_owner_file[group_key] = table_file
+        elif owner.lower().endswith("_wt.sldtbl") and not clean_name.lower().endswith("_wt.sldtbl"):
+            table_group_owner_file[group_key] = table_file
         tables = table_data.get("tables", {})
 
         try:
@@ -229,21 +261,10 @@ def validate_tables(tables_dir=None, secondary_platform=None):
         except Exception:
             table_hardcore[table_file] = False
 
-        # ── 1. Magazine compatibility ─────────────────────────────────────
+        # ── 1. Magazine compatibility (initial pass) ─────────────────────
         try:
             magazine_items = tables.get("magazines", []) or [] if isinstance(tables, dict) else []
-            table_magazines_by_file[table_file] = [m for m in magazine_items if isinstance(m, dict)]
-            magazine_systems = set()
-            for mag in magazine_items:
-                if isinstance(mag, dict):
-                    ms = mag.get("magazinesystem")
-                    if ms is None:
-                        continue
-                    if isinstance(ms, list):
-                        for m in ms:
-                            magazine_systems.add(str(m))
-                    else:
-                        magazine_systems.add(str(ms))
+            table_magazines_by_group.setdefault(group_key, []).extend([m for m in magazine_items if isinstance(m, dict)])
 
             for subtable_name, items in tables.items():
                 if not isinstance(items, list):
@@ -260,27 +281,20 @@ def validate_tables(tables_dir=None, secondary_platform=None):
                             msg = f"{friendly} missing 'magazinesystem' field"
                             errors.append(("Magazine Compatibility", msg))
                             error_source.append((msg, table_file))
-                            continue
-                        needed = [f_ms] if not isinstance(f_ms, list) else f_ms
-                        needed = [str(n) for n in needed]
-                        if not any(n in magazine_systems for n in needed):
-                            msg = f"{friendly} has no magazines matching magazinesystem(s): {needed}"
-                            errors.append(("Magazine Compatibility", msg))
-                            error_source.append((msg, table_file))
         except Exception as e:
             warnings.append(("Magazine Compatibility", f"Magazine check failed for '{table_file}': {e}"))
 
         # ── Collect IDs and items ─────────────────────────────────────────
-        file_ids = []
         for subtable_name, items in tables.items():
             if not isinstance(items, list):
                 continue
             for idx, item in enumerate(items):
                 if isinstance(item, dict) and "id" in item:
                     item_id = item["id"]
-                    file_ids.append(item_id)
                     entry = (table_file, subtable_name, item.get("name") or f"index_{idx}")
                     global_id_map.setdefault(item_id, []).append(entry)
+                    group_ids.setdefault(group_key, []).append(item_id)
+                    group_id_first_locs.setdefault(group_key, {}).setdefault(item_id, (table_file, subtable_name, item.get("name") or f"index_{idx}"))
 
                 if isinstance(item, dict):
                     all_table_items.append((item, table_file, subtable_name))
@@ -292,11 +306,16 @@ def validate_tables(tables_dir=None, secondary_platform=None):
                             for entry_item in lst:
                                 if isinstance(entry_item, dict) and entry_item.get("slot"):
                                     slot_name = str(entry_item["slot"]).strip()
-                                    referenced_slots_by_table.setdefault(table_file, set()).add(slot_name)
+                                    referenced_slots_by_table.setdefault(group_key, set()).add(slot_name)
 
-        # ── 2. ID sequence ────────────────────────────────────────────────
+    # ── 2. ID sequence (grouped tables) ──────────────────────────────────
+    for group_key, grouped_files in table_files_by_group.items():
+        file_ids = group_ids.get(group_key, [])
+        display_name = table_group_display_name.get(group_key, sorted(grouped_files)[0])
+        source_file = table_group_owner_file.get(group_key, sorted(grouped_files)[0])
+
         if not file_ids:
-            warnings.append(("ID Sequence", f"Table '{table_name}': No items with IDs found."))
+            warnings.append(("ID Sequence", f"Table '{display_name}': No items with IDs found."))
             continue
 
         file_ids.sort()
@@ -307,49 +326,49 @@ def validate_tables(tables_dir=None, secondary_platform=None):
         actual_ids = set(file_ids)
 
         if expected_ids == actual_ids:
-            # IDs valid — informational
-            pass
-        else:
-            missing_ids = sorted(expected_ids - actual_ids)
+            continue
 
-            # build suggested fixes
-            try:
-                file_entries = []
-                for iid in sorted(actual_ids):
-                    locs = global_id_map.get(iid, [])
-                    for f, sub, name in locs:
-                        if f == table_file:
-                            file_entries.append((iid, sub, name))
-                            break
-                suggested_lines = []
-                new_id = min_id
-                for old_id, sub, name in file_entries:
-                    if old_id != new_id:
-                        suggested_lines.append(f"  Change ID {old_id} ({sub}:{name}) -> {new_id}")
-                    new_id += 1
-            except Exception:
-                suggested_lines = ["  Unable to build suggested ID changes."]
+        missing_ids = sorted(expected_ids - actual_ids)
 
-            msg_lines = [
-                f"Table '{table_name}': ID sequence broken",
-                f"  Missing IDs: {missing_ids}",
-                f"  Last ID: {max_id}",
-                f"  Next ID: {next_id}",
-            ]
-            if suggested_lines:
-                msg_lines.append("  Suggested changes:")
-                msg_lines.extend(suggested_lines)
+        # build suggested fixes
+        try:
+            file_entries = []
+            first_locs = group_id_first_locs.get(group_key, {})
+            for iid in sorted(actual_ids):
+                loc = first_locs.get(iid)
+                if loc:
+                    _f, sub, name = loc
+                    file_entries.append((iid, sub, name))
+            suggested_lines = []
+            new_id = min_id
+            for old_id, sub, name in file_entries:
+                if old_id != new_id:
+                    suggested_lines.append(f"  Change ID {old_id} ({sub}:{name}) -> {new_id}")
+                new_id += 1
+        except Exception:
+            suggested_lines = ["  Unable to build suggested ID changes."]
 
-            msg = "\n".join(msg_lines)
-            errors.append(("ID Sequence", msg))
-            error_source.append((msg, table_file))
+        msg_lines = [
+            f"Table '{display_name}': ID sequence broken",
+            f"  Missing IDs: {missing_ids}",
+            f"  Last ID: {max_id}",
+            f"  Next ID: {next_id}",
+        ]
+        if suggested_lines:
+            msg_lines.append("  Suggested changes:")
+            msg_lines.extend(suggested_lines)
+
+        msg = "\n".join(msg_lines)
+        errors.append(("ID Sequence", msg))
+        error_source.append((msg, source_file))
 
     id_to_item_by_table = {}
-    id_subtable_map = {}  # (table_file, item_id) -> subtable_name
+    id_subtable_map = {}  # (table_group, item_id) -> subtable_name
     for it, tf, sub in all_table_items:
         if isinstance(it, dict) and "id" in it:
-            id_to_item_by_table.setdefault(tf, {})[it["id"]] = it
-            id_subtable_map[(tf, it["id"])] = sub
+            group_key = table_group_for_file.get(tf, tf)
+            id_to_item_by_table.setdefault(group_key, {})[it["id"]] = it
+            id_subtable_map[(group_key, it["id"])] = sub
 
     # ── 3. Hardcore mode validation ───────────────────────────────────────
     try:
@@ -379,7 +398,8 @@ def validate_tables(tables_dir=None, secondary_platform=None):
                     errors.append(("Hardcore Mode", msg))
                     error_source.append((msg, tf))
                     continue
-                table_id_map = id_to_item_by_table.get(tf, {})
+                group_key = table_group_for_file.get(tf, tf)
+                table_id_map = id_to_item_by_table.get(group_key, {})
                 if target_id not in table_id_map:
                     msg = f"Table '{table_pretty_names.get(tf, tf)}': Firearm '{fname}' has part '{p.get('name')}' referencing missing item ID {target_id}"
                     errors.append(("Hardcore Mode", msg))
@@ -407,7 +427,8 @@ def validate_tables(tables_dir=None, secondary_platform=None):
             firearm_platform = item.get("platform") or ""
             item_secondary = item.get("secondary_platform") if isinstance(item, dict) else None
             item_secondary = item_secondary or secondary_platform
-            table_id_map = id_to_item_by_table.get(tf, {})
+            group_key = table_group_for_file.get(tf, tf)
+            table_id_map = id_to_item_by_table.get(group_key, {})
 
             for p in item.get("parts") or []:
                 if not isinstance(p, dict):
@@ -429,7 +450,7 @@ def validate_tables(tables_dir=None, secondary_platform=None):
                     continue
 
                 # The resolved item must live in the 'parts' subtable
-                resolved_sub = id_subtable_map.get((tf, target_id), "")
+                resolved_sub = id_subtable_map.get((group_key, target_id), "")
                 if str(resolved_sub).lower() != "parts":
                     msg = (
                         f"Table '{display}': Firearm '{fname}' part slot "
@@ -475,7 +496,8 @@ def validate_tables(tables_dir=None, secondary_platform=None):
                 continue
             name = item.get("name") or "<unnamed>"
             display = table_pretty_names.get(tf, tf)
-            table_id_map = id_to_item_by_table.get(tf, {})
+            group_key = table_group_for_file.get(tf, tf)
+            table_id_map = id_to_item_by_table.get(group_key, {})
             profiles = _collect_firearm_ammo_profiles(item, table_id_map)
 
             required_calibers = set()
@@ -506,7 +528,7 @@ def validate_tables(tables_dir=None, secondary_platform=None):
                     required_systems |= _token_set(item.get("submagazinesystem"))
 
                 compatible_mags = [
-                    mag for mag in (table_magazines_by_file.get(tf) or [])
+                    mag for mag in (table_magazines_by_group.get(group_key) or [])
                     if _magazine_matches_systems(mag, required_systems)
                 ]
 
@@ -544,7 +566,7 @@ def validate_tables(tables_dir=None, secondary_platform=None):
             if not parts_explicitly_null:
                 part_candidates = []
                 for part_item, part_tf, part_sub in all_table_items:
-                    if part_tf != tf:
+                    if table_group_for_file.get(part_tf, part_tf) != group_key:
                         continue
                     if not isinstance(part_item, dict):
                         continue
@@ -580,17 +602,19 @@ def validate_tables(tables_dir=None, secondary_platform=None):
     # ── 5. Duplicate IDs ─────────────────────────────────────────────────
     duplicate_suggestions = []
     for item_id, locations in global_id_map.items():
-        by_file = {}
+        by_group = {}
         for f, sub, name in locations:
-            by_file.setdefault(f, []).append((f, sub, name))
-        for file_locs in by_file.values():
-            if len(file_locs) > 1:
-                loc_str = "; ".join(f"{f}:{sub}:{name}" for f, sub, name in file_locs)
+            gk = table_group_for_file.get(f, f)
+            by_group.setdefault(gk, []).append((f, sub, name))
+        for group_locs in by_group.values():
+            if len(group_locs) > 1:
+                loc_str = "; ".join(f"{f}:{sub}:{name}" for f, sub, name in group_locs)
                 msg = f"Duplicate ID detected: {item_id} used in: {loc_str}"
                 errors.append(("Duplicate IDs", msg))
-                error_source.append((msg, file_locs[0][0]))
+                owner = table_group_owner_file.get(table_group_for_file.get(group_locs[0][0], group_locs[0][0]), group_locs[0][0])
+                error_source.append((msg, owner))
                 max_id_all = max(global_id_map.keys()) if global_id_map else item_id
-                for idx, (f, sub, name) in enumerate(file_locs):
+                for idx, (f, sub, name) in enumerate(group_locs):
                     if idx == 0:
                         continue
                     max_id_all += 1
@@ -632,28 +656,31 @@ def validate_tables(tables_dir=None, secondary_platform=None):
             return True
         return False
 
-    for table_file_ref, slots in referenced_slots_by_table.items():
+    for table_group_ref, slots in referenced_slots_by_table.items():
         for slot in sorted(slots):
             if isinstance(slot, str) and slot.strip().lower() == "weapon_slot":
                 continue
-            found = any(item_matches_slot(it, slot) for it, tf, sub in all_table_items if tf == table_file_ref)
+            found = any(
+                item_matches_slot(it, slot)
+                for it, tf, sub in all_table_items
+                if table_group_for_file.get(tf, tf) == table_group_ref
+            )
             if not found:
-                display = table_pretty_names.get(table_file_ref, table_file_ref)
+                display = table_group_display_name.get(table_group_ref, table_group_ref)
                 warnings.append(("Slot References", f"Table '{display}' references slot '{slot}' but no items are available in that table to populate it."))
 
     # ── 8. Store categories ──────────────────────────────────────────────
-    for table_file_sc in sorted(table_files):
+    for table_group_sc in sorted(table_files_by_group.keys()):
         try:
-            table_path_sc = os.path.join(tables_dir, table_file_sc)
-            table_data_sc = load_table(table_path_sc)
-            tables_sc = table_data_sc.get("tables", {})
-            stores_sc = tables_sc.get("stores", []) or []
-            if not stores_sc:
-                continue
-            display_sc = table_pretty_names.get(table_file_sc, table_file_sc)
+            display_sc = table_group_display_name.get(table_group_sc, table_group_sc)
             store_item_ids = set()
             store_table_names = set()
-            for store_sc in stores_sc:
+
+            for store_sc, tf_sc, sub_sc in all_table_items:
+                if table_group_for_file.get(tf_sc, tf_sc) != table_group_sc:
+                    continue
+                if str(sub_sc).lower() != "stores":
+                    continue
                 if not isinstance(store_sc, dict):
                     continue
                 for inv_entry in store_sc.get("inventory", []) or []:
@@ -667,17 +694,17 @@ def validate_tables(tables_dir=None, secondary_platform=None):
                         iid = inv_entry.get("id")
                         if iid is not None:
                             store_item_ids.add(iid)
-            for sub_name, sub_items in tables_sc.items():
-                if not isinstance(sub_items, list):
+
+            for item_sc, tf_sc, sub_name in all_table_items:
+                if table_group_for_file.get(tf_sc, tf_sc) != table_group_sc:
                     continue
                 in_store_table = sub_name in store_table_names
-                for item_sc in sub_items:
-                    if not isinstance(item_sc, dict):
-                        continue
-                    in_store = in_store_table or item_sc.get("id") in store_item_ids
-                    if in_store and not item_sc.get("shop_category"):
-                        item_name_sc = item_sc.get("name") or f"ID {item_sc.get('id', '?')}"
-                        warnings.append(("Store Categories", f"Table '{display_sc}': Item '{item_name_sc}' in subtable '{sub_name}' is referenced by a store but missing 'shop_category' field."))
+                if not isinstance(item_sc, dict):
+                    continue
+                in_store = in_store_table or item_sc.get("id") in store_item_ids
+                if in_store and not item_sc.get("shop_category"):
+                    item_name_sc = item_sc.get("name") or f"ID {item_sc.get('id', '?')}"
+                    warnings.append(("Store Categories", f"Table '{display_sc}': Item '{item_name_sc}' in subtable '{sub_name}' is referenced by a store but missing 'shop_category' field."))
         except Exception:
             pass
 

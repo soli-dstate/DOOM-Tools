@@ -42,7 +42,7 @@ logging.basicConfig(
 level = logging.INFO,
 handlers =[console_handler]
 )
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[1]      
 MAIN_PY = ROOT / 'main.py'
 SOUNDS_DIR = ROOT / 'sounds'
 TABLES_DIR = ROOT / 'tables'
@@ -114,7 +114,12 @@ def make_release_zip(exe_path: Path, out_dir: Path, version: str = '0.0.0', incl
             shutil.copytree(SOUNDS_DIR, dest_sounds)
         if TABLES_DIR.exists():
             dest_tables = tmpdir / 'tables'
-            shutil.copytree(TABLES_DIR, dest_tables)
+            # Copy only .sldtbl files from the tables directory, preserving relative paths
+            for p in TABLES_DIR.rglob('*.sldtbl'):
+                rel = p.relative_to(TABLES_DIR)
+                dest_file = dest_tables / rel
+                dest_file.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(p, dest_file)
         if FONTS_DIR.exists():
             dest_fonts = tmpdir / 'fonts'
             shutil.copytree(FONTS_DIR, dest_fonts)
@@ -145,29 +150,7 @@ def send_windows_notification(title: str, message: str):
         toast.set_audio(audio.Default, loop=False)
         toast.show()
     except ImportError:
-        try:
-            ps_script = f'''
-            [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null
-            [Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime] | Out-Null
-            $template = @"
-            <toast>
-                <visual>
-                    <binding template="ToastText02">
-                        <text id="1">{title}</text>
-                        <text id="2">{message}</text>
-                    </binding>
-                </visual>
-                <audio src="ms-winsoundevent:Notification.Default"/>
-            </toast>
-"@
-            $xml = New-Object Windows.Data.Xml.Dom.XmlDocument
-            $xml.LoadXml($template)
-            $toast = [Windows.UI.Notifications.ToastNotification]::new($xml)
-            [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier("DOOM-Tools").Show($toast)
-            '''
-            subprocess.run(['powershell', '-Command', ps_script], capture_output=True)
-        except Exception:
-            pass
+        logging.warning('winotify not installed, cannot send Windows notification. Install it with `pip install winotify`')
 def main():
     import argparse
     p = argparse.ArgumentParser()

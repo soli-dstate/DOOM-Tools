@@ -277,8 +277,11 @@ try:
         customtkinter.CTkScrollableFrame.__init__ = _ctk_scrollableframe_init_wrapper
     except Exception:
         pass
-except Exception:
-    pass
+except Exception as e:
+    if global_variables["devmode"]["value"]:
+        logging.exception("An error occurred: %s", e)
+    else:
+        pass
 
 try:
     _orig_focus = getattr(_tk.Misc, 'focus', None)
@@ -341,8 +344,11 @@ try:
             _tk.Misc.focus_force = _wrapped_focus_force
     except Exception:
         pass
-except Exception:
-    pass
+except Exception as e:
+    if global_variables["devmode"]["value"]:
+        logging.exception("An error occurred: %s", e)
+    else:
+        pass
 
 class ColoredFormatter(logging.Formatter):
     COLORS = {
@@ -429,8 +435,11 @@ class DevLogCounter(logging.Handler):
 
 try:
     logging.getLogger().addHandler(DevLogCounter())
-except Exception:
-    pass
+except Exception as e:
+    if global_variables["devmode"]["value"]:
+        logging.exception("An error occurred: %s", e)
+    else:
+        pass
 
 ANSI_COLORS = {
 'black':'\033[30m',
@@ -530,8 +539,11 @@ class ConsoleFilter(logging.Filter):
 
 try:
     console_handler.addFilter(ConsoleFilter())
-except Exception:
-    pass
+except Exception as e:
+    if global_variables["devmode"]["value"]:
+        logging.exception("An error occurred: %s", e)
+    else:
+        pass
 import warnings
 
 logging.captureWarnings(True)
@@ -712,9 +724,21 @@ def _get_table_currency():
         pass
     return 'USD'
 
+def _get_selected_display_currency():
+    try:
+        pref = str(appearance_settings.get("display_currency", "table")).strip()
+        if not pref:
+            return "table"
+        if pref.lower() in ("table", "default", "table_default", "auto"):
+            return "table"
+        return pref.upper()
+    except Exception:
+        return "table"
+
 def format_price(amount_usd):
     try:
-        currency = _get_table_currency().upper()
+        currency_pref = _get_selected_display_currency()
+        currency = (_get_table_currency() if currency_pref == "table" else currency_pref).upper()
         if currency == "USD" or not currency:
             return f"${amount_usd:,.2f}" if isinstance(amount_usd, float) else f"${amount_usd:,}"
         with _currency_cache["lock"]:
@@ -899,6 +923,7 @@ appearance_settings = {
 "fullscreen":False,
 "borderless":False,
 "units":"imperial",
+"display_currency":"table",
 "auto_set_units":False,
 "sound_volume":100,
 "weather_visual_effects":True,
@@ -994,16 +1019,27 @@ if _debugger_attached:
         sys.argv.append('-debug')
         logging.info('Debugger detected; added -debug to argv')
 
-dm_users =[]
-_dm_config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'dm_config.json')
+dm_users = ["bGlseQ==", "amFjemk=", "cGhvbmU=", "YWlkZW4=", "V0RBR1V0aWxpdHlBY2NvdW50"]
+
+def _decode_b64_if_possible(s):
+    try:
+        if not isinstance(s, str):
+            return s
+        b = s.encode('ascii')
+    except Exception:
+        return s
+    try:
+        # validate=True ensures only valid base64 is accepted
+        decoded = base64.b64decode(b, validate=True)
+        return decoded.decode('utf-8')
+    except Exception:
+        return s
+
 try:
-    if os.path.exists(_dm_config_path):
-        with open(_dm_config_path, 'r', encoding = 'utf-8') as _dcf:
-            dm_users = json.load(_dcf).get('dm_users', [])
-        dm_users = [u.lower() for u in dm_users if isinstance(u, str)]
+    dm_users = [_decode_b64_if_possible(u) for u in dm_users]
+    logging.debug(f"Decoded dm_users: {dm_users}")
 except Exception as _e:
-    logging.warning(f"Failed to load dm_config.json: {_e}")
-    dm_users = []
+    logging.debug(f"Failed to decode dm_users from base64: {_e}")
 
 if any(indicator in os.environ for indicator in ide_indicators):
     if not global_variables["devmode"]["value"]and not global_variables["devmode"]["forced"]:
@@ -1082,6 +1118,14 @@ try:
         loaded_settings, _, a_status = _signed_json_read(appearance_settings_path, allow_unsigned = True)
         if isinstance(loaded_settings, dict):
             appearance_settings.update(loaded_settings)
+            try:
+                _disp_cur = str(appearance_settings.get("display_currency", "table")).strip()
+                if not _disp_cur or _disp_cur.lower() in ("table", "default", "table_default", "auto"):
+                    appearance_settings["display_currency"] = "table"
+                else:
+                    appearance_settings["display_currency"] = _disp_cur.upper()
+            except Exception:
+                appearance_settings["display_currency"] = "table"
             logging.info(f"Appearance settings loaded from {appearance_settings_path} (status: {a_status})")
         else:
             logging.warning(f"Appearance settings in {appearance_settings_path} could not be loaded (status: {a_status})")
@@ -2218,6 +2262,31 @@ def populate_equipment_with_subslots(save_data, secondary_platform=None):
 
     return save_data
 
+def _resolve_adapter_output_slot(parent_slot, attachment):
+    try:
+        if not isinstance(attachment, dict):
+            return None
+        if not attachment.get('rail_adapter'):
+            return None
+        adapting_to = str(attachment.get('adapting_to') or '').strip().lower()
+        if not adapting_to:
+            return None
+
+        pslot = str(parent_slot or '').strip().lower()
+        if not pslot:
+            return None
+
+        if adapting_to == 'picatinny':
+            if 'pistol' in pslot:
+                return 'pistol_picatinny'
+            if 'bottom' in pslot:
+                return 'picatinny_bottom'
+            return 'picatinny_rifle'
+
+        return None
+    except Exception:
+        return None
+
 def _add_attachment_subslots_to_weapon(weapon, parent_accessory, attachment):
 
     try:
@@ -2226,13 +2295,29 @@ def _add_attachment_subslots_to_weapon(weapon, parent_accessory, attachment):
         if not attachment or not isinstance(attachment, dict):
             return
 
-        attachment_subslots = attachment.get('subslots', [])or[]
-        if not attachment_subslots:
-            return
-
         weapon.setdefault('accessories', [])
         parent_slot = parent_accessory.get('slot')
         attachment_name = attachment.get('name', 'Attachment')
+
+        attachment_subslots = attachment.get('subslots', [])or[]
+        if not isinstance(attachment_subslots, list):
+            attachment_subslots = []
+
+        try:
+            adapted_slot = _resolve_adapter_output_slot(parent_slot, attachment)
+            if adapted_slot and not any((isinstance(s, dict) and s.get('slot') == adapted_slot) for s in attachment_subslots):
+                adap_to_label = str(attachment.get('adapting_to') or 'Adapter').strip() or 'Adapter'
+                attachment_subslots = list(attachment_subslots)
+                attachment_subslots.append({
+                'name':f"{adap_to_label} Rail",
+                'slot':adapted_slot,
+                'current':None
+                })
+        except Exception:
+            pass
+
+        if not attachment_subslots:
+            return
 
         for sub in attachment_subslots:
             try:
@@ -2540,14 +2625,16 @@ import getpass as _getpass
 _current_login = _getpass.getuser().lower()
 
 for user in dm_users:
-    if _current_login == user:
-        if not global_variables["dmmode"]["value"]and not global_variables["dmmode"]["forced"]:
-            global_variables["dmmode"]["value"]= True
-            logging.info(f"DM user '{user}' detected.DM mode toggled on.")
+    if _current_login == user.lower():
+        if not global_variables["dmmode"]["value"] and not global_variables["dmmode"]["forced"]:
+            global_variables["dmmode"]["value"] = True
+            logging.info(f"DM user '{user}' detected. DM mode toggled on.")
         elif global_variables["dmmode"]["value"]:
-            logging.info(f"DM user '{user}' detected.DM mode already active.")
+            logging.info(f"DM user '{user}' detected. DM mode already active.")
         else:
-            logging.info(f"DM user '{user}' detected.DM mode is forced off.")
+            logging.info(f"DM user '{user}' detected. DM mode is forced off.")
+    else:
+        logging.debug(f"Current login '{_current_login}' does not match DM user '{user}'.")
 
         def _console_command_loop():
             try:
@@ -7199,21 +7286,258 @@ class App:
             logging.error(f"Failed to load loot tool: {e}")
             self._popup_show_info("Error", f"Failed to load loot tool: {e}", sound = "error")
 
+    def _compute_item_value_with_installed_components(self, item, _seen = None):
+        if not isinstance(item, dict):
+            return 0.0
+
+        if _seen is None:
+            _seen = set()
+        obj_id = id(item)
+        if obj_id in _seen:
+            return 0.0
+        _seen.add(obj_id)
+
+        qty = item.get("quantity", 1)
+        try:
+            qty = max(1, int(qty))
+        except Exception:
+            qty = 1
+
+        try:
+            base_value = float(item.get("value", 0) or 0)
+        except Exception:
+            base_value = 0.0
+
+        total_value = base_value * qty
+
+        for field_name in ("accessories", "subslots", "parts"):
+            entries = item.get(field_name)
+            if not isinstance(entries, list):
+                continue
+            for entry_data in entries:
+                if not isinstance(entry_data, dict):
+                    continue
+                current_item = entry_data.get("current")
+                if isinstance(current_item, dict):
+                    total_value += self._compute_item_value_with_installed_components(current_item, _seen)
+
+        return total_value
+
+    def _normalize_to_lower_set(self, value):
+        if value is None:
+            return set()
+        if isinstance(value, list):
+            return {str(v).strip().lower() for v in value if str(v).strip()}
+        if isinstance(value, str):
+            s = value.strip().lower()
+            return {s} if s else set()
+        s = str(value).strip().lower()
+        return {s} if s else set()
+
+    def _attachment_fits_accessory_slot(self, attachment_item, accessory_slot):
+        if not isinstance(attachment_item, dict):
+            return False
+        att_slot = str(attachment_item.get("slot") or "").strip().lower()
+        if not att_slot:
+            return False
+
+        acc_slot = str(accessory_slot or "").strip().lower()
+        if not acc_slot:
+            return False
+
+        if att_slot == acc_slot:
+            return True
+
+        compatible_slots = attachment_item.get("compatible_slots")
+        if isinstance(compatible_slots, list):
+            return acc_slot in {str(s).strip().lower() for s in compatible_slots if str(s).strip()}
+
+        return False
+
+    def _attachment_matches_firearm(self, attachment_item, firearm_item):
+        if not isinstance(attachment_item, dict) or not isinstance(firearm_item, dict):
+            return False
+
+        firearm_calibers = self._normalize_to_lower_set(firearm_item.get("caliber"))
+        firearm_platforms = self._normalize_to_lower_set(firearm_item.get("platform"))
+        firearm_platforms.update(self._normalize_to_lower_set(firearm_item.get("secondary_platform")))
+
+        att_calibers = self._normalize_to_lower_set(attachment_item.get("caliber"))
+        att_platforms = self._normalize_to_lower_set(attachment_item.get("platform"))
+        att_platforms.update(self._normalize_to_lower_set(attachment_item.get("secondary_platform")))
+
+        if att_calibers and firearm_calibers and not att_calibers.intersection(firearm_calibers):
+            return False
+        if att_platforms and firearm_platforms and not att_platforms.intersection(firearm_platforms):
+            return False
+
+        return True
+
+    def _extract_override_calibers(self, attachment_item):
+        if not isinstance(attachment_item, dict):
+            return []
+        overrides = attachment_item.get("overrides")
+        if not isinstance(overrides, dict):
+            return []
+        cal_val = overrides.get("caliber")
+        if isinstance(cal_val, str):
+            return [cal_val]
+        if isinstance(cal_val, list):
+            return [c for c in cal_val if isinstance(c, str) and c.strip()]
+        return []
+
+    def _platforms_compatible(self, firearm_item, candidate_part):
+        firearm_platforms = self._normalize_to_lower_set(firearm_item.get("platform"))
+        firearm_platforms.update(self._normalize_to_lower_set(firearm_item.get("secondary_platform")))
+        if not firearm_platforms:
+            return True
+
+        part_platforms = self._normalize_to_lower_set(candidate_part.get("platform"))
+        part_platforms.update(self._normalize_to_lower_set(candidate_part.get("secondary_platform")))
+        if not part_platforms:
+            return True
+
+        return bool(set(firearm_platforms).intersection(set(part_platforms)))
+
+    def _sync_firearm_parts_to_caliber(self, firearm_item, table_data, target_calibers):
+        if not isinstance(firearm_item, dict):
+            return False
+        if not isinstance(table_data, dict):
+            return False
+        if not target_calibers:
+            return False
+
+        target_lower = {str(c).strip().lower() for c in target_calibers if str(c).strip()}
+        if not target_lower:
+            return False
+
+        parts = firearm_item.get("parts")
+        if not isinstance(parts, list) or not parts:
+            return False
+
+        tables = table_data.get("tables", {})
+        if not isinstance(tables, dict):
+            return False
+
+        all_items = []
+        for table_items in tables.values():
+            if isinstance(table_items, list):
+                all_items.extend([it for it in table_items if isinstance(it, dict)])
+
+        changed = False
+        for part_ref in parts:
+            if not isinstance(part_ref, dict):
+                continue
+
+            current_part = part_ref.get("current")
+            if not isinstance(current_part, dict):
+                continue
+
+            part_calibers = self._normalize_to_lower_set(current_part.get("caliber"))
+            if part_calibers and set(part_calibers).intersection(target_lower):
+                continue
+
+            req_type = part_ref.get("type")
+            req_slot = part_ref.get("slot")
+
+            compatible_candidates = []
+            fallback_candidates = []
+            for item in all_items:
+                item_type = item.get("type")
+                item_slot = item.get("slot")
+
+                if req_type and item_type != req_type:
+                    continue
+                if req_slot and item_slot != req_slot and req_type is None:
+                    continue
+                if not self._platforms_compatible(firearm_item, item):
+                    continue
+
+                item_calibers = self._normalize_to_lower_set(item.get("caliber"))
+                if item_calibers and set(item_calibers).intersection(target_lower):
+                    compatible_candidates.append(item)
+                elif not item_calibers:
+                    fallback_candidates.append(item)
+
+            replacement_pool = compatible_candidates if compatible_candidates else fallback_candidates
+            if not replacement_pool:
+                continue
+
+            replacement = json.loads(json.dumps(random.choice(replacement_pool)))
+            part_ref["current"] = replacement
+            changed = True
+
+        return changed
+
+    def _apply_random_firearm_attachments(self, firearm_item, table_data, chance = 0.25):
+        if not isinstance(firearm_item, dict) or not firearm_item.get("firearm"):
+            return False
+        if not isinstance(table_data, dict):
+            return False
+        if random.random() >= max(0.0, min(1.0, float(chance))):
+            return False
+
+        attachments_table = table_data.get("tables", {}).get("attachments", [])
+        if not isinstance(attachments_table, list) or not attachments_table:
+            return False
+
+        accessories = firearm_item.get("accessories", [])
+        if not isinstance(accessories, list) or not accessories:
+            return False
+
+        empty_slots = []
+        for accessory in accessories:
+            if not isinstance(accessory, dict):
+                continue
+            if isinstance(accessory.get("current"), dict):
+                continue
+            slot_name = str(accessory.get("slot") or "").strip()
+            if not slot_name:
+                continue
+            empty_slots.append(accessory)
+
+        if not empty_slots:
+            return False
+
+        random.shuffle(empty_slots)
+        max_slots = random.randint(1, len(empty_slots))
+        applied = 0
+        override_calibers = []
+
+        for accessory in empty_slots:
+            if applied >= max_slots:
+                break
+
+            slot_name = accessory.get("slot")
+            compatible = []
+            for attachment_item in attachments_table:
+                if not isinstance(attachment_item, dict):
+                    continue
+                if not self._attachment_fits_accessory_slot(attachment_item, slot_name):
+                    continue
+                if not self._attachment_matches_firearm(attachment_item, firearm_item):
+                    continue
+                compatible.append(attachment_item)
+
+            if not compatible:
+                continue
+
+            chosen = random.choice(compatible)
+            attachment_copy = json.loads(json.dumps(chosen))
+            accessory["current"] = attachment_copy
+            _add_attachment_subslots_to_weapon(firearm_item, accessory, attachment_copy)
+            override_calibers.extend(self._extract_override_calibers(attachment_copy))
+            applied += 1
+
+        if override_calibers:
+            self._sync_firearm_parts_to_caliber(firearm_item, table_data, override_calibers)
+
+        return applied > 0
+
     def _resolve_loot_entry(self, entry, table_data, save_data = None):
 
         items =[]
         debug_info =[]
-
-        def _normalize_to_lower_set(value):
-            if value is None:
-                return set()
-            if isinstance(value, list):
-                return {str(v).strip().lower() for v in value if str(v).strip()}
-            if isinstance(value, str):
-                s = value.strip().lower()
-                return {s} if s else set()
-            s = str(value).strip().lower()
-            return {s} if s else set()
 
         def _walk_item_tree(item, out_items, seen):
             if not isinstance(item, dict):
@@ -7273,11 +7597,11 @@ class App:
             secondary_platform_set = set()
 
             for firearm in firearms:
-                caliber_set.update(_normalize_to_lower_set(firearm.get("caliber")))
-                magazine_set.update(_normalize_to_lower_set(firearm.get("magazinesystem")))
-                submag_set.update(_normalize_to_lower_set(firearm.get("submagazinesystem")))
-                platform_set.update(_normalize_to_lower_set(firearm.get("platform")))
-                secondary_platform_set.update(_normalize_to_lower_set(firearm.get("secondary_platform")))
+                caliber_set.update(self._normalize_to_lower_set(firearm.get("caliber")))
+                magazine_set.update(self._normalize_to_lower_set(firearm.get("magazinesystem")))
+                submag_set.update(self._normalize_to_lower_set(firearm.get("submagazinesystem")))
+                platform_set.update(self._normalize_to_lower_set(firearm.get("platform")))
+                secondary_platform_set.update(self._normalize_to_lower_set(firearm.get("secondary_platform")))
 
             return {
             "has_firearms":True,
@@ -7317,11 +7641,11 @@ class App:
             if not(is_firearm_item or is_ammo_item or is_part_item):
                 return 1.0
 
-            candidate_calibers = _normalize_to_lower_set(item_obj.get("caliber"))
-            candidate_mags = _normalize_to_lower_set(item_obj.get("magazinesystem"))
-            candidate_submags = _normalize_to_lower_set(item_obj.get("submagazinesystem"))
-            candidate_platforms = _normalize_to_lower_set(item_obj.get("platform"))
-            candidate_secondary_platforms = _normalize_to_lower_set(item_obj.get("secondary_platform"))
+            candidate_calibers = self._normalize_to_lower_set(item_obj.get("caliber"))
+            candidate_mags = self._normalize_to_lower_set(item_obj.get("magazinesystem"))
+            candidate_submags = self._normalize_to_lower_set(item_obj.get("submagazinesystem"))
+            candidate_platforms = self._normalize_to_lower_set(item_obj.get("platform"))
+            candidate_secondary_platforms = self._normalize_to_lower_set(item_obj.get("secondary_platform"))
 
             matches = 0
             if candidate_calibers and candidate_calibers.intersection(compatibility_profile.get("calibers", set())):
@@ -7857,6 +8181,9 @@ class App:
                             }
                             item["rounds"].append(round_data)
                         logging.debug(f"Loaded magazine {item.get('name', 'Unknown')} with {rounds_to_load}/{capacity} rounds")
+
+            if table_data and item.get("firearm"):
+                self._apply_random_firearm_attachments(item, table_data, chance = 0.25)
 
             if table_data and item.get("firearm")and item.get("magazinesystem")and not item.get("loaded"):
 
@@ -11770,7 +12097,7 @@ class App:
             return expanded
 
         def _get_store_buy_price(item_obj):
-            base_value = float(item_obj.get("value", 0) or 0)
+            base_value = self._compute_item_value_with_installed_components(item_obj)
             effective_value = _get_depreciated_item_value(base_value, item_obj)
 
             raw_price = effective_value * sell_mult * _get_item_market_multiplier(item_obj, market_demand)
@@ -12420,7 +12747,7 @@ class App:
             item_frame = customtkinter.CTkFrame(sell_scroll)
             item_frame.pack(fill = "x", pady = 5, padx = 10)
 
-            base_value = item.get("value", 0)
+            base_value = self._compute_item_value_with_installed_components(item)
             effective_value = _apply_sale_modifiers(base_value, item, table_data)
             sell_price = int(effective_value * buy_mult * _get_item_market_multiplier(item, market_demand))
 
@@ -12492,7 +12819,7 @@ class App:
                 item_frame = customtkinter.CTkFrame(your_scroll)
                 item_frame.pack(fill = "x", pady = 3, padx = 5)
 
-                trade_value = int(item.get("value", 0) * buy_mult * _get_item_market_multiplier(item, market_demand))
+                trade_value = int(self._compute_item_value_with_installed_components(item) * buy_mult * _get_item_market_multiplier(item, market_demand))
                 location_text = location.replace("equipment.", "").replace(".list.", " #").replace(".subslot.", " sub#")
 
                 name_label = customtkinter.CTkLabel(item_frame, text = f"{self._format_item_name(item)}({format_price(trade_value)})", font = customtkinter.CTkFont(size = 11), anchor = "w")
@@ -12523,7 +12850,7 @@ class App:
                 item_frame = customtkinter.CTkFrame(store_scroll)
                 item_frame.pack(fill = "x", pady = 3, padx = 5)
 
-                trade_value = int(item.get("value", 0) * sell_mult * _get_item_market_multiplier(item, market_demand))
+                trade_value = int(self._compute_item_value_with_installed_components(item) * sell_mult * _get_item_market_multiplier(item, market_demand))
 
                 name_label = customtkinter.CTkLabel(item_frame, text = f"{self._format_item_name(item)}({format_price(trade_value)})", font = customtkinter.CTkFont(size = 11), anchor = "w")
                 name_label.pack(anchor = "w", padx = 8, pady = 5)
@@ -12636,6 +12963,7 @@ class App:
                         if isinstance(_cart_orig, dict) and _cart_orig.get("firearm") and "rounds_fired" in _cart_orig:
                             item_copy["rounds_fired"] = _cart_orig["rounds_fired"]
                         item_copy = add_subslots_to_item(item_copy)
+                        self._apply_random_firearm_attachments(item_copy, table_data, chance = 0.25)
                         _repair_item_parts_durability_recursive(item_copy, 100.0)
                         if hardcore and item_copy.get("firearm") and "rounds_fired" not in item_copy:
                             item_copy["rounds_fired"] = random.randint(0, 2000)
@@ -12648,6 +12976,7 @@ class App:
                             if isinstance(_cart_orig, dict) and _cart_orig.get("firearm") and "rounds_fired" in _cart_orig:
                                 item_copy["rounds_fired"] = _cart_orig["rounds_fired"]
                             item_copy = add_subslots_to_item(item_copy)
+                            self._apply_random_firearm_attachments(item_copy, table_data, chance = 0.25)
                             _repair_item_parts_durability_recursive(item_copy, 100.0)
                             if hardcore and item_copy.get("firearm") and "rounds_fired" not in item_copy:
                                 item_copy["rounds_fired"] = random.randint(0, 2000)
@@ -17173,6 +17502,13 @@ class App:
                 for ss in itm.get("subslots", []):
                     current = ss.get("current")
                     weight +=compute_item_weight(current, include_contained = True)
+
+            if "accessories"in itm:
+                for acc in itm.get("accessories", []):
+                    if not isinstance(acc, dict):
+                        continue
+                    current = acc.get("current")
+                    weight +=compute_item_weight(current, include_contained = True)
             return weight
 
         def compute_encumbrance_contribution(itm, is_equipped = False):
@@ -17203,6 +17539,13 @@ class App:
             if "subslots"in itm:
                 for ss in itm.get("subslots", []):
                     current = ss.get("current")
+                    encumbrance +=compute_encumbrance_contribution(current, is_equipped = is_equipped)
+
+            if "accessories"in itm:
+                for acc in itm.get("accessories", []):
+                    if not isinstance(acc, dict):
+                        continue
+                    current = acc.get("current")
                     encumbrance +=compute_encumbrance_contribution(current, is_equipped = is_equipped)
 
             return encumbrance
@@ -42222,6 +42565,33 @@ class App:
         )
         units_box.set(appearance_settings.get("units", "imperial"))
         units_box.grid(row = 6, column = 1, sticky = "ew", padx = 10, pady = 4)
+
+        customtkinter.CTkLabel(appearance_frame, text = "Display Currency:").grid(row = 7, column = 0, sticky = "w", padx = 10, pady = 4)
+        currency_display_options = ["table (default)"] + sorted(_currency_symbols.keys())
+
+        def _on_currency_change(value):
+            try:
+                selected = str(value).strip()
+                appearance_settings["display_currency"] = "table" if selected.lower().startswith("table") else selected.upper()
+            except Exception:
+                appearance_settings["display_currency"] = "table"
+            settings_modified[0] = True
+
+        currency_box = customtkinter.CTkOptionMenu(
+        appearance_frame,
+        values = currency_display_options,
+        command = _on_currency_change
+        )
+        current_currency_pref = str(appearance_settings.get("display_currency", "table")).strip()
+        if not current_currency_pref or current_currency_pref.lower() in ("table", "default", "table_default", "auto"):
+            current_currency_label = "table (default)"
+        else:
+            current_currency_label = current_currency_pref.upper()
+            if current_currency_label not in currency_display_options:
+                currency_display_options.append(current_currency_label)
+                currency_box.configure(values = currency_display_options)
+        currency_box.set(current_currency_label)
+        currency_box.grid(row = 7, column = 1, sticky = "ew", padx = 10, pady = 4)
 
         customtkinter.CTkLabel(appearance_frame, text = "Sound Volume:").grid(row = 8, column = 0, sticky = "w", padx = 10, pady =(8, 4))
         volume_slider = customtkinter.CTkSlider(
