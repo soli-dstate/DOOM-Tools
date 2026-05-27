@@ -1,0 +1,26 @@
+{
+    "prettyname": "Larp of '24: The Re-up",
+    "filename": "redo.sldtbl",
+    "version": "1.0.0",
+    "additional_settings": {
+        "bonus_clamp": 5,
+        "stat_clamp": 4,
+        "free_points": 2,
+        "slot_disable_points": 1,
+        "style": "classic",
+        "combat_reports": false,
+        "hardcore_mode": true,
+        "currency": "EUR"
+    },
+    "rarity_weights": {
+        "Common": 40,
+        "Uncommon": 30,
+        "Rare": 15,
+        "Legendary": 10,
+        "Mythic": 5,
+        "Special Chance": 1,
+        "Luck Effect": 1.5
+    },
+    "tables": {
+    }
+}

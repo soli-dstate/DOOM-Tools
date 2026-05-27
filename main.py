@@ -756,6 +756,51 @@ def format_price(amount_usd):
     except Exception:
         return f"${amount_usd}" if amount_usd is not None else "$0"
 
+def parse_display_price_to_usd(value, default = None, round_to_int = False):
+    raw = "" if value is None else str(value).strip()
+    if not raw:
+        if default is not None:
+            return int(round(default)) if round_to_int else float(default)
+        raise ValueError("No amount provided")
+
+    currency_pref = _get_selected_display_currency()
+    currency = (_get_table_currency() if currency_pref == "table" else currency_pref).upper()
+    with _currency_cache["lock"]:
+        rates = dict(_currency_cache["rates"] or {})
+    rate = rates.get(currency)
+
+    cleaned = raw
+    try:
+        cleaned = cleaned.replace(currency, "").replace(currency.lower(), "")
+    except Exception:
+        pass
+    for sym in sorted(set(_currency_symbols.values()), key = len, reverse = True):
+        if sym:
+            cleaned = cleaned.replace(sym, "")
+
+    cleaned = re.sub(r"\s+", "", cleaned)
+    cleaned = re.sub(r"[^0-9,\.\-]", "", cleaned)
+
+    if "," in cleaned and "." in cleaned:
+        cleaned = cleaned.replace(",", "")
+    elif "," in cleaned:
+        parts = cleaned.split(",")
+        if len(parts) == 2 and len(parts[1]) <= 2:
+            cleaned = f"{parts[0]}.{parts[1]}"
+        else:
+            cleaned = cleaned.replace(",", "")
+
+    if cleaned in ("", "-", ".", "-."):
+        raise ValueError("Invalid amount")
+
+    display_amount = float(cleaned)
+    if currency != "USD" and rate:
+        usd_amount = display_amount / float(rate)
+    else:
+        usd_amount = display_amount
+
+    return int(round(usd_amount)) if round_to_int else float(usd_amount)
+
 threading.Thread(target=_fetch_exchange_rates, daemon=True).start()
 
 try:
@@ -926,6 +971,12 @@ appearance_settings = {
 "display_currency":"table",
 "auto_set_units":False,
 "sound_volume":100,
+"music_volume":100,
+"mute_business_music":False,
+"business_music_sync_mode":"random",
+"business_music_sync_seed":"doom-tools-shared",
+"business_music_sync_force_track":"",
+"business_music_sync_force_position":-1.0,
 "weather_visual_effects":True,
 "weather_audio_effects":True
 }
@@ -1153,6 +1204,23 @@ except Exception as e:
 
 def _sync_remote_table():
     try:
+        def _parse_table_version(value):
+            try:
+                parts = re.findall(r"\d+", str(value))
+                return tuple(int(part)for part in parts)
+            except Exception:
+                return ()
+
+        def _pad_version_parts(left, right):
+            left_parts = list(left)
+            right_parts = list(right)
+            length = max(len(left_parts), len(right_parts))
+            while len(left_parts)<length:
+                left_parts.append(0)
+            while len(right_parts)<length:
+                right_parts.append(0)
+            return tuple(left_parts), tuple(right_parts)
+
         table_dir = os.path.join(os.getcwd(), "tables")
         if not os.path.isdir(table_dir):
             logging.info("No tables directory present; skipping remote table sync")
@@ -1166,9 +1234,9 @@ def _sync_remote_table():
         target_local = None
         cur_tbl = global_variables.get("current_table")
         if cur_tbl:
-            for f in local_tables:
-                if os.path.abspath(f).endswith(cur_tbl)or os.path.basename(f)==cur_tbl:
-                    target_local = f
+            for table_file in local_tables:
+                if os.path.abspath(table_file).endswith(cur_tbl)or os.path.basename(table_file)==cur_tbl:
+                    target_local = table_file
                     break
 
         if not target_local:
@@ -1176,7 +1244,7 @@ def _sync_remote_table():
 
         basename = os.path.basename(target_local)
         raw_base = "https://raw.githubusercontent.com/soli-dstate/DOOM-Tools/master/tables/"
-        remote_url = raw_base +basename
+        remote_url = raw_base + basename
 
         logging.info(f"Checking remote table for updates: {remote_url}")
         resp = requests.get(remote_url, timeout = 15, verify = True)
@@ -1204,10 +1272,14 @@ def _sync_remote_table():
             logging.warning(f"Could not verify remote table integrity: {e}")
 
         try:
-            json.loads(remote_text)
+            remote_data = json.loads(remote_text)
         except (json.JSONDecodeError, ValueError):
-            logging.error(f"Remote table is not valid JSON — refusing to overwrite local table")
+            logging.error("Remote table is not valid JSON — refusing to overwrite local table")
             return
+
+        remote_version = remote_data.get("version", "0.0.0")if isinstance(remote_data, dict)else "0.0.0"
+        remote_version_parts = _parse_table_version(remote_version)
+
         try:
             with open(target_local, 'r', encoding = 'utf-8')as f:
                 local_text = f.read()
@@ -1215,13 +1287,33 @@ def _sync_remote_table():
             logging.warning(f"Failed to read local table {target_local}: {e}")
             local_text = None
 
+        local_version = "0.0.0"
+        local_version_parts = ()
+        if local_text is not None:
+            try:
+                local_data = json.loads(local_text)
+                if isinstance(local_data, dict):
+                    local_version = local_data.get("version", "0.0.0")
+                    local_version_parts = _parse_table_version(local_version)
+            except (json.JSONDecodeError, ValueError) as e:
+                logging.warning(f"Failed to parse local table JSON for version check: {e}")
+
+        local_version_parts, remote_version_parts = _pad_version_parts(local_version_parts, remote_version_parts)
+
+        if remote_version_parts <=local_version_parts:
+            if local_text is not None and local_text !=remote_text:
+                logging.info(f"Remote table version {remote_version} is not newer than local version {local_version}; skipping update")
+            else:
+                logging.info("Local table matches remote; no update needed")
+            return
+
         if local_text is None or local_text !=remote_text:
             if global_variables.get("devmode", {}).get("value", False):
                 logging.info("Devmode enabled: remote table differs but will not replace local file")
                 return
 
             name_root, _ = os.path.splitext(basename)
-            backup_name = name_root +".backup"
+            backup_name = name_root + ".backup"
             backup_path = os.path.join(table_dir, backup_name)
             try:
                 if os.path.exists(target_local):
@@ -1230,7 +1322,7 @@ def _sync_remote_table():
 
                 with open(target_local, 'w', encoding = 'utf-8')as f:
                     f.write(remote_text)
-                logging.info(f"Replaced local table with remote version: {target_local}")
+                logging.info(f"Replaced local table with newer remote version {remote_version} (local was {local_version}): {target_local}")
             except Exception as e:
                 logging.error(f"Failed to replace local table with remote version: {e}")
         else:
@@ -1301,6 +1393,7 @@ def validate_table_ids(secondary_platform=None):
     table_sequence_errors_files =[]
     ammo_errors =[]
     ammo_errors_details =[]
+    ammo_errors_files =[]
     sound_warnings =[]
 
     referenced_slots = set()
@@ -1329,8 +1422,10 @@ def validate_table_ids(secondary_platform=None):
 
             try:
                 magazine_items =[]
+                clip_items = []
                 if isinstance(tables, dict):
                     magazine_items = tables.get("magazines", [])or[]
+                    clip_items = [m for m in magazine_items if isinstance(m, dict) and m.get("clip_type") and not m.get("firearm")]
 
                 magazine_systems = set()
                 for mag in magazine_items:
@@ -1350,6 +1445,110 @@ def validate_table_ids(secondary_platform=None):
                     for item_check in items_check:
                         if not isinstance(item_check, dict):
                             continue
+                        mag_type_check = str(item_check.get("magazinetype", "") or "").strip().lower()
+                        subtype_check = str(item_check.get("subtype", "") or "").strip().lower()
+                        is_musket = subtype_check == "musket" or "muzzle" in mag_type_check
+                        is_en_bloc = "en bloc" in mag_type_check
+                        item_calibers = set()
+                        for _cal_source in (item_check.get("musket_caliber"), item_check.get("caliber")):
+                            if isinstance(_cal_source, list):
+                                for _cal in _cal_source:
+                                    if _cal is not None and str(_cal).strip():
+                                        item_calibers.add(str(_cal).strip().lower())
+                            elif _cal_source is not None and str(_cal_source).strip():
+                                item_calibers.add(str(_cal_source).strip().lower())
+
+                        if is_musket:
+                            if not item_calibers:
+                                msg = f"Table '{table_name}': Musket '{item_check.get('name')}'(ID {item_check.get('id')}) is missing 'musket_caliber' or 'caliber'"
+                                ammo_errors.append(msg)
+                                ammo_errors_files.append(table_file)
+                            if "muzzle" not in mag_type_check:
+                                msg = f"Table '{table_name}': Musket '{item_check.get('name')}'(ID {item_check.get('id')}) must use a muzzle-loading magazinetype"
+                                magazine_errors.append(msg)
+                                magazine_errors_files.append(table_file)
+
+                        if item_check.get('accepts_clips'):
+                            clip_type = str(item_check.get('clip_type') or '').strip()
+                            if not clip_type:
+                                msg = f"Table '{table_name}': Firearm '{item_check.get('name')}'(ID {item_check.get('id')}) has 'accepts_clips' but is missing 'clip_type'"
+                                magazine_errors.append(msg)
+                                magazine_errors_files.append(table_file)
+                            try:
+                                clip_cap = int(item_check.get('capacity', 0) or 0)
+                            except Exception:
+                                clip_cap = 0
+                            if 'detachable box' not in mag_type_check and clip_cap <= 0:
+                                msg = f"Table '{table_name}': Firearm '{item_check.get('name')}'(ID {item_check.get('id')}) has 'accepts_clips' but is missing a positive 'capacity'"
+                                magazine_errors.append(msg)
+                                magazine_errors_files.append(table_file)
+                            if clip_type:
+                                compatible_clip_found = False
+                                for clip_item in clip_items:
+                                    if str(clip_item.get('clip_type') or '').strip() != clip_type:
+                                        continue
+                                    clip_cal_raw = clip_item.get('caliber')
+                                    clip_calibers = set()
+                                    if isinstance(clip_cal_raw, list):
+                                        for _clip_cal in clip_cal_raw:
+                                            if _clip_cal is not None and str(_clip_cal).strip():
+                                                clip_calibers.add(str(_clip_cal).strip().lower())
+                                    elif clip_cal_raw is not None and str(clip_cal_raw).strip():
+                                        clip_calibers.add(str(clip_cal_raw).strip().lower())
+                                    if item_calibers and clip_calibers and not item_calibers.intersection(clip_calibers):
+                                        continue
+                                    compatible_clip_found = True
+                                    break
+                                if not compatible_clip_found:
+                                    msg = f"Table '{table_name}': Firearm '{item_check.get('name')}'(ID {item_check.get('id')}) requires clip type '{clip_type}' but no compatible clip item exists in the magazines table"
+                                    magazine_errors.append(msg)
+                                    magazine_errors_files.append(table_file)
+
+                        if is_en_bloc:
+                            f_ms = item_check.get('magazinesystem')
+                            if f_ms is None or (isinstance(f_ms, str) and not f_ms.strip()):
+                                msg = f"Table '{table_name}': En-bloc firearm '{item_check.get('name')}'(ID {item_check.get('id')}) missing 'magazinesystem' field"
+                                magazine_errors.append(msg)
+                                magazine_errors_files.append(table_file)
+                            try:
+                                en_bloc_cap = int(item_check.get('capacity', 0) or 0)
+                            except Exception:
+                                en_bloc_cap = 0
+                            if en_bloc_cap <= 0:
+                                msg = f"Table '{table_name}': En-bloc firearm '{item_check.get('name')}'(ID {item_check.get('id')}) is missing a positive 'capacity'"
+                                magazine_errors.append(msg)
+                                magazine_errors_files.append(table_file)
+                            if 'bolt_catch' not in item_check:
+                                msg = f"Table '{table_name}': En-bloc firearm '{item_check.get('name')}'(ID {item_check.get('id')}) is missing 'bolt_catch'"
+                                magazine_errors.append(msg)
+                                magazine_errors_files.append(table_file)
+                            needed_en_bloc = [str(f_ms)] if f_ms is not None and not isinstance(f_ms, list) else [str(n) for n in (f_ms or []) if str(n).strip()]
+                            if needed_en_bloc:
+                                compatible_en_bloc = False
+                                for mag in magazine_items:
+                                    if not isinstance(mag, dict) or mag.get('firearm'):
+                                        continue
+                                    ms = mag.get('magazinesystem')
+                                    mag_system_values = [str(ms)] if ms is not None and not isinstance(ms, list) else [str(n) for n in (ms or []) if str(n).strip()]
+                                    if not any(n in mag_system_values for n in needed_en_bloc):
+                                        continue
+                                    mag_cal_raw = mag.get('caliber')
+                                    mag_calibers = set()
+                                    if isinstance(mag_cal_raw, list):
+                                        for _mag_cal in mag_cal_raw:
+                                            if _mag_cal is not None and str(_mag_cal).strip():
+                                                mag_calibers.add(str(_mag_cal).strip().lower())
+                                    elif mag_cal_raw is not None and str(mag_cal_raw).strip():
+                                        mag_calibers.add(str(mag_cal_raw).strip().lower())
+                                    if item_calibers and mag_calibers and not item_calibers.intersection(mag_calibers):
+                                        continue
+                                    compatible_en_bloc = True
+                                    break
+                                if not compatible_en_bloc:
+                                    msg = f"Table '{table_name}': En-bloc firearm '{item_check.get('name')}'(ID {item_check.get('id')}) has no compatible en-bloc clip item for magazinesystem(s): {needed_en_bloc}"
+                                    magazine_errors.append(msg)
+                                    magazine_errors_files.append(table_file)
+
                         if item_check.get("firearm")and str(item_check.get("magazinetype", "")).lower()=="detachable box":
                             f_ms = item_check.get("magazinesystem")
                             friendly = f"Table '{table_name}': Firearm '{item_check.get('name')}'(ID {item_check.get('id')})"
@@ -1512,9 +1711,13 @@ def validate_table_ids(secondary_platform=None):
                     name = item.get('name')
                     if name:
                         ammo_names_present.add(str(name).strip().lower())
-                    calib = item.get('caliber')
-                    if calib:
-                        ammo_calibers_present.add(str(calib).strip().lower())
+                    for calib_src in (item.get('caliber'), item.get('musket_caliber')):
+                        if isinstance(calib_src, list):
+                            for calib in calib_src:
+                                if calib is not None and str(calib).strip():
+                                    ammo_calibers_present.add(str(calib).strip().lower())
+                        elif calib_src is not None and str(calib_src).strip():
+                            ammo_calibers_present.add(str(calib_src).strip().lower())
             except Exception:
                 continue
     except Exception:
@@ -1772,13 +1975,14 @@ def validate_table_ids(secondary_platform=None):
                 if item.get('firearm'):
                     name = item.get('name')or '<unnamed>'
 
-                    calib = item.get('caliber')
+                    calib = item.get('musket_caliber') or item.get('caliber')
                     if calib:
                         calibs = calib if isinstance(calib, list) else [calib]
                         missing = [c for c in calibs if str(c).strip().lower() not in ammo_calibers_present]
                         if missing:
                             msg = f"Firearm '{name}' in table '{tf}' references caliber '{missing}' but no ammunition with that caliber found."
                             ammo_errors.append(msg)
+                            ammo_errors_files.append(tf)
                             try:
                                 ammo_errors_details.append({'table':tf, 'weapon':item, 'reason':'missing_ammo_caliber', 'caliber':missing})
                             except Exception:
@@ -1789,6 +1993,7 @@ def validate_table_ids(secondary_platform=None):
                         if str(ammo_type).strip().lower()not in ammo_names_present:
                             msg = f"Firearm '{name}' in table '{tf}' references ammunition '{ammo_type}' but no matching ammunition entry found."
                             ammo_errors.append(msg)
+                            ammo_errors_files.append(tf)
                             try:
                                 ammo_errors_details.append({'table':tf, 'weapon':item, 'reason':'missing_ammo_name', 'ammo':ammo_type})
                             except Exception:
@@ -1844,7 +2049,7 @@ def validate_table_ids(secondary_platform=None):
                     plat = item.get('platform')
                     if not plat:
                         continue
-                    plat_key = str(plat).strip().lower()
+                    plat_key = str(plat).strip().lower().replace('/', '_')
                     if not plat_key:
                         continue
                     folder = os.path.join(sound_root, plat_key)
@@ -1974,6 +2179,7 @@ def validate_table_ids(secondary_platform=None):
     all_errors_with_source = (
         [(e, f) for e, f in zip(duplicate_errors, duplicate_errors_files)] +
         [(e, f) for e, f in zip(magazine_errors, magazine_errors_files)] +
+        [(e, f) for e, f in zip(ammo_errors, ammo_errors_files)] +
         [(e, f) for e, f in zip(table_sequence_errors, table_sequence_errors_files)] +
         [(e, f) for e, f in zip(hardcore_errors, hardcore_errors_files)]
     )
@@ -2112,7 +2318,12 @@ def populate_equipment_with_subslots(save_data, secondary_platform=None):
         with open(tbl_path, 'r')as f:
             table_data = json.load(f)
 
-        equipment_items = table_data.get("tables", {}).get("equipment", [])
+        tables = table_data.get("tables", {})
+        equipment_items = (
+            (tables.get("equipment") or []) +
+            (tables.get("civilian_equipment") or []) +
+            (tables.get("military_equipment") or [])
+        )
         equipment_map = {item.get("id"): item for item in equipment_items}
 
         for slot_name, equipped_item in save_data.get("equipment", {}).items():
@@ -8125,6 +8336,49 @@ class App:
 
     def _apply_random_quantity(self, items, table_data = None):
 
+        def _rescale_blackpowder_weight(powder_item, full_grains_hint = None, full_weight_hint = None):
+            if not isinstance(powder_item, dict):
+                return
+            if str(powder_item.get("type", "") or "").strip().lower() != "gunpowder":
+                return
+
+            try:
+                current_grains = int(powder_item.get("grains_left", 0) or 0)
+            except(Exception, ValueError, TypeError):
+                return
+            if current_grains < 0:
+                current_grains = 0
+
+            if full_grains_hint is not None:
+                full_grains = int(full_grains_hint)
+            else:
+                try:
+                    full_grains = int(powder_item.get("grain_storage", 0) or 0)
+                except(Exception, ValueError, TypeError):
+                    full_grains = 0
+                if full_grains <= 0:
+                    full_grains = max(1, current_grains)
+
+            powder_item["grain_storage"] = max(1, int(full_grains))
+
+            if full_weight_hint is not None:
+                try:
+                    full_weight = float(full_weight_hint)
+                except(Exception, ValueError, TypeError):
+                    full_weight = None
+            else:
+                try:
+                    full_weight = float(powder_item.get("weight_full", powder_item.get("weight", 0)) or 0)
+                except(Exception, ValueError, TypeError):
+                    full_weight = None
+
+            if full_weight is None or full_weight < 0:
+                return
+
+            powder_item["weight_full"] = full_weight
+            fill_ratio = 0.0 if full_grains <= 0 else max(0.0, min(1.0, float(current_grains) / float(full_grains)))
+            powder_item["weight"] = round(full_weight * fill_ratio, 6)
+
         for item in items:
             if not isinstance(item, dict):
                 continue
@@ -8140,6 +8394,26 @@ class App:
                 item["quantity"]= actual_qty
                 del item["random_quantity"]
                 logging.debug(f"Applied random_quantity to {item.get('name', 'Unknown')}: {actual_qty}(range {min_qty}-{max_qty})")
+
+            # Looted multi-use consumables have a 50% chance to spawn partially used.
+            if item.get("consumable") and "uses_left" in item:
+                try:
+                    max_uses = int(item.get("uses_left", 0))
+                except(TypeError, ValueError):
+                    max_uses = 0
+                if max_uses >1 and random.random()<0.5:
+                    item["uses_left"] = random.randint(1, max_uses)
+
+            # Randomize bulk blackpowder amount on loot; flasks remain separate.
+            if str(item.get("type", "") or "").strip().lower() == "gunpowder":
+                try:
+                    full_grains = int(item.get("grains_left", 0) or 0)
+                except(Exception, ValueError, TypeError):
+                    full_grains = 0
+                if full_grains > 0:
+                    looted_grains = random.randint(max(1, int(full_grains * 0.2)), full_grains)
+                    item["grains_left"] = looted_grains
+                    _rescale_blackpowder_weight(item, full_grains_hint = full_grains, full_weight_hint = item.get("weight"))
 
             if table_data and item.get("capacity")and item.get("magazinesystem")and not item.get("firearm"):
 
@@ -9036,17 +9310,142 @@ class App:
         persistentdata[armory_key]= points_used
         self._save_persistent_data()
 
+    def _get_business_music_track_length(self, track_path):
+        try:
+            cache = getattr(self, "_business_music_track_length_cache", {})
+            if track_path in cache:
+                return cache.get(track_path)or 60.0
+        except Exception:
+            cache = {}
+
+        track_length = 60.0
+        try:
+            sound = pygame.mixer.Sound(track_path)
+            track_length = max(1.0, float(sound.get_length()or 0.0))
+        except Exception:
+            track_length = 60.0
+
+        try:
+            cache[track_path]= track_length
+            self._business_music_track_length_cache = cache
+        except Exception:
+            pass
+        return track_length
+
+    def _pick_business_music_track_and_position(self, playlists, all_tracks, first_play = False):
+        tracks = sorted(all_tracks or [], key = lambda t:(os.path.basename(t).lower(), t.lower()))
+        if not tracks:
+            return None, 0.0
+
+        force_track_raw = str(appearance_settings.get("business_music_sync_force_track", "")or "").strip()
+        force_position_raw = appearance_settings.get("business_music_sync_force_position", -1.0)
+
+        forced_track = None
+        if force_track_raw:
+            try:
+                forced_index = int(force_track_raw)
+                if 0 <=forced_index <len(tracks):
+                    forced_track = tracks[forced_index]
+            except Exception:
+                forced_index = None
+            if forced_track is None:
+                needle = force_track_raw.lower()
+                for candidate in tracks:
+                    if os.path.basename(candidate).lower()==needle:
+                        forced_track = candidate
+                        break
+
+        if forced_track:
+            forced_pos = 0.0
+            try:
+                forced_pos = float(force_position_raw)
+            except Exception:
+                forced_pos = 0.0
+            track_len = self._get_business_music_track_length(forced_track)
+            forced_pos = max(0.0, min(max(0.0, track_len -0.05), forced_pos))
+            return forced_track, forced_pos
+
+        sync_mode = str(appearance_settings.get("business_music_sync_mode", "random")or "random").strip().lower()
+        if sync_mode in("seed", "seeded", "deterministic", "sync"):
+            seed_text = str(appearance_settings.get("business_music_sync_seed", "doom-tools-shared")or "doom-tools-shared")
+            playlist_key = "|".join(sorted(str(p)for p in(playlists or [])))
+            seed_payload = f"business_music_sync_v2|{seed_text}|{playlist_key}"
+
+            # Build a deterministic randomized playlist order shared by all clients.
+            order_seed = int(_hashlib.sha256((seed_payload +"|order").encode("utf-8")).hexdigest(), 16) & 0xFFFFFFFF
+            order_rng = random.Random(order_seed)
+            seeded_tracks = list(tracks)
+            order_rng.shuffle(seeded_tracks)
+
+            lengths_sec = []
+            for tp in seeded_tracks:
+                try:
+                    sec_len = int(round(float(self._get_business_music_track_length(tp))))
+                except Exception:
+                    sec_len = 60
+                lengths_sec.append(max(1, sec_len))
+
+            total_cycle_seconds = int(sum(lengths_sec))
+            if total_cycle_seconds <=0:
+                lengths_sec =[60 for _ in seeded_tracks]
+                total_cycle_seconds = int(sum(lengths_sec))
+
+            offset_seed = int(_hashlib.sha256((seed_payload +"|offset").encode("utf-8")).hexdigest(), 16)
+            seed_offset_seconds = int(offset_seed % max(1, total_cycle_seconds))
+
+            # Rolling global second tick keeps all clients on the same song/timepoint.
+            tick_seconds = int(time.time())
+            phase_seconds = int((tick_seconds +seed_offset_seconds) % max(1, total_cycle_seconds))
+
+            cursor_seconds = 0
+            for idx, seg_len_seconds in enumerate(lengths_sec):
+                next_cursor = cursor_seconds +seg_len_seconds
+                if phase_seconds <next_cursor or idx ==len(lengths_sec)-1:
+                    start_pos = float(max(0, min(max(0, seg_len_seconds -1), phase_seconds -cursor_seconds)))
+                    return seeded_tracks[idx], start_pos
+                cursor_seconds = next_cursor
+
+        prev = getattr(self, "_last_business_music_track", None)
+        if len(tracks)>1 and prev in tracks:
+            choices =[t for t in tracks if t !=prev]
+            track = random.choice(choices)if choices else random.choice(tracks)
+        else:
+            track = random.choice(tracks)
+
+        random_start = 0.0
+        if first_play:
+            try:
+                track_length = self._get_business_music_track_length(track)
+                ext = os.path.splitext(track)[1].lower()
+                if ext in (".ogg", ".mp3"):
+                    random_start = random.uniform(0, max(0.0, track_length -10.0))
+            except Exception:
+                random_start = 0.0
+
+        return track, random_start
+
     def _start_business_music(self, playlists, first_play:bool = False):
 
         try:
             if not playlists:
                 return None
 
+            if isinstance(playlists, str):
+                playlists = [playlists]
+            elif not isinstance(playlists, (list, tuple, set)):
+                return None
+
+            if appearance_settings.get("mute_business_music", False):
+                logging.debug("Business music is muted by settings; skipping playback start")
+                return None
+
             all_tracks =[]
             for playlist in playlists:
                 music_folder = os.path.join("sounds", "music", playlist)
                 if os.path.exists(music_folder):
-                    tracks = glob.glob(os.path.join(music_folder, "track*.ogg"))
+                    tracks = []
+                    for ext in ("ogg", "wav", "mp3"):
+                        tracks.extend(glob.glob(os.path.join(music_folder, f"track*.{ext}")))
 
                     tracks =[t for t in tracks if os.path.getsize(t)>0]
                     all_tracks.extend(tracks)
@@ -9056,13 +9455,9 @@ class App:
             all_tracks =[t for t in all_tracks if t not in failed_tracks]
 
             if all_tracks:
-                prev = getattr(self, "_last_business_music_track", None)
-
-                if len(all_tracks)>1 and prev in all_tracks:
-                    choices =[t for t in all_tracks if t !=prev]
-                    track = random.choice(choices)if choices else random.choice(all_tracks)
-                else:
-                    track = random.choice(all_tracks)
+                track, random_start = self._pick_business_music_track_and_position(playlists, all_tracks, first_play = first_play)
+                if not track:
+                    return None
 
                 try:
                     pygame.mixer.music.load(track)
@@ -9079,24 +9474,41 @@ class App:
                     pass
 
                 try:
-                    sound = pygame.mixer.Sound(track)
-                    track_length = sound.get_length()
+                    track_length = self._get_business_music_track_length(track)
                 except Exception:
                     track_length = 60.0
 
-                random_start = 0.0
-                if first_play:
-                    try:
-                        random_start = random.uniform(0, max(0, track_length -10))
-                    except Exception:
-                        random_start = 0.0
+                try:
+                    random_start = max(0.0, min(max(0.0, track_length -0.05), float(random_start)))
+                except Exception:
+                    random_start = 0.0
 
-                pygame.mixer.music.set_volume(0.3)
+                try:
+                    music_vol = float(appearance_settings.get("music_volume", appearance_settings.get("sound_volume", 100))) / 100.0
+                except Exception:
+                    music_vol = 1.0
+                music_vol = max(0.0, min(1.0, music_vol))
+                pygame.mixer.music.set_volume(music_vol)
 
-                pygame.mixer.music.play(loops = 0, start = random_start)
+                try:
+                    if random_start > 0:
+                        pygame.mixer.music.play(loops = 0, start = random_start)
+                    else:
+                        pygame.mixer.music.play(loops = 0)
+                except Exception:
+                    # Fallback for formats/backends that don't support start position.
+                    pygame.mixer.music.play(loops = 0)
 
-                logging.info(f"Started business music: {os.path.basename(track)} at {random_start:.1f}s")
-                music_info = {"track":track, "playlist":playlists, "start_pos":random_start, "started_at":time.time()}
+                sync_mode = str(appearance_settings.get("business_music_sync_mode", "random")or "random").strip().lower()
+                logging.info(f"Started business music: {os.path.basename(track)} at {random_start:.1f}s(mode={sync_mode})")
+                music_info = {
+                    "track":track,
+                    "playlist":playlists,
+                    "start_pos":random_start,
+                    "started_at":time.time(),
+                    "sync_mode":sync_mode,
+                    "sync_seed":appearance_settings.get("business_music_sync_seed", "doom-tools-shared")
+                }
 
                 try:
                     self._current_business_music = music_info
@@ -9143,6 +9555,17 @@ class App:
         except Exception as e:
             logging.warning(f"Failed to start business music: {e}")
         return None
+
+    def _apply_business_music_volume(self):
+        try:
+            if appearance_settings.get("mute_business_music", False):
+                pygame.mixer.music.set_volume(0.0)
+                return
+            vol = float(appearance_settings.get("music_volume", appearance_settings.get("sound_volume", 100))) / 100.0
+            vol = max(0.0, min(1.0, vol))
+            pygame.mixer.music.set_volume(vol)
+        except Exception:
+            pass
 
     def _stop_business_music(self, music_info):
 
@@ -9318,8 +9741,8 @@ class App:
                                     except Exception:
                                         return str(v)
                             return None
-                        artist = _get_tag(["artist", "ARTIST", "TPE1"])
-                        title = _get_tag(["title", "TITLE", "TIT2"])
+                        artist = _get_tag(["artist", "ARTIST", "TPE1", "IART"])
+                        title = _get_tag(["title", "TITLE", "TIT2", "INAM"])
                 except Exception:
                     pass
 
@@ -9351,6 +9774,11 @@ class App:
 
         if music_channel and music_channel.get("track"):
             try:
+                track_path = music_channel.get("track")
+                info = _get_track_info(track_path)
+                base_artist = info.get("artist")or ""
+                base_title = info.get("title")or os.path.basename(track_path or "")
+                track_len = info.get("length")or 0.0
 
                 marquee_frame = customtkinter.CTkFrame(header_frame, fg_color = "black")
 
@@ -9396,7 +9824,7 @@ class App:
                 marquee_label = customtkinter.CTkLabel(marquee_frame, text = "", anchor = "w", font = label_font, width = 480, height = 26, text_color = "#7CFC00")
                 marquee_label.pack(anchor = "center", padx = 4)
                 try:
-                    marquee_debug_label = customtkinter.CTkLabel(marquee_frame, text = "", anchor = "w", font = customtkinter.CTkFont(size = 9, weight = "bold"), text_color = "#FFFF00")
+                    marquee_debug_label = customtkinter.CTkLabel(marquee_frame, text = "", anchor = "w", font = customtkinter.CTkFont(size = 9), text_color = "white")
                     marquee_debug_label.pack(anchor = "center", padx = 4, pady =(2, 0))
                 except Exception:
                     marquee_debug_label = None
@@ -9423,13 +9851,37 @@ class App:
 
                 def _update_marquee():
                     try:
-                        current = getattr(self, "_current_business_music", music_channel)
-                        if not current:
-                            marquee_label.configure(text = "")
-                            return
 
-                        track_path = current.get("track")
-                        meta_info = current.get("_meta")
+                        current = getattr(self, "_current_business_music", music_channel)
+                        meta_info = None
+                        if current:
+                            meta_info = current.get("_meta")
+
+                        try:
+                            track_path =(current or {}).get('track')
+                            if track_path !=prev_track[0]:
+                                prev_track[0]= track_path
+                                pos[0]= 0
+                        except Exception:
+                            track_path =(current or {}).get('track')
+                        try:
+                            logging.debug(f"store marquee update: track={os.path.basename((current or {}).get('track')or '')} meta={bool(meta_info)} pos={pos[0]} ids: current={id(current)} music_channel={id(music_channel)} self_cur={id(getattr(self, '_current_business_music', None))}")
+                        except Exception:
+                            pass
+                        try:
+                            if marquee_debug_label is not None:
+                                dbg = f"meta={bool(meta_info)} id={id(current)}"
+                                try:
+
+                                    tt =(meta_info or {}).get('title')if meta_info else((current or {}).get('track')or '')
+                                    if tt:
+                                        dbg +=f" title={tt[:30]}"
+                                except Exception:
+                                    pass
+                                marquee_debug_label.configure(text = dbg)
+                        except Exception:
+                            pass
+
                         if meta_info:
                             base_artist = meta_info.get("artist")or ""
                             base_title = meta_info.get("title")or os.path.basename(track_path or "")
@@ -9448,18 +9900,17 @@ class App:
                                             def _apply():
                                                 try:
                                                     try:
-                                                        logging.debug(f"applying _meta(bg_load): {os.path.basename((current or {}).get('track')or '')} -> title={info.get('title')} artist={info.get('artist')}")
+                                                        logging.debug(f"applying _meta(bg_load current): {os.path.basename((current or {}).get('track')or '')} -> title={info.get('title')} artist={info.get('artist')}")
                                                     except Exception:
                                                         pass
                                                     try:
                                                         target = getattr(self, "_current_business_music", None)
                                                         if target is None:
-
                                                             target = current
                                                         if target is not None:
                                                                 target.update({"_meta":info})
                                                                 try:
-                                                                    logging.debug(f"triggering marquee refresh after applying meta for {os.path.basename((target or {}).get('track')or '')}")
+                                                                    logging.debug(f"triggering marquee refresh after applying meta for {os.path.basename((target or {}).get('track')or '')}(current)")
                                                                 except Exception:
                                                                     pass
                                                                 try:
@@ -9469,16 +9920,16 @@ class App:
                                                                     pass
                                                     except Exception:
                                                         try:
-                                                            logging.exception("failed to apply _meta in bg_load for store marquee")
+                                                            logging.exception("failed to apply _meta in bg_load(current) for store marquee")
                                                         except Exception:
                                                             pass
                                                 except Exception:
                                                     try:
-                                                        logging.exception("unexpected error in _apply for bg_load")
+                                                        logging.exception("unexpected error in _apply for bg_load(current)")
                                                     except Exception:
                                                         pass
                                             try:
-                                                logging.debug(f"scheduling _apply via root.after for track {os.path.basename((getattr(self, '_current_business_music', current)or {}).get('track')or '')}")
+                                                logging.debug(f"scheduling _apply(current) via root.after for track {os.path.basename((getattr(self, '_current_business_music', current)or {}).get('track')or '')}")
                                             except Exception:
                                                 pass
                                             self.root.after(0, _apply)
@@ -9505,7 +9956,7 @@ class App:
                         elapsed_display = _fmt_time(elapsed)
                         total_fmt = _fmt_time(total)
 
-                        meta = f"{base_artist} | {base_title} | {elapsed_display}/{total_fmt}"if(base_artist or base_title)else os.path.basename(track_path or "")
+                        meta = f"{base_artist} | {base_title} | {elapsed_display}/{total_fmt}"if(base_artist or base_title)else os.path.basename((music_channel or {}).get("track")or "")
 
                         try:
                             self.root.update_idletasks()
@@ -11659,8 +12110,8 @@ class App:
                                     except Exception:
                                         return str(v)
                             return None
-                        artist = _get_tag(["artist", "ARTIST", "TPE1"])
-                        title = _get_tag(["title", "TITLE", "TIT2"])
+                        artist = _get_tag(["artist", "ARTIST", "TPE1", "IART"])
+                        title = _get_tag(["title", "TITLE", "TIT2", "INAM"])
                 except Exception:
                     pass
             except Exception:
@@ -12353,7 +12804,20 @@ class App:
             cat = item.get("shop_category") or item.get("armory_category") or item.get("_table_category") or "Uncategorized"
             shop_categories.setdefault(cat, []).append(item)
 
-        if len(shop_categories) <= 1:
+        # Show category navigation when there are multiple main categories,
+        # or when a single main category still branches into subcategories.
+        show_shop_category_menu = len(shop_categories) > 1
+        if not show_shop_category_menu and shop_categories:
+            for _cat_items in shop_categories.values():
+                _subcats = set()
+                for _it in _cat_items:
+                    _sub = _it.get("shop_subcategory") or _it.get("armory_subcategory") or _it.get("subtype") or "General"
+                    _subcats.add(str(_sub))
+                if len(_subcats) > 1:
+                    show_shop_category_menu = True
+                    break
+
+        if not show_shop_category_menu:
 
             buy_scroll = customtkinter.CTkScrollableFrame(buy_tab)
             buy_scroll.pack(fill = "both", expand = True)
@@ -13131,12 +13595,78 @@ class App:
             logging.warning(f"Failed to load card image {suit}/{value}: {e}")
         return None
 
+    def _normalize_casino_game_key(self, game_name):
+        try:
+            return str(game_name or "").strip().lower().replace("_", "-").replace(" ", "-")
+        except Exception:
+            return ""
+
+    def _get_casino_house_edge_fraction(self, store, game_key):
+        try:
+            edge_cfg = (store or {}).get("house_edge")
+            edge_pct = 0.0
+            if isinstance(edge_cfg, dict):
+                normalized_target = self._normalize_casino_game_key(game_key)
+                for raw_key, raw_value in edge_cfg.items():
+                    if self._normalize_casino_game_key(raw_key) == normalized_target:
+                        try:
+                            edge_pct = float(raw_value)
+                        except Exception:
+                            edge_pct = 0.0
+                        break
+            elif isinstance(edge_cfg, (int, float)):
+                edge_pct = float(edge_cfg)
+
+            edge_pct = max(0.0, min(100.0, edge_pct))
+            return edge_pct / 100.0
+        except Exception:
+            return 0.0
+
+    def _apply_casino_house_edge(self, store, game_key, winnings):
+        try:
+            amount = int(winnings)
+        except Exception:
+            return winnings
+
+        if amount <= 0:
+            return amount
+
+        edge = self._get_casino_house_edge_fraction(store, game_key)
+        adjusted = int(round(amount * (1.0 - edge)))
+        return max(0, adjusted)
+
+    def _get_casino_ban_until_next_noon(self):
+        now = datetime.now()
+        tomorrow = now + timedelta(days = 1)
+        return tomorrow.replace(hour = 12, minute = 0, second = 0, microsecond = 0)
+
     def _open_casino_interface(self, store, table_data):
         logging.info(f"Opening casino: {store.get('name')}")
 
         music_channel = None
         if store.get("music")and store.get("playlist"):
-            music_channel = self._start_business_music(store.get("playlist"), first_play = True)
+            requested_playlists = store.get("playlist")
+            if isinstance(requested_playlists, str):
+                requested_playlists = [requested_playlists]
+
+            current_music = getattr(self, "_current_business_music", None)
+            current_playlists = []
+            try:
+                if isinstance(current_music, dict):
+                    cp = current_music.get("playlist")
+                    if isinstance(cp, str):
+                        current_playlists = [cp]
+                    elif isinstance(cp, (list, tuple, set)):
+                        current_playlists = list(cp)
+            except Exception:
+                current_playlists = []
+
+            same_playlist = set(str(p) for p in (requested_playlists or [])) == set(str(p) for p in (current_playlists or []))
+            if same_playlist and pygame.mixer.music.get_busy():
+                music_channel = current_music
+                self._apply_business_music_volume()
+            else:
+                music_channel = self._start_business_music(requested_playlists, first_play = True)
 
         self._clear_window()
 
@@ -13157,12 +13687,288 @@ class App:
         shopkeeper_label = customtkinter.CTkLabel(header_frame, text = f"Proprietor: {store.get('shopkeeper', 'Unknown')}", font = customtkinter.CTkFont(size = 14), text_color = "gray")
         shopkeeper_label.pack()
 
+        marquee_label = None
+        marquee_job:list[object]=[None]
+
+        def _get_track_info(track_path):
+            artist = None
+            title = None
+            length = None
+            try:
+                try:
+                    sound = pygame.mixer.Sound(track_path)
+                    length = float(sound.get_length())
+                except Exception:
+                    length = None
+                try:
+                    from mutagen._file import File as MutagenFile
+                    mf = MutagenFile(track_path)
+                    if mf is not None:
+                        tags = getattr(mf, 'tags', {})or {}
+                        def _get_tag(keys):
+                            for k in keys:
+                                v = tags.get(k)
+                                if v:
+                                    try:
+                                        if isinstance(v, (list, tuple)):
+                                            return str(v[0])
+                                        return str(v)
+                                    except Exception:
+                                        return str(v)
+                            return None
+                        artist = _get_tag(["artist", "ARTIST", "TPE1", "IART"])
+                        title = _get_tag(["title", "TITLE", "TIT2", "INAM"])
+                except Exception:
+                    pass
+            except Exception:
+                pass
+            if not title:
+                try:
+                    title = os.path.basename(track_path or "")
+                except Exception:
+                    title = "Unknown"
+            return {"artist":artist, "title":title, "length":length}
+
+        def stop_ui_music():
+            try:
+                if marquee_job[0]:
+                    try:
+                        self.root.after_cancel(marquee_job[0])# type: ignore[arg-type]
+                    except Exception:
+                        pass
+                    marquee_job[0]= None
+            except Exception:
+                pass
+            try:
+                self._stop_business_music(music_channel)
+            except Exception:
+                pass
+
+        if music_channel and music_channel.get("track"):
+            try:
+                track_path = music_channel.get("track")
+                info = _get_track_info(track_path)
+                base_artist = info.get("artist")or ""
+                base_title = info.get("title")or os.path.basename(track_path or "")
+                track_len = info.get("length")or 0.0
+
+                marquee_frame = customtkinter.CTkFrame(header_frame, fg_color = "black")
+
+                marquee_frame.pack(pady =(6, 0))
+                try:
+                    marquee_frame.configure(width = 500)
+
+                    try:
+                        marquee_frame.pack_propagate(False)
+                    except Exception:
+                        pass
+                except Exception:
+                    pass
+                try:
+
+                    label_font = None
+                    try:
+                        import ctypes
+                        import tkinter.font as tkfont
+                        fp = os.path.join(os.path.dirname(__file__), "fonts", "Tims_8x5_LCD_Matrix.ttf")
+                        if os.path.exists(fp)and hasattr(ctypes, 'windll'):
+                            try:
+                                FR_PRIVATE = 0x10
+                                ctypes.windll.gdi32.AddFontResourceExW(fp, FR_PRIVATE, 0)
+                            except Exception:
+                                pass
+
+                            try:
+                                self.root.update_idletasks()
+                                fams = list(tkfont.families())
+                                for f in fams:
+                                    if any(x in f.lower()for x in("tims", "8x5", "lcd")):
+                                        label_font = customtkinter.CTkFont(size = 12, family = f)
+                                        break
+                            except Exception:
+                                pass
+                    except Exception:
+                        pass
+                    if not label_font:
+                        label_font = customtkinter.CTkFont(size = 12)
+                except Exception:
+                    label_font = customtkinter.CTkFont(size = 12)
+                marquee_label = customtkinter.CTkLabel(marquee_frame, text = "", anchor = "w", font = label_font, width = 480, height = 26, text_color = "#7CFC00")
+                marquee_label.pack(anchor = "center", padx = 4)
+                try:
+                    marquee_debug_label = customtkinter.CTkLabel(marquee_frame, text = "", anchor = "w", font = customtkinter.CTkFont(size = 9), text_color = "white")
+                    marquee_debug_label.pack(anchor = "center", padx = 4, pady =(2, 0))
+                except Exception:
+                    marquee_debug_label = None
+                try:
+                    self.root.update_idletasks()
+                    lh = marquee_label.winfo_reqheight()or marquee_label.winfo_height()
+                    if lh:
+                        try:
+                            marquee_frame.configure(height = lh)
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+
+                pos =[0]
+                prev_track =[music_channel.get('track')if(music_channel and music_channel.get('track'))else None]
+
+                def _fmt_time(s):
+                    try:
+                        s = max(0, int(s))
+                        return f"{s //60}:{s %60:02d}"
+                    except Exception:
+                        return "0:00"
+
+                def _update_marquee():
+                    try:
+
+                        current = getattr(self, "_current_business_music", music_channel)
+                        meta_info = None
+                        if current:
+                            meta_info = current.get("_meta")
+
+                        try:
+                            track_path =(current or {}).get('track')
+                            if track_path !=prev_track[0]:
+                                prev_track[0]= track_path
+                                pos[0]= 0
+                        except Exception:
+                            track_path =(current or {}).get('track')
+
+                        try:
+                            if marquee_debug_label is not None:
+                                dbg = f"meta={bool(meta_info)} id={id(current)}"
+                                try:
+
+                                    tt =(meta_info or {}).get('title')if meta_info else((current or {}).get('track')or '')
+                                    if tt:
+                                        dbg +=f" title={tt[:30]}"
+                                except Exception:
+                                    pass
+                                marquee_debug_label.configure(text = dbg)
+                        except Exception:
+                            pass
+
+                        if meta_info:
+                            base_artist = meta_info.get("artist")or ""
+                            base_title = meta_info.get("title")or os.path.basename(track_path or "")
+                            total = meta_info.get("length")or 0.0
+                        else:
+
+                            base_artist = ""
+                            base_title = os.path.basename(track_path or "")
+                            total = 0.0
+                            try:
+                                if current and not current.get("_meta_loading"):
+                                    current["_meta_loading"]= True
+                                    def _bg_load():
+                                        try:
+                                            info = _get_track_info((current or {}).get("track"))
+                                            def _apply():
+                                                try:
+                                                    try:
+                                                        target = getattr(self, "_current_business_music", None)
+                                                        if target is None:
+                                                            target = current
+                                                        if target is not None:
+                                                                target.update({"_meta":info})
+                                                                try:
+                                                                    self.root.after(0, _update_marquee)
+                                                                except Exception:
+                                                                    pass
+                                                    except Exception:
+                                                        pass
+                                                except Exception:
+                                                    pass
+                                            self.root.after(0, _apply)
+                                        except Exception:
+                                            pass
+                                        finally:
+                                            try:
+                                                current.pop("_meta_loading", None)
+                                            except Exception:
+                                                pass
+                                    import threading
+                                    threading.Thread(target = _bg_load, daemon = True).start()
+                            except Exception:
+                                pass
+
+                        started =(current or {}).get("started_at")or time.time()
+                        start_offset =(current or {}).get("start_pos")or 0.0
+                        elapsed =(time.time()-started)+float(start_offset)
+
+                        elapsed_display = _fmt_time(elapsed)
+                        total_fmt = _fmt_time(total)
+
+                        meta = f"{base_artist} | {base_title} | {elapsed_display}/{total_fmt}"if(base_artist or base_title)else os.path.basename(track_path or "")
+
+                        try:
+                            self.root.update_idletasks()
+                            label_px = marquee_label.winfo_width()or int(marquee_label.cget("width")or 480)
+                        except Exception:
+                            label_px = int(marquee_label.cget("width")or 480)
+
+                        avg_char_px = 8
+                        visible_chars = max(8, int(label_px /max(1, avg_char_px)))
+
+                        scrollfull = " "+meta +" "
+                        if len(scrollfull)<visible_chars:
+                            scrollfull = scrollfull +(" "*(visible_chars -len(scrollfull)+2))
+
+                        doubled =(scrollfull *3)
+                        display = doubled[pos[0]:pos[0]+visible_chars]
+                        marquee_label.configure(text = display)
+                        pos[0]=(pos[0]+1)%max(1, len(scrollfull))
+                        try:
+
+                            len_scroll = max(1, len(scrollfull))
+                            delay_ms = int(min(500, max(60, 80 +(len_scroll *4))))
+                        except Exception:
+                            delay_ms = 220
+                        marquee_job[0]= self.root.after(delay_ms, _update_marquee)
+                    except Exception:
+                        try:
+                            marquee_label.configure(text = os.path.basename((getattr(self, "_current_business_music", music_channel)or {}).get("track")or ""))
+                        except Exception:
+                            pass
+
+                try:
+                    import threading
+                    def _load_meta():
+                        try:
+                            cur = getattr(self, "_current_business_music", music_channel)
+                            if not cur:
+                                return
+                            info = _get_track_info(cur.get("track"))
+                            def _apply():
+                                try:
+
+                                    cur.update({"_meta":info})
+                                except Exception:
+                                    pass
+                            self.root.after(0, _apply)
+                        except Exception:
+                            pass
+                    try:
+                        import threading
+                        threading.Thread(target = _load_meta, daemon = True).start()
+                    except Exception:
+                        pass
+                except Exception:
+                    pass
+
+                _update_marquee()
+            except Exception:
+                pass
+
         save_path = os.path.join(saves_folder or "", (currentsave or "")+".sldsv")
         save_data = self._load_file((currentsave or "")+".sldsv")
         if save_data is None:
             self._popup_show_info("Error", "Failed to load character data.", sound = "error")
             try:
-                self._stop_business_music(music_channel)
+                stop_ui_music()
             except Exception:
                 pass
             return
@@ -13177,9 +13983,60 @@ class App:
             "wins":0,
             "losses":0,
             "games_played":0,
-            "net_profit":0
+            "net_profit":0,
+            "profit_period_key":"",
+            "profit_period":0,
+            "ban_until":None
             }
         casino_stats =[save_data["casino_stats"][casino_name]]
+
+        profit_limit = 0
+        try:
+            profit_limit = int(store.get("profit_limit", 0) or 0)
+        except Exception:
+            profit_limit = 0
+
+        current_profit_key = _get_market_day_key()
+        try:
+            if casino_stats[0].get("profit_period_key") != current_profit_key:
+                casino_stats[0]["profit_period_key"] = current_profit_key
+                casino_stats[0]["profit_period"] = 0
+        except Exception:
+            casino_stats[0]["profit_period_key"] = current_profit_key
+            casino_stats[0]["profit_period"] = 0
+
+        def get_active_ban_until():
+            try:
+                ban_iso = casino_stats[0].get("ban_until")
+                if not ban_iso:
+                    return None
+                ban_until = datetime.fromisoformat(str(ban_iso))
+                if datetime.now() < ban_until:
+                    return ban_until
+                casino_stats[0]["ban_until"] = None
+                return None
+            except Exception:
+                casino_stats[0]["ban_until"] = None
+                return None
+
+        active_ban_until = get_active_ban_until()
+        if active_ban_until is not None:
+            try:
+                self._write_save_to_path(save_path, save_data)
+            except Exception:
+                pass
+            self._popup_show_info(
+                "Casino Ban",
+                f"You have reached this casino's profit limit and are banned until {active_ban_until.strftime('%Y-%m-%d %I:%M %p')}.",
+                sound = "error"
+            )
+            try:
+                stop_ui_music()
+            except Exception:
+                pass
+            self._clear_window()
+            self._open_business_tool()
+            return
 
         money_label = customtkinter.CTkLabel(header_frame, text = f"Your Money: {format_price(player_money[0])}", font = customtkinter.CTkFont(size = 16, weight = "bold"), text_color = "green")
         money_label.pack(pady = 5)
@@ -13206,7 +14063,11 @@ class App:
                 nc = "green"if s["net_profit"]>=0 else "red"
                 np = "+$"if s["net_profit"]>=0 else "-$"
                 nd = f"{np}{abs(s['net_profit'])}"
-                stats_label.configure(text = f"Lifetime: {s['wins']}W / {s['losses']}L({s['games_played']} games) | Net: {nd}")
+                if profit_limit > 0:
+                    period_profit = int(s.get("profit_period", 0) or 0)
+                    stats_label.configure(text = f"Lifetime: {s['wins']}W / {s['losses']}L({s['games_played']} games) | Net: {nd} | Profit Window: {format_price(period_profit)}/{format_price(profit_limit)}")
+                else:
+                    stats_label.configure(text = f"Lifetime: {s['wins']}W / {s['losses']}L({s['games_played']} games) | Net: {nd}")
             except Exception:
                 pass
 
@@ -13234,6 +14095,29 @@ class App:
                 casino_stats[0]["wins"]+=1
             elif winnings <0:
                 casino_stats[0]["losses"]+=1
+
+            if winnings > 0 and profit_limit > 0:
+                try:
+                    period_key = _get_market_day_key()
+                    if casino_stats[0].get("profit_period_key") != period_key:
+                        casino_stats[0]["profit_period_key"] = period_key
+                        casino_stats[0]["profit_period"] = 0
+                    casino_stats[0]["profit_period"] = int(casino_stats[0].get("profit_period", 0) or 0) + int(winnings)
+
+                    if int(casino_stats[0].get("profit_period", 0) or 0) >= profit_limit:
+                        ban_until = self._get_casino_ban_until_next_noon()
+                        casino_stats[0]["ban_until"] = ban_until.isoformat()
+                        self.root.after(
+                            100,
+                            lambda: self._popup_show_info(
+                                "Casino Ban",
+                                f"You reached the profit limit of {format_price(profit_limit)} and are banned from this casino until {ban_until.strftime('%Y-%m-%d %I:%M %p')}.",
+                                sound = "error"
+                            )
+                        )
+                except Exception:
+                    pass
+
             update_stats_display()
 
         content_frame = customtkinter.CTkFrame(main_frame)
@@ -13264,25 +14148,36 @@ class App:
         def open_poker_lobby():
             self._open_poker_lobby(store, player_money, update_money_display, save_money, min_bet, max_bet, music_channel, table_data, record_game_result, casino_stats, save_data = save_data, save_path = save_path)
 
+        def open_game_if_not_banned(opener):
+            active_ban = get_active_ban_until()
+            if active_ban is not None:
+                self._popup_show_info(
+                    "Casino Ban",
+                    f"You are banned from this casino until {active_ban.strftime('%Y-%m-%d %I:%M %p')}.",
+                    sound = "error"
+                )
+                return
+            opener()
+
         if "Blackjack"in available_games:
-            blackjack_btn = self._create_sound_button(games_frame, "Blackjack", open_blackjack, width = 300, height = 50, font = customtkinter.CTkFont(size = 16))
+            blackjack_btn = self._create_sound_button(games_frame, "Blackjack", lambda: open_game_if_not_banned(open_blackjack), width = 300, height = 50, font = customtkinter.CTkFont(size = 16))
             blackjack_btn.pack(pady = 10)
 
         if "Poker"in available_games:
-            poker_btn = self._create_sound_button(games_frame, "Poker", open_poker_lobby, width = 300, height = 50, font = customtkinter.CTkFont(size = 16))
+            poker_btn = self._create_sound_button(games_frame, "Poker", lambda: open_game_if_not_banned(open_poker_lobby), width = 300, height = 50, font = customtkinter.CTkFont(size = 16))
             poker_btn.pack(pady = 10)
 
         if "High-Low"in available_games:
-            highlow_btn = self._create_sound_button(games_frame, "High-Low", open_highlow, width = 300, height = 50, font = customtkinter.CTkFont(size = 16))
+            highlow_btn = self._create_sound_button(games_frame, "High-Low", lambda: open_game_if_not_banned(open_highlow), width = 300, height = 50, font = customtkinter.CTkFont(size = 16))
             highlow_btn.pack(pady = 10)
 
         if "Roulette"in available_games:
-            roulette_btn = self._create_sound_button(games_frame, "Roulette", open_roulette, width = 300, height = 50, font = customtkinter.CTkFont(size = 16))
+            roulette_btn = self._create_sound_button(games_frame, "Roulette", lambda: open_game_if_not_banned(open_roulette), width = 300, height = 50, font = customtkinter.CTkFont(size = 16))
             roulette_btn.pack(pady = 10)
 
         def leave_casino():
             try:
-                self._stop_business_music(music_channel)
+                stop_ui_music()
             except Exception:
                 pass
             save_money()
@@ -13989,6 +14884,8 @@ class App:
         def end_game(result_text, winnings):
             if not game_state.get("ui_active", False):
                 return
+            if winnings > 0:
+                winnings = self._apply_casino_house_edge(store, "blackjack", winnings)
             game_state["game_active"]= False
             game_state["player_turn"]= False
             game_state["result"]= result_text
@@ -14133,9 +15030,9 @@ class App:
         def start_new_game():
             bet_str = bet_entry.get()
             try:
-                bet = int(bet_str)
+                bet = parse_display_price_to_usd(bet_str, round_to_int = True)
             except ValueError:
-                self._popup_show_info("Invalid Bet", "Please enter a valid number.", sound = "error")
+                self._popup_show_info("Invalid Bet", "Please enter a valid money amount.", sound = "error")
                 return
 
             if bet <min_bet or bet >max_bet:
@@ -14197,8 +15094,6 @@ class App:
                         end_game("Both Blackjack! Push!", 0)
                     elif player_total ==21:
                         end_game("Blackjack! You Win!", int(bet *1.5))
-                    elif calculate_hand(game_state["dealer_hand"])==21:
-                        end_game("Dealer Blackjack! You Lose!", -bet)
                     return
 
                 frame, card, target, face_up = deal_plan[step]
@@ -14236,12 +15131,12 @@ class App:
         bet_frame = customtkinter.CTkFrame(controls_frame, fg_color = "transparent")
         bet_frame.pack(pady = 5)
 
-        bet_label_entry = customtkinter.CTkLabel(bet_frame, text = "Bet Amount: $", font = customtkinter.CTkFont(size = 14))
+        bet_label_entry = customtkinter.CTkLabel(bet_frame, text = "Bet Amount:", font = customtkinter.CTkFont(size = 14))
         bet_label_entry.pack(side = "left")
 
-        bet_entry = customtkinter.CTkEntry(bet_frame, width = 100, placeholder_text = str(min_bet))
+        bet_entry = customtkinter.CTkEntry(bet_frame, width = 140, placeholder_text = format_price(min_bet))
         bet_entry.pack(side = "left", padx = 5)
-        bet_entry.insert(0, str(min_bet))
+        bet_entry.insert(0, format_price(min_bet))
 
         if save_data and save_path:
             item_wager_label = customtkinter.CTkLabel(bet_frame, text = "Items Wagered: None", font = customtkinter.CTkFont(size = 11), text_color = "gray")
@@ -14707,9 +15602,9 @@ class App:
                 return
             bet_str = bet_entry.get()
             try:
-                bet = int(bet_str)
+                bet = parse_display_price_to_usd(bet_str, round_to_int = True)
             except ValueError:
-                self._popup_show_info("Invalid Bet", "Please enter a valid number.", sound = "error")
+                self._popup_show_info("Invalid Bet", "Please enter a valid money amount.", sound = "error")
                 return
 
             if bet <min_bet or bet >max_bet:
@@ -14931,6 +15826,7 @@ class App:
 
             if winner_name =="You":
                 winnings = pot -game_state["current_bet"]
+                winnings = self._apply_casino_house_edge(store, "poker", winnings)
                 player_money[0]+=winnings
                 if wagered_items:
                     player_money[0]+=item_bet_value[0]
@@ -15054,12 +15950,12 @@ class App:
         bet_frame = customtkinter.CTkFrame(controls_frame, fg_color = "transparent")
         bet_frame.pack(pady = 5)
 
-        bet_label_entry = customtkinter.CTkLabel(bet_frame, text = "Bet Amount: $", font = customtkinter.CTkFont(size = 14))
+        bet_label_entry = customtkinter.CTkLabel(bet_frame, text = "Bet Amount:", font = customtkinter.CTkFont(size = 14))
         bet_label_entry.pack(side = "left")
 
-        bet_entry = customtkinter.CTkEntry(bet_frame, width = 100, placeholder_text = str(min_bet))
+        bet_entry = customtkinter.CTkEntry(bet_frame, width = 140, placeholder_text = format_price(min_bet))
         bet_entry.pack(side = "left", padx = 5)
-        bet_entry.insert(0, str(min_bet))
+        bet_entry.insert(0, format_price(min_bet))
 
         if save_data and save_path:
             item_wager_label = customtkinter.CTkLabel(bet_frame, text = "Items Wagered: None", font = customtkinter.CTkFont(size = 11), text_color = "gray")
@@ -15248,9 +16144,9 @@ class App:
         def start_game():
             bet_str = bet_entry.get()
             try:
-                bet = int(bet_str)
+                bet = parse_display_price_to_usd(bet_str, round_to_int = True)
             except ValueError:
-                self._popup_show_info("Invalid Bet", "Please enter a valid number.", sound = "error")
+                self._popup_show_info("Invalid Bet", "Please enter a valid money amount.", sound = "error")
                 return
 
             if bet <min_bet or bet >max_bet:
@@ -15326,6 +16222,7 @@ class App:
                 return
 
             winnings = game_state["winnings"]
+            winnings = self._apply_casino_house_edge(store, "high-low", winnings)
             player_money[0]+=winnings
             if wagered_items:
                 player_money[0]+=item_bet_value[0]
@@ -15399,12 +16296,12 @@ class App:
         bet_frame = customtkinter.CTkFrame(controls_frame, fg_color = "transparent")
         bet_frame.pack(pady = 5)
 
-        bet_label_entry = customtkinter.CTkLabel(bet_frame, text = "Bet Amount: $", font = customtkinter.CTkFont(size = 14))
+        bet_label_entry = customtkinter.CTkLabel(bet_frame, text = "Bet Amount:", font = customtkinter.CTkFont(size = 14))
         bet_label_entry.pack(side = "left")
 
-        bet_entry = customtkinter.CTkEntry(bet_frame, width = 100, placeholder_text = str(min_bet))
+        bet_entry = customtkinter.CTkEntry(bet_frame, width = 140, placeholder_text = format_price(min_bet))
         bet_entry.pack(side = "left", padx = 5)
-        bet_entry.insert(0, str(min_bet))
+        bet_entry.insert(0, format_price(min_bet))
 
         if save_data and save_path:
             item_wager_label = customtkinter.CTkLabel(bet_frame, text = "Items Wagered: None", font = customtkinter.CTkFont(size = 11), text_color = "gray")
@@ -15453,6 +16350,10 @@ class App:
         back_btn.pack(pady = 10)
 
     def _open_roulette_game(self, store, player_money, update_money_cb, save_money_cb, min_bet, max_bet, music_channel, table_data, record_game_cb = None, casino_stats = None, save_data = None, save_path = None):
+        import tkinter as _tk_roulette
+        import math
+        import time as _time_roulette
+
         self._clear_window()
 
         self.root.grid_rowconfigure(0, weight = 1)
@@ -15499,8 +16400,92 @@ class App:
         wagered_items =[]
         item_bet_value =[0]
 
-        wheel_label = customtkinter.CTkLabel(game_frame, text = "Place Your Bet", font = customtkinter.CTkFont(size = 32, weight = "bold"))
-        wheel_label.pack(pady = 20)
+        wheel_bg = "#2b2b2b"
+        try:
+            _fg = game_frame.cget("fg_color")
+            if isinstance(_fg, (tuple, list)) and _fg:
+                wheel_bg = str(_fg[-1])
+            elif isinstance(_fg, str) and _fg and _fg.lower() != "transparent":
+                wheel_bg = _fg
+        except Exception:
+            pass
+
+        wheel_container = customtkinter.CTkFrame(game_frame, fg_color = wheel_bg)
+        wheel_container.pack(pady = 10)
+
+        wheel_size = 340
+        wheel_canvas = _tk_roulette.Canvas(wheel_container, width = wheel_size, height = wheel_size, bg = wheel_bg, highlightthickness = 0)
+        wheel_canvas.pack(pady = (0, 8))
+
+        wheel_number_label = customtkinter.CTkLabel(wheel_container, text = "Place Your Bet", font = customtkinter.CTkFont(size = 26, weight = "bold"))
+        wheel_number_label.pack()
+
+        def _roulette_color_code(col):
+            if col == "red":
+                return "#b00020"
+            if col == "black":
+                return "#1a1a1a"
+            return "#0f8b3a"
+
+        def draw_roulette_wheel(current_idx = 0.0):
+            try:
+                wheel_canvas.delete("all")
+                center = wheel_size / 2
+                outer_r = (wheel_size / 2) - 10
+                inner_r = 96
+                segment_deg = 360.0 / len(roulette_numbers)
+
+                outer_box = (center - outer_r, center - outer_r, center + outer_r, center + outer_r)
+                inner_box = (center - inner_r, center - inner_r, center + inner_r, center + inner_r)
+
+                segment_centers = []
+
+                # Pass 1: draw all slices with an explicit pocket-center angle.
+                for i, (num, col) in enumerate(roulette_numbers):
+                    # Baseline is bottom-center so the 0 pocket starts at the bottom.
+                    pocket_center_deg = 90.0 - ((i - float(current_idx)) * segment_deg)
+                    start_deg = pocket_center_deg - (segment_deg / 2.0)
+                    fill_col = _roulette_color_code(col)
+                    wheel_canvas.create_arc(
+                        outer_box,
+                        start = start_deg,
+                        extent = segment_deg,
+                        fill = fill_col,
+                        outline = "#111111",
+                        width = 1,
+                        style = _tk_roulette.PIESLICE
+                    )
+                    segment_centers.append((pocket_center_deg, num, col))
+
+                # Pass 2: draw all labels on top so they cannot be overpainted.
+                for center_deg, num, col in segment_centers:
+                    angle_rad = math.radians(center_deg)
+                    text_radius = inner_r + ((outer_r - inner_r) * 0.55)
+                    tx = center + (text_radius * math.cos(angle_rad))
+                    # Tk arc angles and canvas Y axis are inverted relative to plain trig.
+                    ty = center - (text_radius * math.sin(angle_rad))
+                    text_col = "#ffffff" if col in ("red", "black") else "#000000"
+                    text_angle = (center_deg + 90.0) % 360.0
+                    if 90.0 < text_angle < 270.0:
+                        text_angle = (text_angle + 180.0) % 360.0
+                    wheel_canvas.create_text(tx, ty, text = str(num), fill = text_col, font = ("Arial", 9, "bold"), angle = text_angle)
+
+                wheel_canvas.create_oval(inner_box, fill = "#2a2a2a", outline = "#777777", width = 2)
+
+                pointer_x = center
+                pointer_y = center - outer_r - 2
+                wheel_canvas.create_polygon(
+                    pointer_x, pointer_y,
+                    pointer_x - 12, pointer_y + 22,
+                    pointer_x + 12, pointer_y + 22,
+                    fill = "#f5d442",
+                    outline = "#222222",
+                    width = 1
+                )
+            except Exception:
+                pass
+
+        draw_roulette_wheel(0)
 
         result_label = customtkinter.CTkLabel(game_frame, text = "", font = customtkinter.CTkFont(size = 18, weight = "bold"))
         result_label.pack(pady = 10)
@@ -15591,9 +16576,9 @@ class App:
 
             bet_str = bet_entry.get()
             try:
-                bet = int(bet_str)
+                bet = parse_display_price_to_usd(bet_str, round_to_int = True)
             except ValueError:
-                self._popup_show_info("Invalid Bet", "Please enter a valid number.", sound = "error")
+                self._popup_show_info("Invalid Bet", "Please enter a valid money amount.", sound = "error")
                 return
 
             if bet <min_bet or bet >max_bet:
@@ -15613,30 +16598,52 @@ class App:
             winning_idx = random.randint(0, len(roulette_numbers)-1)
             winning_number, winning_color = roulette_numbers[winning_idx]
 
-            spin_duration = random.randint(60, 90)
-            current_idx =[0]
-            spins_done =[0]
+            # Smooth eased spin: interpolate index position over full integer turns,
+            # so the wheel lands exactly on the chosen winning index.
+            start_idx = 0.0
+            total_turns = random.randint(4, 6)
+            final_idx = winning_idx + (len(roulette_numbers) * total_turns)
+            total_steps = random.randint(620, 780)
+            step = [0]
+            last_tick_bucket = [int(start_idx)]
+
+            last_tick_time = [_time_roulette.monotonic()]
 
             def animate_spin():
                 if not game_state["ui_valid"]:
                     return
 
-                if spins_done[0]>=spin_duration:
-                    current_idx[0]= winning_idx
-                    num, col = roulette_numbers[current_idx[0]]
-                    color_code = "#ff0000"if col =="red"else("#000000"if col =="black"else "#00ff00")
-                    wheel_label.configure(text = f"{num}", text_color = color_code)
+                if step[0] > total_steps:
+                    num, col = roulette_numbers[winning_idx]
+                    draw_roulette_wheel(float(winning_idx))
+                    color_code = "#ff4444"if col =="red"else("#e0e0e0"if col =="black"else "#66ff99")
+                    wheel_number_label.configure(text = f"{num}", text_color = color_code)
                     determine_result(winning_number, winning_color)
                     return
 
-                play_roulette_tick()
-                current_idx[0]=(current_idx[0]+1)%len(roulette_numbers)
-                num, col = roulette_numbers[current_idx[0]]
-                color_code = "#ff0000"if col =="red"else("#000000"if col =="black"else "#00ff00")
-                wheel_label.configure(text = f"{num}", text_color = color_code)
-                spins_done[0]+=1
+                t = step[0] / float(total_steps)
+                # Ease-out only: starts faster, then decelerates smoothly.
+                ease_out = 1.0 - pow(1.0 - t, 3)
+                current_idx = start_idx + ((final_idx - start_idx) * ease_out)
 
-                delay = 50 +(spins_done[0]*5)
+                bucket = int(current_idx)
+                if bucket != last_tick_bucket[0]:
+                    now_tick = _time_roulette.monotonic()
+                    # Throttle tick SFX to avoid clipping when segment updates are too fast.
+                    if now_tick - last_tick_time[0] >= 0.045:
+                        play_roulette_tick()
+                        last_tick_time[0] = now_tick
+                    last_tick_bucket[0] = bucket
+
+                draw_roulette_wheel(current_idx)
+
+                visible_idx = int(round(current_idx)) % len(roulette_numbers)
+                num, col = roulette_numbers[visible_idx]
+                color_code = "#ff4444"if col =="red"else("#e0e0e0"if col =="black"else "#66ff99")
+                wheel_number_label.configure(text = f"{num}", text_color = color_code)
+                step[0]+=1
+
+                delay = 26
                 self.root.after(delay, animate_spin)
 
             animate_spin()
@@ -15684,6 +16691,7 @@ class App:
 
             if won:
                 winnings = bet *(multiplier -1)
+                winnings = self._apply_casino_house_edge(store, "roulette", winnings)
                 player_money[0]+=winnings
                 if wagered_items:
                     player_money[0]+=item_bet_value[0]
@@ -15722,12 +16730,12 @@ class App:
         bet_frame = customtkinter.CTkFrame(controls_frame, fg_color = "transparent")
         bet_frame.pack(pady = 5)
 
-        bet_label_entry = customtkinter.CTkLabel(bet_frame, text = "Bet Amount: $", font = customtkinter.CTkFont(size = 14))
+        bet_label_entry = customtkinter.CTkLabel(bet_frame, text = "Bet Amount:", font = customtkinter.CTkFont(size = 14))
         bet_label_entry.pack(side = "left")
 
-        bet_entry = customtkinter.CTkEntry(bet_frame, width = 100, placeholder_text = str(min_bet))
+        bet_entry = customtkinter.CTkEntry(bet_frame, width = 140, placeholder_text = format_price(min_bet))
         bet_entry.pack(side = "left", padx = 5)
-        bet_entry.insert(0, str(min_bet))
+        bet_entry.insert(0, format_price(min_bet))
 
         if save_data and save_path:
             item_wager_label = customtkinter.CTkLabel(bet_frame, text = "Items Wagered: None", font = customtkinter.CTkFont(size = 11), text_color = "gray")
@@ -17495,16 +18503,18 @@ class App:
             weight = itm.get("weight", 0)*qty
 
             if include_contained:
-                for contained in itm.get("items", []):
+                for contained in (itm.get("items") or []):
                     weight +=compute_item_weight(contained, include_contained = True)
 
             if "subslots"in itm:
-                for ss in itm.get("subslots", []):
+                for ss in (itm.get("subslots") or []):
+                    if not isinstance(ss, dict):
+                        continue
                     current = ss.get("current")
                     weight +=compute_item_weight(current, include_contained = True)
 
             if "accessories"in itm:
-                for acc in itm.get("accessories", []):
+                for acc in (itm.get("accessories") or []):
                     if not isinstance(acc, dict):
                         continue
                     current = acc.get("current")
@@ -17526,7 +18536,7 @@ class App:
             encumbrance = base_weight
 
             contained_weight = 0.0
-            for contained in itm.get("items", []):
+            for contained in (itm.get("items") or []):
                 contained_weight +=compute_item_weight(contained, include_contained = True)
 
             if is_equipped and reduction >0:
@@ -17537,12 +18547,14 @@ class App:
                 encumbrance +=contained_weight
 
             if "subslots"in itm:
-                for ss in itm.get("subslots", []):
+                for ss in (itm.get("subslots") or []):
+                    if not isinstance(ss, dict):
+                        continue
                     current = ss.get("current")
                     encumbrance +=compute_encumbrance_contribution(current, is_equipped = is_equipped)
 
             if "accessories"in itm:
-                for acc in itm.get("accessories", []):
+                for acc in (itm.get("accessories") or []):
                     if not isinstance(acc, dict):
                         continue
                     current = acc.get("current")
@@ -17638,7 +18650,7 @@ class App:
         money_label = customtkinter.CTkLabel(money_frame, text = "Money Amount:")
         money_label.pack(side = "left", padx = 5)
 
-        money_entry = customtkinter.CTkEntry(money_frame, placeholder_text = "0", width = 150)
+        money_entry = customtkinter.CTkEntry(money_frame, placeholder_text = format_price(0), width = 150)
         money_entry.pack(side = "left", padx = 5)
 
         items_label = customtkinter.CTkLabel(export_frame, text = "Select items to export from storage:", font = customtkinter.CTkFont(size = 13))
@@ -17700,7 +18712,7 @@ class App:
                 if save_data is None:
                     raise RuntimeError("Failed to load current save for export")
 
-                money_amount = int(money_entry.get()or 0)
+                money_amount = parse_display_price_to_usd(money_entry.get(), default = 0, round_to_int = True)
 
                 if money_amount >save_data.get("money", 0):
                     self._popup_show_info("Error", "Not enough money!", sound = "error")
@@ -34684,7 +35696,7 @@ class App:
                         ub = resolved_acc_for_display
                         ub_pf = ub.get("underbarrel_platform")or ub.get("platform")if isinstance(ub, dict)else None
                         if ub_pf:
-                            wf = os.path.join("sounds", "firearms", "weaponsounds", str(ub_pf).lower())
+                            wf = os.path.join("sounds", "firearms", "weaponsounds", str(ub_pf).lower().replace('/', '_'))
                             candidates = glob.glob(os.path.join(wf, "unselect*.ogg"))+glob.glob(os.path.join(wf, "holster*.ogg"))
                             if candidates:
                                 self._safe_sound_play("", random.choice(candidates), block = True)
@@ -34731,7 +35743,7 @@ class App:
                             ub_pf = ub_found.get("underbarrel_platform")or ub_found.get("platform")
                             played = False
                             if ub_pf:
-                                wf = os.path.join("sounds", "firearms", "weaponsounds", str(ub_pf).lower())
+                                wf = os.path.join("sounds", "firearms", "weaponsounds", str(ub_pf).lower().replace('/', '_'))
                                 candidates = glob.glob(os.path.join(wf, "select*.ogg"))+glob.glob(os.path.join(wf, "draw*.ogg"))
                                 if candidates:
                                     self._safe_sound_play("", random.choice(candidates), block = False)
@@ -35733,7 +36745,7 @@ class App:
             if isinstance(raw_platform, (list, tuple)):
                 raw_platform = raw_platform[0]if raw_platform else ""
 
-            platform_folder = str(raw_platform).lower()if raw_platform else None
+            platform_folder = str(raw_platform).lower().replace('/', '_')if raw_platform else None
 
             try:
                 pf_key =(weapon.get("platform")or weapon.get("underbarrel_platform")or "")
@@ -35742,7 +36754,7 @@ class App:
                 if pf_key and pf_key in self.PLATFORM_DEFAULTS:
                     mapped_folder = self.PLATFORM_DEFAULTS[pf_key].get("reload_sound_folder")
                     if mapped_folder:
-                        wf_map = os.path.join("sounds", "firearms", "weaponsounds", str(mapped_folder).lower())
+                        wf_map = os.path.join("sounds", "firearms", "weaponsounds", str(mapped_folder).lower().replace('/', '_'))
                         candidates =[]
                         if sound_type =="equip":
                             candidates = glob.glob(os.path.join(wf_map, "equip*.ogg"))+glob.glob(os.path.join(wf_map, "draw*.ogg"))
@@ -35900,7 +36912,7 @@ class App:
 
             if ammo_folder:
 
-                wf_ammo_map = os.path.join("sounds", "firearms", "weaponsounds", str(ammo_folder).lower())
+                wf_ammo_map = os.path.join("sounds", "firearms", "weaponsounds", str(ammo_folder).lower().replace('/', '_'))
                 sel = _select_from_folder(wf_ammo_map)
                 if sel:
                     self._safe_sound_play("", sel)
@@ -35933,7 +36945,7 @@ class App:
                                 if match and ammo_entry.get('sounds'):
 
                                     af = str(ammo_entry.get('sounds'))
-                                    wf_ammo_map = os.path.join('sounds', 'firearms', 'weaponsounds', af.lower())
+                                    wf_ammo_map = os.path.join('sounds', 'firearms', 'weaponsounds', af.lower().replace('/', '_'))
                                     sel = _select_from_folder(wf_ammo_map)
                                     if sel:
                                         self._safe_sound_play('', sel)
@@ -35953,7 +36965,7 @@ class App:
                     fs = weapon.get("fire_sounds")or weapon.get("fire_sound")
                     if fs:
 
-                        wf = os.path.join("sounds", "firearms", "weaponsounds", str(fs).lower())
+                        wf = os.path.join("sounds", "firearms", "weaponsounds", str(fs).lower().replace('/', '_'))
                         sel = _select_from_folder(wf)
                         if sel:
                             logging.debug("Fire sound selected(weapon.fire_sounds): %s", sel)
@@ -36032,7 +37044,7 @@ class App:
             platform = weapon.get("platform", "").lower()
             mag_type = weapon.get("magazinetype", "").lower()
 
-            platform_folder = platform if platform else None
+            platform_folder = platform.replace('/', '_') if platform else None
 
             _df_mag_snd = weapon.get("dualfeed") and isinstance(weapon.get("loaded"), dict) and weapon.get("loaded")
             is_belt =(("belt"in mag_type)or("belt"in(platform or ""))or("m249"in(platform or ""))) and not _df_mag_snd
@@ -36061,7 +37073,7 @@ class App:
                         candidates = glob.glob(os.path.join(wf, f"{action_type}*.ogg"))+glob.glob(os.path.join(wf, f"{action_type}*.wav"))
                         if not candidates:
 
-                            wf2 = os.path.join("sounds", "firearms", "weaponsounds", str(fs).lower())
+                            wf2 = os.path.join("sounds", "firearms", "weaponsounds", str(fs).lower().replace('/', '_'))
                             candidates = glob.glob(os.path.join(wf2, f"{action_type}*.ogg"))+glob.glob(os.path.join(wf2, f"{action_type}*.wav"))
 
                     if not candidates and platform_folder:
@@ -36114,7 +37126,7 @@ class App:
                 if weapon.get("has_ammo_in_pool")is False:
                     fs = weapon.get("reload_sounds")or weapon.get("action_sounds")or weapon.get("sounds")or weapon.get("sound_folder")or weapon.get("fire_sounds")
                     if fs:
-                        wf = os.path.join("sounds", "firearms", "weaponsounds", str(fs).lower())
+                        wf = os.path.join("sounds", "firearms", "weaponsounds", str(fs).lower().replace('/', '_'))
                         candidates = glob.glob(os.path.join(wf, f"{action_type}*.ogg"))+glob.glob(os.path.join(wf, f"{action_type}*.wav"))
                         if candidates:
                             import random as _r
@@ -36357,7 +37369,7 @@ class App:
 
         try:
             platform = weapon.get("platform", "").lower()
-            platform_folder = platform if platform else None
+            platform_folder = platform.replace('/', '_') if platform else None
 
             equivalents = {
             "boltback":["rifleboltback", "pistolslideback", "boltactionback"],
@@ -37559,12 +38571,12 @@ class App:
                         for pat in(f"{action_name}*.ogg", f"{action_name}*.wav"):
                             candidates +=glob.glob(os.path.join(wf, pat))
                         if not candidates:
-                            wf2 = os.path.join("sounds", "firearms", "weaponsounds", str(fs).lower())
+                            wf2 = os.path.join("sounds", "firearms", "weaponsounds", str(fs).lower().replace('/', '_'))
                             for pat in(f"{action_name}*.ogg", f"{action_name}*.wav"):
                                 candidates +=glob.glob(os.path.join(wf2, pat))
 
                     try:
-                        plat = str(weapon.get("platform")or "").lower()
+                        plat = str(weapon.get("platform")or "").lower().replace('/', '_')
                     except Exception:
                         plat = None
                     if plat:
@@ -38041,11 +39053,11 @@ class App:
                         if fs:
                             wf = os.path.join("sounds", "firearms", str(fs).lower())
                             cand_list +=glob.glob(os.path.join(wf, "rotarywinddown*.ogg"))+glob.glob(os.path.join(wf, "rotarywinddown*.wav"))
-                            wf2 = os.path.join("sounds", "firearms", "weaponsounds", str(fs).lower())
+                            wf2 = os.path.join("sounds", "firearms", "weaponsounds", str(fs).lower().replace('/', '_'))
                             cand_list +=glob.glob(os.path.join(wf2, "rotarywinddown*.ogg"))+glob.glob(os.path.join(wf2, "rotarywinddown*.wav"))
 
                         try:
-                            plat = str(weapon.get("platform")or "").lower()
+                            plat = str(weapon.get("platform")or "").lower().replace('/', '_')
                         except Exception:
                             plat = None
                         if plat:
@@ -39297,10 +40309,10 @@ class App:
                 platform_key = platform_key[0]if platform_key else ""
             wf = None
             if platform_key and platform_key in self.PLATFORM_DEFAULTS:
-                wf = os.path.join("sounds", "firearms", "weaponsounds", str(self.PLATFORM_DEFAULTS[platform_key].get("reload_sound_folder", platform_key)).lower())
+                wf = os.path.join("sounds", "firearms", "weaponsounds", str(self.PLATFORM_DEFAULTS[platform_key].get("reload_sound_folder", platform_key)).lower().replace('/', '_'))
             else:
 
-                pf = str(platform_key).lower()
+                pf = str(platform_key).lower().replace('/', '_')
                 wf = os.path.join("sounds", "firearms", "weaponsounds", pf)
 
             cat = self._categorize_40mm_round(round_info)or "he"
@@ -39726,7 +40738,7 @@ class App:
             except Exception:
                 logging.exception("Failed to persist underbarrel loaded state to save_data")
 
-            wf = os.path.join("sounds", "firearms", "weaponsounds", str(defaults.get("reload_sound_folder", "40mm_grenade")).lower())
+            wf = os.path.join("sounds", "firearms", "weaponsounds", str(defaults.get("reload_sound_folder", "40mm_grenade")).lower().replace('/', '_'))
             logging.debug("Underbarrel reload: platform=%s wf=%s, defaults=%s, found_item=%s, found_location=%s", platform, wf, defaults, getattr(found_item, 'get', lambda k:None)('name')if isinstance(found_item, dict)else found_item, found_location)
 
             open_candidates = glob.glob(os.path.join(wf, "open*.ogg"))+glob.glob(os.path.join(wf, "open*.wav"))
@@ -41001,6 +42013,27 @@ class App:
                     ball_item["quantity"] = qty - 1
                 current_grains = powder_source.get("grains_left", 0)
                 powder_source["grains_left"] = max(0, current_grains - grains_used)
+                try:
+                    full_grains = int(powder_source.get("grain_storage", 0) or 0)
+                except(Exception, ValueError, TypeError):
+                    full_grains = 0
+                if full_grains <= 0:
+                    try:
+                        full_grains = max(1, int(current_grains or 0))
+                    except(Exception, ValueError, TypeError):
+                        full_grains = 1
+                powder_source["grain_storage"] = full_grains
+                try:
+                    full_weight = float(powder_source.get("weight_full", powder_source.get("weight", 0)) or 0)
+                except(Exception, ValueError, TypeError):
+                    full_weight = 0.0
+                powder_source["weight_full"] = full_weight
+                try:
+                    grains_after = int(powder_source.get("grains_left", 0) or 0)
+                except(Exception, ValueError, TypeError):
+                    grains_after = 0
+                ratio = 0.0 if full_grains <= 0 else max(0.0, min(1.0, float(grains_after) / float(full_grains)))
+                powder_source["weight"] = round(full_weight * ratio, 6)
                 round_name = f"{caliber} | Musket Ball"
 
             chambered_round = {"name": round_name, "caliber": caliber}
@@ -41044,13 +42077,13 @@ class App:
     def _play_cylinder_sound(self, weapon, action_type, block = False):
 
         try:
-            platform = str(weapon.get("platform", "")or "").lower()
+            platform = str(weapon.get("platform", "")or "").lower().replace('/', '_')
             sound_folder = weapon.get("sounds")or weapon.get("sound_folder")or weapon.get("fire_sounds")or weapon.get("reload_sounds")
 
             candidates =[]
 
             if sound_folder:
-                wf = os.path.join("sounds", "firearms", "weaponsounds", str(sound_folder).lower())
+                wf = os.path.join("sounds", "firearms", "weaponsounds", str(sound_folder).lower().replace('/', '_'))
                 candidates = glob.glob(os.path.join(wf, f"{action_type}*.ogg"))+glob.glob(os.path.join(wf, f"{action_type}*.wav"))
 
             if not candidates and platform:
@@ -42604,14 +43637,36 @@ class App:
         volume_slider.grid(row = 8, column = 1, sticky = "ew", padx = 10, pady =(8, 4))
         volume_slider.set(appearance_settings.get("sound_volume", 100))
 
-        customtkinter.CTkLabel(appearance_frame, text = "Weather Effects", font = customtkinter.CTkFont(size = 14, weight = "bold")).grid(row = 9, column = 0, columnspan = 2, pady = (12, 4), sticky = "w", padx = 10)
+        customtkinter.CTkLabel(appearance_frame, text = "Music Volume:").grid(row = 9, column = 0, sticky = "w", padx = 10, pady = 4)
+        music_volume_slider = customtkinter.CTkSlider(
+        appearance_frame,
+        from_ = 0,
+        to = 100,
+        number_of_steps = 100,
+        command = lambda v:(appearance_settings.__setitem__("music_volume", int(v)), settings_modified.__setitem__(0, True), self._apply_business_music_volume())
+        )
+        music_volume_slider.grid(row = 9, column = 1, sticky = "ew", padx = 10, pady = 4)
+        music_volume_slider.set(appearance_settings.get("music_volume", 100))
+
+        business_music_mute_chk = customtkinter.CTkCheckBox(
+            appearance_frame,
+            text = "Mute Store/Casino Music",
+            command = lambda: (appearance_settings.__setitem__("mute_business_music", bool(business_music_mute_chk.get())), settings_modified.__setitem__(0, True), self._apply_business_music_volume())
+        )
+        business_music_mute_chk.grid(row = 10, column = 0, columnspan = 2, sticky = "w", padx = 10, pady = 4)
+        if appearance_settings.get("mute_business_music", False):
+            business_music_mute_chk.select()
+        else:
+            business_music_mute_chk.deselect()
+
+        customtkinter.CTkLabel(appearance_frame, text = "Weather Effects", font = customtkinter.CTkFont(size = 14, weight = "bold")).grid(row = 11, column = 0, columnspan = 2, pady = (12, 4), sticky = "w", padx = 10)
 
         weather_visual_chk = customtkinter.CTkCheckBox(
             appearance_frame,
             text = "Visual Effects (lightning flashes)",
             command = lambda: (appearance_settings.__setitem__("weather_visual_effects", bool(weather_visual_chk.get())), settings_modified.__setitem__(0, True))
         )
-        weather_visual_chk.grid(row = 10, column = 0, columnspan = 2, sticky = "w", padx = 10, pady = 4)
+        weather_visual_chk.grid(row = 12, column = 0, columnspan = 2, sticky = "w", padx = 10, pady = 4)
         if appearance_settings.get("weather_visual_effects", True):
             weather_visual_chk.select()
         else:
@@ -42622,7 +43677,7 @@ class App:
             text = "Audio Effects (rain, wind, thunder)",
             command = lambda: (appearance_settings.__setitem__("weather_audio_effects", bool(weather_audio_chk.get())), settings_modified.__setitem__(0, True))
         )
-        weather_audio_chk.grid(row = 11, column = 0, columnspan = 2, sticky = "w", padx = 10, pady = 4)
+        weather_audio_chk.grid(row = 13, column = 0, columnspan = 2, sticky = "w", padx = 10, pady = 4)
         if appearance_settings.get("weather_audio_effects", True):
             weather_audio_chk.select()
         else:
@@ -48152,6 +49207,7 @@ class App:
             rarity_weights = table_data.get("rarity_weights", {})
             non_rarity_keys = {"Luck Effect", "Special Chance"}
             rarity_options =[k for k in rarity_weights.keys()if k not in non_rarity_keys]
+            default_loot_rarity = "Common"if "Common"in rarity_options else (rarity_options[0]if rarity_options else "Common")
 
             total_weight = sum(rarity_weights.get(r, 1)for r in rarity_options)
 
@@ -48161,7 +49217,7 @@ class App:
             rarity_label = customtkinter.CTkLabel(rarity_frame, text = "Select pull rarity(affects drop chance):", font = customtkinter.CTkFont(size = 12))
             rarity_label.pack(anchor = "w", padx = 10, pady = 5)
 
-            selected_rarity = customtkinter.StringVar(value = item_rarity)
+            selected_rarity = customtkinter.StringVar(value = default_loot_rarity)
 
             for rarity in rarity_options:
                 weight = rarity_weights.get(rarity, 1)
@@ -48183,18 +49239,26 @@ class App:
                 radio_frame,
                 text = f"({percentage:.1f}% chance)",
                 font = customtkinter.CTkFont(size = 10),
-                text_color = "orange"if rarity ==item_rarity else "gray"
+                text_color = "orange"if rarity ==default_loot_rarity else "gray"
                 )
                 pct_label.pack(side = "left", padx = 10)
 
-                if rarity ==item_rarity:
+                if rarity ==default_loot_rarity:
                     default_label = customtkinter.CTkLabel(
                     radio_frame,
-                    text = "← default",
+                    text = "← default looting rarity",
                     font = customtkinter.CTkFont(size = 10),
                     text_color = "green"
                     )
                     default_label.pack(side = "left")
+                elif rarity ==item_rarity:
+                    inherent_label = customtkinter.CTkLabel(
+                    radio_frame,
+                    text = "← item rarity",
+                    font = customtkinter.CTkFont(size = 10),
+                    text_color = "gray"
+                    )
+                    inherent_label.pack(side = "left")
 
             hint_label = customtkinter.CTkLabel(popup, text = "Higher rarity = lower weight = rarer drop", font = customtkinter.CTkFont(size = 10), text_color = "gray")
             hint_label.pack(pady = 5)
@@ -48596,7 +49660,7 @@ class App:
 
         money_label = customtkinter.CTkLabel(top_frame, text = "Money Amount:")
         money_label.grid(row = 0, column = 0, padx =(0, 10), sticky = "w")
-        money_entry = customtkinter.CTkEntry(top_frame, placeholder_text = "0", width = 120)
+        money_entry = customtkinter.CTkEntry(top_frame, placeholder_text = format_price(0), width = 120)
         money_entry.grid(row = 0, column = 1, sticky = "w", padx =(0, 30))
 
         search_label = customtkinter.CTkLabel(top_frame, text = "Search(ID or Name):", font = customtkinter.CTkFont(size = 13))
@@ -48849,9 +49913,9 @@ class App:
 
         def save_transfer():
             try:
-                transfer_money = int(money_entry.get()or 0)
+                transfer_money = parse_display_price_to_usd(money_entry.get(), default = 0, round_to_int = True)
             except ValueError:
-                self._popup_show_info("Error", "Money amount must be a number.", sound = "error")
+                self._popup_show_info("Error", "Money amount must be a valid currency value.", sound = "error")
                 return
             try:
                 if not selected_items and transfer_money ==0:

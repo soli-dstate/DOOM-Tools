@@ -27,7 +27,15 @@ def _logical_table_key(table_file):
         base_name = base_name[: -len(".sldtbl")]
     if base_name.lower().endswith("_wt"):
         base_name = base_name[:-3]
+    elif base_name.lower().endswith("-wt"):
+        base_name = base_name[:-3]
     return base_name.lower()
+
+
+def _is_working_table_filename(table_file):
+    clean_name = table_file[:-len(".disabled")] if table_file.endswith(".disabled") else table_file
+    lower_name = clean_name.lower()
+    return lower_name.endswith("_wt.sldtbl") or lower_name.endswith("-wt.sldtbl")
 
 
 def load_table(path):
@@ -89,12 +97,14 @@ def _extract_ammo_fields(item):
     ammo_names |= _token_set(item.get("ammo_type"))
     ammo_names |= _token_set(item.get("ammunition"))
     calibers |= _token_set(item.get("caliber"))
+    calibers |= _token_set(item.get("musket_caliber"))
 
     overrides = item.get("overrides")
     if isinstance(overrides, dict):
         ammo_names |= _token_set(overrides.get("ammo_type"))
         ammo_names |= _token_set(overrides.get("ammunition"))
         calibers |= _token_set(overrides.get("caliber"))
+        calibers |= _token_set(overrides.get("musket_caliber"))
 
     return ammo_names, calibers
 
@@ -195,6 +205,13 @@ def _caliber_supported(item, caliber):
     return caliber in cal_set
 
 
+def _safe_capacity(value):
+    try:
+        return int(value or 0)
+    except Exception:
+        return 0
+
+
 def validate_tables(tables_dir=None, secondary_platform=None):
     """
     Run every validation check that main.py's validate_table_ids() runs.
@@ -243,8 +260,7 @@ def validate_tables(tables_dir=None, secondary_platform=None):
         group_key = _logical_table_key(table_file)
         table_group_for_file[table_file] = group_key
         table_files_by_group.setdefault(group_key, set()).add(table_file)
-        clean_name = table_file[:-len(".disabled")] if table_file.endswith(".disabled") else table_file
-        is_working_table = clean_name.lower().endswith("_wt.sldtbl")
+        is_working_table = _is_working_table_filename(table_file)
         if group_key not in table_group_display_name or not is_working_table:
             table_group_display_name[group_key] = table_name
         owner = table_group_owner_file.get(group_key)
@@ -252,7 +268,7 @@ def validate_tables(tables_dir=None, secondary_platform=None):
             table_group_owner_file[group_key] = table_file
         elif owner.endswith(".disabled") and not table_file.endswith(".disabled"):
             table_group_owner_file[group_key] = table_file
-        elif owner.lower().endswith("_wt.sldtbl") and not clean_name.lower().endswith("_wt.sldtbl"):
+        elif _is_working_table_filename(owner) and not _is_working_table_filename(table_file):
             table_group_owner_file[group_key] = table_file
         tables = table_data.get("tables", {})
 
@@ -487,6 +503,8 @@ def validate_tables(tables_dir=None, secondary_platform=None):
                     ammo_names_present.add(str(name).strip().lower())
                 calib = item.get("caliber")
                 ammo_calibers_present |= _token_set(calib)
+                musket_cal = item.get("musket_caliber")
+                ammo_calibers_present |= _token_set(musket_cal)
     except Exception:
         pass
 
@@ -599,6 +617,111 @@ def validate_tables(tables_dir=None, secondary_platform=None):
     except Exception as e:
         warnings.append(("Ammunition", f"Ammunition check failed: {e}"))
 
+    # ── 4b. Muzzleloaders / clips / en-bloc validation ──────────────────
+    try:
+        clip_items_by_group = {}
+        magazine_items_by_group = {}
+        for item, tf, sub in all_table_items:
+            if not isinstance(item, dict) or item.get("firearm"):
+                continue
+            group_key = table_group_for_file.get(tf, tf)
+            if str(sub).lower() == "magazines":
+                magazine_items_by_group.setdefault(group_key, []).append(item)
+                if item.get("clip_type"):
+                    clip_items_by_group.setdefault(group_key, []).append(item)
+
+        for item, tf, sub in all_table_items:
+            if not isinstance(item, dict) or not item.get("firearm"):
+                continue
+
+            display = table_pretty_names.get(tf, tf)
+            group_key = table_group_for_file.get(tf, tf)
+            name = item.get("name") or "<unnamed>"
+            mag_type = str(item.get("magazinetype", "") or "").strip().lower()
+            subtype = str(item.get("subtype", "") or "").strip().lower()
+            is_musket = subtype == "musket" or "muzzle" in mag_type
+            is_en_bloc = "en bloc" in mag_type
+            weapon_calibers = _token_set(item.get("musket_caliber")) | _token_set(item.get("caliber"))
+
+            if is_musket:
+                if not weapon_calibers:
+                    msg = f"Table '{display}': Musket '{name}' is missing 'musket_caliber' or 'caliber'."
+                    errors.append(("Muzzleloaders", msg))
+                    error_source.append((msg, tf))
+                if "muzzle" not in mag_type:
+                    msg = f"Table '{display}': Musket '{name}' must use a muzzle-loading magazinetype."
+                    errors.append(("Muzzleloaders", msg))
+                    error_source.append((msg, tf))
+
+            if item.get("accepts_clips"):
+                clip_type = str(item.get("clip_type") or "").strip()
+                if not clip_type:
+                    msg = f"Table '{display}': Firearm '{name}' has 'accepts_clips' but is missing 'clip_type'."
+                    errors.append(("Clip Compatibility", msg))
+                    error_source.append((msg, tf))
+                # Detachable-box firearms commonly store capacity on magazines, not the firearm.
+                if "detachable box" not in mag_type and _safe_capacity(item.get("capacity")) <= 0:
+                    msg = f"Table '{display}': Firearm '{name}' has 'accepts_clips' but is missing a positive 'capacity'."
+                    errors.append(("Clip Compatibility", msg))
+                    error_source.append((msg, tf))
+                if clip_type:
+                    compatible_clips = []
+                    for clip_item in clip_items_by_group.get(group_key, []):
+                        if str(clip_item.get("clip_type") or "").strip() != clip_type:
+                            continue
+                        clip_calibers = _token_set(clip_item.get("caliber"))
+                        if weapon_calibers and clip_calibers and not weapon_calibers.intersection(clip_calibers):
+                            continue
+                        compatible_clips.append(clip_item)
+                    if not compatible_clips:
+                        msg = f"Table '{display}': Firearm '{name}' requires clip type '{clip_type}' but no compatible clip item exists in the magazines table."
+                        errors.append(("Clip Compatibility", msg))
+                        error_source.append((msg, tf))
+
+            if is_en_bloc:
+                required_systems = _token_set(item.get("magazinesystem"))
+                if not required_systems:
+                    msg = f"Table '{display}': En-bloc firearm '{name}' is missing 'magazinesystem'."
+                    errors.append(("En Bloc Compatibility", msg))
+                    error_source.append((msg, tf))
+                if _safe_capacity(item.get("capacity")) <= 0:
+                    msg = f"Table '{display}': En-bloc firearm '{name}' is missing a positive 'capacity'."
+                    errors.append(("En Bloc Compatibility", msg))
+                    error_source.append((msg, tf))
+                if "bolt_catch" not in item:
+                    msg = f"Table '{display}': En-bloc firearm '{name}' is missing 'bolt_catch'."
+                    errors.append(("En Bloc Compatibility", msg))
+                    error_source.append((msg, tf))
+                if required_systems:
+                    compatible_en_bloc = []
+                    for mag_item in magazine_items_by_group.get(group_key, []):
+                        if not _magazine_matches_systems(mag_item, required_systems):
+                            continue
+                        mag_calibers = _token_set(mag_item.get("caliber"))
+                        if weapon_calibers and mag_calibers and not weapon_calibers.intersection(mag_calibers):
+                            continue
+                        compatible_en_bloc.append(mag_item)
+                    if not compatible_en_bloc:
+                        msg = f"Table '{display}': En-bloc firearm '{name}' has no compatible en-bloc clip item for magazine systems {sorted(required_systems)}."
+                        errors.append(("En Bloc Compatibility", msg))
+                        error_source.append((msg, tf))
+
+        for group_key, clip_items in clip_items_by_group.items():
+            display = table_group_display_name.get(group_key, group_key)
+            owner_file = table_group_owner_file.get(group_key, next(iter(table_files_by_group.get(group_key, [])), group_key))
+            for clip_item in clip_items:
+                clip_name = clip_item.get("name") or f"ID {clip_item.get('id', '?')}"
+                if _safe_capacity(clip_item.get("capacity")) <= 0:
+                    msg = f"Table '{display}': Clip item '{clip_name}' is missing a positive 'capacity'."
+                    errors.append(("Clip Compatibility", msg))
+                    error_source.append((msg, owner_file))
+                if not _token_set(clip_item.get("caliber")):
+                    msg = f"Table '{display}': Clip item '{clip_name}' is missing 'caliber'."
+                    errors.append(("Clip Compatibility", msg))
+                    error_source.append((msg, owner_file))
+    except Exception as e:
+        warnings.append(("Clip Compatibility", f"Musket/clip compatibility check failed: {e}"))
+
     # ── 5. Duplicate IDs ─────────────────────────────────────────────────
     duplicate_suggestions = []
     for item_id, locations in global_id_map.items():
@@ -631,7 +754,7 @@ def validate_tables(tables_dir=None, secondary_platform=None):
         plat = item.get("platform")
         if not plat:
             continue
-        plat_key = str(plat).strip().lower()
+        plat_key = str(plat).strip().lower().replace('/', '_')
         if not plat_key or plat_key in seen_platforms:
             continue
         seen_platforms.add(plat_key)
@@ -798,6 +921,9 @@ ALL_CATEGORIES = [
     "ID Sequence",
     "Hardcore Mode",
     "Ammunition",
+    "Muzzleloaders",
+    "Clip Compatibility",
+    "En Bloc Compatibility",
     "Duplicate IDs",
     "Weapon Sounds",
     "Slot References",
@@ -907,32 +1033,51 @@ class ValidatorApp(customtkinter.CTk):
             disabled = [f for f in table_files if f.endswith(".disabled")]
 
             self._insert("Tables scanned\n", "heading")
-            for f in sorted(enabled):
+            grouped_enabled = {}
+            for f in enabled:
+                grouped_enabled.setdefault(_logical_table_key(f), []).append(f)
+
+            grouped_disabled = {}
+            for f in disabled:
+                grouped_disabled.setdefault(_logical_table_key(f), []).append(f)
+
+            for gk in sorted(grouped_enabled.keys()):
                 try:
-                    td = load_table(os.path.join(tables_dir, f))
-                    pretty = td.get("prettyname", f)
+                    files_in_group = sorted(grouped_enabled[gk])
+                    owner = next((x for x in files_in_group if not _is_working_table_filename(x)), files_in_group[0])
+                    td = load_table(os.path.join(tables_dir, owner))
+                    pretty = td.get("prettyname", owner)
                     max_id = 0
-                    for items in (td.get("tables") or {}).values():
-                        if isinstance(items, list):
-                            for it in items:
-                                if isinstance(it, dict) and "id" in it:
-                                    max_id = max(max_id, it["id"])
-                    self._insert(f"  ✓ {pretty} ({f})  next ID: {max_id + 1}\n", "ok")
+                    for gf in files_in_group:
+                        gtd = load_table(os.path.join(tables_dir, gf))
+                        for items in (gtd.get("tables") or {}).values():
+                            if isinstance(items, list):
+                                for it in items:
+                                    if isinstance(it, dict) and "id" in it:
+                                        max_id = max(max_id, it["id"])
+                    files_text = ", ".join(files_in_group)
+                    self._insert(f"  ✓ {pretty} ({files_text})  next ID: {max_id + 1}\n", "ok")
                 except Exception:
-                    self._insert(f"  ✓ {f}\n", "ok")
-            for f in sorted(disabled):
+                    self._insert(f"  ✓ {', '.join(sorted(grouped_enabled[gk]))}\n", "ok")
+
+            for gk in sorted(grouped_disabled.keys()):
                 try:
-                    td = load_table(os.path.join(tables_dir, f))
-                    pretty = td.get("prettyname", f)
+                    files_in_group = sorted(grouped_disabled[gk])
+                    owner = files_in_group[0]
+                    td = load_table(os.path.join(tables_dir, owner))
+                    pretty = td.get("prettyname", owner)
                     max_id = 0
-                    for items in (td.get("tables") or {}).values():
-                        if isinstance(items, list):
-                            for it in items:
-                                if isinstance(it, dict) and "id" in it:
-                                    max_id = max(max_id, it["id"])
-                    self._insert(f"  ○ {pretty} ({f}) [DISABLED]  next ID: {max_id + 1}\n", "info")
+                    for gf in files_in_group:
+                        gtd = load_table(os.path.join(tables_dir, gf))
+                        for items in (gtd.get("tables") or {}).values():
+                            if isinstance(items, list):
+                                for it in items:
+                                    if isinstance(it, dict) and "id" in it:
+                                        max_id = max(max_id, it["id"])
+                    files_text = ", ".join(files_in_group)
+                    self._insert(f"  ○ {pretty} ({files_text}) [DISABLED]  next ID: {max_id + 1}\n", "info")
                 except Exception:
-                    self._insert(f"  ○ {f} [DISABLED]\n", "info")
+                    self._insert(f"  ○ {', '.join(sorted(grouped_disabled[gk]))} [DISABLED]\n", "info")
 
         # ── Errors (grouped by category) ──────────────────────────────────
         filtered_errors = [(c, m) for c, m in self._active_errors if c in enabled_cats]
