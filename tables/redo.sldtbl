@@ -55555,6 +55555,22 @@
         ],
         "stores": [
             {
+                "name": "LEDF Armory",
+                "type": "armory",
+                "shopkeeper": "Corporal Erika Schroeder",
+                "armory_points": "disabled",
+                "music": true,
+                "playlist": ["armory"],
+                "inventory_quantity": "disabled"
+            },
+            {
+                "name": "Ammo Supplier",
+                "type": "ammo_supplier",
+                "shopkeeper": "Jane Doe",
+                "music": true,
+                "playlist": ["market"]
+            },
+            {
                 "name": "Weapons Merchant",
                 "type": "store",
                 "shopkeeper": "Aya Al-Khatib",

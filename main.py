@@ -1,5 +1,5 @@
 version = "2.0.0"
-
+current_resource_link = "https://files.catbox.moe/rbhxrg.zip"
 import os
 import logging
 import re
@@ -29,6 +29,7 @@ import pyperclip
 import sys
 import inspect
 import distro
+import numpy as np
 
 def _sanitize_log(s):
     if not isinstance(s, str):
@@ -22854,6 +22855,112 @@ class App:
         except Exception:
             pass
 
+        def _get_equipped_watches(save_data, table_data):
+
+            import copy
+
+            watches = []
+            seen = set()
+
+            def _resolve_table_item(tid):
+                try:
+                    tables = table_data.get("tables", {}) if isinstance(table_data, dict) else {}
+                    for arr in tables.values():
+                        if isinstance(arr, list):
+                            for it in arr:
+                                if isinstance(it, dict) and it.get("id") == tid:
+                                    return copy.deepcopy(it)
+                except Exception:
+                    pass
+                return None
+
+            def _add_watch(item, slot_name):
+                try:
+                    if not isinstance(item, dict) or not item.get("watch"):
+                        return
+                    watch_id = item.get("id")
+                    key = (watch_id, slot_name)
+                    if key in seen:
+                        return
+                    seen.add(key)
+                    watches.append({
+                        "item": item,
+                        "slot": slot_name,
+                        "display_name": item.get("name", "Unknown Watch"),
+                    })
+                except Exception:
+                    pass
+
+            try:
+                for slot_name, item in (save_data.get("equipment", {}) or {}).items():
+                    if isinstance(item, dict):
+                        _add_watch(item, slot_name)
+                    elif isinstance(item, int) or (isinstance(item, str) and item.isdigit()):
+                        resolved = _resolve_table_item(int(item))
+                        if resolved:
+                            _add_watch(resolved, slot_name)
+
+                    if not isinstance(item, dict):
+                        continue
+
+                    for subslot in (item.get("subslots") or []):
+                        if not isinstance(subslot, dict):
+                            continue
+                        cur = subslot.get("current")
+                        resolved = cur if isinstance(cur, dict) else None
+                        if resolved is None and (isinstance(cur, int) or (isinstance(cur, str) and str(cur).isdigit())):
+                            resolved = _resolve_table_item(int(cur))
+                        if resolved:
+                            _add_watch(resolved, f"{slot_name} -> {subslot.get('name', 'Subslot')}")
+            except Exception:
+                pass
+
+            return watches
+
+        def _watch_weather_icon_code(weather_name):
+            mapping = {
+                "clear": "1",
+                "sun": "1",
+                "cloud": "2",
+                "cloudy": "2",
+                "rain": "3",
+                "hard_rain": "4",
+                "snow": "5",
+                "snowstorm": "5",
+                "thunder_rain": "6",
+                "thunder_hard_rain": "7",
+                "thunderstorm": "8",
+                "thunder": "8",
+                "sun_and_cloud": "9",
+            }
+            return mapping.get(str(weather_name or "").strip().lower(), ":")
+
+        def _watch_temperature_text(temp_f):
+            try:
+                temp_f = float(temp_f)
+            except Exception:
+                return f"{temp_f}°F"
+            if appearance_settings.get("units") == "metric":
+                temp_c = (temp_f - 32) * 5 / 9
+                temp_ci = int(round(temp_c))
+                if temp_ci >= 0:
+                    return f"{temp_ci:03d}°C"
+                return f"-{abs(temp_ci):02d}°C"
+            temp_fi = int(round(temp_f))
+            if temp_fi >= 0:
+                return f"{temp_fi:03d}°F"
+            return f"-{abs(temp_fi):02d}°F"
+
+        def _watch_temperature_ghost_text():
+            if appearance_settings.get("units") == "metric":
+                return "888°C"
+            return "888°F"
+
+        def _watch_time_text(now_dt, show_seconds, use_24h = True):
+            if use_24h:
+                return now_dt.strftime("%H:%M:%S" if show_seconds else "%H:%M")
+            return now_dt.strftime("%I:%M:%S" if show_seconds else "%I:%M")
+
         weather_state = {"weather": "clear", "wind_severity": 0, "temperature_f": combat_state.get("ambient_temperature", 70)}
         try:
             weather_path = os.path.join('remotedata', 'weather.json')
@@ -22871,6 +22978,7 @@ class App:
                     logging.info("Weather forecast: effective_date=%s (actual=%s %02d:%02d)", effective_date, now_dt.strftime("%Y-%m-%d"), now_dt.hour, now_dt.minute)
                 else:
                     day_weather = weather_data
+
                 w_type = str(day_weather.get("weather", "clear")).lower().strip()
                 w_sev = int(day_weather.get("wind_severity", 0))
                 w_temp = day_weather.get("temperature_f")
@@ -22889,69 +22997,6 @@ class App:
             logging.exception("Failed to load weather data")
 
         combat_state["weather"] = weather_state
-
-        self._clear_window()
-        self._play_ui_sound("whoosh1")
-
-        main_frame = customtkinter.CTkScrollableFrame(self.root, fg_color = "transparent")
-        main_frame.pack(fill = "both", expand = True, padx = 20, pady = 20)
-
-        title_label = customtkinter.CTkLabel(
-        main_frame,
-        text = "Combat Mode",
-        font = customtkinter.CTkFont(size = 24, weight = "bold")
-        )
-        title_label.pack(pady =(0, 20))
-
-        temp_frame = customtkinter.CTkFrame(main_frame)
-        temp_frame.pack(fill = "x", pady =(0, 10))
-
-        ambient_temp = combat_state['ambient_temperature']
-        if appearance_settings["units"]=="metric":
-            ambient_temp = round((ambient_temp -32)*5 /9, 1)
-            temp_unit = "°C"
-        else:
-            temp_unit = "°F"
-
-        ambient_label = customtkinter.CTkLabel(
-        temp_frame,
-        text = f"Ambient Temperature: {ambient_temp}{temp_unit}",
-        font = customtkinter.CTkFont(size = 14)
-        )
-        ambient_label.pack(side = "left", padx = 10, pady = 10)
-
-        w_type = weather_state.get("weather", "clear")
-        if w_type != "clear":
-            weather_display_names = {
-                "rain": "Rain",
-                "thunderstorm": "Thunderstorm",
-                "snowstorm": "Snowstorm",
-                "thundersnow": "Thundersnow"
-            }
-            weather_display = weather_display_names.get(w_type, w_type.title())
-            weather_colors = {
-                "rain": "#4A90D9",
-                "thunderstorm": "#FFD700",
-                "snowstorm": "#B0C4DE",
-                "thundersnow": "#DDA0DD"
-            }
-            weather_lbl = customtkinter.CTkLabel(
-                temp_frame,
-                text = f"Weather: {weather_display}",
-                font = customtkinter.CTkFont(size = 14),
-                text_color = weather_colors.get(w_type, "#AAAAAA")
-            )
-            weather_lbl.pack(side = "right", padx = 10, pady = 10)
-
-        w_wind_sev = weather_state.get("wind_severity", 0)
-        if w_wind_sev > 0:
-            wind_lbl = customtkinter.CTkLabel(
-                temp_frame,
-                text = f"Wind: severity {w_wind_sev}",
-                font = customtkinter.CTkFont(size = 14),
-                text_color = "#90EE90"
-            )
-            wind_lbl.pack(side = "right", padx = 10, pady = 10)
 
         weather_sound_state = {"channel": None, "sound": None, "thunder_after_id": None}
 
@@ -23120,6 +23165,14 @@ class App:
 
         _start_weather_sounds()
         _schedule_thunder()
+
+        main_frame = customtkinter.CTkScrollableFrame(self.root, fg_color = "transparent")
+        try:
+            self.root.grid_rowconfigure(0, weight = 1)
+            self.root.grid_columnconfigure(0, weight = 1)
+        except Exception:
+            pass
+        main_frame.grid(row = 0, column = 0, sticky = "nsew", padx = 20, pady = 20)
 
         def _show_combat_stats():
 
@@ -23418,9 +23471,6 @@ class App:
                     _mb.showinfo("Combat Stats", popup_text)
                 except Exception:
                     logging.error("Unable to display combat stats popup")
-
-        stats_btn = self._create_sound_button(temp_frame, "Show Stats", _show_combat_stats, width = 160, height = 36)
-        stats_btn.pack(side = "right", padx = 8, pady = 10)
 
         weapon_switch_outer = customtkinter.CTkFrame(main_frame)
         weapon_switch_outer.pack(fill = "x", pady =(0, 20))
@@ -23823,13 +23873,19 @@ class App:
         )
         weapon_name_label.pack(side = "left", padx = 20, pady = 10, expand = True)
 
+        top_right_controls = customtkinter.CTkFrame(weapon_switch_frame, fg_color = "transparent")
+        top_right_controls.pack(side = "right", padx = 10, pady = 10)
+
         self._create_sound_button(
-        weapon_switch_frame,
+        top_right_controls,
         text = "Next Weapon →",
         command = select_next,
         width = 150,
         height = 40
-        ).pack(side = "right", padx = 10, pady = 10)
+        ).pack(side = "left", padx =(0, 10))
+
+        stats_btn = self._create_sound_button(top_right_controls, "Show Stats", _show_combat_stats, width = 140, height = 40)
+        stats_btn.pack(side = "left")
 
         details_frame = customtkinter.CTkFrame(main_frame)
         details_frame.pack(fill = "both", expand = True, pady =(0, 20))
@@ -23840,7 +23896,187 @@ class App:
             pass
         self._display_weapon_details(details_frame, current_weapon, combat_state, save_data, table_data, current_weapon_state)
 
+        watch_rows = []
+
+        def _build_watch_panel(parent_frame):
+
+            local_rows = []
+            watch_items_local = _get_equipped_watches(save_data, table_data)
+            watch_frame_local = customtkinter.CTkFrame(parent_frame, corner_radius = 6)
+            watch_frame_local.place(relx = 0.0, y = 4, anchor = "nw", x = 4)
+
+            time_24h_var = customtkinter.BooleanVar(value = bool(combat_state.get("watch_time_24h", True)))
+
+            title_row = customtkinter.CTkFrame(watch_frame_local, fg_color = "transparent")
+            title_row.pack(fill = "x", pady =(4, 2), padx = 8)
+
+            watch_title = customtkinter.CTkLabel(
+                title_row,
+                text = "Watches",
+                font = customtkinter.CTkFont(size = 12, weight = "bold")
+            )
+            watch_title.pack(side = "left")
+
+            def _toggle_watch_time_mode():
+                next_mode = not bool(time_24h_var.get())
+                time_24h_var.set(next_mode)
+                combat_state["watch_time_24h"] = next_mode
+                try:
+                    update_watch_display()
+                except Exception:
+                    pass
+
+            toggle_btn = self._create_sound_button(
+                title_row,
+                text = "24H" if time_24h_var.get() else "12H",
+                command = _toggle_watch_time_mode,
+                width = 58,
+                height = 24,
+                font = customtkinter.CTkFont(size = 10, weight = "bold")
+            )
+            toggle_btn.pack(side = "right")
+
+            if not watch_items_local:
+                customtkinter.CTkLabel(
+                    watch_frame_local,
+                    text = "No watches equipped.",
+                    font = customtkinter.CTkFont(size = 10),
+                    text_color = "#A0A0A0"
+                ).pack(pady =(0, 6), padx = 8)
+                return local_rows
+
+            for watch_data in watch_items_local:
+                watch_item = watch_data["item"]
+                watch_type = str(watch_item.get("watch_type", "")).strip().lower()
+                is_digital = watch_type == "digital"
+
+                row_bg = "#2E3821" if is_digital else "#1F2B35"
+                row = customtkinter.CTkFrame(watch_frame_local, fg_color = row_bg)
+                row.pack(fill = "x", padx = 6, pady = 3)
+
+                customtkinter.CTkLabel(
+                    row,
+                    text = str(watch_data.get("display_name", "Watch")),
+                    font = customtkinter.CTkFont(size = 10, weight = "bold")
+                ).pack(anchor = "w", padx = 8, pady =(4, 0))
+
+                time_label = None
+                analog_canvas = None
+                weather_icon_label = None
+                weather_temp_label = None
+                am_label = None
+                pm_label = None
+                if is_digital:
+                    info_row = customtkinter.CTkFrame(row, fg_color = "#313B21")
+                    info_row.pack(fill = "x", padx = 8, pady =(0, 6))
+
+                    time_font = customtkinter.CTkFont(family = "DSEG7 Modern-Regular", size = 16)
+                    time_stack = customtkinter.CTkFrame(info_row, fg_color = "transparent", width = 126, height = 26)
+                    time_stack.pack(side = "left", padx =(6, 4), pady = 4)
+                    time_stack.pack_propagate(False)
+                    time_ghost_label = customtkinter.CTkLabel(
+                        time_stack,
+                        text = "88:88:88",
+                        font = time_font,
+                        text_color = "#75895A"
+                    )
+                    time_ghost_label.place(relx = 1.0, rely = 0.5, anchor = "e")
+                    time_label = customtkinter.CTkLabel(
+                        time_stack,
+                        text = "00:00",
+                        font = time_font,
+                        text_color = "#C7F089"
+                    )
+                    time_label.place(relx = 1.0, rely = 0.5, anchor = "e")
+                    ampm_frame = customtkinter.CTkFrame(info_row, fg_color = "transparent", width = 28, height = 24)
+                    ampm_frame.pack(side = "left", padx =(0, 3), pady = 0)
+                    ampm_frame.pack_propagate(False)
+                    pm_label = customtkinter.CTkLabel(
+                        ampm_frame,
+                        text = "PM",
+                        font = customtkinter.CTkFont(size = 9),
+                        text_color = "#7D9561"
+                    )
+                    pm_label.place(x = 0, y = 1)
+                    am_label = customtkinter.CTkLabel(
+                        ampm_frame,
+                        text = "AM",
+                        font = customtkinter.CTkFont(size = 9),
+                        text_color = "#7D9561"
+                    )
+                    am_label.place(x = 0, y = 12)
+
+                    weather_stack = customtkinter.CTkFrame(info_row, fg_color = "transparent", width = 28, height = 28)
+                    weather_stack.pack(side = "left", padx =(2, 4), pady = 4)
+                    weather_stack.pack_propagate(False)
+                    weather_ghost_label = customtkinter.CTkLabel(
+                        weather_stack,
+                        text = "0",
+                        font = customtkinter.CTkFont(family = "DSEG Weather", size = 22),
+                        text_color = "#75895A"
+                    )
+                    weather_ghost_label.place(relx = 0.5, rely = 0.5, anchor = "center")
+                    weather_icon_label = customtkinter.CTkLabel(
+                        weather_stack,
+                        text = _watch_weather_icon_code(weather_state.get("weather", "clear")),
+                        font = customtkinter.CTkFont(family = "DSEG Weather", size = 22),
+                        text_color = "#C7F089"
+                    )
+                    weather_icon_label.place(relx = 0.5, rely = 0.5, anchor = "center")
+
+                    temp_stack = customtkinter.CTkFrame(info_row, fg_color = "transparent", width = 86, height = 26)
+                    temp_stack.pack(side = "left", padx =(0, 6), pady = 4)
+                    temp_stack.pack_propagate(False)
+                    weather_temp_ghost_label = customtkinter.CTkLabel(
+                        temp_stack,
+                        text = _watch_temperature_ghost_text(),
+                        font = customtkinter.CTkFont(family = "DSEG7 Modern-Regular", size = 16),
+                        text_color = "#75895A"
+                    )
+                    weather_temp_ghost_label.place(relx = 1.0, rely = 0.5, anchor = "e")
+                    weather_temp_label = customtkinter.CTkLabel(
+                        temp_stack,
+                        text = _watch_temperature_text(weather_state.get("temperature_f", combat_state.get("ambient_temperature", 70))),
+                        font = customtkinter.CTkFont(family = "DSEG7 Modern-Regular", size = 16),
+                        text_color = "#C7F089"
+                    )
+                    weather_temp_label.place(relx = 1.0, rely = 0.5, anchor = "e")
+                else:
+                    analog_canvas = customtkinter.CTkCanvas(
+                        row,
+                        width = 92,
+                        height = 92,
+                        bg = "#1F2B35",
+                        highlightthickness = 0
+                    )
+                    analog_canvas.pack(padx = 8, pady =(0, 6))
+
+                local_rows.append({
+                    "item": watch_item,
+                    "watch_type": watch_type,
+                    "seconds": bool(watch_item.get("seconds")),
+                    "time_label": time_label,
+                    "analog_canvas": analog_canvas,
+                    "weather_icon_label": weather_icon_label,
+                    "weather_temp_label": weather_temp_label,
+                    "time_ghost_label": time_ghost_label if is_digital else None,
+                    "weather_ghost_label": weather_ghost_label if is_digital else None,
+                    "weather_temp_ghost_label": weather_temp_ghost_label if is_digital else None,
+                    "am_label": am_label,
+                    "pm_label": pm_label,
+                    "time_24h_var": time_24h_var,
+                    "toggle_btn": toggle_btn,
+                    "last_second": None,
+                    "last_minute": None,
+                    "last_hour": None,
+                })
+            return local_rows
+
+        watch_rows = _build_watch_panel(details_frame)
+
         def update_weapon_view():
+
+            nonlocal watch_rows
 
             wpn = current_weapon_state["weapon"]
             weapon_name_label.configure(text = f"Selected: {wpn.get('name', 'Unknown')}")
@@ -23853,6 +24089,7 @@ class App:
             except Exception:
                 pass
             self._display_weapon_details(details_frame, wpn, combat_state, sd, table_data, current_weapon_state)
+            watch_rows = _build_watch_panel(details_frame)
 
             try:
 
@@ -30301,13 +30538,20 @@ class App:
                 side.grid(row = 0, column = 1, sticky = 'ns', padx = 8, pady = 8)
 
                 ls = {'open': False, 'dragging': False, 'drag_vn': None, 'di': None,
-                      'added': 0, 'stoggle': 0, 'animating': False,
-                      'slide_offset': 0.0,
-                        'break_offset': 0.0,
-                      '_drag_open_active': False, '_drag_open_start': 0,
-                      '_drag_close_active': False, '_drag_close_start': 0,
-                      '_rod_dragging': False, '_rod_drag_start_y': 0, '_rod_offset': 0.0,
-                      '_ejecting': False}
+                    'added': 0, 'stoggle': 0, 'animating': False,
+                    'slide_offset': 0.0,
+                    'break_offset': 0.0,
+                    'cyl_angle': 0.0,
+                    'cyl_ang_vel': 0.0,
+                    '_spin_job': None,
+                    '_spin_active': False,
+                    '_spin_dragging': False,
+                    '_spin_drag_last_ang': 0.0,
+                    '_spin_drag_last_t': 0.0,
+                    '_drag_open_active': False, '_drag_open_start': 0,
+                    '_drag_close_active': False, '_drag_close_start': 0,
+                    '_rod_dragging': False, '_rod_drag_start_y': 0, '_rod_offset': 0.0,
+                    '_ejecting': False}
 
                 chip_hitboxes = {}
 
@@ -30530,6 +30774,105 @@ class App:
                             return i
                     return None
 
+                def _norm_ang(a):
+                    twopi = 2.0 * _math_cy.pi
+                    if twopi <= 0.0:
+                        return 0.0
+                    a = a % twopi
+                    if a < 0.0:
+                        a += twopi
+                    return a
+
+                def _ang_diff(target, source):
+                    return (target - source + _math_cy.pi) % (2.0 * _math_cy.pi) - _math_cy.pi
+
+                def _chamber_step_angle():
+                    return (2.0 * _math_cy.pi / cap) if cap > 0 else 0.0
+
+                def _chamber_center(i, draw_cx, draw_cy):
+                    angle = (2.0 * _math_cy.pi * i / cap) - _math_cy.pi / 2.0 + float(ls.get('cyl_angle', 0.0))
+                    cx = draw_cx + CYL_R * 0.65 * _math_cy.cos(angle)
+                    cy = draw_cy + CYL_R * 0.65 * _math_cy.sin(angle)
+                    return cx, cy
+
+                def _orientation_shift_index():
+                    step_ang = _chamber_step_angle()
+                    if step_ang <= 0.0:
+                        return 0
+                    # Chamber at top aligns to the first-to-fire slot when closing.
+                    return int(round((-float(ls.get('cyl_angle', 0.0))) / step_ang)) % cap
+
+                def _oriented_existing():
+                    if cap <= 1:
+                        return list(existing)
+                    sh = _orientation_shift_index()
+                    return existing[sh:] + existing[:sh]
+
+                def _cancel_spin_job():
+                    job = ls.get('_spin_job')
+                    if job is not None:
+                        try:
+                            editor.after_cancel(job)
+                        except Exception:
+                            pass
+                    ls['_spin_job'] = None
+
+                def _stop_spin_motion(snap_to_chamber = False):
+                    _cancel_spin_job()
+                    ls['_spin_active'] = False
+                    ls['cyl_ang_vel'] = 0.0
+                    ls['_spin_dragging'] = False
+                    if snap_to_chamber and cap > 0:
+                        step_ang = _chamber_step_angle()
+                        idx = _orientation_shift_index()
+                        ls['cyl_angle'] = _norm_ang(-idx * step_ang)
+
+                def _advance_spin_motion():
+                    if not ls.get('_spin_active'):
+                        return
+                    now_t = time.perf_counter()
+                    last_t = float(ls.get('_spin_drag_last_t', now_t))
+                    dt = max(0.001, min(0.05, now_t - last_t))
+                    ls['_spin_drag_last_t'] = now_t
+
+                    ls['cyl_angle'] = _norm_ang(float(ls.get('cyl_angle', 0.0)) + float(ls.get('cyl_ang_vel', 0.0)) * dt)
+
+                    # Exponential damping gives a natural inertial slowdown.
+                    drag_k = 3.7
+                    ls['cyl_ang_vel'] = float(ls.get('cyl_ang_vel', 0.0)) * _math_cy.exp(-drag_k * dt)
+
+                    step_ang = _chamber_step_angle()
+                    if abs(float(ls.get('cyl_ang_vel', 0.0))) < 0.10 and step_ang > 0.0:
+                        idx = _orientation_shift_index()
+                        target = _norm_ang(-idx * step_ang)
+                        curr = float(ls.get('cyl_angle', 0.0))
+                        delta = _ang_diff(target, curr)
+                        if abs(delta) <= 0.005:
+                            ls['cyl_angle'] = target
+                            ls['cyl_ang_vel'] = 0.0
+                            ls['_spin_active'] = False
+                        else:
+                            ls['cyl_angle'] = _norm_ang(curr + delta * 0.35)
+
+                    _draw_cylinder()
+                    _draw_rod()
+
+                    if ls.get('_spin_active'):
+                        ls['_spin_job'] = editor.after(16, _advance_spin_motion)
+                    else:
+                        ls['_spin_job'] = None
+                        ls['animating'] = False
+
+                def _start_spin_motion(initial_velocity):
+                    if ls.get('_ejecting') or not ls.get('open'):
+                        return
+                    _cancel_spin_job()
+                    ls['_spin_active'] = True
+                    ls['animating'] = True
+                    ls['cyl_ang_vel'] = float(max(-26.0, min(26.0, initial_velocity)))
+                    ls['_spin_drag_last_t'] = time.perf_counter()
+                    ls['_spin_job'] = editor.after(16, _advance_spin_motion)
+
                 def _hit_chamber(x, y):
                     if not ls['open']:
                         return None
@@ -30537,9 +30880,7 @@ class App:
                     draw_cx = CYL_CX + off
                     draw_cy = CYL_CY + ls.get('break_offset', 0.0)
                     for i in range(cap):
-                        angle = (2 * _math_cy.pi * i / cap) - _math_cy.pi / 2
-                        cx = draw_cx + CYL_R * 0.65 * _math_cy.cos(angle)
-                        cy = draw_cy + CYL_R * 0.65 * _math_cy.sin(angle)
+                        cx, cy = _chamber_center(i, draw_cx, draw_cy)
                         dist = _math_cy.sqrt((x - cx) ** 2 + (y - cy) ** 2)
                         if dist <= CHAMBER_R + 4:
                             return i
@@ -30587,6 +30928,17 @@ class App:
                         ls['_rod_offset'] = 0.0
                         return
                     if _hit_cylinder_body(event.x, event.y):
+                        off = ls['slide_offset']
+                        draw_cx = CYL_CX + off
+                        draw_cy = CYL_CY + ls.get('break_offset', 0.0)
+                        d = _math_cy.sqrt((event.x - draw_cx) ** 2 + (event.y - draw_cy) ** 2)
+                        spin_threshold = (CYL_R * 0.45) if is_topbreak else (CYL_R * 0.18)
+                        if d >= spin_threshold:
+                            _stop_spin_motion(snap_to_chamber = False)
+                            ls['_spin_dragging'] = True
+                            ls['_spin_drag_last_ang'] = _math_cy.atan2(event.y - draw_cy, event.x - draw_cx)
+                            ls['_spin_drag_last_t'] = time.perf_counter()
+                            return
                         ls['_drag_close_active'] = True
                         ls['_drag_close_start'] = event.y if is_topbreak else event.x
                         return
@@ -30602,6 +30954,22 @@ class App:
 
                 def _on_move(event):
                     if ls.get('_drag_open_active') and not ls['open']:
+                        return
+                    if ls.get('_spin_dragging'):
+                        off = ls['slide_offset']
+                        draw_cx = CYL_CX + off
+                        draw_cy = CYL_CY + ls.get('break_offset', 0.0)
+                        now_ang = _math_cy.atan2(event.y - draw_cy, event.x - draw_cx)
+                        prev_ang = float(ls.get('_spin_drag_last_ang', now_ang))
+                        delta = _ang_diff(now_ang, prev_ang)
+                        now_t = time.perf_counter()
+                        dt = max(0.001, min(0.05, now_t - float(ls.get('_spin_drag_last_t', now_t))))
+                        ls['_spin_drag_last_t'] = now_t
+                        ls['_spin_drag_last_ang'] = now_ang
+                        ls['cyl_angle'] = _norm_ang(float(ls.get('cyl_angle', 0.0)) + delta)
+                        ls['cyl_ang_vel'] = max(-30.0, min(30.0, delta / dt))
+                        _draw_cylinder()
+                        _draw_rod()
                         return
                     if ls.get('_drag_close_active'):
                         return
@@ -30628,6 +30996,16 @@ class App:
                             dx = event.x - ls.get('_drag_open_start', event.x)
                             if dx < -60:
                                 _animate_open()
+                        return
+                    if ls.get('_spin_dragging'):
+                        ls['_spin_dragging'] = False
+                        vel = float(ls.get('cyl_ang_vel', 0.0))
+                        if abs(vel) > 0.05:
+                            _start_spin_motion(vel)
+                        else:
+                            _stop_spin_motion(snap_to_chamber = True)
+                            _draw_cylinder()
+                            _draw_rod()
                         return
                     if ls.get('_drag_close_active'):
                         ls['_drag_close_active'] = False
@@ -30686,6 +31064,7 @@ class App:
                     _update_side()
 
                 def _animate_open():
+                    _stop_spin_motion(snap_to_chamber = True)
                     ls['animating'] = True
                     try:
                         self._play_cylinder_sound(wpn, 'cylinderopen', block = False)
@@ -30720,6 +31099,7 @@ class App:
                     _step(0)
 
                 def _animate_close(callback = None):
+                    _stop_spin_motion(snap_to_chamber = True)
                     ls['animating'] = True
                     try:
                         self._play_cylinder_sound(wpn, 'cylinderclose', block = False)
@@ -30753,6 +31133,7 @@ class App:
                     _step(0)
 
                 def _animate_eject():
+                    _stop_spin_motion(snap_to_chamber = True)
                     ls['_ejecting'] = True
                     ls['_rod_offset'] = float(ROD_PUSH if not is_topbreak else 0)
                     _draw_rod()
@@ -30768,16 +31149,15 @@ class App:
                     for i in range(cap):
                         r = existing[i]
                         if r is not None:
-                            angle = (2 * _math_cy.pi * i / cap) - _math_cy.pi / 2
-                            cx = draw_cx + CYL_R * 0.65 * _math_cy.cos(angle)
-                            cy = draw_cy + CYL_R * 0.65 * _math_cy.sin(angle)
+                            cx, cy = _chamber_center(i, draw_cx, draw_cy)
+                            ang = _math_cy.atan2(cy - draw_cy, cx - draw_cx)
                             is_sp = _is_spent(r)
                             shell_fill = '#8B7355' if is_sp else _tip_for_round(r)
                             shell_ol = '#6B5335' if is_sp else _tip_ol_for_round(r)
                             oid = cy_canvas.create_oval(cx - CHAMBER_R + 3, cy - CHAMBER_R + 3,
                                 cx + CHAMBER_R - 3, cy + CHAMBER_R - 3,
                                 fill = shell_fill, outline = shell_ol, width = 1, tags = 'ejectanim')
-                            shells_to_drop.append((oid, cx, cy, angle))
+                            shells_to_drop.append((oid, cx, cy, ang))
                             existing[i] = None
 
                     wpn['_cylinder_spent'] = 0
@@ -30811,13 +31191,17 @@ class App:
                 def _do_close_and_finish():
                     if ls['animating'] or ls['_ejecting']:
                         return
-                    final_rounds = [r for r in existing if _is_live(r)]
-                    remaining_spent = sum(1 for r in existing if _is_spent(r))
+                    _stop_spin_motion(snap_to_chamber = True)
+                    _oriented = _oriented_existing()
+                    final_rounds = [r for r in _oriented if _is_live(r)]
+                    remaining_spent = sum(1 for r in _oriented if _is_spent(r))
 
                     def _finish():
                         wpn['rounds'] = final_rounds
                         wpn['chambered'] = None
                         wpn['_cylinder_spent'] = remaining_spent
+                        wpn['_cylinder_layout'] = [r if isinstance(r, dict) else ('__spent__' if _is_spent(r) else None) for r in _oriented]
+                        wpn['_cylinder_index'] = 0
 
                         action = wpn.get('action', '')
                         if isinstance(action, (list, tuple)):
@@ -30859,31 +31243,16 @@ class App:
                 def _spin_cylinder():
                     if ls['animating'] or not ls['open'] or ls['_ejecting']:
                         return
-                    ls['animating'] = True
                     try:
                         self._play_cylinder_sound(wpn, 'cylinderspinonce', block = False)
                     except Exception:
                         pass
                     import random as _rnd_cy
-                    shift = _rnd_cy.randint(1, cap - 1) if cap > 1 else 0
-                    final_existing = existing[shift:] + existing[:shift]
-                    spin_steps = 15
-
-                    def _spin_step(s):
-                        if s >= spin_steps:
-                            for i in range(cap):
-                                existing[i] = final_existing[i]
-                            ls['animating'] = False
-                            _draw_cylinder()
-                            return
-                        temp_shift = (s * shift) // spin_steps
-                        temp = existing[temp_shift:] + existing[:temp_shift]
-                        for i in range(cap):
-                            existing[i] = temp[i]
-                        _draw_cylinder()
-                        editor.after(40, lambda: _spin_step(s + 1))
-
-                    _spin_step(0)
+                    if cap <= 1:
+                        return
+                    direction = 1 if _rnd_cy.random() >= 0.5 else -1
+                    launch_vel = direction * _rnd_cy.uniform(11.0, 19.0)
+                    _start_spin_motion(launch_vel)
 
                 cy_canvas.bind('<Button-1>', _on_press)
                 cy_canvas.bind('<B1-Motion>', _on_move)
@@ -30894,7 +31263,7 @@ class App:
                     font = customtkinter.CTkFont(size = 13, weight = 'bold'))
                 _cap_lbl.pack(pady = (10, 6))
 
-                _help_txt = 'Drag cylinder down to open.\nAuto-ejects when opened.\nDrag rounds onto chambers.\nDrag cylinder up to close.' if is_topbreak else 'Drag cylinder left to open.\nPush rod down to eject.\nDrag rounds onto chambers.\nDrag cylinder right to close.'
+                _help_txt = 'Drag cylinder down to open.\nAuto-ejects when opened.\nDrag outer cylinder to spin.\nDrag rounds onto chambers.\nDrag cylinder up to close.' if is_topbreak else 'Drag cylinder left to open.\nDrag outer cylinder to spin.\nPush rod down to eject.\nDrag rounds onto chambers.\nDrag center to right to close.'
                 customtkinter.CTkLabel(side,
                     text = _help_txt,
                     font = customtkinter.CTkFont(size = 10), text_color = '#888888',
@@ -30908,13 +31277,17 @@ class App:
                     fg_color = '#2a4a6a', hover_color = '#3a5a7a').pack(pady = 4)
 
                 def _done():
-                    final_rounds = [r for r in existing if _is_live(r)]
-                    remaining_spent = sum(1 for r in existing if _is_spent(r))
+                    _stop_spin_motion(snap_to_chamber = True)
+                    _oriented = _oriented_existing()
+                    final_rounds = [r for r in _oriented if _is_live(r)]
+                    remaining_spent = sum(1 for r in _oriented if _is_spent(r))
 
                     def _finish():
                         wpn['rounds'] = final_rounds
                         wpn['chambered'] = None
                         wpn['_cylinder_spent'] = remaining_spent
+                        wpn['_cylinder_layout'] = [r if isinstance(r, dict) else ('__spent__' if _is_spent(r) else None) for r in _oriented]
+                        wpn['_cylinder_index'] = 0
 
                         action = wpn.get('action', '')
                         if isinstance(action, (list, tuple)):
@@ -31712,6 +32085,8 @@ class App:
                     wpn['rounds'] = final_rounds
                     wpn['chambered'] = None
                     wpn['_cylinder_spent'] = remaining_spent
+                    wpn['_cylinder_layout'] = [r if isinstance(r, dict) else ('__spent__' if _is_spent(r) else None) for r in existing]
+                    wpn['_cylinder_index'] = int(ls['chamber_idx']) if cap > 0 else 0
 
                     action = wpn.get('action', '')
                     if isinstance(action, (list, tuple)):
@@ -35043,7 +35418,148 @@ class App:
             font = customtkinter.CTkFont(size = 11)
             ).pack(side = "right", padx = 10, pady = 5)
 
+        watch_cancel = None
+        watch_sound_clock_state = {"last_second": (-1, -1, -1), "last_hourly_beep": (-1, -1, -1)}
+
+        def _play_watch_sound(filename, *, volume, pitch_range):
+
+            try:
+                sound_path = os.path.join("sounds", "misc", "watch", filename)
+                if not sound_path.lower().endswith(".ogg"):
+                    sound_path +='.ogg'
+                if not os.path.exists(sound_path):
+                    alt_path = os.path.join("sounds", "misc", filename)
+                    if not alt_path.lower().endswith(".ogg"):
+                        alt_path +='.ogg'
+                    if os.path.exists(alt_path):
+                        sound_path = alt_path
+                if not os.path.exists(sound_path):
+                    return
+                pitch = random.uniform(pitch_range[0], pitch_range[1])
+                if not self._play_pitched_sound(sound_path, volume = volume, pitch = pitch):
+                    base_name = os.path.splitext(os.path.basename(sound_path))[0]
+                    if os.path.dirname(sound_path).replace('\\', '/').endswith("sounds/misc/watch"):
+                        self._safe_sound_play("misc/watch", base_name, block = False)
+                    else:
+                        self._safe_sound_play("misc", base_name, block = False)
+            except Exception:
+                logging.exception("Failed to play watch sound")
+
         poll_cancel = None
+
+        def _draw_analog_watch(canvas, now_dt, show_seconds):
+            try:
+                if not canvas or not canvas.winfo_exists():
+                    return
+                canvas.delete("all")
+
+                cx = 46
+                cy = 46
+                radius = 35
+                canvas.create_oval(cx - radius, cy - radius, cx + radius, cy + radius, fill = "#E8E1CC", outline = "#8E8A7D", width = 2)
+
+                for h in range(12):
+                    ang = math.radians((h * 30) - 90)
+                    x1 = cx +(radius - 6) * math.cos(ang)
+                    y1 = cy +(radius - 6) * math.sin(ang)
+                    x2 = cx +(radius - 2) * math.cos(ang)
+                    y2 = cy +(radius - 2) * math.sin(ang)
+                    canvas.create_line(x1, y1, x2, y2, fill = "#3B3B3B", width = 2)
+
+                hr = now_dt.hour % 12
+                mn = now_dt.minute
+                sec = now_dt.second
+
+                hour_ang = math.radians(((hr + mn / 60.0) * 30) - 90)
+                min_ang = math.radians(((mn + sec / 60.0) * 6) - 90)
+                sec_ang = math.radians((sec * 6) - 90)
+
+                canvas.create_line(cx, cy, cx +18 * math.cos(hour_ang), cy +18 * math.sin(hour_ang), fill = "#202020", width = 4)
+                canvas.create_line(cx, cy, cx +26 * math.cos(min_ang), cy +26 * math.sin(min_ang), fill = "#202020", width = 3)
+                if show_seconds:
+                    canvas.create_line(cx, cy, cx +29 * math.cos(sec_ang), cy +29 * math.sin(sec_ang), fill = "#C23232", width = 1)
+
+                canvas.create_oval(cx -3, cy -3, cx +3, cy +3, fill = "#202020", outline = "#202020")
+            except Exception:
+                pass
+
+        def update_watch_display():
+
+            nonlocal watch_cancel
+            try:
+                now_dt = datetime.now()
+                weather_name = str(weather_state.get("weather", "clear")).strip().lower()
+                weather_temp = weather_state.get("temperature_f", combat_state.get("ambient_temperature", 70))
+                weather_temp_text = _watch_temperature_text(weather_temp)
+
+                second_key = (now_dt.hour, now_dt.minute, now_dt.second)
+                if watch_sound_clock_state.get("last_second") != second_key:
+                    watch_sound_clock_state["last_second"] = second_key
+                    if now_dt.minute == 0 and now_dt.second == 0:
+                        hourly_key = (now_dt.year, now_dt.timetuple().tm_yday, now_dt.hour)
+                        if watch_sound_clock_state.get("last_hourly_beep") != hourly_key:
+                            watch_sound_clock_state["last_hourly_beep"] = hourly_key
+                            _play_watch_sound("hourly beep.ogg", volume = 0.45, pitch_range = (0.995, 1.005))
+                    if now_dt.minute == 0 and now_dt.second == 0:
+                        _play_watch_sound("clocktick.ogg", volume = 0.50, pitch_range = (0.985, 1.015))
+                    elif now_dt.second == 0:
+                        _play_watch_sound("clocktick.ogg", volume = 0.34, pitch_range = (0.95, 1.05))
+                    else:
+                        _play_watch_sound("clocktick.ogg", volume = 0.22, pitch_range = (0.96, 1.04))
+
+                for row_state in watch_rows:
+                    use_24h = True
+                    try:
+                        use_24h = bool(row_state.get("time_24h_var").get())
+                    except Exception:
+                        use_24h = bool(combat_state.get("watch_time_24h", True))
+
+                    if row_state.get("toggle_btn") and row_state["toggle_btn"].winfo_exists():
+                        row_state["toggle_btn"].configure(text = "24H" if use_24h else "12H")
+
+                    time_label = row_state.get("time_label")
+                    analog_canvas = row_state.get("analog_canvas")
+                    if not time_label and not analog_canvas:
+                        continue
+
+                    if time_label and time_label.winfo_exists():
+                        time_label.configure(text = _watch_time_text(now_dt, row_state["seconds"], use_24h = use_24h))
+
+                        time_ghost = row_state.get("time_ghost_label")
+                        if time_ghost and time_ghost.winfo_exists():
+                            time_ghost.configure(text = "88:88:88" if row_state.get("seconds") else "88:88")
+
+                        am_lbl = row_state.get("am_label")
+                        pm_lbl = row_state.get("pm_label")
+                        if am_lbl and pm_lbl and am_lbl.winfo_exists() and pm_lbl.winfo_exists():
+                            if use_24h:
+                                am_lbl.configure(text_color = "#7D9561")
+                                pm_lbl.configure(text_color = "#7D9561")
+                            else:
+                                is_pm = now_dt.hour >= 12
+                                am_lbl.configure(text_color = "#AEDD93" if not is_pm else "#7D9561")
+                                pm_lbl.configure(text_color = "#AEDD93" if is_pm else "#7D9561")
+
+                    if analog_canvas and analog_canvas.winfo_exists():
+                        _draw_analog_watch(analog_canvas, now_dt, bool(row_state.get("seconds")))
+
+                    if row_state["watch_type"] == "digital":
+                        if row_state["weather_icon_label"] and row_state["weather_icon_label"].winfo_exists():
+                            row_state["weather_icon_label"].configure(text = _watch_weather_icon_code(weather_name))
+                        if row_state.get("weather_ghost_label") and row_state["weather_ghost_label"].winfo_exists():
+                            row_state["weather_ghost_label"].configure(text = "0")
+                        if row_state["weather_temp_label"] and row_state["weather_temp_label"].winfo_exists():
+                            row_state["weather_temp_label"].configure(text = weather_temp_text)
+                        if row_state.get("weather_temp_ghost_label") and row_state["weather_temp_ghost_label"].winfo_exists():
+                            row_state["weather_temp_ghost_label"].configure(text = _watch_temperature_ghost_text())
+
+                watch_cancel = self.root.after(1000, update_watch_display)
+            except Exception:
+                logging.exception("Watch display update failed")
+                watch_cancel = self.root.after(1000, update_watch_display)
+
+        if watch_rows:
+            update_watch_display()
 
         def poll_temperature_update():
 
@@ -35145,13 +35661,23 @@ class App:
 
         def exit_combat():
 
-            nonlocal poll_cancel, reload_pending_id
+            nonlocal poll_cancel, reload_pending_id, watch_cancel
 
             if poll_cancel:
                 try:
                     self.root.after_cancel(poll_cancel)
                 except Exception:
                     pass
+
+            try:
+                if watch_cancel:
+                    try:
+                        self.root.after_cancel(watch_cancel)
+                    except Exception:
+                        pass
+                    watch_cancel = None
+            except Exception:
+                pass
 
             try:
                 if reload_pending_id and reload_pending_id[0]:
@@ -35259,8 +35785,62 @@ class App:
         except Exception:
             pass
 
-        self._save_combat_state(save_data)
-        self._save_combat_state(save_data)
+    def _play_pitched_sound(self, sound_path, *, volume = 1.0, pitch = 1.0):
+
+        try:
+            if not os.path.exists(sound_path):
+                return False
+
+            base_sound = pygame.mixer.Sound(sound_path)
+            try:
+                base_sound.set_volume(max(0.0, min(1.0, float(volume))))
+            except Exception:
+                pass
+
+            play_sound = base_sound
+            try:
+                pitch = float(pitch)
+            except Exception:
+                pitch = 1.0
+
+            if abs(pitch - 1.0) > 0.001:
+                try:
+                    sound_array = pygame.sndarray.array(base_sound)
+                    if sound_array.ndim == 1:
+                        source = sound_array.astype(np.float32)
+                        source_len = int(source.shape[0])
+                        target_len = max(1, int(round(source_len / pitch)))
+                        x_old = np.arange(source_len, dtype = np.float32)
+                        x_new = np.linspace(0, source_len - 1, target_len, dtype = np.float32)
+                        pitched = np.interp(x_new, x_old, source).astype(sound_array.dtype)
+                        play_sound = pygame.sndarray.make_sound(np.ascontiguousarray(pitched))
+                    else:
+                        source_len = int(sound_array.shape[0])
+                        target_len = max(1, int(round(source_len / pitch)))
+                        x_old = np.arange(source_len, dtype = np.float32)
+                        x_new = np.linspace(0, source_len - 1, target_len, dtype = np.float32)
+                        channels = []
+                        for ch_idx in range(sound_array.shape[1]):
+                            source = sound_array[:, ch_idx].astype(np.float32)
+                            channels.append(np.interp(x_new, x_old, source))
+                        pitched = np.stack(channels, axis = 1).astype(sound_array.dtype)
+                        play_sound = pygame.sndarray.make_sound(np.ascontiguousarray(pitched))
+                    try:
+                        play_sound.set_volume(max(0.0, min(1.0, float(volume))))
+                    except Exception:
+                        pass
+                except Exception:
+                    play_sound = base_sound
+
+            channel = pygame.mixer.find_channel(True)
+            if channel:
+                channel.play(play_sound)
+            else:
+                play_sound.play()
+            return True
+        except Exception:
+            logging.exception("Failed to play pitched sound: %s", sound_path)
+            return False
 
     def _get_equipped_weapons(self, save_data, table_data):
 
@@ -38217,6 +38797,77 @@ class App:
 
         is_dualfeed_mag_mode = weapon.get("dualfeed") and isinstance(loaded_mag, dict) and loaded_mag
         is_internal = ("internal"in magazine_type or "tube"in magazine_type or "cylinder"in magazine_type or "break"in magazine_type or "en bloc" in magazine_type or "revolver"in platform.lower()or("belt"in magazine_type)or("m249"in platform.lower())) and not is_dualfeed_mag_mode
+        is_cylinder_sim = is_internal and ("cylinder" in magazine_type or "revolver" in platform.lower())
+        cylinder_capacity = 0
+        cylinder_layout = []
+        cylinder_index = 0
+
+        if is_cylinder_sim:
+            try:
+                cylinder_capacity = int(weapon.get("capacity", 0) or 0)
+            except Exception:
+                cylinder_capacity = 0
+            if cylinder_capacity <= 0:
+                try:
+                    cylinder_capacity = int(len(weapon.get("rounds", []) or []) + int(weapon.get("_cylinder_spent", 0) or 0))
+                except Exception:
+                    cylinder_capacity = 0
+            if cylinder_capacity <= 0:
+                cylinder_capacity = 6
+
+            def _is_spent_slot(v):
+                if isinstance(v, str):
+                    return v.strip().lower() in ("spent", "case", "casing", "_spent_", "__spent__")
+                if isinstance(v, dict):
+                    nm = str(v.get("name") or "").lower()
+                    vr = str(v.get("variant") or "").lower()
+                    return ("spent" in nm) or ("case" in nm) or ("casing" in nm) or ("spent" in vr) or ("case" in vr) or ("casing" in vr)
+                return False
+
+            raw_layout = weapon.get("_cylinder_layout")
+            use_raw_layout = isinstance(raw_layout, list) and len(raw_layout) == cylinder_capacity
+            expected_live = len([r for r in (weapon.get("rounds", []) or []) if isinstance(r, dict)])
+            try:
+                expected_spent = max(0, int(weapon.get("_cylinder_spent", 0) or 0))
+            except Exception:
+                expected_spent = 0
+
+            if use_raw_layout:
+                tmp_layout = []
+                for slot in raw_layout:
+                    if _is_spent_slot(slot):
+                        tmp_layout.append("__spent__")
+                    elif isinstance(slot, dict):
+                        tmp_layout.append(slot)
+                    else:
+                        tmp_layout.append(None)
+                raw_live = sum(1 for slot in tmp_layout if isinstance(slot, dict))
+                raw_spent = sum(1 for slot in tmp_layout if slot == "__spent__")
+                if raw_live == expected_live and raw_spent == expected_spent:
+                    cylinder_layout = tmp_layout
+                else:
+                    use_raw_layout = False
+
+            if not use_raw_layout:
+                legacy_live = [r for r in (weapon.get("rounds", []) or []) if isinstance(r, dict)]
+                try:
+                    legacy_spent = max(0, int(weapon.get("_cylinder_spent", 0) or 0))
+                except Exception:
+                    legacy_spent = 0
+                for i in range(cylinder_capacity):
+                    if i < legacy_spent:
+                        cylinder_layout.append("__spent__")
+                    elif legacy_live:
+                        cylinder_layout.append(legacy_live.pop(0))
+                    else:
+                        cylinder_layout.append(None)
+
+            try:
+                cylinder_index = int(weapon.get("_cylinder_index", 0) or 0)
+            except Exception:
+                cylinder_index = 0
+            if cylinder_capacity > 0:
+                cylinder_index %= cylinder_capacity
 
         is_belt = False
 
@@ -38225,6 +38876,7 @@ class App:
             action_list =[str(a).lower()for a in raw_action if a is not None]
         else:
             action_list =[str(raw_action).lower()]
+        is_single_action_weapon = any((a == "single") or ("single" in a) for a in action_list)
 
         is_pump =(
         "pump"in platform.lower()
@@ -38233,6 +38885,8 @@ class App:
         )
 
         fire_mode_norm = str(fire_mode or "").title()
+        _fire_mode_l = str(fire_mode or "").strip().lower()
+        is_double_action_mode = _fire_mode_l in ("double", "double action", "da")
         effective_is_pump = is_pump and fire_mode_norm =="Pump"
 
         magicsys = str(weapon.get("magicsoundsystem")or "").lower()
@@ -38532,6 +39186,10 @@ class App:
             actual_rounds_to_fire
             )
 
+        if is_single_action_weapon and actual_rounds_to_fire != 1:
+            logging.debug("Single-action weapon detected: limiting actual_rounds_to_fire to 1")
+            actual_rounds_to_fire = 1
+
         if weapon.get("gas_melted", False):
             actual_rounds_to_fire = 1
             logging.debug("Gas-melted weapon detected: forcing single-shot behavior")
@@ -38643,7 +39301,11 @@ class App:
 
             next_round_for_jam = None
             try:
-                if chambered and isinstance(chambered, dict):
+                if is_cylinder_sim and cylinder_capacity > 0:
+                    slot = cylinder_layout[cylinder_index]
+                    if isinstance(slot, dict):
+                        next_round_for_jam = slot
+                elif chambered and isinstance(chambered, dict):
                     next_round_for_jam = chambered
                 elif is_internal and weapon.get("rounds"):
                     rr = weapon.get("rounds") or []
@@ -38667,7 +39329,24 @@ class App:
 
             fired_this_iteration = False
             fired_round = None
-            if chambered:
+            if is_cylinder_sim and cylinder_capacity > 0:
+                slot = cylinder_layout[cylinder_index]
+                if isinstance(slot, dict):
+                    fired_round = slot
+                    fired_rounds_list.append(fired_round)
+
+                    try:
+                        self._play_firearm_sound(weapon, "fire", fired_round = fired_round)
+                    except Exception:
+                        self._play_firearm_sound(weapon, "fire")
+                    rounds_fired +=1
+                    fired_this_iteration = True
+                    cylinder_layout[cylinder_index] = "__spent__"
+                else:
+                    self._safe_sound_play("", "sounds/firearms/universal/dryfire.ogg")
+                cylinder_index = (cylinder_index + 1) % cylinder_capacity
+                chambered = None
+            elif chambered:
                 fired_round = chambered
                 fired_rounds_list.append(fired_round)
 
@@ -38704,6 +39383,13 @@ class App:
 
                 logging.info("Ran out of ammo mid-burst after %s rounds", rounds_fired)
                 break
+
+            if is_cylinder_sim and cylinder_capacity > 0 and not fired_this_iteration:
+                try:
+                    time.sleep(0.08)
+                except Exception:
+                    pass
+                continue
 
             if fired_this_iteration:
 
@@ -38808,7 +39494,7 @@ class App:
                             try:
                                 _pc_mag_type = str(weapon.get("magazinetype", "") or "").lower()
                                 _pc_platform = str(weapon.get("platform", "") or "").lower()
-                                if "cylinder" in _pc_mag_type or "break" in _pc_mag_type or "revolver" in _pc_platform:
+                                if is_cylinder_sim or "cylinder" in _pc_mag_type or "break" in _pc_mag_type or "revolver" in _pc_platform:
                                     play_casing = False
                             except Exception:
                                 pass
@@ -38871,14 +39557,6 @@ class App:
                             chambered = loaded_mag["rounds"].pop(0)
 
                 try:
-                    is_single_action = False
-                    weapon_action = weapon.get("action", "")
-                    if isinstance(weapon_action, (list, tuple)):
-                        weapon_action = weapon_action[0]if weapon_action else ""
-                    weapon_action = str(weapon_action).lower()
-                    if weapon_action =="single":
-                        is_single_action = True
-
                     is_cylinder = "cylinder"in magazine_type
                     is_break_action = "break"in magazine_type
 
@@ -38888,9 +39566,12 @@ class App:
                     if is_break_action:
                         weapon['_break_spent'] = int(weapon.get('_break_spent', 0)) + 1
 
-                    if is_single_action and is_cylinder:
+                    if is_single_action_weapon and not is_double_action_mode:
                         time.sleep(0.08)
-                        self._play_cylinder_sound(weapon, "hammerdown")
+                        try:
+                            self._play_cylinder_sound(weapon, "hammerdown")
+                        except Exception:
+                            self._play_weapon_action_sound(weapon, "hammerdown", block = False)
                 except Exception:
                     logging.exception("Error handling single-action hammer pull")
             else:
@@ -39088,6 +39769,13 @@ class App:
         except Exception:
             pass
 
+        if is_cylinder_sim and cylinder_capacity > 0:
+            weapon["_cylinder_layout"] = [slot if isinstance(slot, dict) else ("__spent__" if slot == "__spent__" else None) for slot in cylinder_layout]
+            weapon["_cylinder_index"] = int(cylinder_index)
+            weapon["_cylinder_spent"] = sum(1 for slot in cylinder_layout if slot == "__spent__")
+            weapon["rounds"] = [slot for slot in cylinder_layout if isinstance(slot, dict)]
+            chambered = None
+
         weapon["chambered"]= chambered
         weapon["loaded"]= loaded_mag
 
@@ -39163,26 +39851,77 @@ class App:
             rolls, median = self._roll_d20_dice(rounds_fired)
             weapon_name = weapon.get("name", "Unknown")
             caliber_list = weapon.get("caliber", [])or["Unknown"]
-            caliber = caliber_list[0]
+            if isinstance(caliber_list, str):
+                caliber_list = [caliber_list]
+            caliber = caliber_list[0] if caliber_list else "Unknown"
 
             variant = "Unknown"
+            src_round_for_display = None
+
+            def _cal_from_round_name(name_val):
+                try:
+                    nm = str(name_val or "").strip()
+                    if not nm:
+                        return None
+                    if " | " in nm:
+                        left = nm.split(" | ", 1)[0].strip()
+                        return left or None
+                    if " - " in nm:
+                        left = nm.split(" - ", 1)[0].strip()
+                        return left or None
+                except Exception:
+                    return None
+                return None
 
             if fired_rounds_list:
                 _fr0 = fired_rounds_list[0]
+                src_round_for_display = _fr0
                 if isinstance(_fr0, dict):
                     variant = _fr0.get("variant") or _fr0.get("name") or "Unknown"
+                    _fr_name_cal = _cal_from_round_name(_fr0.get("name"))
+                    if _fr_name_cal:
+                        caliber = _fr_name_cal
+                    _fr_cal = _fr0.get("caliber")
+                    if isinstance(_fr_cal, list):
+                        _fr_cal = _fr_cal[0] if _fr_cal else None
+                    if _fr_cal:
+                        caliber = _fr_cal
                 elif isinstance(_fr0, str) and " | " in _fr0:
+                    _parts = _fr0.split(" | ", 1)
+                    if _parts and _parts[0].strip():
+                        caliber = _parts[0].strip()
                     variant = _fr0.split(" | ")[1]
             elif chambered and isinstance(chambered, dict):
+                src_round_for_display = chambered
                 variant = chambered.get("variant", "Unknown")
+                _ch_cal = chambered.get("caliber")
+                if isinstance(_ch_cal, list):
+                    _ch_cal = _ch_cal[0] if _ch_cal else None
+                if _ch_cal:
+                    caliber = _ch_cal
             elif loaded_mag and loaded_mag.get("rounds"):
                 first_round = loaded_mag["rounds"][0]
+                src_round_for_display = first_round
                 if isinstance(first_round, dict):
                     variant = first_round.get("variant", "Unknown")
+                    _lr_name_cal = _cal_from_round_name(first_round.get("name"))
+                    if _lr_name_cal:
+                        caliber = _lr_name_cal
+                    _lr_cal = first_round.get("caliber")
+                    if isinstance(_lr_cal, list):
+                        _lr_cal = _lr_cal[0] if _lr_cal else None
+                    if _lr_cal:
+                        caliber = _lr_cal
                 elif isinstance(first_round, str)and " | "in first_round:
+                    _parts = first_round.split(" | ", 1)
+                    if _parts and _parts[0].strip():
+                        caliber = _parts[0].strip()
                     variant = first_round.split(" | ")[1]
 
             elif chambered and isinstance(chambered, str)and " | "in chambered:
+                _parts = chambered.split(" | ", 1)
+                if _parts and _parts[0].strip():
+                    caliber = _parts[0].strip()
                 variant = chambered.split(" | ")[1]
 
             effective_aim = 0
@@ -39437,8 +40176,11 @@ class App:
             except Exception:
                 pass
 
-            # Try to extract penetration value for the displayed round and append it
+            # Resolve display fields for fired ammo. Prefer authoritative variant data from table
+            # to avoid stale per-round snapshots (e.g. showing old NIJ-only pen text).
             pen_val = None
+            type_val = None
+            round_labels = []
             try:
                 src_round = None
                 try:
@@ -39451,12 +40193,47 @@ class App:
                 except Exception:
                     src_round = None
 
+                src_variant_name = None
+                src_caliber = caliber
+                if isinstance(src_round, dict):
+                    try:
+                        _sv = src_round.get('variant')
+                        if _sv:
+                            src_variant_name = str(_sv).strip()
+                    except Exception:
+                        pass
+                    try:
+                        _sc = src_round.get('caliber')
+                        if isinstance(_sc, list):
+                            _sc = _sc[0] if _sc else None
+                        if _sc:
+                            src_caliber = _sc
+                    except Exception:
+                        pass
+                    try:
+                        _rncal = _cal_from_round_name(src_round.get('name'))
+                        if _rncal:
+                            src_caliber = _rncal
+                    except Exception:
+                        pass
+                    if not src_variant_name:
+                        try:
+                            _rn = str(src_round.get('name') or '')
+                            if ' | ' in _rn:
+                                src_variant_name = _rn.split(' | ', 1)[1].strip()
+                        except Exception:
+                            pass
+
                 if isinstance(src_round, dict):
                     pen_val = src_round.get('pen')
                     if pen_val is None:
                         v = src_round.get('variant')
                         if isinstance(v, dict):
                             pen_val = v.get('pen')
+                    type_val = src_round.get('type')
+                    _rl = src_round.get('ammo_labels')
+                    if isinstance(_rl, list):
+                        round_labels = [str(x) for x in _rl if x]
 
                 elif isinstance(src_round, str):
                     var_name = None
@@ -39466,6 +40243,8 @@ class App:
                             var_name = parts[1]
                     elif isinstance(variant, str) and variant and variant != 'Unknown':
                         var_name = variant
+
+                    src_variant_name = var_name
 
                     if var_name:
                         try:
@@ -39488,6 +40267,12 @@ class App:
                                                         vname = var.get('name') or var.get('variant') or var.get('variant_name')
                                                         if vname and str(vname).strip() == str(var_name).strip():
                                                             pen_val = var.get('pen')
+                                                            if not type_val:
+                                                                type_val = var.get('type')
+                                                            if not round_labels:
+                                                                _lbl = _get_ammo_variant_labels(var)
+                                                                if _lbl:
+                                                                    round_labels = [str(x) for x in _lbl if x]
                                                             break
                                                 if pen_val is not None:
                                                     break
@@ -39495,20 +40280,91 @@ class App:
                                             continue
                         except Exception:
                             pass
+
+                # If we have a variant name, refresh display fields from the best matching table
+                # variant entry. This preserves detailed pen strings like "IV+ (34mm RHA)"
+                # and avoids defaulting to the first weapon caliber alias.
+                if src_variant_name:
+                    try:
+                        current_tbl = global_variables.get('current_table')
+                        if current_tbl:
+                            tbl_path = os.path.join('tables', current_tbl)
+                        else:
+                            tbl_path = os.path.join('tables', sorted(glob.glob(os.path.join('tables', '*.sldtbl')))[0]) if glob.glob(os.path.join('tables', '*.sldtbl')) else None
+                        if tbl_path and os.path.exists(tbl_path):
+                            with open(tbl_path, 'r', encoding='utf-8') as tf:
+                                import json as _json
+                                tdata = _json.load(tf)
+                                ammo_arr = tdata.get('tables', {}).get('ammunition', [])
+                                def _norm_cal_set(v):
+                                    out = set()
+                                    if isinstance(v, list):
+                                        for x in v:
+                                            if x is not None:
+                                                out.add(str(x).strip().lower())
+                                    elif v is not None:
+                                        out.add(str(v).strip().lower())
+                                    return out
+
+                                src_cal_set = _norm_cal_set(src_caliber)
+                                weapon_cal_set = _norm_cal_set(caliber_list)
+                                best_match = None
+                                best_score = -1
+
+                                for a in ammo_arr:
+                                    try:
+                                        variants = a.get('variants') or []
+                                        entry_cal_set = _norm_cal_set(a.get('caliber'))
+                                        entry_name = str(a.get('name') or '').strip().lower()
+                                        for var in variants:
+                                            if not isinstance(var, dict):
+                                                continue
+                                            vname = var.get('name') or var.get('variant') or var.get('variant_name')
+                                            if not(vname and str(vname).strip() == str(src_variant_name).strip()):
+                                                continue
+
+                                            score = 1
+                                            if src_cal_set and entry_cal_set and src_cal_set.intersection(entry_cal_set):
+                                                score += 8
+                                            if weapon_cal_set and entry_cal_set and weapon_cal_set.intersection(entry_cal_set):
+                                                score += 3
+                                            if isinstance(src_round, dict):
+                                                _sn = str(src_round.get('name') or '').lower()
+                                                if _sn:
+                                                    for ec in entry_cal_set:
+                                                        if ec and ec in _sn:
+                                                            score += 2
+                                                            break
+                                                    if entry_name and entry_name in _sn:
+                                                        score += 6
+                                                    elif entry_name:
+                                                        # Light fuzzy boost if many entry words appear in round name.
+                                                        _hit_words = 0
+                                                        for _w in entry_name.replace('-', ' ').split():
+                                                            if len(_w) >= 4 and _w in _sn:
+                                                                _hit_words += 1
+                                                        score += min(3, _hit_words)
+
+                                            if score > best_score:
+                                                best_score = score
+                                                best_match = var
+                                    except Exception:
+                                        continue
+
+                                if isinstance(best_match, dict):
+                                    if best_match.get('pen') not in (None, ''):
+                                        pen_val = best_match.get('pen')
+                                    if best_match.get('type') not in (None, ''):
+                                        type_val = best_match.get('type')
+                                    _lbl = _get_ammo_variant_labels(best_match)
+                                    if _lbl:
+                                        round_labels = [str(x) for x in _lbl if x]
+                    except StopIteration:
+                        pass
+                    except Exception:
+                        pass
             except Exception:
                 pen_val = None
-
-            type_val = None
-            round_labels = []
-            try:
-                if isinstance(src_round, dict):
-                    type_val = src_round.get('type')
-                    _rl = src_round.get('ammo_labels')
-                    if isinstance(_rl, list):
-                        round_labels = [str(x) for x in _rl if x]
-            except Exception:
-                type_val = None
-                round_labels = []
 
             try:
                 detail_bits = []
