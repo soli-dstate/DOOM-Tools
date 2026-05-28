@@ -1,5 +1,5 @@
 version = "2.0.0"
-current_resource_link = "https://files.catbox.moe/rbhxrg.zip"
+current_resource_link = ""
 import os
 import logging
 import re
@@ -3342,6 +3342,284 @@ def _apply_ammo_variant_data(item_obj, ammo_def = None, variant_info = None):
 
     return item_obj
 
+def _get_weapon_caliber_family(caliber, all_tables):
+    """Return the set of calibers that co-occur with *caliber* in any weapon entry.
+
+    Used by the ammo-order system to discover 'military-equivalent' calibers
+    without a hardcoded lookup table.  E.g. requesting "9x19mm Parabellum"
+    returns {"9x19mm Parabellum", "9x19mm NATO"} because weapons in the table
+    accept both.
+    """
+    family = {caliber}
+    for table_items in all_tables.values():
+        if not isinstance(table_items, list):
+            continue
+        for item in table_items:
+            if not isinstance(item, dict):
+                continue
+            cals = item.get("caliber", [])
+            if isinstance(cals, str):
+                cals = [cals]
+            if isinstance(cals, list) and caliber in cals:
+                for c in cals:
+                    if isinstance(c, str) and c:
+                        family.add(c)
+                cals = [cals]
+            if isinstance(cals, list) and caliber in cals:
+                for c in cals:
+                    if isinstance(c, str) and c:
+                        family.add(c)
+    return family
+
+def _estimate_ammo_unit_price(caliber, all_ammo, sell_mult, market_demand):
+    """Return the estimated per-round shop price for *caliber*."""
+    for ammo_def in all_ammo:
+        if not isinstance(ammo_def, dict):
+            continue
+        cals = ammo_def.get("caliber", [])
+        if isinstance(cals, str):
+            cals = [cals]
+        if caliber in cals:
+            base = _safe_float(ammo_def.get("value"), 0.01) or 0.01
+            market_mult = _get_item_market_multiplier(ammo_def, market_demand)
+            return max(0.01, base * sell_mult * market_mult)
+    return 0.01
+
+def _resolve_ammo_order_item(caliber, quantity, table_data):
+    """Pick a random ammo variant for an order, honouring caliber-family lookup.
+
+    The returned dict is the item that will land in the player's inventory.
+    Variant is chosen weighted by rarity across the full caliber family.
+    """
+    all_tables = table_data.get("tables", {})
+    all_ammo = all_tables.get("ammunition", [])
+    rarity_weights = table_data.get("rarity_weights", {})
+
+    # Caliber family: co-occurring calibers from any weapon definition
+    family = _get_weapon_caliber_family(caliber, all_tables)
+
+    # Collect (ammo_def, variant_dict) pool weighted by rarity
+    pool = []
+    weights = []
+    for ammo_def in all_ammo:
+        if not isinstance(ammo_def, dict):
+            continue
+        cals = ammo_def.get("caliber", [])
+        if isinstance(cals, str):
+            cals = [cals]
+        # Only include ammo whose caliber is in the family
+        if not any(c in family for c in cals):
+            continue
+        variants = ammo_def.get("variants", []) or []
+        for var in variants:
+            if not isinstance(var, dict):
+                continue
+            rarity = var.get("rarity") or ammo_def.get("rarity") or "Common"
+            w = _safe_float(rarity_weights.get(rarity, 1), 1.0) or 1.0
+            pool.append((ammo_def, var))
+            weights.append(w)
+
+    if not pool:
+        return None
+
+    chosen_def, chosen_var = random.choices(pool, weights=weights, k=1)[0]
+    cals_list = chosen_def.get("caliber", [])
+    if isinstance(cals_list, str):
+        cals_list = [cals_list]
+    cal_str = ", ".join(cals_list) if cals_list else caliber
+    vname = str(chosen_var.get("name") or chosen_var.get("type") or "FMJ")
+
+    item_copy = chosen_def.copy()
+    item_copy["name"] = f"{vname} ({cal_str})"
+    item_copy["variant"] = vname
+    item_copy["caliber"] = cal_str
+    item_copy["quantity"] = quantity
+    item_copy["_table_category"] = "ammunition"
+    _apply_ammo_variant_data(item_copy, chosen_def, chosen_var)
+    item_copy.pop("variants", None)
+    return item_copy
+
+def _generate_ammo_supplier_stock(store, tables, equipped_calibers, equipped_magazine_systems,
+                                  all_ammo, all_mags, rarity_weights):
+    """Build the in-stock item list for an ammo_supplier store."""
+    rng = random.Random(_get_market_seed_for_store(store.get("name", "")))
+    stock = []
+
+    # ── 1. Guaranteed ammo ────────────────────────────────────────────────
+    for g in store.get("guaranteed_ammo", []):
+        if not isinstance(g, dict):
+            continue
+        item_id = g.get("id")
+        qty = g.get("quantity", 1)
+        variant_name = g.get("variant")
+        for ammo_def in all_ammo:
+            if not isinstance(ammo_def, dict) or ammo_def.get("id") != item_id:
+                continue
+            cals = ammo_def.get("caliber", [])
+            if isinstance(cals, str):
+                cals = [cals]
+            cal_str = ", ".join(cals) if cals else "Unknown"
+            variants = ammo_def.get("variants", []) or []
+            variant_info = None
+            if variant_name:
+                for v in variants:
+                    if isinstance(v, dict) and v.get("name") == variant_name:
+                        variant_info = v
+                        break
+            if variant_info is None and variants:
+                variant_info = variants[0]
+            item_copy = ammo_def.copy()
+            item_copy["_table_category"] = "ammunition"
+            item_copy["quantity"] = qty
+            if variant_info:
+                vname = str(variant_info.get("name") or variant_info.get("type") or "FMJ")
+                item_copy["name"] = f"{vname} ({cal_str})"
+                item_copy["variant"] = vname
+                item_copy["caliber"] = cal_str
+                _apply_ammo_variant_data(item_copy, ammo_def, variant_info)
+                item_copy.pop("variants", None)
+            item_copy["_guaranteed"] = True
+            stock.append(item_copy)
+            break
+
+    # ── 2. Random ammo stock (biased toward equipped calibers) ────────────
+    compatible_ammo = []
+    other_ammo = []
+    for ammo_def in all_ammo:
+        if not isinstance(ammo_def, dict):
+            continue
+        cals = ammo_def.get("caliber", [])
+        if isinstance(cals, str):
+            cals = [cals]
+        if any(c in equipped_calibers for c in cals):
+            compatible_ammo.append(ammo_def)
+        else:
+            other_ammo.append(ammo_def)
+
+    def _expand_variants(ammo_def):
+        cals = ammo_def.get("caliber", [])
+        if isinstance(cals, str):
+            cals = [cals]
+        cal_str = ", ".join(cals) if cals else "Unknown"
+        variants = ammo_def.get("variants", []) or []
+
+        # Resolve quantity from random_quantity or fall back to quantity field
+        rq = ammo_def.get("random_quantity")
+        if isinstance(rq, dict):
+            try:
+                roll_qty = lambda: random.randint(int(rq.get("min", 1)), int(rq.get("max", 1)))
+            except Exception:
+                roll_qty = lambda: 1
+        elif isinstance(ammo_def.get("quantity"), int) and ammo_def.get("quantity", 0) > 0:
+            _fixed_qty = ammo_def["quantity"]
+            roll_qty = lambda: _fixed_qty
+        else:
+            roll_qty = lambda: random.randint(10, 30)
+
+        out = []
+        for var in variants:
+            if not isinstance(var, dict):
+                continue
+            vname = str(var.get("name") or var.get("type") or "FMJ")
+            ic = ammo_def.copy()
+            ic["_table_category"] = "ammunition"
+            ic["name"] = f"{vname} ({cal_str})"
+            ic["variant"] = vname
+            ic["caliber"] = cal_str
+            _apply_ammo_variant_data(ic, ammo_def, var)
+            labels = ic.get("ammo_labels", [])
+            if labels:
+                ic["name"] = f"{ic['name']} [{' / '.join(labels)}]"
+            ic.pop("variants", None)
+            ic.pop("random_quantity", None)
+            ic["quantity"] = roll_qty()
+            out.append(ic)
+        if not out:
+            ic = ammo_def.copy()
+            ic["_table_category"] = "ammunition"
+            ic.pop("random_quantity", None)
+            ic["quantity"] = roll_qty()
+            out.append(ic)
+        return out
+
+    # Slight bias: compatible ammo appears ~3× as often in the random pool
+    random_pool = []
+    for a in compatible_ammo:
+        random_pool += _expand_variants(a) * 3
+    for a in other_ammo:
+        random_pool += _expand_variants(a)
+
+    if random_pool:
+        # Take up to ~40 unique random entries beyond guaranteed
+        sample_size = min(len(random_pool), 40)
+        sampled = rng.sample(random_pool, sample_size)
+        # Deduplicate by (name, variant, caliber)
+        seen_keys = set()
+        for item in sampled:
+            key = (item.get("name"), item.get("variant"), item.get("caliber"))
+            if key not in seen_keys:
+                seen_keys.add(key)
+                stock.append(item)
+
+    # ── 3. Pre-filled magazines ───────────────────────────────────────────
+    for mag_def in all_mags:
+        if not isinstance(mag_def, dict):
+            continue
+        mag_sys = mag_def.get("magazinesystem")
+        mag_cals = mag_def.get("caliber", [])
+        if isinstance(mag_cals, str):
+            mag_cals = [mag_cals]
+        mag_sys_list = [mag_sys] if isinstance(mag_sys, str) and mag_sys else (
+            mag_sys if isinstance(mag_sys, list) else [])
+        compatible = (
+            any(ms in equipped_magazine_systems for ms in mag_sys_list)
+            and any(c in equipped_calibers for c in mag_cals)
+        )
+        if not compatible:
+            continue
+        mag_copy = mag_def.copy()
+        mag_copy = add_subslots_to_item(mag_copy)
+        mag_copy["_table_category"] = "magazines"
+        capacity = mag_copy.get("capacity", 0)
+        if capacity > 0 and mag_cals:
+            fill_cal = mag_cals[0]
+            fill_ammo_def = next(
+                (a for a in all_ammo if isinstance(a, dict) and fill_cal in (
+                    a.get("caliber", []) if isinstance(a.get("caliber", []), list) else [a.get("caliber")]
+                )),
+                None
+            )
+            if fill_ammo_def:
+                variants = fill_ammo_def.get("variants", []) or []
+                fill_var = next(
+                    (v for v in variants if isinstance(v, dict) and str(v.get("name", "")).upper() == "FMJ"),
+                    variants[0] if variants else None
+                )
+                rounds = []
+                for _ in range(capacity):
+                    rd = {"name": fill_cal, "caliber": fill_cal}
+                    if fill_var:
+                        _apply_ammo_variant_data(rd, fill_ammo_def, fill_var)
+                        rd["variant"] = fill_var.get("name", "FMJ")
+                    rounds.append(rd)
+                mag_copy["rounds"] = rounds
+        mag_copy["_prefilled"] = True
+        stock.append(mag_copy)
+
+    # ── 4. Occasional clips ───────────────────────────────────────────────
+    for clip_def in tables.get("clips", []) or []:
+        if not isinstance(clip_def, dict):
+            continue
+        clip_cals = clip_def.get("caliber", [])
+        if isinstance(clip_cals, str):
+            clip_cals = [clip_cals]
+        if any(c in equipped_calibers for c in clip_cals) and rng.random() < 0.4:
+            clip_copy = clip_def.copy()
+            clip_copy["_table_category"] = "clips"
+            stock.append(clip_copy)
+
+    return stock
+
 # ── Market system ─────────────────────────────────────────────────────────────
 # Table-category → market segment mapping
 _MARKET_TABLE_SEGMENTS = {
@@ -3608,24 +3886,87 @@ def _randomize_part_durability(weapon):
         if not isinstance(p, dict):
             continue
         dur = p.get("durability")
-        if dur == "set_by_looting":
+        if dur == "set_by_looting" or dur is None:
             p["current_durability"] = random.uniform(dur_min, dur_max)
         elif isinstance(dur, (int, float)):
-            p["current_durability"] = float(dur)
+            dur_float = float(dur)
+            adjusted_max = dur_float * max(0.1, 1.0 - (wear_factor * 0.85)) if rf > 0 else dur_float
+            adjusted_min = max(dur_float * 0.05, adjusted_max * 0.3)
+            p["current_durability"] = random.uniform(adjusted_min, adjusted_max)
 
 def _set_full_part_durability(item):
+    def _apply_full_to_part(part):
+        if not isinstance(part, dict):
+            return
+        dur = part.get("durability")
+        if dur == "set_by_looting":
+            part["current_durability"] = float(PART_DURABILITY_MAX)
+        elif isinstance(dur, (int, float)):
+            part["current_durability"] = float(dur)
+        cur = part.get("current")
+        if isinstance(cur, dict):
+            _apply_full_to_part(cur)
+
     parts = item.get("parts")
     if parts and isinstance(parts, list):
         for p in parts:
-            if not isinstance(p, dict):
-                continue
-            dur = p.get("durability")
-            if dur == "set_by_looting":
-                p["current_durability"] = float(PART_DURABILITY_MAX)
-            elif isinstance(dur, (int, float)):
-                p["current_durability"] = float(dur)
+            _apply_full_to_part(p)
     if item.get("spring_durability") == "set_by_looting":
         item["spring_durability"] = float(PART_DURABILITY_MAX)
+    _repair_item_parts_durability_recursive(item, fallback_value = PART_DURABILITY_MAX)
+
+def _set_armory_used_good_weapon_condition(item):
+    """Apply "used but good" condition to armory-issued firearms.
+
+    Firearms should look used (rounds fired > 0) while keeping all mutable
+    components at 90%+ condition.
+    """
+    if not isinstance(item, dict) or not item.get("firearm"):
+        return
+
+    try:
+        current_rf = item.get("rounds_fired", 0)
+        current_rf_num = int(current_rf) if isinstance(current_rf, (int, float, str)) else 0
+    except Exception:
+        current_rf_num = 0
+    if current_rf_num <= 0:
+        item["rounds_fired"] = random.randint(120, 2200)
+
+    def _apply_used_good_to_part(part):
+        if not isinstance(part, dict):
+            return
+        dur = part.get("durability")
+        if dur == "set_by_looting":
+            part["current_durability"] = round(random.uniform(PART_DURABILITY_MAX * 0.9, PART_DURABILITY_MAX), 2)
+        else:
+            try:
+                if isinstance(dur, (int, float)):
+                    base = float(dur)
+                    part["current_durability"] = round(random.uniform(base * 0.9, base), 2)
+            except Exception:
+                pass
+        cur = part.get("current")
+        if isinstance(cur, dict):
+            _apply_used_good_to_part(cur)
+
+    parts = item.get("parts")
+    if isinstance(parts, list):
+        for p in parts:
+            _apply_used_good_to_part(p)
+
+    spring_dur = item.get("spring_durability")
+    if spring_dur == "set_by_looting":
+        item["spring_durability"] = round(random.uniform(PART_DURABILITY_MAX * 0.9, PART_DURABILITY_MAX), 2)
+    else:
+        try:
+            if isinstance(spring_dur, (int, float)):
+                spring_base = float(spring_dur)
+                item["spring_durability"] = round(random.uniform(spring_base * 0.9, spring_base), 2)
+        except Exception:
+            pass
+
+    # Ensure any still-unset part durability does not render as N/A in UI.
+    _repair_item_parts_durability_recursive(item, fallback_value = PART_DURABILITY_MAX * 0.9)
 
 def _repair_item_parts_durability_recursive(node, fallback_value = 100.0):
     """Recursively normalize broken part durability values.
@@ -7240,13 +7581,464 @@ class App:
             scroll_frame = customtkinter.CTkScrollableFrame(main_frame)
             scroll_frame.pack(fill = "both", expand = True, padx = 20, pady = 20)
 
+            def _open_lockpick_minigame(crate, crate_file_path, on_success):
+                """Fallout/Skyrim-style rotary lockpick minigame.
+
+                A circular lock face is shown. The player drags a bobby pin
+                around the rim to find the sweet spot, then holds the tension
+                wrench button to rotate the lock. If the pin is in the sweet
+                spot the lock turns; otherwise the pin takes damage. Pins (picks)
+                are limited – run out and the crate stays locked.
+
+                Difficulty is derived from crate rarity:
+                  Common    → 3 picks, large sweet-spot  (~60°)
+                  Uncommon  → 3 picks, medium sweet-spot (~40°)
+                  Rare      → 2 picks, small sweet-spot  (~25°)
+                  Legendary → 2 picks, tiny sweet-spot   (~15°)
+                  Mythic    → 1 pick,  hair-trigger       (~8°)
+                """
+                import tkinter as _tk_lp
+                import math as _math_lp
+
+                rarity = str(crate.get("rarity", "Common")).strip()
+                _DIFF = {
+                    "Common":    {"picks": 3, "sweet": 60.0, "resistance": 0.6},
+                    "Uncommon":  {"picks": 3, "sweet": 40.0, "resistance": 1.0},
+                    "Rare":      {"picks": 2, "sweet": 25.0, "resistance": 1.4},
+                    "Legendary": {"picks": 2, "sweet": 15.0, "resistance": 1.9},
+                    "Mythic":    {"picks": 1, "sweet":  8.0, "resistance": 2.5},
+                }
+                diff = _DIFF.get(rarity, _DIFF["Common"])
+                max_picks      = diff["picks"]
+                sweet_half     = diff["sweet"] / 2.0           # half-width of sweet spot in degrees
+                resistance     = diff["resistance"]            # pin durability drain multiplier
+
+                _lp_state = {
+                    "picks_left":   max_picks,
+                    "pin_angle":    0.0,           # degrees, 0 = top, CW positive
+                    "lock_rotation": 0.0,          # 0 → 360 = unlocked
+                    "sweet_center": random.uniform(0.0, 360.0),
+                    "pin_hp":       1.0,           # 1.0 = intact, 0.0 = snapped
+                    "tensioning":   False,
+                    "dragging":     False,
+                    "drag_last_angle": 0.0,
+                    "unlocked":     False,
+                    "failed":       False,
+                    "shake_offset": 0,
+                    "shake_job":    None,
+                    "pick_playing": False,   # whether pick.wav channel is active
+                    "pick_channel": None,    # dedicated pygame channel for pick.wav
+                }
+
+                CANVAS_W, CANVAS_H = 460, 480
+                LOCK_CX, LOCK_CY   = 230, 220
+                LOCK_R             = 140   # outer lock ring radius
+                PIN_ORBIT_R        = LOCK_R + 22  # orbit the pin around outside the ring
+                PIN_LEN            = 38
+                PIN_THICK          = 4
+
+                RARITY_COLORS = {
+                    "Common":    "#aaaaaa",
+                    "Uncommon":  "#55cc55",
+                    "Rare":      "#4499ff",
+                    "Legendary": "#cc88ff",
+                    "Mythic":    "#ff8844",
+                }
+                accent_col = RARITY_COLORS.get(rarity, "#aaaaaa")
+
+                win = customtkinter.CTkToplevel(self.root)
+                win.title(f"Lockpicking – {crate.get('name', 'Locked Crate')} [{rarity}]")
+                win.resizable(False, False)
+                win.grab_set()
+                win.transient(self.root)
+                self._center_popup_on_window(win, CANVAS_W, CANVAS_H + 60)
+
+                canvas = _tk_lp.Canvas(win, width = CANVAS_W, height = CANVAS_H,
+                                        bg = "#1a1a1a", highlightthickness = 0)
+                canvas.pack()
+
+                info_frame = _tk_lp.Frame(win, bg = "#111111")
+                info_frame.pack(fill = "x")
+
+                picks_label = _tk_lp.Label(info_frame, text = "", bg = "#111111",
+                                            fg = "#dddddd", font = ("Consolas", 11))
+                picks_label.pack(side = "left", padx = 12, pady = 6)
+
+                hint_label = _tk_lp.Label(info_frame, text = "Drag pin · Hold SPACE or button to tension",
+                                           bg = "#111111", fg = "#888888", font = ("Consolas", 10))
+                hint_label.pack(side = "left", padx = 6)
+
+                # ── sound helpers ──────────────────────────────────────────────
+                _PICK_SND_PATH   = os.path.join("sounds", "misc", "lockpicking", "pick.wav")
+                _SNAP_SND_PATH   = os.path.join("sounds", "misc", "lockpicking", "snap.ogg")
+                _UNLOCK_SND_PATH = os.path.join("sounds", "misc", "lockpicking", "unlock.ogg")
+
+                def _pick_sound_start():
+                    """Begin looping pick.wav on a dedicated channel."""
+                    if _lp_state["pick_playing"]:
+                        return
+                    if not os.path.exists(_PICK_SND_PATH):
+                        return
+                    try:
+                        snd = pygame.mixer.Sound(_PICK_SND_PATH)
+                        ch  = _lp_state.get("pick_channel")
+                        if ch is None:
+                            ch = pygame.mixer.find_channel()
+                            _lp_state["pick_channel"] = ch
+                        if ch:
+                            ch.play(snd, loops = -1)  # loop until stopped
+                            _lp_state["pick_playing"] = True
+                    except Exception:
+                        pass
+
+                def _pick_sound_stop():
+                    """Stop pick.wav without affecting other channels."""
+                    if not _lp_state["pick_playing"]:
+                        return
+                    try:
+                        ch = _lp_state.get("pick_channel")
+                        if ch:
+                            ch.stop()
+                    except Exception:
+                        pass
+                    _lp_state["pick_playing"] = False
+
+                def _lp_sound(name):
+                    p = {"snap": _SNAP_SND_PATH, "unlock": _UNLOCK_SND_PATH}.get(name)
+                    if p and os.path.exists(p):
+                        try:
+                            snd = pygame.mixer.Sound(p)
+                            ch  = pygame.mixer.find_channel()
+                            if ch:
+                                ch.play(snd)
+                        except Exception:
+                            pass
+
+                # ── geometry helpers ───────────────────────────────────────────
+                def _deg_to_rad(d):
+                    return d * _math_lp.pi / 180.0
+
+                def _pin_tip_pos(angle_deg):
+                    a = _deg_to_rad(angle_deg - 90)
+                    bx = LOCK_CX + PIN_ORBIT_R * _math_lp.cos(a)
+                    by = LOCK_CY + PIN_ORBIT_R * _math_lp.sin(a)
+                    # pin points inward toward lock center
+                    dx = LOCK_CX - bx
+                    dy = LOCK_CY - by
+                    mag = _math_lp.sqrt(dx * dx + dy * dy) or 1
+                    return (bx, by,
+                            bx + dx / mag * PIN_LEN, by + dy / mag * PIN_LEN)
+
+                def _angle_of(x, y):
+                    """Screen-angle of (x,y) relative to lock center, in [0,360)."""
+                    a = _math_lp.degrees(_math_lp.atan2(y - LOCK_CY, x - LOCK_CX)) + 90
+                    return a % 360
+
+                def _angular_dist(a, b):
+                    """Shortest signed distance from a to b on a circle."""
+                    d = (b - a + 180) % 360 - 180
+                    return d
+
+                # ── drawing ────────────────────────────────────────────────────
+                def _draw():
+                    canvas.delete("all")
+                    sx = _lp_state.get("shake_offset", 0)
+                    cx = LOCK_CX + sx
+                    cy = LOCK_CY
+
+                    # --- proximity indicator ---
+                    # Compute how close the pin currently is to the sweet spot
+                    # (always, so the player can hunt without tensioning).
+                    _sc   = _lp_state["sweet_center"]
+                    _lr   = _lp_state["lock_rotation"]
+                    _eff  = (_lp_state["pin_angle"] - _lr) % 360
+                    _pdist = abs(_angular_dist(_eff, _sc))   # 0 = dead-on, 180 = furthest
+                    # proximity 0.0 (far) → 1.0 (inside sweet spot)
+                    _prox = max(0.0, 1.0 - (_pdist / (sweet_half * 4)))
+                    _prox = min(1.0, _prox)
+
+                    # Glow ring: radius shrinks and brightens the closer you are.
+                    if _prox > 0.05 and not _lp_state["unlocked"]:
+                        _gr = int(LOCK_R + 32 - _prox * 22)
+                        _ga = int(30 + _prox * 140)    # alpha-simulated via intensity
+                        _gcol = f"#{_ga:02x}{min(0xff, _ga + 0x30):02x}{_ga // 4:02x}"
+                        _gwidth = max(1, int(_prox * 7))
+                        canvas.create_oval(cx - _gr, cy - _gr, cx + _gr, cy + _gr,
+                                            outline = _gcol, width = _gwidth)
+
+                    # --- lock body ---
+                    # sweet-spot arc (only shown faintly when tensioning)
+                    if _lp_state["tensioning"] and not _lp_state["unlocked"]:
+                        sc  = _lp_state["sweet_center"]
+                        lr  = _lp_state["lock_rotation"]
+                        vis_sc = (sc - lr) % 360  # where it appears on the face now
+                        arc_start = vis_sc - sweet_half - 90
+                        arc_extent = sweet_half * 2
+                        canvas.create_arc(
+                            cx - LOCK_R, cy - LOCK_R, cx + LOCK_R, cy + LOCK_R,
+                            start = arc_start, extent = arc_extent,
+                            outline = "#2a5a2a", width = 8, style = "arc"
+                        )
+
+                    # outer ring — tint toward green when very close
+                    _ring_col = accent_col
+                    if _prox > 0.7 and not _lp_state["unlocked"]:
+                        _ring_col = "#55ff55"
+                    elif _prox > 0.35 and not _lp_state["unlocked"]:
+                        _ring_col = "#aacc44"
+                    canvas.create_oval(cx - LOCK_R, cy - LOCK_R,
+                                        cx + LOCK_R, cy + LOCK_R,
+                                        outline = _ring_col, width = 4, fill = "#1e1e1e")
+
+                    # notch marks every 30°
+                    for nm in range(12):
+                        na = _deg_to_rad(nm * 30 - 90)
+                        nx0 = cx + (LOCK_R - 12) * _math_lp.cos(na)
+                        ny0 = cy + (LOCK_R - 12) * _math_lp.sin(na)
+                        nx1 = cx + LOCK_R       * _math_lp.cos(na)
+                        ny1 = cy + LOCK_R       * _math_lp.sin(na)
+                        canvas.create_line(nx0, ny0, nx1, ny1, fill = "#444444", width = 2)
+
+                    # rotation indicator line (rotates with lock_rotation)
+                    lr_a = _deg_to_rad(_lp_state["lock_rotation"] - 90)
+                    canvas.create_line(
+                        cx, cy,
+                        cx + (LOCK_R - 20) * _math_lp.cos(lr_a),
+                        cy + (LOCK_R - 20) * _math_lp.sin(lr_a),
+                        fill = "#666666", width = 3
+                    )
+
+                    # inner keyhole
+                    canvas.create_oval(cx - 22, cy - 22, cx + 22, cy + 22,
+                                        outline = "#555555", width = 2, fill = "#111111")
+                    canvas.create_rectangle(cx - 10, cy, cx + 10, cy + 28,
+                                            fill = "#111111", outline = "#555555", width = 2)
+
+                    # lock_rotation progress arc (green sector behind the ring)
+                    if _lp_state["lock_rotation"] > 1:
+                        canvas.create_arc(
+                            cx - LOCK_R + 6, cy - LOCK_R + 6,
+                            cx + LOCK_R - 6, cy + LOCK_R - 6,
+                            start = 90, extent = min(359.9, _lp_state["lock_rotation"]),
+                            outline = "#225522", width = 4, style = "arc"
+                        )
+
+                    # --- pin health bar ---
+                    bar_x, bar_y, bar_w, bar_h = cx - 60, cy + LOCK_R + 14, 120, 10
+                    canvas.create_rectangle(bar_x, bar_y, bar_x + bar_w, bar_y + bar_h,
+                                            fill = "#333333", outline = "#555555")
+                    php = max(0.0, _lp_state["pin_hp"])
+                    hp_col = "#55ff55" if php > 0.5 else ("#ffaa33" if php > 0.25 else "#ff4444")
+                    canvas.create_rectangle(bar_x, bar_y,
+                                            bar_x + int(bar_w * php), bar_y + bar_h,
+                                            fill = hp_col, outline = "")
+                    canvas.create_text(bar_x + bar_w // 2, bar_y + bar_h + 12,
+                                        text = "PIN INTEGRITY",
+                                        fill = "#666666", font = ("Consolas", 8))
+
+                    # --- bobby pin ---
+                    pa = _lp_state["pin_angle"]
+                    bx0, by0, bx1, by1 = _pin_tip_pos(pa)
+                    pin_col = hp_col
+                    canvas.create_line(bx0, by0, bx1, by1,
+                                        fill = pin_col, width = PIN_THICK,
+                                        capstyle = "round")
+                    # small circle at base of pin — glows green when in sweet spot
+                    _base_col = "#55ff55" if _pdist <= sweet_half else pin_col
+                    canvas.create_oval(bx0 - 5, by0 - 5, bx0 + 5, by0 + 5,
+                                        fill = _base_col, outline = "")
+
+                    # proximity distance label below the pin
+                    if not _lp_state["unlocked"] and not _lp_state["failed"]:
+                        if _pdist <= sweet_half:
+                            _prox_text = "● SWEET SPOT"
+                            _prox_tcol = "#55ff55"
+                        elif _prox > 0.5:
+                            _prox_text = "Getting warmer..."
+                            _prox_tcol = "#aacc44"
+                        elif _prox > 0.2:
+                            _prox_text = "Cold..."
+                            _prox_tcol = "#cc8833"
+                        else:
+                            _prox_text = "Very cold"
+                            _prox_tcol = "#886655"
+                        canvas.create_text(LOCK_CX, LOCK_CY + LOCK_R + 52,
+                                            text = _prox_text, fill = _prox_tcol,
+                                            font = ("Consolas", 10, "bold"))
+
+                    # tension wrench visual (L-shaped bracket at bottom)
+                    tw_col = "#ffcc44" if _lp_state["tensioning"] else "#666666"
+                    canvas.create_line(cx - 8, cy + LOCK_R - 8,
+                                        cx - 8, cy + LOCK_R + 6,
+                                        cx + 24, cy + LOCK_R + 6,
+                                        fill = tw_col, width = 5, joinstyle = "round")
+
+                    # status overlay
+                    if _lp_state["unlocked"]:
+                        canvas.create_text(LOCK_CX, CANVAS_H // 2 - 20,
+                                            text = "UNLOCKED", fill = "#55ff55",
+                                            font = ("Consolas", 28, "bold"))
+                    elif _lp_state["failed"]:
+                        canvas.create_text(LOCK_CX, CANVAS_H // 2 - 20,
+                                            text = "JAMMED", fill = "#ff4444",
+                                            font = ("Consolas", 28, "bold"))
+
+                    # picks remaining
+                    picks_label.config(
+                        text = f"Picks: {'●' * _lp_state['picks_left']}{'○' * (max_picks - _lp_state['picks_left'])}"
+                    )
+
+                # ── tension / animation loop ────────────────────────────────────
+                _tension_job = [None]
+
+                def _tension_tick():
+                    if _lp_state["unlocked"] or _lp_state["failed"]:
+                        return
+                    if not _lp_state["tensioning"]:
+                        return
+
+                    sc  = _lp_state["sweet_center"]
+                    pa  = _lp_state["pin_angle"]
+                    lr  = _lp_state["lock_rotation"]
+                    # effective pin position relative to lock face (lock face rotates)
+                    effective_pa = (pa - lr) % 360
+                    dist = abs(_angular_dist(effective_pa, sc))
+
+                    if dist <= sweet_half:
+                        # In sweet spot: rotate lock; loop pick.wav while here
+                        _pick_sound_start()
+                        turn_rate = 18.0 * (1.0 - dist / sweet_half)  # deg per tick
+                        _lp_state["lock_rotation"] = lr + turn_rate
+                        if _lp_state["lock_rotation"] >= 360:
+                            _lp_state["lock_rotation"] = 360
+                            _lp_state["unlocked"] = True
+                            _draw()
+                            _lp_sound("unlock")
+                            win.after(900, lambda: (win.grab_release(), win.destroy(), on_success()))
+                            return
+                    else:
+                        # Wrong position: drain pin HP; stop the pick sound
+                        _pick_sound_stop()
+                        overshot = (dist - sweet_half) / 180.0
+                        drain = 0.022 * resistance * (1.0 + min(overshot, 1.0))
+                        _lp_state["pin_hp"] -= drain
+                        if _lp_state["pin_hp"] <= 0:
+                            _lp_state["pin_hp"] = 0
+                            _lp_state["picks_left"] -= 1
+                            _lp_sound("snap")
+                            _lp_state["tensioning"] = False
+                            # reset pin to top, reassign sweet spot
+                            _lp_state["pin_angle"]    = 0.0
+                            _lp_state["pin_hp"]       = 1.0
+                            _lp_state["lock_rotation"] = max(0.0, _lp_state["lock_rotation"] - 45)
+                            _lp_state["sweet_center"] = random.uniform(0.0, 360.0)
+                            _draw()
+                            if _lp_state["picks_left"] <= 0:
+                                _lp_state["failed"] = True
+                                _draw()
+                                win.after(1200, lambda: win.destroy())
+                            else:
+                                # quick shake animation
+                                _shake(4)
+                            return
+
+                    _draw()
+                    _tension_job[0] = win.after(60, _tension_tick)
+
+                def _shake(n):
+                    if n <= 0:
+                        _lp_state["shake_offset"] = 0
+                        _draw()
+                        return
+                    _lp_state["shake_offset"] = random.choice([-6, 6])
+                    _draw()
+                    win.after(55, lambda: _shake(n - 1))
+
+                def _start_tension(evt = None):
+                    if _lp_state["unlocked"] or _lp_state["failed"] or _lp_state["picks_left"] <= 0:
+                        return
+                    if _lp_state["tensioning"]:
+                        return
+                    _lp_state["tensioning"] = True
+                    _draw()
+                    _tension_tick()
+
+                def _stop_tension(evt = None):
+                    _lp_state["tensioning"] = False
+                    _pick_sound_stop()
+                    if _tension_job[0]:
+                        try:
+                            win.after_cancel(_tension_job[0])
+                        except Exception:
+                            pass
+                        _tension_job[0] = None
+                    _draw()
+
+                # ── mouse / keyboard input ─────────────────────────────────────
+                def _on_mouse_press(evt):
+                    if _lp_state["unlocked"] or _lp_state["failed"]:
+                        return
+                    a = _angle_of(evt.x, evt.y)
+                    dx = evt.x - LOCK_CX
+                    dy = evt.y - LOCK_CY
+                    dist = _math_lp.sqrt(dx * dx + dy * dy)
+                    if abs(dist - PIN_ORBIT_R) <= 28:
+                        _lp_state["dragging"] = True
+                        _lp_state["drag_last_angle"] = a
+                        _lp_state["pin_angle"] = a
+                        _draw()
+
+                def _on_mouse_drag(evt):
+                    if not _lp_state["dragging"]:
+                        return
+                    if _lp_state["unlocked"] or _lp_state["failed"]:
+                        return
+                    a = _angle_of(evt.x, evt.y)
+                    _lp_state["pin_angle"] = a
+                    _lp_state["drag_last_angle"] = a
+                    _draw()
+
+                def _on_mouse_release(evt):
+                    _lp_state["dragging"] = False
+
+                canvas.bind("<ButtonPress-1>",   _on_mouse_press)
+                canvas.bind("<B1-Motion>",       _on_mouse_drag)
+                canvas.bind("<ButtonRelease-1>", _on_mouse_release)
+                win.bind("<KeyPress-space>",   _start_tension)
+                win.bind("<KeyRelease-space>", _stop_tension)
+                win.bind("<KeyPress-Return>",   _start_tension)
+                win.bind("<KeyRelease-Return>", _stop_tension)
+
+                # Tension wrench button
+                tw_btn = customtkinter.CTkButton(
+                    info_frame, text = "Hold: Tension Wrench",
+                    width = 180,
+                    fg_color = "#444400", hover_color = "#666600",
+                    font = customtkinter.CTkFont(family = "Consolas", size = 11)
+                )
+                tw_btn.pack(side = "right", padx = 8, pady = 4)
+                tw_btn.bind("<ButtonPress-1>",   _start_tension)
+                tw_btn.bind("<ButtonRelease-1>", _stop_tension)
+
+                win.focus_set()
+                _draw()
+
             def loot_crate(crate, crate_file_path = None):
 
                 try:
 
                     if crate.get("locked", False):
-                        logging.info(f"Crate '{crate.get('name')}' is locked but lockpicking not implemented yet")
-                        self._popup_show_info("Locked", "This crate is locked.Lockpicking not implemented yet.", sound = "error")
+                        def _on_unlock_success():
+                            crate["locked"] = False
+                            if crate_file_path and os.path.exists(crate_file_path):
+                                try:
+                                    updated = {k: v for k, v in crate.items() if k != "_file_path"}
+                                    updated["locked"] = False
+                                    _signed_json_write(crate_file_path, updated, portable = True)
+                                except Exception:
+                                    pass
+                            loot_crate(crate, crate_file_path)
+                        _open_lockpick_minigame(crate, crate_file_path, _on_unlock_success)
                         return
 
                     save_path = os.path.join(saves_folder or "", (currentsave or "")+".sldsv")
@@ -7308,6 +8100,62 @@ class App:
                                 crate.pop("loot_table", None)
                             except Exception as e:
                                 logging.error(f"Failed to save generated items to crate file: {e}")
+
+                    # ── opensound ────────────────────────────────────────────
+                    try:
+                        opensound = crate.get("opensound")
+                        logging.debug("Crate opensound field: %r", opensound)
+                        _crate_snd_base = os.path.join(os.path.dirname(__file__), "sounds", "misc", "crate")
+                        def _play_crate_snd(snd, block=False):
+                            fname = snd if str(snd).endswith((".ogg", ".wav")) else str(snd) + ".ogg"
+                            path = os.path.join(_crate_snd_base, fname)
+                            logging.debug("Playing crate sound: %s (exists=%s)", path, os.path.exists(path))
+                            if os.path.exists(path):
+                                try:
+                                    sound = pygame.mixer.Sound(path)
+                                    channel = sound.play()
+                                    if block and channel:
+                                        while channel.get_busy():
+                                            time.sleep(0.05)
+                                except Exception:
+                                    logging.exception("Failed to play crate sound: %s", path)
+                            else:
+                                logging.warning("Crate opensound not found: %s", path)
+                        if isinstance(opensound, str) and opensound:
+                            _play_crate_snd(opensound)
+                        elif isinstance(opensound, list) and opensound:
+                            # list format: ["snd1.ogg", "snd2.ogg", {"type": "OR"}]
+                            sound_type = "OR"
+                            sounds = []
+                            for item in opensound:
+                                if isinstance(item, dict) and "type" in item:
+                                    sound_type = str(item["type"]).upper()
+                                elif isinstance(item, str) and item:
+                                    sounds.append(item)
+                            if sounds:
+                                if sound_type == "AND":
+                                    for snd in sounds:
+                                        _play_crate_snd(snd, block=True)
+                                else:
+                                    _play_crate_snd(random.choice(sounds))
+                            else:
+                                logging.debug("No opensound on this crate (value: %r)", opensound)
+                        elif isinstance(opensound, dict):
+                            sound_type = str(opensound.get("type", "OR")).upper()
+                            sounds = opensound.get("sounds", [])
+                            if isinstance(sounds, list) and sounds:
+                                if sound_type == "AND":
+                                    for snd in sounds:
+                                        if snd:
+                                            _play_crate_snd(snd, block=True)
+                                else:
+                                    chosen = random.choice(sounds)
+                                    if chosen:
+                                        _play_crate_snd(chosen)
+                        else:
+                            logging.debug("No opensound on this crate (value: %r)", opensound)
+                    except Exception:
+                        logging.exception("Failed to play crate opensound")
 
                     self._open_loot_selection_menu(crate, available_items, save_data, save_path, crate_file_path, table_data)
 
@@ -7715,12 +8563,23 @@ class App:
         max_slots = random.randint(1, len(empty_slots))
         applied = 0
         override_calibers = []
+        blocked_slots = set()  # slot names blocked by already-installed attachments
+
+        def _collect_conflicts(conflicts_val):
+            if isinstance(conflicts_val, list):
+                return {str(c).strip().lower() for c in conflicts_val if c}
+            if isinstance(conflicts_val, str) and conflicts_val.strip():
+                return {conflicts_val.strip().lower()}
+            return set()
 
         for accessory in empty_slots:
             if applied >= max_slots:
                 break
 
             slot_name = accessory.get("slot")
+            if str(slot_name or "").strip().lower() in blocked_slots:
+                continue
+
             compatible = []
             for attachment_item in attachments_table:
                 if not isinstance(attachment_item, dict):
@@ -7740,6 +8599,10 @@ class App:
             _add_attachment_subslots_to_weapon(firearm_item, accessory, attachment_copy)
             override_calibers.extend(self._extract_override_calibers(attachment_copy))
             applied += 1
+
+            # Mark any slots this accessory slot or the installed attachment conflicts with
+            blocked_slots.update(_collect_conflicts(accessory.get("conflicts_with")))
+            blocked_slots.update(_collect_conflicts(attachment_copy.get("conflicts_with")))
 
         if override_calibers:
             self._sync_firearm_parts_to_caliber(firearm_item, table_data, override_calibers)
@@ -8519,9 +9382,69 @@ class App:
                         logging.debug(f"Loaded firearm {item.get('name', 'Unknown')} with {mag_copy.get('name')}({rounds_to_load}/{capacity} rounds)")
 
             if item.get("firearm") and item.get("parts"):
-                if table_data and table_data.get("additional_settings", {}).get("hardcore_mode", False) and "rounds_fired" not in item:
-                    item["rounds_fired"] = random.randint(0, 50000)
+                if "rounds_fired" not in item:
+                    # Curve: bias toward moderate use, but with a real chance of
+                    # absurdly high round counts (higher ceiling than shops).
+                    _loot_roll = random.random()
+                    if _loot_roll < 0.55:
+                        item["rounds_fired"] = int(500 + (random.random() ** 1.4) * 9500)
+                    elif _loot_roll < 0.85:
+                        item["rounds_fired"] = int(10000 + (random.random() ** 1.1) * 40000)
+                    elif _loot_roll < 0.97:
+                        item["rounds_fired"] = int(50000 + (random.random() ** 0.9) * 100000)
+                    else:
+                        item["rounds_fired"] = int(150000 + random.random() * 350000)
+
+                # Deep-copy parts so shared table dicts are not mutated between
+                # multiple items of the same type looted in one session.
+                if isinstance(item.get("parts"), list):
+                    item["parts"] = json.loads(json.dumps(item["parts"]))
+
                 _randomize_part_durability(item)
+
+                # Broken-part replacement: heavily-used guns may have parts that
+                # have completely worn out and been swapped with mismatched spares.
+                _rf = int(item.get("rounds_fired", 0) or 0)
+                if _rf >= 50000 and table_data:
+                    if _rf < 100000:
+                        _break_chance = 0.04
+                    elif _rf < 200000:
+                        _break_chance = 0.12
+                    else:
+                        _break_chance = 0.28
+
+                    # Build a flat list of candidate replacement parts from all tables.
+                    _replacement_pool = {}  # slot/type key -> list of candidate dicts
+                    for _tbl_list in table_data.get("tables", {}).values():
+                        if not isinstance(_tbl_list, list):
+                            continue
+                        for _cand in _tbl_list:
+                            if not isinstance(_cand, dict) or _cand.get("firearm"):
+                                continue
+                            _cand_slot = str(_cand.get("slot") or "").strip().lower()
+                            _cand_type = str(_cand.get("type") or "").strip().lower()
+                            for _key in (_cand_slot, _cand_type):
+                                if _key:
+                                    _replacement_pool.setdefault(_key, []).append(_cand)
+
+                    for _p in item["parts"]:
+                        if not isinstance(_p, dict):
+                            continue
+                        if random.random() >= _break_chance:
+                            continue
+                        # Mark broken.
+                        _p["current_durability"] = 0.0
+                        # Find a random replacement matching this slot or type.
+                        _p_slot = str(_p.get("slot") or "").strip().lower()
+                        _p_type = str(_p.get("type") or "").strip().lower()
+                        _candidates = _replacement_pool.get(_p_slot) or _replacement_pool.get(_p_type)
+                        if _candidates:
+                            _replacement = json.loads(json.dumps(random.choice(_candidates)))
+                            _p["current"] = _replacement
+                            # Give the replacement a random low-to-medium durability.
+                            _p["current_durability"] = random.uniform(
+                                PART_DURABILITY_MAX * 0.08, PART_DURABILITY_MAX * 0.42
+                            )
 
             if item.get("spring_durability") == "set_by_looting":
                 item["spring_durability"] = random.uniform(100, PART_DURABILITY_MAX)
@@ -8798,10 +9721,486 @@ class App:
 
             weight_label.configure(text = weight_text)
 
+        # ── firearm inspect popup ──────────────────────────────────────────
+        def _open_firearm_inspect(gun):
+            import copy as _ic
+            import copy as _ic_deep
+
+            popup = customtkinter.CTkToplevel(self.root)
+            popup.title(f"Inspect: {gun.get('name', 'Firearm')}")
+            popup.transient(self.root)
+            popup.grab_set()
+            self._center_popup_on_window(popup, 500, 540)
+
+            # --- shared durability helper (mirrors _view_parts / manage_attachments) ---
+            def _dur_text(cur_dur, max_dur_field):
+                if cur_dur is None:
+                    return "N/A", "#888888"
+                try:
+                    val = float(cur_dur)
+                except (TypeError, ValueError):
+                    return "Unknown", "#888888"
+                pct = max(0.0, min(100.0, val / PART_DURABILITY_MAX * 100))
+                if val <= 0:
+                    return "Worn Out", "#ff4444"
+                elif pct < 25:
+                    return "Poor", "#ff6644"
+                elif pct < 50:
+                    return "Fair", "#ffaa44"
+                elif pct < 75:
+                    return "Good", "#aacc44"
+                else:
+                    return "Excellent", "#44cc44"
+
+            def _resolve_cur(p):
+                """Return the resolved current-part dict from a part slot entry."""
+                cur = p.get("current")
+                if cur is None:
+                    return None
+                if isinstance(cur, dict) and "name" in cur:
+                    return cur
+                target_id = None
+                if isinstance(cur, int):
+                    target_id = cur
+                elif isinstance(cur, dict) and "id" in cur:
+                    target_id = cur.get("id")
+                if target_id is None:
+                    return cur if isinstance(cur, dict) else None
+                if isinstance(table_data, dict):
+                    for _tbl in table_data.get("tables", {}).values():
+                        if not isinstance(_tbl, list):
+                            continue
+                        for _it in _tbl:
+                            if isinstance(_it, dict) and _it.get("id") == target_id:
+                                resolved = _ic_deep.deepcopy(_it)
+                                if isinstance(cur, dict):
+                                    for k, v in cur.items():
+                                        if k != "id":
+                                            resolved[k] = v
+                                p["current"] = resolved
+                                return resolved
+                return cur if isinstance(cur, dict) else None
+
+            # ── tab bar ────────────────────────────────────────────────────────
+            tab_view = customtkinter.CTkTabview(popup, width = 480, height = 480)
+            tab_view.pack(fill = "both", expand = True, padx = 8, pady = 8)
+
+            tab_parts   = tab_view.add("Parts")
+            tab_mag     = tab_view.add("Magazine")
+            tab_attach  = tab_view.add("Attachments")
+
+            # ── PARTS tab ─────────────────────────────────────────────────────
+            parts = gun.get("parts") or []
+            parts_scroll = customtkinter.CTkScrollableFrame(tab_parts, fg_color = "transparent")
+            parts_scroll.pack(fill = "both", expand = True, padx = 4, pady = 4)
+
+            if not parts:
+                customtkinter.CTkLabel(parts_scroll, text = "No part data.",
+                                       text_color = "#888888").pack(pady = 20)
+            else:
+                rf = int(gun.get("rounds_fired", 0) or 0)
+                rounds_label = customtkinter.CTkLabel(
+                    parts_scroll,
+                    text = f"Rounds fired: {rf:,}",
+                    font = customtkinter.CTkFont(size = 11),
+                    text_color = "#aaaaaa"
+                )
+                rounds_label.pack(anchor = "w", padx = 8, pady = (4, 8))
+
+                for p in parts:
+                    if not isinstance(p, dict):
+                        continue
+                    resolved = _resolve_cur(p)
+                    part_name = (resolved.get("name") if resolved else None) or p.get("name") or p.get("type", "Unknown")
+                    slot_label = (p.get("type") or "").replace("_", " ").title() or part_name
+
+                    row = customtkinter.CTkFrame(parts_scroll)
+                    row.pack(fill = "x", padx = 4, pady = 3)
+                    row.grid_columnconfigure(1, weight = 1)
+
+                    customtkinter.CTkLabel(
+                        row, text = slot_label,
+                        font = customtkinter.CTkFont(size = 11, weight = "bold"),
+                        width = 140, anchor = "w"
+                    ).grid(row = 0, column = 0, padx = (8, 4), pady = 4, sticky = "w")
+
+                    customtkinter.CTkLabel(
+                        row, text = part_name,
+                        font = customtkinter.CTkFont(size = 11),
+                        anchor = "w"
+                    ).grid(row = 0, column = 1, padx = 4, pady = 4, sticky = "w")
+
+                    cur_dur = p.get("current_durability")
+                    if cur_dur is None and resolved:
+                        cur_dur = resolved.get("current_durability")
+                    dur_text, dur_col = _dur_text(cur_dur, p.get("durability"))
+                    customtkinter.CTkLabel(
+                        row, text = dur_text,
+                        font = customtkinter.CTkFont(size = 10),
+                        text_color = dur_col, width = 90, anchor = "e"
+                    ).grid(row = 0, column = 2, padx = (4, 8), pady = 4, sticky = "e")
+
+            # ── MAGAZINE tab ──────────────────────────────────────────────────
+            import tkinter as _tk_insp
+            import threading as _thr_insp
+
+            loaded = gun.get("loaded")
+            _mag_state = {'removed': False, 'animating': False, 'stoggle': 0}
+
+            _mag_outer = customtkinter.CTkFrame(tab_mag, fg_color = "transparent")
+            _mag_outer.pack(fill = "both", expand = True)
+
+            def _play_mag_sound_bg(action):
+                def _do():
+                    try:
+                        self._play_weapon_action_sound(gun, action)
+                    except Exception:
+                        pass
+                _thr_insp.Thread(target = _do, daemon = True).start()
+
+            def _build_mag_view():
+                for w in _mag_outer.winfo_children():
+                    w.destroy()
+
+                if not loaded:
+                    customtkinter.CTkLabel(_mag_outer, text = "No magazine loaded.",
+                                           text_color = "#888888").pack(pady = 20)
+                    return
+
+                if not _mag_state['removed']:
+                    # ── sealed state ───────────────────────────────────────
+                    cap_val = loaded.get("capacity", "?")
+                    n_val   = len(loaded.get("rounds", []))
+                    customtkinter.CTkLabel(
+                        _mag_outer,
+                        text = f"Loaded: {loaded.get('name', 'Magazine')}",
+                        font = customtkinter.CTkFont(size = 13, weight = "bold")
+                    ).pack(anchor = "w", padx = 10, pady = (10, 2))
+                    customtkinter.CTkLabel(
+                        _mag_outer,
+                        text = f"Rounds: {n_val} / {cap_val}",
+                        font = customtkinter.CTkFont(size = 11),
+                        text_color = "#aaaaaa"
+                    ).pack(anchor = "w", padx = 10, pady = 2)
+
+                    def _remove_mag():
+                        _mag_state['removed'] = True
+                        _play_mag_sound_bg("magout")
+                        popup.after(250, _build_mag_view)
+
+                    customtkinter.CTkButton(
+                        _mag_outer, text = "Remove Magazine to Inspect",
+                        command = _remove_mag, width = 220,
+                        fg_color = "#553322", hover_color = "#774433"
+                    ).pack(pady = (10, 4), padx = 10, anchor = "w")
+                    customtkinter.CTkLabel(
+                        _mag_outer,
+                        text = "Remove the magazine to view and unload its rounds.",
+                        font = customtkinter.CTkFont(size = 10),
+                        text_color = "#666666"
+                    ).pack(anchor = "w", padx = 10)
+
+                else:
+                    # ── removed state: canvas mag viewer ───────────────────
+                    mag = loaded
+                    cap = int(mag.get("capacity", 0) or 0) or 30
+                    existing = mag.setdefault("rounds", [])  # live reference
+
+                    # --- tip-colour lookup (same as unload editor) ---
+                    vtips_ins = {}
+                    try:
+                        _ammo_tbl = self._get_ammo_table_data()
+                        mag_cal = mag.get("caliber")
+                        mcal_str = mag_cal if isinstance(mag_cal, str) else (
+                            mag_cal[0] if isinstance(mag_cal, list) and mag_cal else None)
+                        for _atbl in _ammo_tbl:
+                            _ac = _atbl.get("caliber")
+                            _match = (_ac == mcal_str) if isinstance(_ac, str) else (
+                                mcal_str in _ac if isinstance(_ac, list) and mcal_str else False)
+                            if _match:
+                                for _av in _atbl.get("variants", []):
+                                    _atn = _av.get("name"); _att = _av.get("tip")
+                                    if _atn and _att and isinstance(_att, str) and _att.startswith("#"):
+                                        vtips_ins[_atn] = _att
+                                break
+                    except Exception:
+                        pass
+
+                    vset = {(r.get("variant") or r.get("name") or "Unknown")
+                            for r in existing if isinstance(r, dict)}
+                    cpal = ["#c4a032", "#b87333", "#a0a0a0", "#d4af37",
+                            "#8b4513", "#cd7f32", "#e8c872", "#a08060"]
+                    vcols_ins = {v: cpal[i % len(cpal)] for i, v in enumerate(sorted(vset))}
+
+                    def _utip(vn):
+                        return vtips_ins.get(vn, "#e0c060")
+
+                    def _utip_ol(vn):
+                        tc = vtips_ins.get(vn)
+                        if not tc:
+                            return "#aa8820"
+                        try:
+                            r2 = int(tc[1:3], 16); g2 = int(tc[3:5], 16); b2 = int(tc[5:7], 16)
+                            return f"#{max(0, r2-40):02x}{max(0, g2-40):02x}{max(0, b2-40):02x}"
+                        except Exception:
+                            return "#aa8820"
+
+                    def _utip_r(r):
+                        return _utip(r.get("variant") or r.get("name") or "Unknown") if isinstance(r, dict) else "#e0c060"
+
+                    def _utip_ol_r(r):
+                        return _utip_ol(r.get("variant") or r.get("name") or "Unknown") if isinstance(r, dict) else "#aa8820"
+
+                    SLOT_H = 28; SLOT_W = 260; ox_m = 20; SPRING_H = 14
+                    canvas_h = 30 + cap * SLOT_H + SPRING_H + 8
+                    canvas_w = SLOT_W + 44
+
+                    # header row: name + round count label + re-insert button
+                    hdr = customtkinter.CTkFrame(_mag_outer, fg_color = "transparent")
+                    hdr.pack(fill = "x", padx = 6, pady = (6, 2))
+                    customtkinter.CTkLabel(
+                        hdr, text = mag.get("name", "Magazine"),
+                        font = customtkinter.CTkFont(size = 12, weight = "bold")
+                    ).pack(side = "left", padx = 6)
+                    _cnt_lbl = customtkinter.CTkLabel(
+                        hdr,
+                        text = f"{len(existing)}/{cap} rounds",
+                        font = customtkinter.CTkFont(size = 11),
+                        text_color = "#aaaaaa"
+                    )
+                    _cnt_lbl.pack(side = "left", padx = 6)
+
+                    def _reinstate():
+                        _mag_state['removed'] = False
+                        _mag_state['animating'] = False
+                        _play_mag_sound_bg("magin")
+                        popup.after(250, _build_mag_view)
+
+                    customtkinter.CTkButton(
+                        hdr, text = "Re-insert Magazine",
+                        command = _reinstate, width = 165, height = 26,
+                        font = customtkinter.CTkFont(size = 11),
+                        fg_color = "#225522", hover_color = "#337733"
+                    ).pack(side = "right", padx = 6)
+
+                    # canvas container
+                    canvas_container = _tk_insp.Frame(_mag_outer, bg = "#1a1a1a")
+                    canvas_container.pack(fill = "both", expand = True, padx = 6, pady = 4)
+
+                    effective_h = min(canvas_h, 360)
+                    insp_canvas = _tk_insp.Canvas(
+                        canvas_container, width = canvas_w, height = effective_h,
+                        bg = "#1a1a1a", highlightthickness = 1, highlightbackground = "#555555"
+                    )
+                    if canvas_h > 360:
+                        _sc = _tk_insp.Scrollbar(canvas_container, orient = "vertical",
+                                                  command = insp_canvas.yview)
+                        _sc.pack(side = "right", fill = "y")
+                        insp_canvas.configure(yscrollcommand = _sc.set,
+                                               scrollregion = (0, 0, canvas_w, canvas_h))
+                    insp_canvas.pack(side = "left", fill = "both", expand = True)
+
+                    MAG_TOP = 30
+
+                    def _draw_mag_canvas():
+                        insp_canvas.delete("mag")
+                        oy = MAG_TOP
+                        insp_canvas.create_text(
+                            canvas_w // 2, 12,
+                            text = "\u2191 CLICK ROUND TO EJECT \u2191",
+                            fill = "#888888", font = ("Consolas", 9), tags = "mag"
+                        )
+                        insp_canvas.create_rectangle(
+                            ox_m, oy, ox_m + SLOT_W, oy + cap * SLOT_H,
+                            outline = "#888888", width = 2, tags = "mag"
+                        )
+                        insp_canvas.create_line(ox_m, oy, ox_m - 15, oy - 8,
+                                                fill = "#888888", width = 2, tags = "mag")
+                        insp_canvas.create_line(ox_m + SLOT_W, oy, ox_m + SLOT_W + 15, oy - 8,
+                                                fill = "#888888", width = 2, tags = "mag")
+                        for i in range(cap):
+                            sy = oy + i * SLOT_H
+                            if i > 0:
+                                insp_canvas.create_line(ox_m, sy, ox_m + SLOT_W, sy,
+                                                        fill = "#444444", dash = (2, 2), tags = "mag")
+                            if i < len(existing):
+                                r = existing[i]
+                                vn = (r.get("variant") or r.get("name") or "Unknown") if isinstance(r, dict) else "Unknown"
+                                c = vcols_ins.get(vn, "#c4a032")
+                                insp_canvas.create_rectangle(
+                                    ox_m + 2, sy + 2, ox_m + SLOT_W - 2, sy + SLOT_H - 2,
+                                    fill = c, outline = "#222222", tags = "mag"
+                                )
+                                insp_canvas.create_oval(
+                                    ox_m + 4, sy + 4, ox_m + 22, sy + SLOT_H - 4,
+                                    fill = _utip_r(r), outline = _utip_ol_r(r), tags = "mag"
+                                )
+                                insp_canvas.create_text(
+                                    ox_m + SLOT_W // 2 + 10, sy + SLOT_H // 2,
+                                    text = vn, fill = "#1a1a1a",
+                                    font = ("Consolas", 9, "bold"), tags = "mag"
+                                )
+                            else:
+                                insp_canvas.create_text(
+                                    ox_m + SLOT_W // 2, sy + SLOT_H // 2,
+                                    text = "[empty]", fill = "#444444",
+                                    font = ("Consolas", 9), tags = "mag"
+                                )
+                        by = oy + cap * SLOT_H
+                        insp_canvas.create_rectangle(
+                            ox_m, by, ox_m + SLOT_W, by + SPRING_H,
+                            fill = "#555555", outline = "#666666", tags = "mag"
+                        )
+                        insp_canvas.create_text(
+                            ox_m + SLOT_W // 2, by + SPRING_H // 2,
+                            text = "\u25b2 SPRING \u25b2", fill = "#888888",
+                            font = ("Consolas", 8), tags = "mag"
+                        )
+
+                    def _play_eject_sound():
+                        try:
+                            sn = f"bulletinsert{_mag_state['stoggle']}"
+                            _mag_state['stoggle'] = 1 - _mag_state['stoggle']
+                            sound_path = os.path.join("sounds", "firearms", "universal", f"{sn}.ogg")
+                            if os.path.exists(sound_path):
+                                snd = pygame.mixer.Sound(sound_path)
+                                ch = pygame.mixer.find_channel()
+                                if ch:
+                                    ch.play(snd)
+                        except Exception:
+                            pass
+
+                    def _eject_round(idx):
+                        if idx < 0 or idx >= len(existing) or _mag_state['animating']:
+                            return
+                        removed = existing.pop(idx)
+                        try:
+                            save_data.setdefault('hands', {}).setdefault('items', [])
+                            self._add_rounds_to_container(save_data['hands']['items'], [removed])
+                        except Exception:
+                            pass
+                        _play_eject_sound()
+                        _draw_mag_canvas()
+                        _cnt_lbl.configure(text = f"{len(existing)}/{cap} rounds")
+
+                    def _hit_slot(x, y):
+                        oy = MAG_TOP
+                        if x < ox_m or x > ox_m + SLOT_W:
+                            return None
+                        for i in range(len(existing)):
+                            sy = oy + i * SLOT_H
+                            if sy <= y <= sy + SLOT_H:
+                                return i
+                        return None
+
+                    def _animate_eject(idx):
+                        if idx < 0 or idx >= len(existing):
+                            return
+                        _mag_state['animating'] = True
+                        oy = MAG_TOP
+                        r = existing[idx]
+                        vn = (r.get("variant") or r.get("name") or "Unknown") if isinstance(r, dict) else "Unknown"
+                        c = vcols_ins.get(vn, "#c4a032")
+                        sy = oy + idx * SLOT_H
+                        _pri = insp_canvas.create_rectangle(
+                            ox_m + 2, sy + 2, ox_m + SLOT_W - 2, sy + SLOT_H - 2,
+                            fill = c, outline = "#ffffff", width = 2, tags = "popanim"
+                        )
+                        _poi = insp_canvas.create_oval(
+                            ox_m + 4, sy + 4, ox_m + 22, sy + SLOT_H - 4,
+                            fill = _utip_r(r), outline = _utip_ol_r(r), tags = "popanim"
+                        )
+                        _pti = insp_canvas.create_text(
+                            ox_m + SLOT_W // 2 + 10, sy + SLOT_H // 2,
+                            text = vn, fill = "#1a1a1a",
+                            font = ("Consolas", 9, "bold"), tags = "popanim"
+                        )
+                        target_y = oy - SLOT_H - 10
+                        steps = 8
+                        def _step(s):
+                            if s >= steps:
+                                insp_canvas.delete("popanim")
+                                _mag_state['animating'] = False
+                                _eject_round(idx)
+                                return
+                            frac = (s + 1) / steps
+                            ny = sy + (target_y - sy) * frac * frac
+                            insp_canvas.coords(_pri, ox_m + 2, ny + 2, ox_m + SLOT_W - 2, ny + SLOT_H - 2)
+                            insp_canvas.coords(_poi, ox_m + 4, ny + 4, ox_m + 22, ny + SLOT_H - 4)
+                            insp_canvas.coords(_pti, ox_m + SLOT_W // 2 + 10, ny + SLOT_H // 2)
+                            popup.after(20, lambda: _step(s + 1))
+                        _step(0)
+
+                    def _on_canvas_click(event):
+                        if _mag_state['animating']:
+                            return
+                        idx = _hit_slot(event.x, event.y)
+                        if idx is not None:
+                            _animate_eject(idx)
+
+                    insp_canvas.bind("<Button-1>", _on_canvas_click)
+                    _draw_mag_canvas()
+
+            _build_mag_view()
+
+            # ── ATTACHMENTS tab ───────────────────────────────────────────────
+            attach_frame = customtkinter.CTkScrollableFrame(tab_attach, fg_color = "transparent")
+            attach_frame.pack(fill = "both", expand = True, padx = 4, pady = 4)
+
+            accessories = gun.get("accessories") or []
+            if not accessories:
+                customtkinter.CTkLabel(attach_frame, text = "No attachment slots.",
+                                       text_color = "#888888").pack(pady = 20)
+            else:
+                for acc in accessories:
+                    if not isinstance(acc, dict):
+                        continue
+                    slot_name = (acc.get("name") or acc.get("slot") or "Slot").replace("_", " ").title()
+                    cur_attach = acc.get("current")
+                    if isinstance(cur_attach, dict) and "id" in cur_attach and "name" not in cur_attach:
+                        cur_attach = _resolve_cur({"current": cur_attach}) or cur_attach
+
+                    row = customtkinter.CTkFrame(attach_frame)
+                    row.pack(fill = "x", padx = 4, pady = 3)
+                    row.grid_columnconfigure(1, weight = 1)
+
+                    customtkinter.CTkLabel(
+                        row, text = slot_name,
+                        font = customtkinter.CTkFont(size = 11, weight = "bold"),
+                        width = 150, anchor = "w"
+                    ).grid(row = 0, column = 0, padx = (8, 4), pady = 4, sticky = "w")
+
+                    if cur_attach and isinstance(cur_attach, dict):
+                        attach_name = cur_attach.get("name", "Unknown Attachment")
+                        attach_desc = cur_attach.get("description", "")
+                        customtkinter.CTkLabel(
+                            row, text = attach_name,
+                            font = customtkinter.CTkFont(size = 11),
+                            anchor = "w"
+                        ).grid(row = 0, column = 1, padx = 4, pady = 4, sticky = "w")
+                        if attach_desc:
+                            customtkinter.CTkLabel(
+                                row, text = attach_desc,
+                                font = customtkinter.CTkFont(size = 9),
+                                text_color = "#888888",
+                                wraplength = 260, anchor = "w"
+                            ).grid(row = 1, column = 1, padx = (4, 8), sticky = "w")
+                    else:
+                        customtkinter.CTkLabel(
+                            row, text = "Empty",
+                            font = customtkinter.CTkFont(size = 11),
+                            text_color = "#555555", anchor = "w"
+                        ).grid(row = 0, column = 1, padx = 4, pady = 4, sticky = "w")
+
+            customtkinter.CTkButton(
+                popup, text = "Close", command = popup.destroy, width = 100
+            ).pack(pady = (0, 8))
+
+        # ── item rows ──────────────────────────────────────────────────────────
         for i, item in enumerate(available_items):
             item_frame = customtkinter.CTkFrame(scroll_frame)
             item_frame.pack(fill = "x", pady = 10, padx = 10)
-            item_frame.grid_columnconfigure(0, weight = 1)
+            item_frame.grid_columnconfigure(1, weight = 1)
 
             checkbox = customtkinter.CTkCheckBox(
             item_frame,
@@ -8826,6 +10225,19 @@ class App:
             )
             item_label.grid(row = 0, column = 1, sticky = "ew", padx = 10)
 
+            if item.get("firearm"):
+                _inspect_item = item
+                customtkinter.CTkButton(
+                    item_frame,
+                    text = "Inspect",
+                    width = 72,
+                    height = 26,
+                    font = customtkinter.CTkFont(size = 11),
+                    fg_color = "#2a3a4a",
+                    hover_color = "#3a5a6a",
+                    command = lambda g = _inspect_item: _open_firearm_inspect(g)
+                ).grid(row = 0, column = 2, padx = (4, 6), sticky = "e")
+
             if item.get("description"):
                 desc_label = customtkinter.CTkLabel(
                 item_frame,
@@ -8836,7 +10248,7 @@ class App:
                 justify = "left",
                 anchor = "w"
                 )
-                desc_label.grid(row = 1, column = 0, columnspan = 2, sticky = "ew", padx = 10, pady =(5, 0))
+                desc_label.grid(row = 1, column = 0, columnspan = 3, sticky = "ew", padx = 10, pady =(5, 0))
 
         weight_frame = customtkinter.CTkFrame(main_frame)
         weight_frame.pack(fill = "x", padx = 20, pady = 10)
@@ -9010,6 +10422,13 @@ class App:
             armories =[s for s in stores if s.get("type")=="armory"]
             regular_stores =[s for s in stores if s.get("type")=="store"]
             casinos =[s for s in stores if s.get("type")=="casino"]
+            ammo_suppliers =[s for s in stores if s.get("type")=="ammo_supplier"]
+
+            # Deliver any due orders before showing the UI
+            try:
+                self._check_and_deliver_orders()
+            except Exception:
+                logging.exception("Failed to run order delivery check")
 
             if armories:
                 armory_section = customtkinter.CTkLabel(scroll_frame, text = "Armories", font = customtkinter.CTkFont(size = 18, weight = "bold"))
@@ -9088,8 +10507,38 @@ class App:
                     enter_button = self._create_sound_button(store_frame, "Enter Casino", lambda s = store:self._open_casino_interface(s, table_data), width = 200, height = 40, font = customtkinter.CTkFont(size = 12))
                     enter_button.pack(pady = 10, padx = 10)
 
+            if ammo_suppliers:
+                ammo_sup_section = customtkinter.CTkLabel(scroll_frame, text = "Ammo Suppliers", font = customtkinter.CTkFont(size = 18, weight = "bold"))
+                ammo_sup_section.pack(pady =(20, 10), anchor = "w", padx = 10)
+
+                for store in ammo_suppliers:
+                    store_frame = customtkinter.CTkFrame(scroll_frame)
+                    store_frame.pack(fill = "x", pady = 10, padx = 10)
+
+                    name_label = customtkinter.CTkLabel(store_frame, text = store.get("name", "Unknown Ammo Supplier"), font = customtkinter.CTkFont(size = 14, weight = "bold"))
+                    name_label.pack(anchor = "w", padx = 10, pady =(10, 5))
+
+                    supplier_label = customtkinter.CTkLabel(store_frame, text = f"Supplier: {store.get('shopkeeper', 'Unknown')}", font = customtkinter.CTkFont(size = 11), text_color = "gray")
+                    supplier_label.pack(anchor = "w", padx = 10)
+
+                    if store.get("free_ammo"):
+                        pricing_label = customtkinter.CTkLabel(store_frame, text = "Ammo is free", font = customtkinter.CTkFont(size = 11), text_color = "#44cc44")
+                    else:
+                        prices_cfg = store.get("prices", {})
+                        sell_m = prices_cfg.get("sell", 1.0)
+                        pricing_label = customtkinter.CTkLabel(store_frame, text = f"Sells at {sell_m}x value", font = customtkinter.CTkFont(size = 11), text_color = "orange")
+                    pricing_label.pack(anchor = "w", padx = 10)
+
+                    enter_button = self._create_sound_button(store_frame, "Enter", lambda s = store:self._open_ammo_supplier_interface(s, table_data), width = 200, height = 40, font = customtkinter.CTkFont(size = 12))
+                    enter_button.pack(pady = 10, padx = 10)
+
             market_button = self._create_sound_button(main_frame, "Market Overview", self._open_market_graph, width = 500, height = 40, font = customtkinter.CTkFont(size = 13))
             market_button.pack(pady = (10, 4))
+
+            pending_orders_count = len([o for o in persistentdata.get("pending_orders", []) if o.get("character_save") == (currentsave or "")])
+            orders_btn_text = f"Pending Orders ({pending_orders_count})" if pending_orders_count else "Pending Orders"
+            orders_button = self._create_sound_button(main_frame, orders_btn_text, self._open_orders_popup, width = 500, height = 40, font = customtkinter.CTkFont(size = 13))
+            orders_button.pack(pady = (4, 4))
 
             back_button = self._create_sound_button(main_frame, "Back to Main Menu", lambda:[self._clear_window(), self._build_main_menu()], width = 500, height = 50, font = customtkinter.CTkFont(size = 16))
             back_button.pack(pady = (4, 20))
@@ -10893,24 +12342,39 @@ class App:
                 subcat_buttons = {}
 
                 def _render_subcat_items(name, sub_items, target_frame, scroll_holder):
+                    for _w in target_frame.winfo_children():
+                        try:
+                            _w.destroy()
+                        except Exception:
+                            pass
+
                     sub2cats = {}
                     for it2 in sub_items:
                         s2 = it2.get("armory_subcategory2") or "General"
                         sub2cats.setdefault(s2, []).append(it2)
 
                     if len(sub2cats) <= 1:
-                        sub_title = customtkinter.CTkLabel(target_frame, text = name, font = customtkinter.CTkFont(size = 16, weight = "bold"))
-                        sub_title.pack(pady =(6, 12), anchor = "w", padx = 10)
-                        render_item_list(sub_items, parent = scroll_holder if scroll_holder is not None else target_frame)
-                    else:
-                        target_frame.grid_rowconfigure(0, weight = 1)
-                        target_frame.grid_columnconfigure(0, weight = 0)
-                        target_frame.grid_columnconfigure(1, weight = 1)
+                        try:
+                            _single_scroll = customtkinter.CTkScrollableFrame(target_frame)
+                            _single_scroll.pack(fill = "both", expand = True)
+                        except Exception:
+                            _single_scroll = target_frame
 
-                        sub2_scroll = customtkinter.CTkScrollableFrame(target_frame, width = 150)
+                        sub_title = customtkinter.CTkLabel(_single_scroll, text = name, font = customtkinter.CTkFont(size = 16, weight = "bold"))
+                        sub_title.pack(pady =(6, 12), anchor = "w", padx = 10)
+                        render_item_list(sub_items, parent = _single_scroll)
+                    else:
+                        sub2_layout = customtkinter.CTkFrame(target_frame, fg_color = "transparent")
+                        sub2_layout.pack(fill = "both", expand = True)
+
+                        sub2_layout.grid_rowconfigure(0, weight = 1)
+                        sub2_layout.grid_columnconfigure(0, weight = 0)
+                        sub2_layout.grid_columnconfigure(1, weight = 1)
+
+                        sub2_scroll = customtkinter.CTkScrollableFrame(sub2_layout, width = 150)
                         sub2_scroll.grid(row = 0, column = 0, sticky = "ns", padx =(0, 6))
 
-                        sub2_right = customtkinter.CTkFrame(target_frame)
+                        sub2_right = customtkinter.CTkFrame(sub2_layout)
                         sub2_right.grid(row = 0, column = 1, sticky = "nsew")
 
                         try:
@@ -11235,7 +12699,10 @@ class App:
                     item_copy = item.copy()
                     item_copy.pop("_table_category", None)
                     item_copy = add_subslots_to_item(item_copy)
-                    _set_full_part_durability(item_copy)
+                    if item_copy.get("firearm"):
+                        _set_armory_used_good_weapon_condition(item_copy)
+                    else:
+                        _set_full_part_durability(item_copy)
 
                     try:
                         item_copy["_from_armory"]= store.get("name", "Unknown")
@@ -12023,8 +13490,13 @@ class App:
                     equipped_calibers.add(cal)
 
             mag_system = item.get("magazinesystem")
-            if mag_system:
-                equipped_magazine_systems.add(mag_system)
+            if isinstance(mag_system, str):
+                if mag_system:
+                    equipped_magazine_systems.add(mag_system)
+            elif isinstance(mag_system, list):
+                for ms in mag_system:
+                    if isinstance(ms, str) and ms:
+                        equipped_magazine_systems.add(ms)
 
         for wpn in equipped_weapons:
             for acc in (wpn.get("accessories") or []):
@@ -12048,7 +13520,13 @@ class App:
 
             if item.get("_table_category") == "magazines":
                 mag_system = item.get("magazinesystem")
-                if mag_system in equipped_magazine_systems:
+                item_mag_systems = []
+                if isinstance(mag_system, str):
+                    item_mag_systems = [mag_system]
+                elif isinstance(mag_system, list):
+                    item_mag_systems = [ms for ms in mag_system if isinstance(ms, str) and ms]
+
+                if any(ms in equipped_magazine_systems for ms in item_mag_systems):
                     for cal in calibers:
                         if cal in equipped_calibers:
                             return True
@@ -13555,8 +15033,1305 @@ class App:
         sell_btn = self._create_sound_button(button_frame, "Complete Sale", complete_sale, width = 200, height = 40, font = customtkinter.CTkFont(size = 14))
         sell_btn.pack(side = "left", padx = 10)
 
+        if store.get("can_order_ammo"):
+            order_ammo_btn = self._create_sound_button(
+                button_frame, "Order Ammo",
+                lambda: self._open_order_ammo_dialog(store, table_data),
+                width = 160, height = 40, font = customtkinter.CTkFont(size = 14)
+            )
+            order_ammo_btn.pack(side = "left", padx = 10)
+
         back_btn = self._create_sound_button(button_frame, "Leave Store", leave_store, width = 200, height = 40, font = customtkinter.CTkFont(size = 14))
         back_btn.pack(side = "right", padx = 10)
+
+    # ── Order delivery helpers ──────────────────────────────────────────────
+
+    def _check_and_deliver_orders(self):
+        """Deliver any pending ammo orders whose delivery time has passed for the current character."""
+        try:
+            orders = persistentdata.get("pending_orders", [])
+            if not orders:
+                return
+            now = datetime.now()
+            save_char = currentsave or ""
+            save_path = os.path.join(saves_folder or "", save_char + ".sldsv")
+            if not save_char or not os.path.exists(save_path):
+                return
+            due = [o for o in orders if o.get("character_save") == save_char]
+            due = [o for o in due if datetime.fromisoformat(o["deliver_at"]) <= now]
+            if not due:
+                return
+            save_data = self._load_file(save_char + ".sldsv")
+            if save_data is None:
+                return
+            hands_items = save_data.get("hands", {}).get("items", [])
+            delivered_ids = []
+            delivered_names = []
+            for order in due:
+                item_data = order.get("item_data")
+                if not isinstance(item_data, dict):
+                    delivered_ids.append(order["order_id"])
+                    continue
+                item_copy = item_data.copy()
+                self._add_item_to_container(hands_items, item_copy)
+                delivered_ids.append(order["order_id"])
+                delivered_names.append(
+                    f"{item_copy.get('name', 'Ammo')} x{item_copy.get('quantity', 1)}"
+                )
+            save_data["hands"]["items"] = hands_items
+            self._write_save_to_path(save_path, save_data)
+            persistentdata["pending_orders"] = [
+                o for o in orders if o.get("order_id") not in delivered_ids
+            ]
+            self._save_persistent_data()
+            if delivered_names:
+                self._popup_show_info(
+                    "Order Delivered",
+                    "The following ammo orders arrived:\n" + "\n".join(f"  • {n}" for n in delivered_names),
+                    sound = "success",
+                )
+        except Exception:
+            logging.exception("Failed to check and deliver pending orders")
+
+    def _open_orders_popup(self):
+        """Show all pending ammo orders for the current character."""
+        try:
+            orders = persistentdata.get("pending_orders", [])
+            char_orders = [o for o in orders if o.get("character_save") == (currentsave or "")]
+
+            popup = customtkinter.CTkToplevel(self.root)
+            popup.title("Pending Ammo Orders")
+            popup.transient(self.root)
+            popup.grab_set()
+            popup.withdraw()
+
+            popup.grid_rowconfigure(1, weight=1)
+            popup.grid_columnconfigure(0, weight=1)
+
+            hdr = customtkinter.CTkLabel(popup, text="Pending Ammo Orders",
+                                         font=customtkinter.CTkFont(size=18, weight="bold"))
+            hdr.grid(row=0, column=0, padx=16, pady=(12, 4), sticky="w")
+
+            if not char_orders:
+                customtkinter.CTkLabel(popup, text="No pending orders.",
+                                       font=customtkinter.CTkFont(size=13), text_color="gray"
+                                       ).grid(row=1, column=0, padx=16, pady=20)
+            else:
+                scroll = customtkinter.CTkScrollableFrame(popup, width=600, height=360)
+                scroll.grid(row=1, column=0, sticky="nsew", padx=16, pady=4)
+
+                now = datetime.now()
+                for order in char_orders:
+                    card = customtkinter.CTkFrame(scroll)
+                    card.pack(fill="x", pady=6, padx=4)
+
+                    item_name = order.get("item_data", {}).get("name", order.get("caliber", "?"))
+                    qty = order.get("item_data", {}).get("quantity", 1)
+                    store_name = order.get("store_name", "?")
+                    cost = order.get("total_cost", 0.0)
+                    deliver_at_str = order.get("deliver_at", "")
+                    try:
+                        deliver_dt = datetime.fromisoformat(deliver_at_str)
+                        remaining = deliver_dt - now
+                        if remaining.total_seconds() <= 0:
+                            time_str = "Ready for pickup"
+                            tc = "green"
+                        else:
+                            h, rem = divmod(int(remaining.total_seconds()), 3600)
+                            m = rem // 60
+                            time_str = f"Arrives in {h}h {m}m  ({deliver_dt.strftime('%b %d %I:%M %p')})"
+                            tc = "orange"
+                    except Exception:
+                        time_str = deliver_at_str
+                        tc = "gray"
+
+                    customtkinter.CTkLabel(card, text=f"{item_name} x{qty}",
+                                           font=customtkinter.CTkFont(size=13, weight="bold")
+                                           ).pack(anchor="w", padx=10, pady=(6, 0))
+                    customtkinter.CTkLabel(card, text=f"From: {store_name}   |   Paid: {format_price(cost)}",
+                                           font=customtkinter.CTkFont(size=11), text_color="gray"
+                                           ).pack(anchor="w", padx=10)
+                    customtkinter.CTkLabel(card, text=time_str,
+                                           font=customtkinter.CTkFont(size=11), text_color=tc
+                                           ).pack(anchor="w", padx=10, pady=(0, 6))
+
+            btn_row = customtkinter.CTkFrame(popup, fg_color="transparent")
+            btn_row.grid(row=2, column=0, padx=16, pady=10, sticky="ew")
+
+            devmode = global_variables.get("devmode", {}).get("value", False)
+            if devmode and char_orders:
+                def skip_wait():
+                    try:
+                        for order in persistentdata.get("pending_orders", []):
+                            if order.get("character_save") == (currentsave or ""):
+                                order["deliver_at"] = datetime.now().isoformat()
+                        self._save_persistent_data()
+                        popup.destroy()
+                        self._check_and_deliver_orders()
+                        self._open_orders_popup()
+                    except Exception:
+                        logging.exception("Failed to skip order wait")
+                self._create_sound_button(btn_row, "[DEV] Deliver All Now", skip_wait,
+                                          width=200, height=34, font=customtkinter.CTkFont(size=12),
+                                          fg_color="#8B0000").pack(side="left", padx=(0, 10))
+
+            customtkinter.CTkButton(btn_row, text="Close", command=popup.destroy, width=120).pack(side="left")
+
+            popup.update_idletasks()
+            popup.deiconify()
+        except Exception:
+            logging.exception("Failed to open orders popup")
+
+    def _open_order_ammo_dialog(self, store, table_data):
+        """Popup to order ammo from a trader that has can_order_ammo=true.
+
+        Orders cost 10× the normal shop price and arrive at noon the next day.
+        """
+        try:
+            tables = table_data.get("tables", {})
+            all_ammo = tables.get("ammunition", [])
+            prices = store.get("prices", {"buy": 1.0, "sell": 1.0})
+            sell_mult = float(prices.get("sell", 1.0))
+            market_demand = _get_market_demand()
+
+            # Build sorted list of unique calibers from ammo table
+            caliber_set = []
+            seen_cal = set()
+            for ammo_def in all_ammo:
+                if not isinstance(ammo_def, dict):
+                    continue
+                cals = ammo_def.get("caliber", [])
+                if isinstance(cals, str):
+                    cals = [cals]
+                for c in cals:
+                    if c and c not in seen_cal:
+                        seen_cal.add(c)
+                        caliber_set.append(c)
+            caliber_set.sort()
+
+            if not caliber_set:
+                self._popup_show_info("No Ammo", "No ammunition calibers found in table.", sound="popup")
+                return
+
+            save_data_local = self._load_file((currentsave or "") + ".sldsv")
+            if save_data_local is None:
+                self._popup_show_info("Error", "Failed to load character data.", sound="error")
+                return
+
+            player_money = [save_data_local.get("money", 0)]
+
+            popup = customtkinter.CTkToplevel(self.root)
+            popup.title(f"Order Ammo — {store.get('name', 'Trader')}")
+            popup.transient(self.root)
+            popup.grab_set()
+            popup.withdraw()
+            popup.geometry("480x540")
+
+            popup.grid_columnconfigure(0, weight=1)
+            popup.grid_rowconfigure(3, weight=1)
+
+            # Header
+            customtkinter.CTkLabel(popup, text=f"Order Ammo from {store.get('name', 'Trader')}",
+                                   font=customtkinter.CTkFont(size=17, weight="bold")
+                                   ).grid(row=0, column=0, padx=16, pady=(12, 2), sticky="w")
+            customtkinter.CTkLabel(popup,
+                                   text="Variant is randomized. Delivery: 12:00 PM next day. Cost: 10× shop price.",
+                                   font=customtkinter.CTkFont(size=11), text_color="orange"
+                                   ).grid(row=1, column=0, padx=16, pady=(0, 6), sticky="w")
+
+            money_lbl = customtkinter.CTkLabel(popup,
+                                               text=f"Your Money: {format_price(player_money[0])}",
+                                               font=customtkinter.CTkFont(size=13, weight="bold"),
+                                               text_color="green")
+            money_lbl.grid(row=2, column=0, padx=16, pady=(0, 4), sticky="w")
+
+            form_frame = customtkinter.CTkFrame(popup)
+            form_frame.grid(row=3, column=0, sticky="nsew", padx=16, pady=4)
+            form_frame.grid_columnconfigure(0, weight=1)
+            form_frame.grid_rowconfigure(1, weight=1)
+
+            # Caliber search + listbox
+            customtkinter.CTkLabel(form_frame, text="Caliber:", font=customtkinter.CTkFont(size=13),
+                                   anchor="w").grid(row=0, column=0, padx=10, pady=(8, 2), sticky="w")
+
+            search_var = customtkinter.StringVar()
+            search_entry = customtkinter.CTkEntry(form_frame, textvariable=search_var,
+                                                  placeholder_text="Search calibers…", width=280)
+            search_entry.grid(row=1, column=0, padx=10, pady=(0, 4), sticky="ew")
+
+            import tkinter as _tk_ord
+            cal_listbox_frame = customtkinter.CTkFrame(form_frame)
+            cal_listbox_frame.grid(row=2, column=0, padx=10, pady=(0, 6), sticky="nsew")
+            form_frame.grid_rowconfigure(2, weight=1)
+
+            cal_listbox = _tk_ord.Listbox(cal_listbox_frame, selectmode="single",
+                                           bg="#2b2b2b", fg="white", selectbackground="#1f538d",
+                                           relief="flat", borderwidth=0,
+                                           font=("Segoe UI", 11), activestyle="none",
+                                           exportselection=False, height=8)
+            cal_sb = _tk_ord.Scrollbar(cal_listbox_frame, orient="vertical",
+                                        command=cal_listbox.yview)
+            cal_listbox.configure(yscrollcommand=cal_sb.set)
+            cal_listbox.pack(side="left", fill="both", expand=True)
+            cal_sb.pack(side="right", fill="y")
+
+            selected_caliber = [caliber_set[0] if caliber_set else ""]
+
+            def _populate_list(filter_text=""):
+                cal_listbox.delete(0, _tk_ord.END)
+                ft = filter_text.strip().lower()
+                for c in caliber_set:
+                    if not ft or ft in c.lower():
+                        cal_listbox.insert(_tk_ord.END, c)
+                # Reselect previously chosen caliber if visible
+                for i in range(cal_listbox.size()):
+                    if cal_listbox.get(i) == selected_caliber[0]:
+                        cal_listbox.selection_set(i)
+                        cal_listbox.see(i)
+                        break
+                else:
+                    if cal_listbox.size() > 0:
+                        cal_listbox.selection_set(0)
+                        selected_caliber[0] = cal_listbox.get(0)
+
+            def _on_search(*_):
+                _populate_list(search_var.get())
+                _update_price_label()
+
+            def _on_select(event=None):
+                sel = cal_listbox.curselection()
+                if sel:
+                    selected_caliber[0] = cal_listbox.get(sel[0])
+                _update_price_label()
+
+            search_var.trace_add("write", _on_search)
+            cal_listbox.bind("<<ListboxSelect>>", _on_select)
+            _populate_list()
+
+            # Quantity + price
+            qty_row = customtkinter.CTkFrame(form_frame, fg_color="transparent")
+            qty_row.grid(row=3, column=0, padx=10, pady=4, sticky="ew")
+            customtkinter.CTkLabel(qty_row, text="Quantity:", font=customtkinter.CTkFont(size=13)
+                                   ).pack(side="left")
+            qty_var = customtkinter.StringVar(value="50")
+            customtkinter.CTkEntry(qty_row, textvariable=qty_var, width=100
+                                   ).pack(side="left", padx=8)
+
+            price_lbl = customtkinter.CTkLabel(form_frame, text="Est. Cost: —",
+                                               font=customtkinter.CTkFont(size=12), text_color="orange")
+            price_lbl.grid(row=4, column=0, padx=10, pady=(2, 6), sticky="w")
+
+            def _update_price_label(*_):
+                try:
+                    cal = selected_caliber[0]
+                    qty = max(1, int(qty_var.get() or "1"))
+                    unit_price = _estimate_ammo_unit_price(cal, all_ammo, sell_mult, market_demand)
+                    total = round(unit_price * qty * 10.0, 2)
+                    price_lbl.configure(text=f"Est. Cost: {format_price(total)}  ({format_price(unit_price * 10.0)}/ea × {qty})")
+                except Exception:
+                    price_lbl.configure(text="Est. Cost: —")
+
+            qty_var.trace_add("write", _update_price_label)
+            _update_price_label()
+
+            def place_order():
+                try:
+                    cal = selected_caliber[0].strip()
+                    if not cal:
+                        self._popup_show_info("Error", "Select a caliber.", sound="popup")
+                        return
+                    try:
+                        qty = max(1, int(qty_var.get() or "1"))
+                    except ValueError:
+                        self._popup_show_info("Error", "Enter a valid quantity.", sound="popup")
+                        return
+
+                    unit_price = _estimate_ammo_unit_price(cal, all_ammo, sell_mult, market_demand)
+                    total_cost = round(unit_price * qty * 10.0, 2)
+
+                    if total_cost > player_money[0]:
+                        self._popup_show_info("Not Enough Money",
+                                              f"You need {format_price(total_cost)} but have {format_price(player_money[0])}.",
+                                              sound="error")
+                        return
+
+                    item_data = _resolve_ammo_order_item(cal, qty, table_data)
+                    if item_data is None:
+                        self._popup_show_info("Error", f"No ammo found for caliber '{cal}'.", sound="error")
+                        return
+
+                    now_dt = datetime.now()
+                    tomorrow = now_dt + timedelta(days=1)
+                    deliver_dt = tomorrow.replace(hour=12, minute=0, second=0, microsecond=0)
+                    if now_dt.hour < 12 and now_dt.date() == datetime.now().date():
+                        deliver_dt = now_dt.replace(hour=12, minute=0, second=0, microsecond=0)
+                        if deliver_dt <= now_dt:
+                            deliver_dt = tomorrow.replace(hour=12, minute=0, second=0, microsecond=0)
+
+                    import uuid as _uuid
+                    order = {
+                        "order_id": str(_uuid.uuid4()),
+                        "store_name": store.get("name", "Unknown"),
+                        "caliber": cal,
+                        "quantity": qty,
+                        "total_cost": total_cost,
+                        "ordered_at": now_dt.isoformat(),
+                        "deliver_at": deliver_dt.isoformat(),
+                        "character_save": currentsave or "",
+                        "item_data": item_data,
+                    }
+
+                    if "pending_orders" not in persistentdata:
+                        persistentdata["pending_orders"] = []
+                    persistentdata["pending_orders"].append(order)
+
+                    save_path_local = os.path.join(saves_folder or "", (currentsave or "") + ".sldsv")
+                    save_data_upd = self._load_file((currentsave or "") + ".sldsv")
+                    if save_data_upd is not None:
+                        save_data_upd["money"] = player_money[0] - total_cost
+                        self._write_save_to_path(save_path_local, save_data_upd)
+                        player_money[0] = save_data_upd["money"]
+                        money_lbl.configure(text=f"Your Money: {format_price(player_money[0])}")
+
+                    self._save_persistent_data()
+                    logging.info(f"Ammo order placed: {qty}× {cal} from {store.get('name')} — {format_price(total_cost)}")
+                    self._popup_show_info("Order Placed",
+                                          f"Ordered {qty}× {item_data.get('name', cal)}\nCost: {format_price(total_cost)}\nDelivery: {deliver_dt.strftime('%b %d at %I:%M %p')}",
+                                          sound="success")
+                    popup.destroy()
+                except Exception:
+                    logging.exception("Failed to place ammo order")
+                    self._popup_show_info("Error", "Failed to place order.", sound="error")
+
+            btn_row = customtkinter.CTkFrame(popup, fg_color="transparent")
+            btn_row.grid(row=4, column=0, padx=16, pady=12, sticky="ew")
+            self._create_sound_button(btn_row, "Place Order", place_order,
+                                      width=160, height=36, font=customtkinter.CTkFont(size=13)
+                                      ).pack(side="left", padx=(0, 10))
+            customtkinter.CTkButton(btn_row, text="Cancel", command=popup.destroy, width=100).pack(side="left")
+
+            popup.update_idletasks()
+            popup.deiconify()
+        except Exception:
+            logging.exception("Failed to open order ammo dialog")
+
+    def _open_ammo_supplier_interface(self, store, table_data):
+        """Full UI for an ammo_supplier store type, styled like the regular store."""
+        logging.info(f"Opening ammo supplier: {store.get('name')}")
+
+        music_channel = None
+        if store.get("music") and store.get("playlist"):
+            music_channel = self._start_business_music(store.get("playlist"), first_play=True)
+
+        self._clear_window()
+        self.root.grid_rowconfigure(0, weight=1)
+        self.root.grid_columnconfigure(0, weight=1)
+
+        main_frame = customtkinter.CTkFrame(self.root)
+        main_frame.grid(row=0, column=0, sticky="nsew")
+        main_frame.grid_columnconfigure(0, weight=1)
+        main_frame.grid_rowconfigure(1, weight=1)
+
+        free_ammo = bool(store.get("free_ammo", False))
+        prices = store.get("prices", {"buy": 1.0, "sell": 1.0})
+        sell_mult = float(prices.get("sell", 1.0))
+
+        # ── Header ──────────────────────────────────────────────────────────
+        header_frame = customtkinter.CTkFrame(main_frame, fg_color="transparent")
+        header_frame.grid(row=0, column=0, sticky="ew", padx=20, pady=10)
+
+        customtkinter.CTkLabel(header_frame, text=store.get("name", "Ammo Supplier"),
+                               font=customtkinter.CTkFont(size=24, weight="bold")).pack(pady=(10, 5))
+        customtkinter.CTkLabel(header_frame,
+                               text=f"Supplier: {store.get('shopkeeper', 'Unknown')}",
+                               font=customtkinter.CTkFont(size=14), text_color="gray").pack()
+
+        save_path = os.path.join(saves_folder or "", (currentsave or "") + ".sldsv")
+        save_data = self._load_file((currentsave or "") + ".sldsv")
+        if save_data is None:
+            self._popup_show_info("Error", "Failed to load character data.", sound="error")
+            if music_channel:
+                try:
+                    self._stop_business_music(music_channel)
+                except Exception:
+                    pass
+            return
+
+        player_money = [save_data.get("money", 0)]
+
+        if free_ammo:
+            customtkinter.CTkLabel(header_frame, text="All ammo is FREE",
+                                   font=customtkinter.CTkFont(size=13, weight="bold"),
+                                   text_color="#44cc44").pack()
+        else:
+            customtkinter.CTkLabel(header_frame,
+                                   text=f"Sells at {sell_mult}x value",
+                                   font=customtkinter.CTkFont(size=12), text_color="orange").pack()
+
+        money_label = customtkinter.CTkLabel(header_frame,
+                                             text=f"Your Money: {format_price(player_money[0])}",
+                                             font=customtkinter.CTkFont(size=16, weight="bold"),
+                                             text_color="green")
+        money_label.pack(pady=5)
+
+        # ── Song display marquee ─────────────────────────────────────────────
+        marquee_label = None
+        marquee_job: list = [None]
+        prev_track: list = [None]
+
+        def _get_track_info(track_path):
+            artist = None
+            title = None
+            length = None
+            try:
+                try:
+                    sound = pygame.mixer.Sound(track_path)
+                    length = float(sound.get_length())
+                except Exception:
+                    length = None
+                try:
+                    from mutagen._file import File as MutagenFile
+                    mf = MutagenFile(track_path)
+                    if mf is not None:
+                        tags = getattr(mf, 'tags', {}) or {}
+                        def _get_tag(keys):
+                            for k in keys:
+                                v = tags.get(k)
+                                if v:
+                                    try:
+                                        if isinstance(v, (list, tuple)):
+                                            return str(v[0])
+                                        return str(v)
+                                    except Exception:
+                                        return str(v)
+                            return None
+                        artist = _get_tag(["artist", "ARTIST", "TPE1", "IART"])
+                        title = _get_tag(["title", "TITLE", "TIT2", "INAM"])
+                except Exception:
+                    pass
+            except Exception:
+                pass
+            if not title:
+                try:
+                    title = os.path.basename(track_path or "")
+                except Exception:
+                    title = "Unknown"
+            return {"artist": artist, "title": title, "length": length}
+
+        def stop_ui_music():
+            try:
+                if marquee_job[0]:
+                    try:
+                        self.root.after_cancel(marquee_job[0])  # type: ignore[arg-type]
+                    except Exception:
+                        pass
+                    marquee_job[0] = None
+            except Exception:
+                pass
+            try:
+                self._stop_business_music(music_channel)
+            except Exception:
+                pass
+
+        if music_channel and music_channel.get("track"):
+            try:
+                track_path = music_channel.get("track")
+                info = _get_track_info(track_path)
+                base_artist = info.get("artist") or ""
+                base_title = info.get("title") or os.path.basename(track_path or "")
+                track_len = info.get("length") or 0.0
+
+                marquee_frame = customtkinter.CTkFrame(header_frame, fg_color="black",
+                                                       width=500, height=30)
+                marquee_frame.pack(pady=(6, 0))
+                try:
+                    marquee_frame.pack_propagate(False)
+                except Exception:
+                    pass
+
+                label_font = None
+                try:
+                    import ctypes
+                    import tkinter.font as tkfont
+                    fp = os.path.join(os.path.dirname(__file__), "fonts", "Tims_8x5_LCD_Matrix.ttf")
+                    if os.path.exists(fp) and hasattr(ctypes, 'windll'):
+                        try:
+                            FR_PRIVATE = 0x10
+                            ctypes.windll.gdi32.AddFontResourceExW(fp, FR_PRIVATE, 0)
+                        except Exception:
+                            pass
+                        try:
+                            self.root.update_idletasks()
+                            fams = list(tkfont.families())
+                            for f in fams:
+                                if any(x in f.lower() for x in ("tims", "8x5", "lcd")):
+                                    label_font = customtkinter.CTkFont(size=12, family=f)
+                                    break
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+                if not label_font:
+                    label_font = customtkinter.CTkFont(size=12)
+
+                marquee_label = customtkinter.CTkLabel(
+                    marquee_frame, text="", anchor="w", font=label_font,
+                    width=480, height=26, text_color="#7CFC00")
+                marquee_label.pack(anchor="center", padx=4)
+
+                marquee_debug_label = None
+
+                pos = [0]
+
+                def _fmt_time(s):
+                    try:
+                        s = max(0, int(s))
+                        return f"{s // 60}:{s % 60:02d}"
+                    except Exception:
+                        return "0:00"
+
+                def _update_marquee():
+                    try:
+                        current = getattr(self, "_current_business_music", music_channel)
+                        meta_info = None
+                        if current:
+                            meta_info = current.get("_meta")
+                        try:
+                            tp = (current or {}).get('track')
+                            if tp != prev_track[0]:
+                                prev_track[0] = tp
+                                pos[0] = 0
+                        except Exception:
+                            pass
+                        if meta_info:
+                            base_artist = meta_info.get("artist") or ""
+                            base_title = meta_info.get("title") or os.path.basename((current or {}).get('track') or "")
+                            total = meta_info.get("length") or 0.0
+                        else:
+                            base_artist = ""
+                            base_title = os.path.basename((current or {}).get('track') or "")
+                            total = 0.0
+                            try:
+                                if current and not current.get("_meta_loading"):
+                                    current["_meta_loading"] = True
+                                    def _bg_load():
+                                        try:
+                                            info2 = _get_track_info((current or {}).get("track"))
+                                            def _apply():
+                                                try:
+                                                    target = getattr(self, "_current_business_music", None) or current
+                                                    if target is not None:
+                                                        target.update({"_meta": info2})
+                                                        try:
+                                                            self.root.after(0, _update_marquee)
+                                                        except Exception:
+                                                            pass
+                                                except Exception:
+                                                    pass
+                                            self.root.after(0, _apply)
+                                        except Exception:
+                                            pass
+                                        finally:
+                                            try:
+                                                current.pop("_meta_loading", None)
+                                            except Exception:
+                                                pass
+                                    import threading as _thr
+                                    _thr.Thread(target=_bg_load, daemon=True).start()
+                            except Exception:
+                                pass
+
+                        started = (current or {}).get("started_at") or time.time()
+                        start_offset = (current or {}).get("start_pos") or 0.0
+                        elapsed = (time.time() - started) + float(start_offset)
+                        meta = (
+                            f"{base_artist} | {base_title} | {_fmt_time(elapsed)}/{_fmt_time(total)}"
+                            if (base_artist or base_title)
+                            else os.path.basename((music_channel or {}).get("track") or "")
+                        )
+                        try:
+                            self.root.update_idletasks()
+                            label_px = marquee_label.winfo_width() or int(marquee_label.cget("width") or 480)
+                        except Exception:
+                            label_px = 480
+                        visible_chars = max(8, int(label_px / max(1, 8)))
+                        scrollfull = " " + meta + " "
+                        if len(scrollfull) < visible_chars:
+                            scrollfull += " " * (visible_chars - len(scrollfull) + 2)
+                        doubled = scrollfull * 3
+                        marquee_label.configure(text=doubled[pos[0]:pos[0] + visible_chars])
+                        pos[0] = (pos[0] + 1) % max(1, len(scrollfull))
+                        delay_ms = int(min(500, max(60, 70 + (len(scrollfull) * 3))))
+                        marquee_job[0] = self.root.after(delay_ms, _update_marquee)
+                    except Exception:
+                        try:
+                            marquee_label.configure(text=os.path.basename(
+                                (getattr(self, "_current_business_music", music_channel) or {}).get("track") or ""))
+                        except Exception:
+                            pass
+
+                try:
+                    import threading as _thr2
+                    def _load_meta():
+                        try:
+                            cur = getattr(self, "_current_business_music", music_channel)
+                            if not cur:
+                                return
+                            info3 = _get_track_info(cur.get("track"))
+                            def _apply2():
+                                try:
+                                    target = getattr(self, "_current_business_music", None) or cur
+                                    if target is not None:
+                                        target.update({"_meta": info3})
+                                        try:
+                                            self.root.after(0, _update_marquee)
+                                        except Exception:
+                                            pass
+                                except Exception:
+                                    pass
+                            self.root.after(0, _apply2)
+                        except Exception:
+                            pass
+                    _thr2.Thread(target=_load_meta, daemon=True).start()
+                except Exception:
+                    pass
+
+                _update_marquee()
+            except Exception:
+                pass
+
+        market_demand = _get_market_demand()
+
+        # ── Equipped info ────────────────────────────────────────────────────
+        equipped_weapons = self._get_equipped_weapons(save_data, table_data)
+        equipped_calibers = set()
+        equipped_magazine_systems = set()
+        for wpn in equipped_weapons:
+            item = wpn.get("item", {})
+            cals = item.get("caliber", [])
+            if isinstance(cals, str):
+                cals = [cals]
+            for c in cals:
+                if c:
+                    equipped_calibers.add(c)
+            mag_sys = item.get("magazinesystem")
+            if isinstance(mag_sys, str) and mag_sys:
+                equipped_magazine_systems.add(mag_sys)
+            elif isinstance(mag_sys, list):
+                for ms in mag_sys:
+                    if isinstance(ms, str) and ms:
+                        equipped_magazine_systems.add(ms)
+
+        tables = table_data.get("tables", {})
+        all_ammo = tables.get("ammunition", [])
+        all_mags = tables.get("magazines", [])
+        rarity_weights = table_data.get("rarity_weights", {})
+
+        # Generate stock
+        stock = _generate_ammo_supplier_stock(store, tables, equipped_calibers,
+                                              equipped_magazine_systems, all_ammo, all_mags,
+                                              rarity_weights)
+
+        # Tag each stock item with its available quantity
+        _stock_key_counts: dict = {}
+        def _stock_key(item_obj):
+            cal = item_obj.get("caliber")
+            if isinstance(cal, list):
+                cal = tuple(cal)
+            return (item_obj.get("name"), item_obj.get("id"),
+                    cal, item_obj.get("variant"),
+                    item_obj.get("_table_category"))
+        for _si in stock:
+            if not isinstance(_si, dict):
+                continue
+            _k = _stock_key(_si)
+            # ammunition uses its own 'quantity' field; others default to 1
+            _avail = int(_si.get("quantity", 1) or 1)
+            _stock_key_counts[_k] = max(_stock_key_counts.get(_k, 0), _avail)
+        for _si in stock:
+            if isinstance(_si, dict):
+                _si["_shop_available_qty"] = _stock_key_counts.get(_stock_key(_si), 1)
+
+        def _get_item_price(item_obj):
+            if free_ammo:
+                return 0.0
+            base_value = self._compute_item_value_with_installed_components(item_obj)
+            raw = base_value * sell_mult * _get_item_market_multiplier(item_obj, market_demand)
+            price = round(raw, 2)
+            if str(item_obj.get("_table_category", "")).lower() == "ammunition" and raw > 0 and price < 0.01:
+                return 0.01
+            return max(0.0, price)
+
+        # ── Cart helpers ────────────────────────────────────────────────────
+        buy_cart = []
+        buy_total = [0.0]
+
+        def update_money_label():
+            if free_ammo:
+                money_label.configure(text=f"Your Money: {format_price(player_money[0])}")
+            else:
+                money_label.configure(
+                    text=f"Your Money: {format_price(player_money[0])} | Cart Total: {format_price(buy_total[0])}"
+                )
+
+        def _is_stackable(item_obj):
+            if str(item_obj.get("_table_category", "")).lower() == "ammunition":
+                return True
+            if item_obj.get("can_stack") is False:
+                return False
+            non_stack = ["magazinesystem", "capacity", "firearm", "attachment", "subslots", "loaded", "chambered"]
+            return not any(k in item_obj for k in non_stack)
+
+        def _cart_key(item_obj):
+            return (item_obj.get("name"), item_obj.get("id"),
+                    item_obj.get("caliber"), item_obj.get("variant"),
+                    item_obj.get("_table_category"))
+
+        def _buy_cart_units():
+            return sum(max(1, int(e.get("quantity", 1))) for e in buy_cart)
+
+        def _cart_qty_for_key(key):
+            """How many units of this stock key are already in the cart."""
+            total = 0
+            for entry in buy_cart:
+                if entry.get("_key") == key:
+                    total += max(1, int(entry.get("quantity", 1)))
+            return total
+
+        def _add_to_cart(item_obj, unit_price, quantity=1):
+            try:
+                qty = max(1, int(quantity))
+            except Exception:
+                qty = 1
+
+            avail = int(item_obj.get("_shop_available_qty", 1) or 1)
+            already_in_cart = _cart_qty_for_key(_cart_key(item_obj))
+            remaining = avail - already_in_cart
+            if qty > remaining:
+                if remaining <= 0:
+                    self._popup_show_info("Out of Stock",
+                                          f"No more '{item_obj.get('name', 'item')}' available.",
+                                          sound="error")
+                else:
+                    self._popup_show_info("Not Enough Stock",
+                                          f"Only {remaining} more available (already {already_in_cart} in cart, {avail} in stock).",
+                                          sound="error")
+                return False
+
+            line_total = float(unit_price) * qty
+            if not free_ammo and player_money[0] - buy_total[0] < line_total:
+                self._popup_show_info("Not Enough Money",
+                                      f"Need {format_price(line_total)}, have {format_price(player_money[0] - buy_total[0])} left.",
+                                      sound="error")
+                return False
+            stackable = _is_stackable(item_obj)
+            if stackable:
+                key = _cart_key(item_obj)
+                for entry in buy_cart:
+                    if entry.get("stackable") and entry.get("_key") == key:
+                        entry["quantity"] = max(1, int(entry.get("quantity", 1))) + qty
+                        entry["line_total"] = float(entry.get("line_total", 0.0)) + line_total
+                        buy_total[0] += line_total
+                        update_money_label()
+                        self._play_ui_sound("click")
+                        return True
+            buy_cart.append({
+                "item": item_obj.copy(),
+                "price": float(unit_price),
+                "quantity": qty,
+                "line_total": line_total,
+                "stackable": stackable,
+                "_key": _cart_key(item_obj),
+            })
+            buy_total[0] += line_total
+            update_money_label()
+            self._play_ui_sound("click")
+            return True
+
+        def _remove_cart_index(idx):
+            if idx < 0 or idx >= len(buy_cart):
+                return
+            removed = buy_cart.pop(idx)
+            buy_total[0] = max(0.0, buy_total[0] - float(removed.get("line_total", 0.0)))
+            update_money_label()
+
+        def _open_cart_popup():
+            if not buy_cart:
+                self._popup_show_info("Empty Cart", "Your cart is empty.", sound="popup")
+                return
+            cpop = customtkinter.CTkToplevel(self.root)
+            cpop.title("Cart")
+            cpop.geometry("600x420")
+            cpop.transient(self.root)
+            cart_hdr = customtkinter.CTkLabel(
+                cpop,
+                text=f"Cart Items: {_buy_cart_units()} | Total: {format_price(buy_total[0])}",
+                font=customtkinter.CTkFont(size=14, weight="bold"),
+            )
+            cart_hdr.pack(pady=(10, 6))
+            cscroll = customtkinter.CTkScrollableFrame(cpop)
+            cscroll.pack(fill="both", expand=True, padx=10, pady=6)
+
+            def _crefresh():
+                for w in cscroll.winfo_children():
+                    try:
+                        w.destroy()
+                    except Exception:
+                        pass
+                for idx, entry in enumerate(buy_cart):
+                    item = entry.get("item", {})
+                    qty = max(1, int(entry.get("quantity", 1)))
+                    unit_price = float(entry.get("price", 0.0))
+                    line_total = float(entry.get("line_total", unit_price * qty))
+                    crow = customtkinter.CTkFrame(cscroll)
+                    crow.pack(fill="x", padx=6, pady=4)
+                    price_disp = "Free" if free_ammo else f"{format_price(unit_price)} ea | {format_price(line_total)} total"
+                    customtkinter.CTkLabel(crow,
+                                           text=f"{item.get('name', 'Unknown')} x{qty}",
+                                           anchor="w",
+                                           font=customtkinter.CTkFont(size=12, weight="bold")
+                                           ).pack(side="left", padx=8, pady=6)
+                    customtkinter.CTkLabel(crow, text=price_disp, anchor="e").pack(side="left", padx=8)
+                    self._create_sound_button(
+                        crow, "Remove",
+                        lambda i=idx: (_remove_cart_index(i), _crefresh()),
+                        width=90, height=28, fg_color="#8B0000"
+                    ).pack(side="right", padx=8)
+                cart_hdr.configure(
+                    text=f"Cart Items: {_buy_cart_units()} | Total: {format_price(buy_total[0])}"
+                )
+
+            cfooter = customtkinter.CTkFrame(cpop, fg_color="transparent")
+            cfooter.pack(fill="x", padx=10, pady=(6, 10))
+            self._create_sound_button(
+                cfooter, "Clear Cart",
+                lambda: (buy_cart.clear(), buy_total.__setitem__(0, 0.0), update_money_label(), _crefresh()),
+                width=120, height=30, fg_color="#8B0000"
+            ).pack(side="left")
+            self._create_sound_button(cfooter, "Close", cpop.destroy, width=120, height=30).pack(side="right")
+            _crefresh()
+
+        # ── Content frame (category nav left + items right) ─────────────────
+        content_frame = customtkinter.CTkFrame(main_frame)
+        content_frame.grid(row=1, column=0, sticky="nsew", padx=20, pady=10)
+        content_frame.grid_columnconfigure(0, weight=0)
+        content_frame.grid_columnconfigure(1, weight=1)
+        content_frame.grid_rowconfigure(0, weight=1)
+
+        # Build category groups from stock
+        RARITY_COLOR = {
+            "Common": "white", "Uncommon": "#aaffaa", "Rare": "#aaaaff",
+            "Legendary": "#ffcc44", "Mythic": "#ff44ff",
+        }
+        ammo_items = [s for s in stock if str(s.get("_table_category", "")).lower() == "ammunition"]
+        mag_items  = [s for s in stock if str(s.get("_table_category", "")).lower() == "magazines"]
+        clip_items = [s for s in stock if str(s.get("_table_category", "")).lower() == "clips"]
+
+        # Caliber set for order tab
+        caliber_set = []
+        seen_cal_s: set = set()
+        for _a in all_ammo:
+            if not isinstance(_a, dict):
+                continue
+            _cals = _a.get("caliber", [])
+            if isinstance(_cals, str):
+                _cals = [_cals]
+            for _c in _cals:
+                if _c and _c not in seen_cal_s:
+                    seen_cal_s.add(_c)
+                    caliber_set.append(_c)
+        caliber_set.sort()
+
+        categories = {"Ammunition": ammo_items}
+        if mag_items:
+            categories["Magazines (Pre-filled)"] = mag_items
+        if clip_items:
+            categories["Clips"] = clip_items
+        categories["Order Caliber"] = []  # virtual tab handled separately
+
+        # Left nav
+        cat_nav = customtkinter.CTkScrollableFrame(content_frame, width=190)
+        cat_nav.grid(row=0, column=0, sticky="ns", padx=(0, 10))
+
+        # Right content area
+        items_area = customtkinter.CTkFrame(content_frame)
+        items_area.grid(row=0, column=1, sticky="nsew")
+        items_area.grid_rowconfigure(0, weight=1)
+        items_area.grid_columnconfigure(0, weight=1)
+
+        items_scroll_holder = [None]  # holds current CTkScrollableFrame
+
+        def _render_category(cat_name):
+            # Destroy previous scroll frame
+            if items_scroll_holder[0] is not None:
+                try:
+                    items_scroll_holder[0].destroy()
+                except Exception:
+                    pass
+                items_scroll_holder[0] = None
+
+            # ── Order Caliber pane ──────────────────────────────────────────
+            if cat_name == "Order Caliber":
+                pane = customtkinter.CTkScrollableFrame(items_area)
+                pane.grid(row=0, column=0, sticky="nsew")
+                pane.grid_columnconfigure(0, weight=1)
+                items_scroll_holder[0] = pane
+
+                customtkinter.CTkLabel(pane,
+                                       text="Order a specific caliber",
+                                       font=customtkinter.CTkFont(size=15, weight="bold")
+                                       ).grid(row=0, column=0, padx=14, pady=(12, 2), sticky="w")
+                customtkinter.CTkLabel(pane,
+                                       text="Variant is randomized by rarity (may include military variants). Delivery: 12 PM next day.",
+                                       font=customtkinter.CTkFont(size=11), text_color="gray",
+                                       wraplength=460, justify="left"
+                                       ).grid(row=1, column=0, padx=14, pady=(0, 8), sticky="w")
+
+                oform = customtkinter.CTkFrame(pane)
+                oform.grid(row=2, column=0, sticky="ew", padx=14, pady=4)
+                oform.grid_columnconfigure(0, weight=1)
+                oform.grid_rowconfigure(1, weight=1)
+
+                customtkinter.CTkLabel(oform, text="Search caliber:",
+                                       font=customtkinter.CTkFont(size=12), anchor="w"
+                                       ).grid(row=0, column=0, padx=10, pady=(8, 2), sticky="w")
+
+                o_search_var = customtkinter.StringVar()
+                o_search = customtkinter.CTkEntry(oform, textvariable=o_search_var,
+                                                  placeholder_text="e.g. 9x19mm…", width=260)
+                o_search.grid(row=1, column=0, padx=10, pady=(0, 4), sticky="ew")
+
+                import tkinter as _tk_sup
+                lb_frame = customtkinter.CTkFrame(oform)
+                lb_frame.grid(row=2, column=0, padx=10, pady=(0, 6), sticky="nsew")
+                oform.grid_rowconfigure(2, weight=1)
+
+                o_listbox = _tk_sup.Listbox(lb_frame, selectmode="single",
+                                             bg="#2b2b2b", fg="white",
+                                             selectbackground="#1f538d",
+                                             relief="flat", borderwidth=0,
+                                             font=("Segoe UI", 11), activestyle="none",
+                                             exportselection=False, height=8)
+                o_sb = _tk_sup.Scrollbar(lb_frame, orient="vertical", command=o_listbox.yview)
+                o_listbox.configure(yscrollcommand=o_sb.set)
+                o_listbox.pack(side="left", fill="both", expand=True)
+                o_sb.pack(side="right", fill="y")
+
+                o_selected_cal = [caliber_set[0] if caliber_set else ""]
+
+                def _o_populate(ft=""):
+                    o_listbox.delete(0, _tk_sup.END)
+                    fl = ft.strip().lower()
+                    for c in caliber_set:
+                        if not fl or fl in c.lower():
+                            o_listbox.insert(_tk_sup.END, c)
+                    for i in range(o_listbox.size()):
+                        if o_listbox.get(i) == o_selected_cal[0]:
+                            o_listbox.selection_set(i)
+                            o_listbox.see(i)
+                            break
+                    else:
+                        if o_listbox.size() > 0:
+                            o_listbox.selection_set(0)
+                            o_selected_cal[0] = o_listbox.get(0)
+
+                def _o_on_search(*_):
+                    _o_populate(o_search_var.get())
+                    _o_update_price()
+
+                def _o_on_select(event=None):
+                    sel = o_listbox.curselection()
+                    if sel:
+                        o_selected_cal[0] = o_listbox.get(sel[0])
+                    _o_update_price()
+
+                o_search_var.trace_add("write", _o_on_search)
+                o_listbox.bind("<<ListboxSelect>>", _o_on_select)
+                _o_populate()
+
+                qty_row_o = customtkinter.CTkFrame(oform, fg_color="transparent")
+                qty_row_o.grid(row=3, column=0, padx=10, pady=4, sticky="ew")
+                customtkinter.CTkLabel(qty_row_o, text="Quantity:",
+                                       font=customtkinter.CTkFont(size=13)).pack(side="left")
+                o_qty_var = customtkinter.StringVar(value="50")
+                customtkinter.CTkEntry(qty_row_o, textvariable=o_qty_var, width=100
+                                       ).pack(side="left", padx=8)
+
+                o_price_lbl = customtkinter.CTkLabel(oform,
+                                                     text="Cost: Free" if free_ammo else "Cost: —",
+                                                     font=customtkinter.CTkFont(size=12),
+                                                     text_color="#44cc44" if free_ammo else "orange")
+                o_price_lbl.grid(row=4, column=0, padx=10, pady=(2, 8), sticky="w")
+
+                def _o_update_price(*_):
+                    try:
+                        cal = o_selected_cal[0]
+                        qty = max(1, int(o_qty_var.get() or "1"))
+                        if free_ammo:
+                            o_price_lbl.configure(
+                                text=f"Cost: Free  (qty: {qty})", text_color="#44cc44")
+                        else:
+                            up = _estimate_ammo_unit_price(cal, all_ammo, sell_mult, market_demand)
+                            total = round(up * qty, 2)
+                            o_price_lbl.configure(
+                                text=f"Cost: {format_price(total)}  ({format_price(up)}/ea × {qty})",
+                                text_color="orange")
+                    except Exception:
+                        pass
+
+                o_qty_var.trace_add("write", _o_update_price)
+                _o_update_price()
+
+                def place_supplier_order():
+                    try:
+                        cal = o_selected_cal[0].strip()
+                        if not cal:
+                            self._popup_show_info("Error", "Select a caliber.", sound="popup")
+                            return
+                        try:
+                            qty = max(1, int(o_qty_var.get() or "1"))
+                        except ValueError:
+                            self._popup_show_info("Error", "Enter a valid quantity.", sound="popup")
+                            return
+
+                        if free_ammo:
+                            total_cost = 0.0
+                        else:
+                            up = _estimate_ammo_unit_price(cal, all_ammo, sell_mult, market_demand)
+                            total_cost = round(up * qty, 2)
+                            if total_cost > player_money[0]:
+                                self._popup_show_info(
+                                    "Not Enough Money",
+                                    f"Need {format_price(total_cost)}, have {format_price(player_money[0])}.",
+                                    sound="error")
+                                return
+
+                        item_data = _resolve_ammo_order_item(cal, qty, table_data)
+                        if item_data is None:
+                            self._popup_show_info("Error", f"No ammo found for '{cal}'.", sound="error")
+                            return
+
+                        now_dt = datetime.now()
+                        tomorrow = now_dt + timedelta(days=1)
+                        deliver_dt = tomorrow.replace(hour=12, minute=0, second=0, microsecond=0)
+                        if now_dt.hour < 12:
+                            same_day = now_dt.replace(hour=12, minute=0, second=0, microsecond=0)
+                            if same_day > now_dt:
+                                deliver_dt = same_day
+
+                        import uuid as _uuid
+                        order = {
+                            "order_id": str(_uuid.uuid4()),
+                            "store_name": store.get("name", "Ammo Supplier"),
+                            "caliber": cal,
+                            "quantity": qty,
+                            "total_cost": total_cost,
+                            "ordered_at": now_dt.isoformat(),
+                            "deliver_at": deliver_dt.isoformat(),
+                            "character_save": currentsave or "",
+                            "item_data": item_data,
+                        }
+
+                        if "pending_orders" not in persistentdata:
+                            persistentdata["pending_orders"] = []
+                        persistentdata["pending_orders"].append(order)
+
+                        if not free_ammo:
+                            save_data_upd = self._load_file((currentsave or "") + ".sldsv")
+                            if save_data_upd is not None:
+                                save_data_upd["money"] = player_money[0] - total_cost
+                                self._write_save_to_path(save_path, save_data_upd)
+                                player_money[0] = save_data_upd["money"]
+                                update_money_label()
+
+                        self._save_persistent_data()
+                        cost_str = "Free" if free_ammo else format_price(total_cost)
+                        self._popup_show_info(
+                            "Order Placed",
+                            f"Ordered {qty}× {item_data.get('name', cal)}\nCost: {cost_str}\nDelivery: {deliver_dt.strftime('%b %d at %I:%M %p')}",
+                            sound="success")
+                    except Exception:
+                        logging.exception("Failed to place supplier order")
+                        self._popup_show_info("Error", "Failed to place order.", sound="error")
+
+                self._create_sound_button(oform, "Place Order", place_supplier_order,
+                                          width=160, height=36,
+                                          font=customtkinter.CTkFont(size=13)
+                                          ).grid(row=5, column=0, padx=10, pady=(4, 12), sticky="w")
+                return
+
+            # ── Regular stock pane ──────────────────────────────────────────
+            items_list = categories.get(cat_name, [])
+            pane = customtkinter.CTkScrollableFrame(items_area)
+            pane.grid(row=0, column=0, sticky="nsew")
+            items_scroll_holder[0] = pane
+
+            if not items_list:
+                customtkinter.CTkLabel(pane, text="No items in stock.",
+                                       font=customtkinter.CTkFont(size=13),
+                                       text_color="gray").pack(padx=20, pady=20)
+                return
+
+            for item in items_list:
+                unit_price = _get_item_price(item)
+                price_str = "Free" if free_ammo else format_price(unit_price)
+                is_relevant = any(c in equipped_calibers for c in (
+                    [item.get("caliber")] if isinstance(item.get("caliber"), str)
+                    else (item.get("caliber") or [])
+                ))
+                item_frame = customtkinter.CTkFrame(pane)
+                if is_relevant:
+                    item_frame.configure(fg_color="#2a4a2a")
+                item_frame.pack(fill="x", pady=5, padx=10)
+
+                rarity_color = RARITY_COLOR.get(item.get("rarity", "Common"), "white")
+                name_text = item.get("name", "Unknown")
+                if is_relevant:
+                    name_text = "⭐ " + name_text
+                customtkinter.CTkLabel(item_frame,
+                                       text=f"{name_text}  —  {price_str}",
+                                       font=customtkinter.CTkFont(size=13, weight="bold"),
+                                       text_color=rarity_color, anchor="w"
+                                       ).pack(anchor="w", padx=10, pady=(8, 2))
+
+                if item.get("description"):
+                    desc = item["description"]
+                    if len(desc) > 100:
+                        desc = desc[:100] + "..."
+                    customtkinter.CTkLabel(item_frame, text=desc,
+                                           font=customtkinter.CTkFont(size=10), text_color="gray",
+                                           wraplength=500, justify="left", anchor="w"
+                                           ).pack(anchor="w", padx=10, pady=(0, 4))
+
+                info_parts = []
+                cal = item.get("caliber")
+                if cal:
+                    if isinstance(cal, list):
+                        cal = ", ".join(str(c) for c in cal)
+                    info_parts.append(f"Caliber: {cal}")
+                if item.get("rarity"):
+                    info_parts.append(f"Rarity: {item['rarity']}")
+                if item.get("weight"):
+                    info_parts.append(f"Weight: {self._format_weight(item['weight'])}")
+                if item.get("pen"):
+                    info_parts.append(f"Pen: {item['pen']}")
+                labels = item.get("ammo_labels", [])
+                if labels:
+                    info_parts.append(" / ".join(str(x) for x in labels if x))
+                if item.get("_guaranteed"):
+                    info_parts.append("Guaranteed")
+                if item.get("_prefilled"):
+                    cap = item.get("capacity", 0)
+                    info_parts.append(f"Pre-filled ({cap} rds)")
+                avail_qty = int(item.get("_shop_available_qty", 1) or 1)
+                info_parts.append(f"Available: {avail_qty}")
+
+                if info_parts:
+                    customtkinter.CTkLabel(item_frame,
+                                           text=" | ".join(info_parts),
+                                           font=customtkinter.CTkFont(size=10),
+                                           text_color="orange", anchor="w"
+                                           ).pack(anchor="w", padx=10, pady=(0, 4))
+
+                btn_row_item = customtkinter.CTkFrame(item_frame, fg_color="transparent")
+                btn_row_item.pack(anchor="w", padx=10, pady=(0, 8))
+
+                qty_var = customtkinter.StringVar(value="1")
+                customtkinter.CTkLabel(btn_row_item, text="Qty:",
+                                       font=customtkinter.CTkFont(size=11)).pack(side="left", padx=(0, 4))
+                customtkinter.CTkEntry(btn_row_item, textvariable=qty_var, width=52).pack(side="left", padx=(0, 6))
+
+                def _do_add(it=item, up=unit_price, qv=qty_var):
+                    try:
+                        qty = max(1, int((qv.get() or "1").strip()))
+                    except Exception:
+                        qty = 1
+                    _add_to_cart(it, up, qty)
+
+                self._create_sound_button(
+                    btn_row_item, f"Add to Cart ({format_price(unit_price)}/ea)",
+                    _do_add,
+                    width=180, height=30, font=customtkinter.CTkFont(size=12)
+                ).pack(side="left")
+
+        # Build category buttons
+        sorted_cats = list(categories.keys())
+        for cat_name in sorted_cats:
+            count = len(categories[cat_name])
+            btn_text = cat_name if cat_name == "Order Caliber" else f"{cat_name} ({count})"
+            self._create_sound_button(
+                cat_nav, btn_text,
+                lambda c=cat_name: _render_category(c),
+                width=175, height=38, font=customtkinter.CTkFont(size=12)
+            ).pack(pady=4, padx=6)
+
+        # Show first category by default
+        _render_category(sorted_cats[0])
+
+        # ── Bottom buttons ───────────────────────────────────────────────────
+        btn_row = customtkinter.CTkFrame(main_frame, fg_color="transparent")
+        btn_row.grid(row=2, column=0, sticky="ew", padx=20, pady=10)
+
+        def _complete_purchase():
+            if not buy_cart:
+                self._popup_show_info("Empty Cart", "Your cart is empty.", sound="popup")
+                return
+            try:
+                hands_items = save_data.get("hands", {}).get("items", [])
+                for entry in buy_cart:
+                    qty = max(1, int(entry.get("quantity", 1)))
+                    unit_price = float(entry.get("price", 0.0))
+                    item_copy = entry["item"].copy()
+                    item_copy.pop("_table_category", None)
+                    item_copy.pop("_guaranteed", None)
+                    item_copy.pop("_prefilled", None)
+                    item_copy["quantity"] = qty
+                    item_copy["_purchase_price"] = unit_price
+                    item_copy = add_subslots_to_item(item_copy)
+                    _repair_item_parts_durability_recursive(item_copy, 100.0)
+                    self._add_item_to_container(hands_items, item_copy)
+                _repair_item_parts_durability_recursive(save_data, 100.0)
+                save_data["hands"]["items"] = hands_items
+                if not free_ammo:
+                    save_data["money"] = player_money[0] - buy_total[0]
+                    player_money[0] = save_data["money"]
+                self._write_save_to_path(save_path, save_data)
+                cost_str = "Free" if free_ammo else format_price(buy_total[0])
+                total_units = _buy_cart_units()
+                self._popup_show_info("Purchase Complete",
+                                      f"Received {total_units} item(s).  Cost: {cost_str}.",
+                                      sound="success")
+                buy_cart.clear()
+                buy_total[0] = 0.0
+                update_money_label()
+                stop_ui_music()
+                self._open_business_tool()
+            except Exception:
+                logging.exception("Failed to complete ammo supplier purchase")
+                self._popup_show_info("Error", "Failed to complete purchase.", sound="error")
+
+        def _leave():
+            if buy_cart:
+                def _do_leave(confirmed=True):
+                    if not confirmed:
+                        return
+                    stop_ui_music()
+                    self._open_business_tool()
+                n = _buy_cart_units()
+                self._popup_confirm("Leave", f"You have {n} item(s) in cart. Leave anyway?", _do_leave)
+                return
+            stop_ui_music()
+            self._open_business_tool()
+
+        self._create_sound_button(btn_row, "Complete Purchase", _complete_purchase,
+                                  width=200, height=40, font=customtkinter.CTkFont(size=14)
+                                  ).pack(side="left", padx=10)
+        self._create_sound_button(btn_row, "View Cart", _open_cart_popup,
+                                  width=160, height=40, font=customtkinter.CTkFont(size=14)
+                                  ).pack(side="left", padx=10)
+        self._create_sound_button(btn_row, "Leave", _leave,
+                                  width=140, height=40, font=customtkinter.CTkFont(size=14)
+                                  ).pack(side="right", padx=10)
 
     def _play_card_sound(self, sound_name):
         try:
@@ -19474,8 +22249,92 @@ class App:
             title = customtkinter.CTkLabel(scroll, text = item_data.get("name", "Unknown"), font = customtkinter.CTkFont(size = 18, weight = "bold"))
             title.pack(pady =(10, 20))
 
+            def _summarize_value(key, value):
+                key_l = str(key).lower()
+
+                if value is None:
+                    return "None"
+
+                if isinstance(value, bool):
+                    return "Yes" if value else "No"
+
+                if isinstance(value, (int, float, str)):
+                    return str(value)
+
+                if isinstance(value, list):
+                    if not value:
+                        return "None"
+
+                    if key_l == "rounds":
+                        variants = []
+                        for rd in value:
+                            if isinstance(rd, dict):
+                                rv = rd.get("variant") or rd.get("name")
+                                if rv and rv not in variants:
+                                    variants.append(str(rv))
+                        if variants:
+                            variant_text = ", ".join(variants[:3])
+                            if len(variants) > 3:
+                                variant_text += ", ..."
+                            return f"{len(value)} rounds ({variant_text})"
+                        return f"{len(value)} rounds"
+
+                    if key_l == "parts":
+                        part_lines = []
+                        for p in value:
+                            if not isinstance(p, dict):
+                                continue
+                            p_name = p.get("name") or p.get("type") or "Unknown Part"
+                            p_dur = p.get("current_durability")
+                            if p_dur is None and isinstance(p.get("current"), dict):
+                                p_dur = p["current"].get("current_durability")
+                            if isinstance(p_dur, (int, float)):
+                                pct = max(0.0, min(100.0, (float(p_dur) / PART_DURABILITY_MAX) * 100.0))
+                                part_lines.append(f"- {p_name}: {pct:.1f}%")
+                            else:
+                                part_lines.append(f"- {p_name}")
+                        return "\n".join(part_lines) if part_lines else f"{len(value)} entries"
+
+                    if all(isinstance(v, dict) for v in value):
+                        names = []
+                        for v in value:
+                            nm = v.get("name") if isinstance(v, dict) else None
+                            if nm:
+                                names.append(str(nm))
+                        if names:
+                            text = ", ".join(names[:4])
+                            if len(names) > 4:
+                                text += ", ..."
+                            return f"{len(value)} items: {text}"
+
+                    return ", ".join(str(v) for v in value[:6]) + (", ..." if len(value) > 6 else "")
+
+                if isinstance(value, dict):
+                    if key_l in ("loaded", "chambered", "current"):
+                        nm = value.get("name") or value.get("id") or "Unknown"
+                        cap = value.get("capacity")
+                        rds = value.get("rounds")
+                        if isinstance(rds, list):
+                            if isinstance(cap, (int, float)):
+                                return f"{nm} ({len(rds)}/{int(cap)} rounds)"
+                            return f"{nm} ({len(rds)} rounds)"
+                        return str(nm)
+
+                    preferred = ["name", "type", "slot", "id", "value", "weight"]
+                    chunks = []
+                    for pkey in preferred:
+                        if pkey in value:
+                            chunks.append(f"{pkey}: {value.get(pkey)}")
+                    if chunks:
+                        return "; ".join(chunks)
+                    return f"{len(value)} fields"
+
+                return str(value)
+
             for key, value in item_data.items():
                 if key =="name":
+                    continue
+                if isinstance(key, str) and key.startswith("_"):
                     continue
 
                 prop_frame = customtkinter.CTkFrame(scroll, fg_color = "transparent")
@@ -19490,10 +22349,7 @@ class App:
                 )
                 key_label.pack(side = "left", padx = 5)
 
-                if isinstance(value, (list, dict)):
-                    value_text = json.dumps(value, indent = 2)
-                else:
-                    value_text = str(value)
+                value_text = _summarize_value(key, value)
 
                 value_label = customtkinter.CTkLabel(
                 prop_frame,
@@ -23971,7 +26827,7 @@ class App:
                     info_row.pack(fill = "x", padx = 8, pady =(0, 6))
 
                     time_font = customtkinter.CTkFont(family = "DSEG7 Modern-Regular", size = 16)
-                    time_stack = customtkinter.CTkFrame(info_row, fg_color = "transparent", width = 126, height = 26)
+                    time_stack = customtkinter.CTkFrame(info_row, fg_color = "transparent", width = 142, height = 30)
                     time_stack.pack(side = "left", padx =(6, 4), pady = 4)
                     time_stack.pack_propagate(False)
                     time_ghost_label = customtkinter.CTkLabel(
@@ -23988,8 +26844,8 @@ class App:
                         text_color = "#C7F089"
                     )
                     time_label.place(relx = 1.0, rely = 0.5, anchor = "e")
-                    ampm_frame = customtkinter.CTkFrame(info_row, fg_color = "transparent", width = 28, height = 24)
-                    ampm_frame.pack(side = "left", padx =(0, 3), pady = 0)
+                    ampm_frame = customtkinter.CTkFrame(info_row, fg_color = "transparent", width = 42, height = 40)
+                    ampm_frame.pack(side = "left", padx =(0, 3), pady =(1, 0))
                     ampm_frame.pack_propagate(False)
                     pm_label = customtkinter.CTkLabel(
                         ampm_frame,
@@ -23997,16 +26853,16 @@ class App:
                         font = customtkinter.CTkFont(size = 9),
                         text_color = "#7D9561"
                     )
-                    pm_label.place(x = 0, y = 1)
+                    pm_label.place(relx = 0.5, rely = 0.36, anchor = "center")
                     am_label = customtkinter.CTkLabel(
                         ampm_frame,
                         text = "AM",
                         font = customtkinter.CTkFont(size = 9),
                         text_color = "#7D9561"
                     )
-                    am_label.place(x = 0, y = 12)
+                    am_label.place(relx = 0.5, rely = 0.77, anchor = "center")
 
-                    weather_stack = customtkinter.CTkFrame(info_row, fg_color = "transparent", width = 28, height = 28)
+                    weather_stack = customtkinter.CTkFrame(info_row, fg_color = "transparent", width = 32, height = 28)
                     weather_stack.pack(side = "left", padx =(2, 4), pady = 4)
                     weather_stack.pack_propagate(False)
                     weather_ghost_label = customtkinter.CTkLabel(
@@ -24024,7 +26880,7 @@ class App:
                     )
                     weather_icon_label.place(relx = 0.5, rely = 0.5, anchor = "center")
 
-                    temp_stack = customtkinter.CTkFrame(info_row, fg_color = "transparent", width = 86, height = 26)
+                    temp_stack = customtkinter.CTkFrame(info_row, fg_color = "transparent", width = 96, height = 30)
                     temp_stack.pack(side = "left", padx =(0, 6), pady = 4)
                     temp_stack.pack_propagate(False)
                     weather_temp_ghost_label = customtkinter.CTkLabel(
@@ -25612,11 +28468,23 @@ class App:
             def _get_compatible_mag_count():
                 try:
                     wpn = current_weapon_state.get("weapon", {})
-                    mag_system = wpn.get("magazinesystem")or wpn.get("submagazinesystem")or wpn.get("submagazinetype")
-                    if not mag_system:
+                    needed = set()
+                    needed.update(self._normalize_to_lower_set(wpn.get("magazinesystem")))
+                    needed.update(self._normalize_to_lower_set(wpn.get("submagazinesystem")))
+                    needed.update(self._normalize_to_lower_set(wpn.get("submagazinetype")))
+                    if not needed:
                         return 0
                     magazines_table = table_data.get("tables", {}).get("magazines", [])
-                    return len([m for m in magazines_table if(m.get("magazinesystem")==mag_system or m.get("magazinetype")==mag_system)])
+                    total = 0
+                    for m in magazines_table:
+                        if not isinstance(m, dict):
+                            continue
+                        mag_tokens = set()
+                        mag_tokens.update(self._normalize_to_lower_set(m.get("magazinesystem")))
+                        mag_tokens.update(self._normalize_to_lower_set(m.get("magazinetype")))
+                        if mag_tokens.intersection(needed):
+                            total += 1
+                    return total
                 except Exception:
                     return 0
 
@@ -26127,6 +28995,30 @@ class App:
 
             rows =[]
 
+            def _weapon_acc_slot_blocked(slot_name):
+                """Return the name of the slot/attachment blocking this slot, or None."""
+                sl = str(slot_name or "").strip().lower()
+                for other_acc in accessories:
+                    if str(other_acc.get("slot") or "").strip().lower() == sl:
+                        continue  # skip self
+                    if not isinstance(other_acc.get("current"), dict):
+                        continue  # nothing installed here
+                    # Check if the other slot's conflicts_with mentions our slot
+                    other_cw = other_acc.get("conflicts_with", [])
+                    if isinstance(other_cw, str):
+                        other_cw = [other_cw]
+                    for c in (other_cw or []):
+                        if str(c).strip().lower() == sl:
+                            return other_acc.get("name") or other_acc.get("slot") or "another slot"
+                    # Check if the installed attachment's conflicts_with mentions our slot
+                    att_cw = other_acc["current"].get("conflicts_with", [])
+                    if isinstance(att_cw, str):
+                        att_cw = [att_cw]
+                    for c in (att_cw or []):
+                        if str(c).strip().lower() == sl:
+                            return other_acc["current"].get("name") or other_acc.get("name") or "another slot"
+                return None
+
             def candidates_for_slot(slot_req):
                 matches =[]
 
@@ -26148,7 +29040,12 @@ class App:
             for acc in accessories:
                 frame = customtkinter.CTkFrame(popup)
                 frame.pack(fill = "x", padx = 10, pady = 6)
-                customtkinter.CTkLabel(frame, text = acc.get("name", "Slot"), font = customtkinter.CTkFont(size = 12, weight = "bold")).pack(anchor = "w")
+                blocker = _weapon_acc_slot_blocked(acc.get("slot"))
+                slot_label_text = acc.get("name", "Slot")
+                if blocker:
+                    slot_label_text += f" \u26d4 Blocked by: {blocker}"
+                customtkinter.CTkLabel(frame, text = slot_label_text, font = customtkinter.CTkFont(size = 12, weight = "bold"),
+                                       text_color = ("#cc4444" if blocker else None)).pack(anchor = "w")
                 opts =[(None, "None")]
                 for itm in candidates_for_slot(acc.get("slot")):
                     label = itm.get("name", "Attachment")
@@ -26187,6 +29084,11 @@ class App:
                 current_choice = customtkinter.StringVar(value = current_label)
                 option = customtkinter.CTkOptionMenu(frame, values =[o[1]for o in opts], variable = current_choice, width = 220)
                 option.pack(anchor = "w", pady = 4)
+                if blocker:
+                    try:
+                        option.configure(state = "disabled")
+                    except Exception:
+                        pass
 
                 def _open_mode_dial_for(acc_ref):
                     try:
@@ -26509,6 +29411,50 @@ class App:
                                 pass
                     except Exception:
                         pass
+
+                # ── Conflict validation ──────────────────────────────────
+                try:
+                    _will_install = {}
+                    for _a, _o, _v, _sr in rows:
+                        if _sr is not None:
+                            continue
+                        _lbl = _v.get()
+                        _item = next((it for it, lb in _o if lb == _lbl), None)
+                        _sn = str(_a.get("slot") or "").strip().lower()
+                        if _sn:
+                            _will_install[_sn] = _item
+
+                    def _cw_set(val):
+                        if isinstance(val, list):
+                            return {str(c).strip().lower() for c in val if c}
+                        if isinstance(val, str) and val.strip():
+                            return {val.strip().lower()}
+                        return set()
+
+                    for _a, _o, _v, _sr in rows:
+                        if _sr is not None:
+                            continue
+                        _lbl = _v.get()
+                        _item = next((it for it, lb in _o if lb == _lbl), None)
+                        if _item is None:
+                            continue
+                        _sn = str(_a.get("slot") or "").strip().lower()
+                        for _cs in _cw_set(_a.get("conflicts_with")) | _cw_set(_item.get("conflicts_with") if isinstance(_item, dict) else None):
+                            if _will_install.get(_cs) is not None:
+                                _blocker_name = next(
+                                    (_ba.get("name") or _cs for _ba, _, _, _bsr in rows
+                                     if _bsr is None and str(_ba.get("slot") or "").lower() == _cs),
+                                    _cs
+                                )
+                                self._popup_show_info(
+                                    "Attachment Conflict",
+                                    f"Cannot install '{_item.get('name', '?')}' in '{_a.get('name') or _sn}': "
+                                    f"conflicts with '{_blocker_name}'.",
+                                    sound="error"
+                                )
+                                return
+                except Exception:
+                    logging.exception("Attachment conflict check failed")
 
                 for acc, opts, var, subslot_ref in rows:
                     chosen_label = var.get()
@@ -30548,6 +33494,7 @@ class App:
                     '_spin_dragging': False,
                     '_spin_drag_last_ang': 0.0,
                     '_spin_drag_last_t': 0.0,
+                    '_spin_last_chamber_slot': -1,
                     '_drag_open_active': False, '_drag_open_start': 0,
                     '_drag_close_active': False, '_drag_close_start': 0,
                     '_rod_dragging': False, '_rod_drag_start_y': 0, '_rod_offset': 0.0,
@@ -30643,8 +33590,9 @@ class App:
                         fill = '#1a1a1a', outline = '#555555', width = 2, tags = 'cyl')
 
                     positions = []
+                    _cyl_ang = float(ls.get('cyl_angle', 0.0))
                     for i in range(cap):
-                        angle = (2 * _math_cy.pi * i / cap) - _math_cy.pi / 2
+                        angle = (2 * _math_cy.pi * i / cap) - _math_cy.pi / 2 + _cyl_ang
                         cx = draw_cx + CYL_R * 0.65 * _math_cy.cos(angle)
                         cy = draw_cy + CYL_R * 0.65 * _math_cy.sin(angle)
                         positions.append((cx, cy, angle, i))
@@ -30808,6 +33756,24 @@ class App:
                     sh = _orientation_shift_index()
                     return existing[sh:] + existing[:sh]
 
+                def _play_cyl_click():
+                    try:
+                        threading.Thread(
+                            target = lambda: self._safe_sound_play('firearms/universal', 'cylinderspinonce'),
+                            daemon = True
+                        ).start()
+                    except Exception:
+                        pass
+
+                def _check_chamber_pass(prev_ang, new_ang):
+                    step_ang = _chamber_step_angle()
+                    if step_ang <= 0 or cap <= 0:
+                        return
+                    prev_slot = int(prev_ang / step_ang) % cap
+                    new_slot = int(new_ang / step_ang) % cap
+                    if prev_slot != new_slot:
+                        _play_cyl_click()
+
                 def _cancel_spin_job():
                     job = ls.get('_spin_job')
                     if job is not None:
@@ -30835,10 +33801,12 @@ class App:
                     dt = max(0.001, min(0.05, now_t - last_t))
                     ls['_spin_drag_last_t'] = now_t
 
-                    ls['cyl_angle'] = _norm_ang(float(ls.get('cyl_angle', 0.0)) + float(ls.get('cyl_ang_vel', 0.0)) * dt)
+                    _prev_cyl_ang = float(ls.get('cyl_angle', 0.0))
+                    ls['cyl_angle'] = _norm_ang(_prev_cyl_ang + float(ls.get('cyl_ang_vel', 0.0)) * dt)
+                    _check_chamber_pass(_prev_cyl_ang, float(ls['cyl_angle']))
 
                     # Exponential damping gives a natural inertial slowdown.
-                    drag_k = 3.7
+                    drag_k = 2.2
                     ls['cyl_ang_vel'] = float(ls.get('cyl_ang_vel', 0.0)) * _math_cy.exp(-drag_k * dt)
 
                     step_ang = _chamber_step_angle()
@@ -30869,7 +33837,7 @@ class App:
                     _cancel_spin_job()
                     ls['_spin_active'] = True
                     ls['animating'] = True
-                    ls['cyl_ang_vel'] = float(max(-26.0, min(26.0, initial_velocity)))
+                    ls['cyl_ang_vel'] = float(max(-55.0, min(55.0, initial_velocity)))
                     ls['_spin_drag_last_t'] = time.perf_counter()
                     ls['_spin_job'] = editor.after(16, _advance_spin_motion)
 
@@ -30932,7 +33900,7 @@ class App:
                         draw_cx = CYL_CX + off
                         draw_cy = CYL_CY + ls.get('break_offset', 0.0)
                         d = _math_cy.sqrt((event.x - draw_cx) ** 2 + (event.y - draw_cy) ** 2)
-                        spin_threshold = (CYL_R * 0.45) if is_topbreak else (CYL_R * 0.18)
+                        spin_threshold = (CYL_R * 0.45) if is_topbreak else (CYL_R * 0.42)
                         if d >= spin_threshold:
                             _stop_spin_motion(snap_to_chamber = False)
                             ls['_spin_dragging'] = True
@@ -30966,8 +33934,10 @@ class App:
                         dt = max(0.001, min(0.05, now_t - float(ls.get('_spin_drag_last_t', now_t))))
                         ls['_spin_drag_last_t'] = now_t
                         ls['_spin_drag_last_ang'] = now_ang
-                        ls['cyl_angle'] = _norm_ang(float(ls.get('cyl_angle', 0.0)) + delta)
-                        ls['cyl_ang_vel'] = max(-30.0, min(30.0, delta / dt))
+                        _prev_cyl_ang2 = float(ls.get('cyl_angle', 0.0))
+                        ls['cyl_angle'] = _norm_ang(_prev_cyl_ang2 + delta)
+                        ls['cyl_ang_vel'] = max(-60.0, min(60.0, delta / dt))
+                        _check_chamber_pass(_prev_cyl_ang2, float(ls['cyl_angle']))
                         _draw_cylinder()
                         _draw_rod()
                         return
@@ -34723,6 +37693,7 @@ class App:
                 choices =[]
                 weapon_obj = current_weapon_state.get("weapon")or {}
                 raw_cal = weapon_obj.get("caliber")
+                selected_caliber = None
 
                 cal = None
                 if isinstance(raw_cal, (list, tuple)):
@@ -34780,6 +37751,7 @@ class App:
                         sel = dev_cal_var.get()
                         if sel:
                             cal = sel
+                            selected_caliber = str(sel)
                 except Exception:
                     pass
 
@@ -34797,12 +37769,20 @@ class App:
 
                         if match_cal:
                             for var in ammo.get("variants", [])or[]:
-                                choices.append(var.get("name", "Unknown"))
+                                vname = var.get("name")
+                                if vname and vname not in choices:
+                                    choices.append(vname)
+                            continue
+
+                        # If a caliber is explicitly selected, only show variants from that caliber.
+                        if selected_caliber:
                             continue
 
                         if w_sounds and(ammo.get("sounds")==w_sounds or ammo.get("ammo_type")==w_sounds):
                             for var in ammo.get("variants", [])or[]:
-                                choices.append(var.get("name", "Unknown"))
+                                vname = var.get("name")
+                                if vname and vname not in choices:
+                                    choices.append(vname)
                     except Exception:
                         pass
                 return choices or["Ball"]
@@ -35135,11 +38115,20 @@ class App:
 
                 try:
                     current_weapon = current_weapon_state["weapon"]
-                    raw_cal = current_weapon.get("caliber", [])or[]
-                    if isinstance(raw_cal, (list, tuple)):
-                        caliber = raw_cal[0]if raw_cal else None
-                    else:
-                        caliber = raw_cal
+                    selected_caliber = ""
+                    try:
+                        selected_caliber = str(caliber_var.get() or "").strip()
+                    except Exception:
+                        selected_caliber = ""
+
+                    if not selected_caliber:
+                        raw_cal = current_weapon.get("caliber", [])or[]
+                        if isinstance(raw_cal, (list, tuple)):
+                            selected_caliber = str(raw_cal[0]).strip() if raw_cal else ""
+                        else:
+                            selected_caliber = str(raw_cal).strip() if raw_cal is not None else ""
+
+                    w_sounds = current_weapon.get("sounds")or current_weapon.get("sound_folder")or current_weapon.get("ammo_type")
 
                     ammo_tables = table_data.get("tables", {}).get("ammunition", [])if table_data else[]
                     ammo_def = None
@@ -35147,26 +38136,25 @@ class App:
                         try:
                             a_cal = a.get("caliber")
 
-                            if caliber is not None:
-                                if isinstance(a_cal, (list, tuple))and isinstance(caliber, str)and caliber in a_cal:
+                            if selected_caliber:
+                                if isinstance(a_cal, (list, tuple))and selected_caliber in [str(x)for x in a_cal if x is not None]:
                                     ammo_def = a ;break
-                                if isinstance(a_cal, str)and isinstance(caliber, str)and a_cal ==caliber:
+                                if isinstance(a_cal, str)and a_cal ==selected_caliber:
                                     ammo_def = a ;break
 
                             a_id = a.get("id")
-                            if a_id is not None and str(a_id)==str(caliber):
+                            if a_id is not None and selected_caliber and str(a_id)==selected_caliber:
                                 ammo_def = a ;break
 
-                            w_sounds = None
-                            if isinstance(caliber, str):
-                                w_sounds = caliber
+                            # Fallback by sounds only when no caliber was selected/resolved.
                             if w_sounds and(a.get("sounds")==w_sounds or a.get("ammo_type")==w_sounds):
-                                ammo_def = a ;break
+                                if not selected_caliber:
+                                    ammo_def = a ;break
                         except Exception:
                             continue
 
                     if not ammo_def:
-                        self._popup_show_info("DevMode Error", f"No ammunition definition found for {repr(caliber)}")
+                        self._popup_show_info("DevMode Error", f"No ammunition definition found for {repr(selected_caliber or w_sounds)}")
                         return
 
                     variant_name = variant_var.get()
@@ -35179,13 +38167,13 @@ class App:
                         variant_info = ammo_def["variants"][0]
 
                     single_round = {
-                    "name":f"{caliber} | {variant_name}",
-                    "caliber":caliber,
+                    "name":f"{selected_caliber or ammo_def.get('caliber') or 'Unknown'} | {variant_name}",
+                    "caliber":selected_caliber or ammo_def.get("caliber"),
                     "variant":variant_name,
                     "weight":ammo_def.get("weight", 0.01),
                     "value":ammo_def.get("value", 0),
                     "sounds":ammo_def.get("sounds", ""),
-                    "description":f"{caliber} - {variant_name}"
+                    "description":f"{selected_caliber or ammo_def.get('caliber') or 'Unknown'} - {variant_name}"
                     }
                     if variant_info:
                         _apply_ammo_variant_data(single_round, ammo_def, variant_info)
@@ -35210,17 +38198,29 @@ class App:
                 try:
 
                     current_weapon = current_weapon_state.get("weapon", {})
-                    mag_system = current_weapon.get("magazinesystem")or current_weapon.get("submagazinesystem")or current_weapon.get("submagazinetype")
+                    needed = set()
+                    needed.update(self._normalize_to_lower_set(current_weapon.get("magazinesystem")))
+                    needed.update(self._normalize_to_lower_set(current_weapon.get("submagazinesystem")))
+                    needed.update(self._normalize_to_lower_set(current_weapon.get("submagazinetype")))
 
-                    if not mag_system:
+                    if not needed:
                         self._popup_show_info("DevMode Error", "Weapon doesn't use detachable magazines")
                         return
 
                     magazines_table = table_data.get("tables", {}).get("magazines", [])
-                    compatible_mags =[m for m in magazines_table if(m.get("magazinesystem")==mag_system or m.get("magazinetype")==mag_system)]
+                    compatible_mags = []
+                    for m in magazines_table:
+                        if not isinstance(m, dict):
+                            continue
+                        mag_tokens = set()
+                        mag_tokens.update(self._normalize_to_lower_set(m.get("magazinesystem")))
+                        mag_tokens.update(self._normalize_to_lower_set(m.get("magazinetype")))
+                        if mag_tokens.intersection(needed):
+                            compatible_mags.append(m)
 
                     if not compatible_mags:
-                        self._popup_show_info("DevMode Error", f"No magazines in table for {mag_system}")
+                        systems_text = ", ".join(sorted(needed)) if needed else "unknown"
+                        self._popup_show_info("DevMode Error", f"No magazines in table for: {systems_text}")
                         return
 
                     mag_template = compatible_mags[0]
@@ -35228,30 +38228,38 @@ class App:
 
                     rounds = []
                     try:
-                        raw_cal = current_weapon.get("caliber", [])or[]
-                        if isinstance(raw_cal, (list, tuple)):
-                            caliber = raw_cal[0]if raw_cal else None
-                        else:
-                            caliber = raw_cal
+                        selected_caliber = ""
+                        try:
+                            selected_caliber = str(caliber_var.get() or "").strip()
+                        except Exception:
+                            selected_caliber = ""
+
+                        if not selected_caliber:
+                            raw_cal = current_weapon.get("caliber", [])or[]
+                            if isinstance(raw_cal, (list, tuple)):
+                                selected_caliber = str(raw_cal[0]).strip() if raw_cal else ""
+                            else:
+                                selected_caliber = str(raw_cal).strip() if raw_cal is not None else ""
+
+                        w_sounds = current_weapon.get("sounds")or current_weapon.get("sound_folder")or current_weapon.get("ammo_type")
 
                         ammo_tables = table_data.get("tables", {}).get("ammunition", [])if table_data else[]
                         ammo_def = None
                         for a in ammo_tables:
                             try:
                                 a_cal = a.get("caliber")
-                                if caliber is not None:
-                                    if isinstance(a_cal, (list, tuple))and isinstance(caliber, str)and caliber in a_cal:
+                                if selected_caliber:
+                                    if isinstance(a_cal, (list, tuple))and selected_caliber in [str(x)for x in a_cal if x is not None]:
                                         ammo_def = a ;break
-                                    if isinstance(a_cal, str)and isinstance(caliber, str)and a_cal ==caliber:
+                                    if isinstance(a_cal, str)and a_cal ==selected_caliber:
                                         ammo_def = a ;break
                                 a_id = a.get("id")
-                                if a_id is not None and str(a_id)==str(caliber):
+                                if a_id is not None and selected_caliber and str(a_id)==selected_caliber:
                                     ammo_def = a ;break
-                                w_sounds = None
-                                if isinstance(caliber, str):
-                                    w_sounds = caliber
+
                                 if w_sounds and(a.get("sounds")==w_sounds or a.get("ammo_type")==w_sounds):
-                                    ammo_def = a ;break
+                                    if not selected_caliber:
+                                        ammo_def = a ;break
                             except Exception:
                                 continue
 
@@ -35266,13 +38274,13 @@ class App:
                                 variant_info = ammo_def["variants"][0]
 
                             single_round = {
-                            "name":f"{caliber} | {variant_name}",
-                            "caliber":caliber,
+                            "name":f"{selected_caliber or ammo_def.get('caliber') or 'Unknown'} | {variant_name}",
+                            "caliber":selected_caliber or ammo_def.get("caliber"),
                             "variant":variant_name,
                             "weight":ammo_def.get("weight", 0.01),
                             "value":ammo_def.get("value", 0),
                             "sounds":ammo_def.get("sounds", ""),
-                            "description":f"{caliber} - {variant_name}"
+                            "description":f"{selected_caliber or ammo_def.get('caliber') or 'Unknown'} - {variant_name}"
                             }
                             if variant_info:
                                 _apply_ammo_variant_data(single_round, ammo_def, variant_info)
@@ -35285,7 +38293,7 @@ class App:
                     'name':mag_template.get('name'),
                     'id':mag_template.get('id'),
                     'magazinetype':mag_template.get('magazinetype', 'Unknown'),
-                    'magazinesystem':mag_system,
+                    'magazinesystem':mag_template.get('magazinesystem', current_weapon.get('magazinesystem')),
                     'capacity':capacity,
                     'rounds':rounds
                     }
@@ -35491,6 +38499,7 @@ class App:
                 weather_name = str(weather_state.get("weather", "clear")).strip().lower()
                 weather_temp = weather_state.get("temperature_f", combat_state.get("ambient_temperature", 70))
                 weather_temp_text = _watch_temperature_text(weather_temp)
+                has_analog_watch = any(str(row.get("watch_type", "")).strip().lower() != "digital" for row in watch_rows)
 
                 second_key = (now_dt.hour, now_dt.minute, now_dt.second)
                 if watch_sound_clock_state.get("last_second") != second_key:
@@ -35500,12 +38509,13 @@ class App:
                         if watch_sound_clock_state.get("last_hourly_beep") != hourly_key:
                             watch_sound_clock_state["last_hourly_beep"] = hourly_key
                             _play_watch_sound("hourly beep.ogg", volume = 0.45, pitch_range = (0.995, 1.005))
-                    if now_dt.minute == 0 and now_dt.second == 0:
-                        _play_watch_sound("clocktick.ogg", volume = 0.50, pitch_range = (0.985, 1.015))
-                    elif now_dt.second == 0:
-                        _play_watch_sound("clocktick.ogg", volume = 0.34, pitch_range = (0.95, 1.05))
-                    else:
-                        _play_watch_sound("clocktick.ogg", volume = 0.22, pitch_range = (0.96, 1.04))
+                    if has_analog_watch:
+                        if now_dt.minute == 0 and now_dt.second == 0:
+                            _play_watch_sound("clocktick.ogg", volume = 0.50, pitch_range = (0.985, 1.015))
+                        elif now_dt.second == 0:
+                            _play_watch_sound("clocktick.ogg", volume = 0.34, pitch_range = (0.95, 1.05))
+                        else:
+                            _play_watch_sound("clocktick.ogg", volume = 0.22, pitch_range = (0.96, 1.04))
 
                 for row_state in watch_rows:
                     use_24h = True
@@ -37742,6 +40752,21 @@ class App:
                     logging.debug("_play_weapon_action_sound: platform-specific %s -> %s", action_type, sound_file)
                     self._safe_sound_play("", sound_file, block = should_block)
                     return
+
+                if action_type == 'boltactionback':
+                    _ba_fallback = glob.glob(os.path.join(wf, "boltback*.ogg")) + glob.glob(os.path.join(wf, "boltback*.wav"))
+                    if _ba_fallback:
+                        sound_file = random.choice(_ba_fallback)
+                        logging.debug("_play_weapon_action_sound: platform boltback fallback for boltactionback -> %s", sound_file)
+                        self._safe_sound_play("", sound_file, block=should_block)
+                        return
+                elif action_type == 'boltactionforward':
+                    _bf_fallback = glob.glob(os.path.join(wf, "boltforward*.ogg")) + glob.glob(os.path.join(wf, "boltforward*.wav"))
+                    if _bf_fallback:
+                        sound_file = random.choice(_bf_fallback)
+                        logging.debug("_play_weapon_action_sound: platform boltforward fallback for boltactionforward -> %s", sound_file)
+                        self._safe_sound_play("", sound_file, block=should_block)
+                        return
 
             internal_sounds = {
             "tubeinsert":"sounds/firearms/universal/tubeinsert.ogg",
@@ -44789,6 +47814,8 @@ class App:
                 item_to_add = {k:v for k, v in item.items()if k !="table_category"}
 
                 item_to_add = add_subslots_to_item(item_to_add)
+                if item_to_add.get("firearm"):
+                    _set_full_part_durability(item_to_add)
 
                 try:
                     save_data.setdefault("hands", {})

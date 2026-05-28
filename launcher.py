@@ -1,5 +1,7 @@
 import ctypes
+import hashlib
 import json
+import logging
 import os
 import queue
 import re
@@ -10,12 +12,23 @@ import tempfile
 import threading
 import time
 import zipfile
+from datetime import datetime
 from pathlib import Path
 import tkinter as tk
 from tkinter import BOTH, DISABLED, END, LEFT, NORMAL, RIGHT, W, Text, Tk, messagebox, ttk
 from typing import Any, Callable
 
 import requests
+
+try:
+    import sv_ttk  # type: ignore[import-not-found]
+except Exception:
+    sv_ttk = None
+
+try:
+    import darkdetect  # type: ignore[import-not-found]
+except Exception:
+    darkdetect = None
 
 
 OWNER = "soli-dstate"
@@ -58,10 +71,206 @@ INSTALL_STEPS = [
 
 MUTEX_NAME = "DOOMToolsLauncherSingleton"
 ERROR_ALREADY_EXISTS = 183
+HTTP_RETRY_ATTEMPTS = 4
+HTTP_RETRY_SLEEP_SECONDS = 1.4
+HTTP_RETRY_STATUS = {408, 425, 429, 500, 502, 503, 504}
+HTTP_DEFAULT_HEADERS = {
+    "Accept": "*/*",
+    "Connection": "close",
+    "User-Agent": "DOOM-Tools-Launcher/1.0",
+}
+REQUIRED_PYTHON_VERSION = (3, 13, 11)
 
 
 class LauncherError(RuntimeError):
     pass
+
+
+def _enable_windows_vt_mode() -> bool:
+    if os.name != "nt":
+        return False
+    try:
+        handle = ctypes.windll.kernel32.GetStdHandle(-11)
+        if handle in (0, -1):
+            return False
+        mode = ctypes.c_uint()
+        if ctypes.windll.kernel32.GetConsoleMode(handle, ctypes.byref(mode)) == 0:
+            return False
+        return ctypes.windll.kernel32.SetConsoleMode(handle, mode.value | 0x0004) != 0
+    except Exception:
+        return False
+
+
+def _console_supports_color() -> bool:
+    stream = getattr(sys, "stderr", None)
+    if stream is None or not hasattr(stream, "isatty") or not stream.isatty():
+        return False
+    if os.name != "nt":
+        return True
+    if os.environ.get("WT_SESSION") or os.environ.get("ANSICON"):
+        return True
+    return _enable_windows_vt_mode()
+
+
+class ColoredFormatter(logging.Formatter):
+    COLORS = {
+        "DEBUG": "\033[36m",
+        "INFO": "\033[32m",
+        "WARNING": "\033[33m",
+        "ERROR": "\033[31m",
+        "CRITICAL": "\033[35m",
+    }
+    RESET = "\033[0m"
+
+    def format(self, record: logging.LogRecord) -> str:
+        orig_level = record.levelname
+        color = self.COLORS.get(orig_level, "")
+        formatted = super().format(record)
+
+        if orig_level in ("WARNING", "ERROR", "CRITICAL", "DEBUG") and color:
+            return f"{color}{formatted}{self.RESET}"
+
+        if orig_level == "INFO" and color:
+            try:
+                return formatted.replace(orig_level, f"{color}{orig_level}{self.RESET}", 1)
+            except Exception:
+                return formatted
+        return formatted
+
+
+class StripAnsiFormatter(logging.Formatter):
+    ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
+
+    def format(self, record: logging.LogRecord) -> str:
+        formatted = super().format(record)
+        return self.ANSI_RE.sub("", formatted)
+
+
+class UILogHandler(logging.Handler):
+    def __init__(self, ui_queue: queue.Queue[tuple[str, Any]]) -> None:
+        super().__init__()
+        self.ui_queue = ui_queue
+
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            self.ui_queue.put(("log", (record.levelname, self.format(record))))
+        except Exception:
+            self.handleError(record)
+
+
+def send_desktop_notification(title: str, message: str, logger: logging.Logger | None = None) -> bool:
+    try:
+        if os.name == "nt":
+            try:
+                from winotify import Notification, audio
+
+                toast = Notification(app_id=APP_NAME, title=title, msg=message, duration="short")
+                toast.set_audio(audio.Default, loop=False)
+                toast.show()
+                return True
+            except Exception:
+                escaped_title = title.replace("'", "''")
+                escaped_message = message.replace("'", "''")
+                script = (
+                    "Add-Type -AssemblyName System.Runtime.WindowsRuntime; "
+                    "$template = [Windows.UI.Notifications.ToastTemplateType, Windows.UI.Notifications, ContentType=WindowsRuntime]::ToastText02; "
+                    "$xml = [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType=WindowsRuntime]::GetTemplateContent($template); "
+                    "$nodes = $xml.GetElementsByTagName('text'); "
+                    f"$nodes.Item(0).AppendChild($xml.CreateTextNode('{escaped_title}')) > $null; "
+                    f"$nodes.Item(1).AppendChild($xml.CreateTextNode('{escaped_message}')) > $null; "
+                    "$toast = [Windows.UI.Notifications.ToastNotification, Windows.UI.Notifications, ContentType=WindowsRuntime]::new($xml); "
+                    f"[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType=WindowsRuntime]::CreateToastNotifier('{escaped_title}').Show($toast)"
+                )
+                completed = subprocess.run(
+                    ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    check=False,
+                    timeout=10,
+                )
+                return completed.returncode == 0
+
+        if sys.platform == "darwin":
+            escaped_title = title.replace('"', '\\"')
+            escaped_message = message.replace('"', '\\"')
+            completed = subprocess.run(
+                ["osascript", "-e", f'display notification "{escaped_message}" with title "{escaped_title}"'],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                check=False,
+                timeout=10,
+            )
+            return completed.returncode == 0
+
+        notify_send = shutil.which("notify-send")
+        if notify_send:
+            completed = subprocess.run(
+                [notify_send, title, message],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                check=False,
+                timeout=10,
+            )
+            return completed.returncode == 0
+    except Exception as exc:
+        if logger:
+            logger.debug("Desktop notification failed: %s", exc)
+        return False
+
+    if logger:
+        logger.debug("Desktop notifications are unavailable on this platform")
+    return False
+
+
+def configure_launcher_logger(
+    ui_queue: queue.Queue[tuple[str, Any]],
+    cache_dir: Path,
+) -> tuple[logging.Logger, Path]:
+    logs_dir = cache_dir / "logs"
+    archive_dir = logs_dir / "archive"
+    logs_dir.mkdir(parents=True, exist_ok=True)
+    archive_dir.mkdir(parents=True, exist_ok=True)
+
+    log_files = sorted(logs_dir.glob("log_*.log"))
+    if len(log_files) >= 50:
+        archive_name = archive_dir / f"logs_archive_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip"
+        with zipfile.ZipFile(archive_name, "w", zipfile.ZIP_DEFLATED) as archive_zip:
+            for log_file in log_files:
+                archive_zip.write(log_file, arcname=log_file.name)
+                log_file.unlink(missing_ok=True)
+        log_files = []
+
+    log_number = len(log_files) + 1
+    log_path = logs_dir / f"log_{log_number}_{datetime.now().strftime('%A_%B_%d_%Y_%H_%M_%S_%f')[:-3]}.log"
+    message_format = "%(asctime)s | %(levelname)s | %(message)s"
+
+    logger = logging.getLogger("doom_tools.launcher")
+    logger.setLevel(logging.INFO)
+    logger.propagate = False
+
+    for handler in list(logger.handlers):
+        logger.removeHandler(handler)
+        try:
+            handler.close()
+        except Exception:
+            pass
+
+    file_handler = logging.FileHandler(log_path, encoding="utf-8")
+    file_handler.setFormatter(StripAnsiFormatter(message_format))
+
+    console_handler = logging.StreamHandler()
+    if _console_supports_color():
+        console_handler.setFormatter(ColoredFormatter(message_format))
+    else:
+        console_handler.setFormatter(StripAnsiFormatter(message_format))
+
+    ui_handler = UILogHandler(ui_queue)
+    ui_handler.setFormatter(StripAnsiFormatter(message_format))
+
+    logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
+    logger.addHandler(ui_handler)
+    return logger, log_path
 
 
 def hide_console_window() -> None:
@@ -122,14 +331,47 @@ def save_json(path: Path, payload: dict) -> None:
     path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
 
 
+def _retry_delay(attempt: int) -> float:
+    return min(6.0, HTTP_RETRY_SLEEP_SECONDS * attempt)
+
+
+def _request_with_retry(
+    url: str,
+    *,
+    timeout: int,
+    stream: bool = False,
+    headers: dict[str, str] | None = None,
+    attempts: int = HTTP_RETRY_ATTEMPTS,
+):
+    merged_headers = dict(HTTP_DEFAULT_HEADERS)
+    if headers:
+        merged_headers.update(headers)
+
+    last_error: Exception | None = None
+    for attempt in range(1, attempts + 1):
+        try:
+            response = requests.get(url, timeout=timeout, stream=stream, headers=merged_headers)
+            if response.status_code in HTTP_RETRY_STATUS and attempt < attempts:
+                response.close()
+                raise requests.HTTPError(f"Transient HTTP status {response.status_code}")
+            response.raise_for_status()
+            return response
+        except Exception as exc:
+            last_error = exc
+            if attempt >= attempts:
+                break
+            time.sleep(_retry_delay(attempt))
+
+    raise LauncherError(f"Failed to fetch URL after retries: {url} | {last_error}")
+
+
 def fetch_latest_release() -> dict:
-    response = requests.get(
+    with _request_with_retry(
         GITHUB_API_RELEASE,
         timeout=20,
         headers={"Accept": "application/vnd.github+json"},
-    )
-    response.raise_for_status()
-    data = response.json()
+    ) as response:
+        data = response.json()
     tag = str(data.get("tag_name", "")).strip()
     zipball_url = str(data.get("zipball_url", "")).strip()
     assets = data.get("assets", [])
@@ -141,10 +383,10 @@ def fetch_latest_release() -> dict:
 
 
 def fetch_remote_resource_link() -> str:
-    response = requests.get(GITHUB_RAW_MAIN, timeout=20)
-    response.raise_for_status()
+    with _request_with_retry(GITHUB_RAW_MAIN, timeout=20) as response:
+        text = response.text
     pattern = re.compile(r"^current_resource_link\s*=\s*[\"\'](.*?)[\"\']\s*$", re.MULTILINE)
-    match = pattern.search(response.text)
+    match = pattern.search(text)
     if not match:
         return ""
     return match.group(1).strip()
@@ -166,28 +408,50 @@ def download_file(
     on_progress: Callable[[int, int, float], None] | None = None,
 ) -> None:
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    with requests.get(url, timeout=120, stream=True) as response:
-        response.raise_for_status()
-        total = int(response.headers.get("Content-Length", "0") or "0")
-        downloaded = 0
-        started = time.perf_counter()
-        last_emit = started
-        with out_path.open("wb") as handle:
-            for chunk in response.iter_content(chunk_size=1024 * 64):
-                if chunk:
-                    handle.write(chunk)
-                    downloaded += len(chunk)
-                    now = time.perf_counter()
-                    if on_progress and (now - last_emit >= 0.2):
-                        elapsed = max(now - started, 0.001)
-                        speed = downloaded / elapsed
-                        on_progress(downloaded, total, speed)
-                        last_emit = now
+    temp_path = out_path.with_suffix(out_path.suffix + ".part")
 
-        if on_progress:
-            elapsed = max(time.perf_counter() - started, 0.001)
-            speed = downloaded / elapsed
-            on_progress(downloaded, total, speed)
+    last_error: Exception | None = None
+    for attempt in range(1, HTTP_RETRY_ATTEMPTS + 1):
+        if temp_path.exists():
+            try:
+                temp_path.unlink()
+            except Exception:
+                pass
+
+        try:
+            with _request_with_retry(url, timeout=120, stream=True, attempts=1) as response:
+                total = int(response.headers.get("Content-Length", "0") or "0")
+                downloaded = 0
+                started = time.perf_counter()
+                last_emit = started
+                with temp_path.open("wb") as handle:
+                    for chunk in response.iter_content(chunk_size=1024 * 64):
+                        if chunk:
+                            handle.write(chunk)
+                            downloaded += len(chunk)
+                            now = time.perf_counter()
+                            if on_progress and (now - last_emit >= 0.2):
+                                elapsed = max(now - started, 0.001)
+                                speed = downloaded / elapsed
+                                on_progress(downloaded, total, speed)
+                                last_emit = now
+
+                if on_progress:
+                    elapsed = max(time.perf_counter() - started, 0.001)
+                    speed = downloaded / elapsed
+                    on_progress(downloaded, total, speed)
+
+            temp_path.replace(out_path)
+            return
+        except Exception as exc:
+            last_error = exc
+            if attempt >= HTTP_RETRY_ATTEMPTS:
+                break
+            if on_progress:
+                on_progress(0, 0, 0.0)
+            time.sleep(_retry_delay(attempt))
+
+    raise LauncherError(f"Failed downloading {url}: {last_error}")
 
 
 def extract_source_from_release(zip_path: Path, extract_parent: Path) -> Path:
@@ -209,35 +473,82 @@ def ensure_venv(venv_dir: Path, logger, python_cmd: list[str]) -> Path:
         python_path = venv_dir / "bin" / "python"
 
     if python_path.exists():
-        return python_path
+        probe = subprocess.run(
+            [str(python_path), "-c", "import sys; print(sys.version)"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+        if probe.returncode == 0:
+            return python_path
+
+        logger("Cached virtual environment is invalid. Recreating venv...")
+        shutil.rmtree(venv_dir, ignore_errors=True)
 
     logger("Creating virtual environment...")
     subprocess.run(python_cmd + ["-m", "venv", str(venv_dir)], check=True)
     if not python_path.exists():
         raise LauncherError("Failed to create virtual environment")
+
+    pip_probe = subprocess.run(
+        [str(python_path), "-m", "pip", "--version"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        timeout=10,
+        check=False,
+    )
+    if pip_probe.returncode != 0:
+        logger("Bootstrapping pip inside virtual environment...")
+        subprocess.run([str(python_path), "-m", "ensurepip", "--upgrade"], check=True)
+
     return python_path
 
 
 def detect_python_command() -> list[str] | None:
     candidates: list[list[str]] = []
     if os.name == "nt" and shutil.which("py"):
+        candidates.append(["py", "-3.13t"])
+        candidates.append(["py", "-3.13"])
         candidates.append(["py", "-3"])
     if shutil.which("python"):
         candidates.append(["python"])
     if shutil.which("python3"):
         candidates.append(["python3"])
 
+    version_script = (
+        "import sys; "
+        "print(f'{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}')"
+    )
+
     for base in candidates:
         try:
-            completed = subprocess.run(
-                base + ["-c", "import sys; print(sys.version)"] ,
+            version_check = subprocess.run(
+                base + ["-c", version_script],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
                 timeout=10,
                 check=False,
             )
-            if completed.returncode == 0:
+            required_version = ".".join(str(part) for part in REQUIRED_PYTHON_VERSION)
+            if version_check.returncode != 0 or version_check.stdout.strip() != required_version:
+                continue
+
+            gil_env = os.environ.copy()
+            gil_env["PYTHON_GIL"] = "0"
+            gil_probe = subprocess.run(
+                base + ["-c", "import sys; print(sys.version)"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                timeout=10,
+                check=False,
+                env=gil_env,
+            )
+            if gil_probe.returncode == 0:
                 return base
         except Exception:
             continue
@@ -417,8 +728,21 @@ def install_dependencies(venv_python: Path, source_root: Path, logger) -> None:
     if not req_file.exists():
         raise LauncherError("requirements.txt was not found in downloaded source")
 
-    run_logged([str(venv_python), "-m", "pip", "install", "--upgrade", "pip"], logger)
-    run_logged([str(venv_python), "-m", "pip", "install", "-r", str(req_file)], logger)
+    run_logged(
+        [str(venv_python), "-m", "pip", "install", "--upgrade", "pip", "setuptools", "wheel"],
+        logger,
+    )
+    run_logged(
+        [str(venv_python), "-m", "pip", "install", "--upgrade", "--upgrade-strategy", "only-if-needed", "-r", str(req_file)],
+        logger,
+    )
+
+
+def requirements_digest(source_root: Path) -> str:
+    req_file = source_root / "requirements.txt"
+    if not req_file.exists():
+        raise LauncherError("requirements.txt was not found in downloaded source")
+    return hashlib.sha256(req_file.read_bytes()).hexdigest()
 
 
 def build_executable(venv_python: Path, source_root: Path, cache_dir: Path, logger) -> Path:
@@ -588,7 +912,7 @@ def prepare_or_update(
     logger,
     progress=None,
     transfer=None,
-) -> tuple[Path, dict]:
+) -> tuple[list[str], Path, dict]:
     def report(step: int, status: str, detail: str = "") -> None:
         if progress:
             progress(step, status, detail)
@@ -611,7 +935,6 @@ def prepare_or_update(
     needs_release_update = (
         state.get("release_tag") != latest_tag
         or not source_root.exists()
-        or not runtime_exe.exists()
     )
 
     if needs_release_update:
@@ -633,14 +956,54 @@ def prepare_or_update(
         shutil.move(str(extracted_root), str(source_root))
         shutil.rmtree(extract_parent, ignore_errors=True)
         tmp_zip.unlink(missing_ok=True)
+        state["release_tag"] = latest_tag
+
+    if not source_root.exists():
+        raise LauncherError("Local source cache is missing unexpectedly")
+
+    launch_cmd: list[str]
+    launch_cwd: Path
+    runtime_content_root: Path
+
+    python_cmd = detect_python_command()
+    if python_cmd:
+        logger("Python detected. Using source runtime with cached virtual environment")
+        report(2, "Preparing environment", "Creating/updating venv")
+        venv_dir = cache_dir / VENV_DIR_NAME
+        venv_python = ensure_venv(venv_dir, logger, python_cmd)
+
+        report(3, "Building executable", "Using source runtime (no build)")
+        req_digest = requirements_digest(source_root)
+        logger("Syncing Python requirements in cached venv...")
+        install_dependencies(venv_python, source_root, logger)
+
+        main_py = source_root / "main.py"
+        if not main_py.exists():
+            raise LauncherError("Downloaded source does not contain main.py")
+
+        launch_cmd = [str(venv_python), str(main_py)]
+        launch_cwd = source_root
+        runtime_content_root = source_root
+        state["runtime_mode"] = "raw_source"
+        state["python_source"] = "system"
+        state["venv_ready"] = True
+        state["requirements_digest"] = req_digest
+    else:
+        required_version = ".".join(str(part) for part in REQUIRED_PYTHON_VERSION)
+        if os.name != "nt":
+            raise LauncherError(
+                "A compatible Python runtime was not found. "
+                f"DOOM-Tools requires Python {required_version} with GIL disabling support (PYTHON_GIL=0)."
+            )
+
+        logger(
+            "Compatible Python runtime not found for source mode; "
+            "falling back to prebuilt runtime"
+        )
+        report(2, "Preparing environment", "Using prebuilt runtime fallback")
+        report(3, "Building executable", "Downloading prebuilt executable")
 
         def _download_prebuilt_binary() -> Path:
-            if os.name != "nt":
-                raise LauncherError("No Python detected on this platform and no local build is possible")
-
-            logger("Using prebuilt release binary")
-            report(2, "Preparing environment", "Using release binary fallback")
-            report(3, "Building executable", "Downloading prebuilt executable")
             asset = find_windows_prebuilt_asset(release)
             asset_name = str(asset.get("name", "runtime asset"))
             asset_url = str(asset.get("browser_download_url", ""))
@@ -661,58 +1024,20 @@ def prepare_or_update(
                 logger,
             )
 
-        python_cmd = detect_python_command()
-        python_source = "system"
-        if not python_cmd and os.name == "nt":
-            logger("No system Python detected; attempting bundled builder toolchain")
-            report(2, "Preparing environment", "Downloading bundled builder toolchain")
-            try:
-                python_cmd = ensure_windows_builder_python(
-                    release,
-                    cache_dir,
-                    latest_tag,
-                    logger,
-                    transfer_cb=report_transfer,
-                )
-                if python_cmd:
-                    python_source = "bundled_toolchain"
-            except Exception as toolchain_exc:
-                logger(f"Bundled builder toolchain unavailable: {toolchain_exc}")
-                python_cmd = None
-
-        if python_cmd:
-            try:
-                logger("Preparing Python environment...")
-                report(2, "Preparing environment", "Creating venv and installing dependencies")
-                venv_dir = cache_dir / VENV_DIR_NAME
-                venv_python = ensure_venv(venv_dir, logger, python_cmd)
-                install_dependencies(venv_python, source_root, logger)
-
-                logger("Building executable from latest release source...")
-                report(3, "Building executable", "Compiling latest source with PyInstaller")
-                built_exe = build_executable(venv_python, source_root, cache_dir, logger)
-                state["build_mode"] = python_source
-            except Exception as build_exc:
-                logger(f"Source build failed; falling back to prebuilt binary: {build_exc}")
-                built_exe = _download_prebuilt_binary()
-                state["build_mode"] = "prebuilt"
+        prebuilt_missing = not runtime_exe.exists()
+        if needs_release_update or prebuilt_missing or state.get("runtime_mode") != "prebuilt":
+            _download_prebuilt_binary()
+            copy_source_runtime_content(source_root, runtime_dir, logger)
         else:
-            logger("No system Python detected; switching to prebuilt release binary")
-            built_exe = _download_prebuilt_binary()
-            state["build_mode"] = "prebuilt"
+            logger("Using cached prebuilt runtime")
 
-        runtime_dir.mkdir(parents=True, exist_ok=True)
-        if built_exe.resolve() != runtime_exe.resolve():
-            shutil.copy2(built_exe, runtime_exe)
-        copy_source_runtime_content(source_root, runtime_dir, logger)
+        launch_cmd = [str(runtime_exe)]
+        launch_cwd = runtime_dir
+        runtime_content_root = runtime_dir
+        state["runtime_mode"] = "prebuilt"
 
-        state["release_tag"] = latest_tag
-    else:
-        logger("Using cached build for current release")
-        report(3, "Building executable", "Using cached build")
-
-    if not source_root.exists():
-        raise LauncherError("Local source cache is missing unexpectedly")
+    if needs_release_update and state.get("runtime_mode") == "raw_source":
+        logger("Release source cache updated")
 
     report(4, "Checking fonts", "Validating release fonts against installed fonts")
     if state.get("installed_fonts_checked_tag") != state.get("release_tag"):
@@ -723,18 +1048,25 @@ def prepare_or_update(
 
     report(5, "Checking resources", "Validating remote resource package link")
     logger("Checking remote resource link...")
-    remote_resource_link = fetch_remote_resource_link()
+    try:
+        remote_resource_link = fetch_remote_resource_link()
+    except Exception as link_exc:
+        logger(f"Remote resource link check failed; keeping existing resources: {link_exc}")
+        remote_resource_link = ""
     if remote_resource_link and state.get("resource_link") != remote_resource_link:
         logger("Resource link changed. Downloading updated resources...")
         resource_zip = cache_dir / "resources_latest.zip"
-        download_file(
-            remote_resource_link,
-            resource_zip,
-            on_progress=lambda d, t, s: report_transfer("Resource download", d, t, s),
-        )
-        replace_resources_from_zip(resource_zip, runtime_dir, logger)
-        resource_zip.unlink(missing_ok=True)
-        state["resource_link"] = remote_resource_link
+        try:
+            download_file(
+                remote_resource_link,
+                resource_zip,
+                on_progress=lambda d, t, s: report_transfer("Resource download", d, t, s),
+            )
+            replace_resources_from_zip(resource_zip, runtime_content_root, logger)
+            resource_zip.unlink(missing_ok=True)
+            state["resource_link"] = remote_resource_link
+        except Exception as resource_exc:
+            logger(f"Resource update failed; keeping previous resources: {resource_exc}")
     elif not remote_resource_link:
         logger("Remote current_resource_link is empty; keeping local resources")
     else:
@@ -742,37 +1074,69 @@ def prepare_or_update(
 
     report(6, "Ready to launch", f"Release {state.get('release_tag', 'unknown')} is ready")
     save_json(state_path, state)
-    return runtime_exe, state
+    return launch_cmd, launch_cwd, state
 
 
 class LauncherUI:
     def __init__(self) -> None:
         self.root = Tk()
         self.root.title(APP_NAME)
-        self.root.geometry("840x560")
-        self.root.minsize(780, 520)
+        self.root.geometry("900x640")
+        self.root.minsize(820, 600)
 
         self.queue: queue.Queue[tuple[str, Any]] = queue.Queue()
-        self.runtime_exe: Path | None = None
+        self.runtime_launch_cmd: list[str] | None = None
+        self.runtime_cwd: Path | None = None
         self.has_launched = False
         self.active_progress_is_indeterminate = True
+        self.is_dark_mode = False
 
-        self.cache_dir = Path(__file__).resolve().parent / ".launcher_cache"
+        local_appdata = os.environ.get("LOCALAPPDATA")
+        if local_appdata:
+            self.cache_dir = Path(local_appdata) / "soli_dstate" / "DOOM-Tools-Binary"
+        else:
+            self.cache_dir = Path.home() / "AppData" / "Local" / "soli_dstate" / "DOOM-Tools-Binary"
         self.state_path = self.cache_dir / STATE_FILE_NAME
         self.launch_settings_path = self.cache_dir / LAUNCH_SETTINGS_FILE_NAME
         self.launch_settings = self._load_launch_settings()
+        self.logger, self.log_path = configure_launcher_logger(self.queue, self.cache_dir)
 
         self.style = ttk.Style(self.root)
-        for theme in ("vista", "xpnative", "winnative", "clam"):
-            if theme in self.style.theme_names():
-                self.style.theme_use(theme)
-                break
+        self._apply_windows11_theme()
 
         self._build_ui()
 
         self.worker = threading.Thread(target=self._worker_thread, daemon=True)
         self.worker.start()
         self.root.after(100, self._poll)
+
+    def _apply_windows11_theme(self) -> None:
+        if darkdetect is not None:
+            try:
+                self.is_dark_mode = bool(darkdetect.isDark())
+            except Exception:
+                self.is_dark_mode = False
+
+        theme_applied = False
+        if sv_ttk is not None:
+            try:
+                sv_ttk.set_theme("dark" if self.is_dark_mode else "light")
+                theme_applied = True
+            except Exception:
+                theme_applied = False
+
+        if not theme_applied:
+            for theme in ("vista", "xpnative", "winnative", "clam"):
+                if theme in self.style.theme_names():
+                    self.style.theme_use(theme)
+                    break
+
+        self.style.configure("TLabel", font=("Segoe UI", 10))
+        self.style.configure("Header.TLabel", font=("Segoe UI Semibold", 14))
+        self.style.configure("Subtle.TLabel", font=("Segoe UI", 9))
+        self.style.configure("TButton", font=("Segoe UI", 10), padding=(10, 6))
+        self.style.configure("Small.TButton", font=("Segoe UI", 9), padding=(8, 4))
+        self.style.configure("TCheckbutton", font=("Segoe UI", 10))
 
     def _normalize_launch_settings(self, payload: dict[str, Any] | None) -> dict[str, bool]:
         raw = payload if isinstance(payload, dict) else {}
@@ -818,11 +1182,12 @@ class LauncherUI:
         ttk.Label(
             frame,
             text="Launcher Settings",
-            font=("Segoe UI", 11, "bold"),
+            style="Header.TLabel",
         ).pack(anchor=W)
         ttk.Label(
             frame,
             text="Choose startup flags for DOOM-Tools.",
+            style="Subtle.TLabel",
         ).pack(anchor=W, pady=(2, 10))
 
         flags_group = ttk.LabelFrame(frame, text="Launch Flags", padding=(10, 8, 10, 8))
@@ -841,9 +1206,14 @@ class LauncherUI:
         console_group.pack(fill="x", pady=(10, 0))
         ttk.Checkbutton(
             console_group,
-            text="Keep console window open when launching DOOM-Tools",
+            text="Show a console window when launching DOOM-Tools",
             variable=console_var,
         ).pack(anchor=W)
+        ttk.Label(
+            console_group,
+            text="PYTHON_GIL=0 is always set for launched DOOM-Tools processes.",
+            style="Subtle.TLabel",
+        ).pack(anchor=W, pady=(4, 0))
 
         button_row = ttk.Frame(frame)
         button_row.pack(fill="x", pady=(12, 0))
@@ -860,7 +1230,7 @@ class LauncherUI:
             self.status_label.configure(text="Launch settings saved.")
             dialog.destroy()
 
-        ttk.Button(button_row, text="Cancel", command=dialog.destroy, width=12).pack(side=RIGHT)
+        ttk.Button(button_row, text="Cancel", command=dialog.destroy, width=12, style="Small.TButton").pack(side=RIGHT)
         ttk.Button(button_row, text="Save", command=_save_and_close, width=12).pack(side=RIGHT, padx=(0, 8))
 
         dialog.wait_visibility()
@@ -876,12 +1246,13 @@ class LauncherUI:
         ttk.Label(
             header,
             text="DOOM-Tools Setup",
-            font=("Segoe UI", 14, "bold"),
+            style="Header.TLabel",
             anchor=W,
         ).pack(fill="x")
         ttk.Label(
             header,
             text="This wizard checks for updates, installs resources, and prepares the runtime.",
+            style="Subtle.TLabel",
             anchor=W,
         ).pack(fill="x", pady=(2, 0))
 
@@ -940,27 +1311,29 @@ class LauncherUI:
         self.log_box = Text(
             log_container,
             wrap="word",
-            height=20,
-            bg="white",
-            fg="#202020",
+            height=16,
+            bg="#1f1f1f" if self.is_dark_mode else "white",
+            fg="#e8e8e8" if self.is_dark_mode else "#202020",
             relief="sunken",
             borderwidth=1,
             font=("Consolas", 9),
             yscrollcommand=log_scroll.set,
+            insertbackground="#e8e8e8" if self.is_dark_mode else "#202020",
         )
         self.log_box.pack(side=LEFT, fill=BOTH, expand=True)
         log_scroll.configure(command=self.log_box.yview)
         self.log_box.configure(state=DISABLED)
+        self._configure_log_tags()
 
         ttk.Separator(self.root, orient="horizontal").pack(fill="x")
 
         bottom = ttk.Frame(self.root, padding=(16, 8, 16, 12))
         bottom.pack(fill="x")
 
-        self.settings_button = ttk.Button(bottom, text="Settings...", command=self._open_settings_dialog, width=12)
+        self.settings_button = ttk.Button(bottom, text="Settings", command=self._open_settings_dialog, width=12)
         self.settings_button.pack(side=LEFT)
 
-        self.cancel_button = ttk.Button(bottom, text="Cancel", command=self.root.destroy, width=12)
+        self.cancel_button = ttk.Button(bottom, text="Cancel", command=self.root.destroy, width=12, style="Small.TButton")
         self.cancel_button.pack(side=RIGHT)
 
         self.launch_button = ttk.Button(
@@ -974,8 +1347,25 @@ class LauncherUI:
 
         self._refresh_launch_options_label()
 
+    def _configure_log_tags(self) -> None:
+        default_fg = "#e8e8e8" if self.is_dark_mode else "#202020"
+        self.log_box.tag_configure("INFO", foreground="#86efac" if self.is_dark_mode else "#166534")
+        self.log_box.tag_configure("DEBUG", foreground="#93c5fd" if self.is_dark_mode else "#1d4ed8")
+        self.log_box.tag_configure("WARNING", foreground="#facc15" if self.is_dark_mode else "#a16207")
+        self.log_box.tag_configure("ERROR", foreground="#f87171" if self.is_dark_mode else "#b91c1c")
+        self.log_box.tag_configure("CRITICAL", foreground="#f472b6" if self.is_dark_mode else "#be185d")
+        self.log_box.tag_configure("DEFAULT", foreground=default_fg)
+
+    def _infer_level_tag(self, message: str) -> str:
+        known_levels = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
+        upper_message = message.upper()
+        for level in known_levels:
+            if f"| {level} |" in upper_message:
+                return level
+        return "DEFAULT"
+
     def log(self, message: str) -> None:
-        self.queue.put(("log", message))
+        self.logger.info(message)
 
     def set_status(self, message: str) -> None:
         self.queue.put(("status", message))
@@ -988,24 +1378,34 @@ class LauncherUI:
 
     def _worker_thread(self) -> None:
         try:
-            exe_path, state = prepare_or_update(
+            launch_cmd, launch_cwd, state = prepare_or_update(
                 self.cache_dir,
                 self.state_path,
                 self.log,
                 progress=self.set_progress,
                 transfer=self.set_transfer,
             )
-            self.runtime_exe = exe_path
+            self.runtime_launch_cmd = launch_cmd
+            self.runtime_cwd = launch_cwd
             self.set_status(f"Setup complete. Release: {state.get('release_tag', 'unknown')}")
+            self.logger.info("Setup complete. Release: %s", state.get("release_tag", "unknown"))
             self.queue.put(("ready", ""))
         except Exception as exc:
             self.set_status(f"Setup failed: {exc}")
-            self.log(f"ERROR: {exc}")
+            self.logger.exception("Setup failed")
             self.queue.put(("error", ""))
 
-    def _append_log(self, message: str) -> None:
+    def _append_log(self, payload: str | tuple[str, str]) -> None:
+        tag = "DEFAULT"
+        message = payload
+        if isinstance(payload, tuple) and len(payload) == 2:
+            level_name, text = payload
+            tag = str(level_name).upper()
+            message = text
+        else:
+            tag = self._infer_level_tag(str(message))
         self.log_box.configure(state=NORMAL)
-        self.log_box.insert(END, message + "\n")
+        self.log_box.insert(END, str(message) + "\n", tag)
         self.log_box.see(END)
         self.log_box.configure(state=DISABLED)
 
@@ -1017,7 +1417,7 @@ class LauncherUI:
                 break
 
             if kind == "log":
-                self._append_log(str(payload))
+                self._append_log(payload)
             elif kind == "status":
                 self.status_label.configure(text=str(payload))
             elif kind == "progress":
@@ -1060,6 +1460,11 @@ class LauncherUI:
                 self.launch_button.configure(state=NORMAL)
                 self.cancel_button.configure(text="Close")
                 self.transfer_label.configure(text="Transfer: complete")
+                send_desktop_notification(
+                    APP_NAME,
+                    "DOOM-Tools is ready to launch.",
+                    logger=self.logger,
+                )
             elif kind == "error":
                 self.active_progress.stop()
                 self.active_progress_is_indeterminate = False
@@ -1070,12 +1475,12 @@ class LauncherUI:
     def launch(self) -> None:
         if self.has_launched:
             return
-        if not self.runtime_exe or not self.runtime_exe.exists():
-            self.set_status("Cannot launch: build is not available")
+        if not self.runtime_launch_cmd or not self.runtime_cwd:
+            self.set_status("Cannot launch: runtime is not available")
             return
+        launch_cmd = list(self.runtime_launch_cmd)
+        runtime_dir = self.runtime_cwd
 
-        runtime_dir = self.runtime_exe.parent
-        launch_cmd = [str(self.runtime_exe)]
         if self.launch_settings.get("devmode", False):
             launch_cmd.append("--dev")
         if self.launch_settings.get("debug", False):
@@ -1088,14 +1493,40 @@ class LauncherUI:
         self.launch_button.configure(state=DISABLED)
         self.settings_button.configure(state=DISABLED)
 
-        if os.name == "nt" and not self.launch_settings.get("keep_console_open", False):
-            subprocess.Popen(
-                launch_cmd,
-                cwd=str(runtime_dir),
-                creationflags=subprocess.CREATE_NO_WINDOW,
-            )
+        launch_env = os.environ.copy()
+        launch_env["PYTHON_GIL"] = "0"
+        self.logger.info("Launching DOOM-Tools with flags: %s", self._launch_flags_text())
+
+        if os.name == "nt":
+            if self.launch_settings.get("debug", False):
+                # In debug mode, keep failure output visible by pausing only when the app exits non-zero.
+                cmdline = subprocess.list2cmdline(launch_cmd)
+                guarded_cmd = (
+                    f"{cmdline} || (echo. & echo DOOM-Tools exited with error code !errorlevel!. "
+                    "Press any key to close... & pause >nul)"
+                )
+                subprocess.Popen(
+                    ["cmd", "/v:on", "/c", guarded_cmd],
+                    cwd=str(runtime_dir),
+                    env=launch_env,
+                    creationflags=subprocess.CREATE_NEW_CONSOLE,
+                )
+            elif self.launch_settings.get("keep_console_open", False):
+                subprocess.Popen(
+                    launch_cmd,
+                    cwd=str(runtime_dir),
+                    env=launch_env,
+                    creationflags=subprocess.CREATE_NEW_CONSOLE,
+                )
+            else:
+                subprocess.Popen(
+                    launch_cmd,
+                    cwd=str(runtime_dir),
+                    env=launch_env,
+                    creationflags=subprocess.CREATE_NO_WINDOW,
+                )
         else:
-            subprocess.Popen(launch_cmd, cwd=str(runtime_dir))
+            subprocess.Popen(launch_cmd, cwd=str(runtime_dir), env=launch_env)
         self.root.destroy()
 
     def run(self) -> None:
