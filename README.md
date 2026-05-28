@@ -14,5 +14,5 @@ Other miscellaneous files were derived from open sources, as follows;
 
 CTkThemesPack (https://github.com/a13xe/CTkThemesPack)
 LCD-Font (https://github.com/Palingenesis/LCD-Font)
-
+DSEG Font Family (https://github.com/keshikan/DSEG)
 
