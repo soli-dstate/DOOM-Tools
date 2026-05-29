@@ -10,7 +10,10 @@
         "style": "classic",
         "combat_reports": false,
         "hardcore_mode": true,
-        "currency": "EUR"
+        "hardcore_require_same_parts_for_caliber": false,
+        "currency": "EUR",
+        "equipment_editor": true,
+        "starting_budget": 5000
     },
     "rarity_weights": {
         "Common": 40,
