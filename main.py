@@ -32551,6 +32551,14 @@ class App:
                 def _open_magazine_editor():
                     import tkinter as _tk_mag
                     try:
+                        _is_loaded_mag_editor = (location == 'loaded')
+                        _was_chamber_empty = not bool(wpn.get('chambered'))
+                        if _is_loaded_mag_editor:
+                            try:
+                                self._play_weapon_action_sound(wpn, 'magout', block = True)
+                            except Exception:
+                                pass
+
                         editor = customtkinter.CTkToplevel(self.root)
                         editor.title('Magazine Loader')
                         editor.transient(self.root)
@@ -33084,6 +33092,35 @@ class App:
                             _stop_reloader_sound()
                             if ls['added']>0:
                                 mag_item['rounds']= existing
+
+                                if _is_loaded_mag_editor:
+                                    try:
+                                        self._play_weapon_action_sound(wpn, 'magin', block = True)
+                                    except Exception:
+                                        pass
+
+                                    if _was_chamber_empty and existing:
+                                        if bool(wpn.get('bolt_catch')):
+                                            try:
+                                                self._play_weapon_action_sound(wpn, 'boltforward')
+                                            except Exception:
+                                                pass
+                                        else:
+                                            _released = False
+                                            try:
+                                                _released = bool(self._play_weapon_action_sound_strict(wpn, 'boltrelease', block = True))
+                                            except Exception:
+                                                _released = False
+                                            if not _released:
+                                                try:
+                                                    self._play_weapon_action_sound(wpn, 'boltback', block = True)
+                                                except Exception:
+                                                    pass
+                                                try:
+                                                    self._play_weapon_action_sound(wpn, 'boltforward')
+                                                except Exception:
+                                                    pass
+
                             editor.destroy()
                             update_weapon_view()
                             if ls['added']>0:
