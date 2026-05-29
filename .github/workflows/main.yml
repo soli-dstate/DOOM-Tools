@@ -45,7 +45,7 @@ jobs:
         shell: bash
         run: |
           echo "Building $APP_NAME from $ENTRY_PATH"
-          pyinstaller --onefile --name "$APP_NAME" --add-data "images;images" "$ENTRY_PATH"
+          pyinstaller --onefile --name "$APP_NAME" "$ENTRY_PATH"
 
       - name: Build launcher exe (windowed)
         shell: bash
