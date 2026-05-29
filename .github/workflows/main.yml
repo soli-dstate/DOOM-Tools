@@ -15,10 +15,7 @@ on:
 
 env:
   ENTRY_PATH:  main.py
-  LAUNCHER_ENTRY_PATH: launcher.py
   APP_NAME: DOOM-Tools
-  LAUNCHER_NAME: DOOM-Tools-Launcher
-  BUILDER_ASSET_NAME: DOOM-Tools-python-builder-windows.zip
   PYTHON_VERSION: "3.13.11"
 
 jobs:
@@ -47,61 +44,11 @@ jobs:
           echo "Building $APP_NAME from $ENTRY_PATH"
           pyinstaller --onefile --name "$APP_NAME" "$ENTRY_PATH"
 
-      - name: Build launcher exe (windowed)
-        shell: bash
-        run: |
-          echo "Building $LAUNCHER_NAME from $LAUNCHER_ENTRY_PATH"
-          pyinstaller --onefile --windowed --name "$LAUNCHER_NAME" "$LAUNCHER_ENTRY_PATH"
-
-      - name: Package bundled Python builder toolchain
-        shell: bash
-        run: |
-          python - <<'PY'
-          import os
-          import shutil
-          import sys
-          import zipfile
-          from pathlib import Path
-
-          builder_asset = os.environ["BUILDER_ASSET_NAME"]
-          python_root = Path(sys.executable).resolve().parent
-          staging_root = Path("build") / "builder_toolchain"
-          target_root = staging_root / "python"
-          output = Path("dist") / builder_asset
-
-          if staging_root.exists():
-            shutil.rmtree(staging_root)
-          staging_root.mkdir(parents=True, exist_ok=True)
-          shutil.copytree(python_root, target_root, dirs_exist_ok=True)
-
-          for cache_dir in list(target_root.rglob("__pycache__")):
-            shutil.rmtree(cache_dir, ignore_errors=True)
-          for pyc in list(target_root.rglob("*.pyc")):
-            try:
-              pyc.unlink()
-            except Exception:
-              pass
-
-          output.parent.mkdir(parents=True, exist_ok=True)
-          if output.exists():
-            output.unlink()
-
-          with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as zf:
-            for file_path in target_root.rglob("*"):
-              if file_path.is_file():
-                zf.write(file_path, arcname=str(file_path.relative_to(staging_root)))
-
-          print(f"Bundled builder asset written: {output}")
-          PY
-
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.APP_NAME }}-windows
-          path: |
-            dist/${{ env.APP_NAME }}.exe
-            dist/${{ env.LAUNCHER_NAME }}.exe
-            dist/${{ env.BUILDER_ASSET_NAME }}
+          path: dist/${{ env.APP_NAME }}.exe
 
   build-linux:
     runs-on: ubuntu-latest
@@ -132,7 +79,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.APP_NAME }}-linux
-          path: dist/${{ env.APP_NAME }}
+          path: dist/${{ env. APP_NAME }}
 
   release:
     if: startsWith(github.ref, 'refs/tags/')
@@ -156,8 +103,6 @@ jobs:
           # Windows - already has .exe extension
           cd release-assets/windows
           zip -r ../../${{ env.APP_NAME }}-windows.zip ${{ env.APP_NAME }}.exe
-          zip -r ../../${{ env.LAUNCHER_NAME }}-windows.zip ${{ env.LAUNCHER_NAME }}.exe
-          cp ${{ env.BUILDER_ASSET_NAME }} ../../${{ env.BUILDER_ASSET_NAME }}
           cd ../..
           
           # Linux - add executable extension and zip
@@ -183,8 +128,6 @@ jobs:
         with:
           files: |
             ${{ env.APP_NAME }}-windows.zip
-            ${{ env.LAUNCHER_NAME }}-windows.zip
-            ${{ env.BUILDER_ASSET_NAME }}
             ${{ env.APP_NAME }}-linux.zip
           draft: false
           prerelease: ${{ steps.check-prerelease.outputs.is_prerelease }}
