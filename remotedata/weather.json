@@ -3941,6 +3941,3816 @@
                     "temperature_f": 73.1
                 }
             }
+        },
+        "2026-06-01": {
+            "weather": "thunderstorm",
+            "wind_severity": 0,
+            "temperature_f": 74.6,
+            "hourly": {
+                "00": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 79.0
+                },
+                "01": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 78.6
+                },
+                "02": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 79.6
+                },
+                "03": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 78.6
+                },
+                "04": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 1,
+                    "temperature_f": 79.9
+                },
+                "05": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 79.1
+                },
+                "06": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 76.4
+                },
+                "07": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 76.7
+                },
+                "08": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 73.1
+                },
+                "09": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 72.7
+                },
+                "10": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 72.1
+                },
+                "11": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 71.3
+                },
+                "12": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 70.0
+                },
+                "13": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 68.9
+                },
+                "14": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 71.1
+                },
+                "15": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 1,
+                    "temperature_f": 71.1
+                },
+                "16": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 70.0
+                },
+                "17": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 71.0
+                },
+                "18": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 73.5
+                },
+                "19": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 1,
+                    "temperature_f": 72.7
+                },
+                "20": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 73.2
+                },
+                "21": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 75.4
+                },
+                "22": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 76.6
+                },
+                "23": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 78.3
+                }
+            }
+        },
+        "2026-06-02": {
+            "weather": "rain",
+            "wind_severity": 0,
+            "temperature_f": 71.4,
+            "hourly": {
+                "00": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 76.6
+                },
+                "01": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 75.2
+                },
+                "02": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 76.5
+                },
+                "03": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 77.4
+                },
+                "04": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 76.2
+                },
+                "05": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 76.2
+                },
+                "06": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 74.6
+                },
+                "07": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 71.9
+                },
+                "08": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 71.4
+                },
+                "09": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 70.0
+                },
+                "10": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 68.3
+                },
+                "11": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 68.2
+                },
+                "12": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 66.4
+                },
+                "13": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 65.8
+                },
+                "14": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 65.5
+                },
+                "15": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 65.7
+                },
+                "16": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 66.7
+                },
+                "17": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 67.3
+                },
+                "18": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 67.5
+                },
+                "19": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 69.0
+                },
+                "20": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 71.9
+                },
+                "21": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 73.5
+                },
+                "22": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 74.6
+                },
+                "23": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 76.2
+                }
+            }
+        },
+        "2026-06-03": {
+            "weather": "rain",
+            "wind_severity": 0,
+            "temperature_f": 71.3,
+            "hourly": {
+                "00": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 74.2
+                },
+                "01": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 75.0
+                },
+                "02": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 77.1
+                },
+                "03": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 75.5
+                },
+                "04": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 76.3
+                },
+                "05": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 75.5
+                },
+                "06": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 74.7
+                },
+                "07": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 71.8
+                },
+                "08": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 72.2
+                },
+                "09": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 69.5
+                },
+                "10": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 68.6
+                },
+                "11": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 68.0
+                },
+                "12": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 67.6
+                },
+                "13": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 65.5
+                },
+                "14": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 67.4
+                },
+                "15": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 65.3
+                },
+                "16": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 68.0
+                },
+                "17": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 68.6
+                },
+                "18": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 67.5
+                },
+                "19": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 68.7
+                },
+                "20": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 72.8
+                },
+                "21": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 72.0
+                },
+                "22": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 75.3
+                },
+                "23": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 75.2
+                }
+            }
+        },
+        "2026-06-04": {
+            "weather": "thunderstorm",
+            "wind_severity": 0,
+            "temperature_f": 66.8,
+            "hourly": {
+                "00": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 72.0
+                },
+                "01": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 72.7
+                },
+                "02": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 71.6
+                },
+                "03": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 71.1
+                },
+                "04": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 71.4
+                },
+                "05": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 69.8
+                },
+                "06": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 1,
+                    "temperature_f": 67.9
+                },
+                "07": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 67.7
+                },
+                "08": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 1,
+                    "temperature_f": 68.1
+                },
+                "09": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 64.7
+                },
+                "10": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 1,
+                    "temperature_f": 62.8
+                },
+                "11": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 63.1
+                },
+                "12": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 63.7
+                },
+                "13": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 1,
+                    "temperature_f": 62.0
+                },
+                "14": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 1,
+                    "temperature_f": 62.4
+                },
+                "15": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 61.4
+                },
+                "16": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 1,
+                    "temperature_f": 62.6
+                },
+                "17": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 1,
+                    "temperature_f": 64.4
+                },
+                "18": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 64.1
+                },
+                "19": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 65.5
+                },
+                "20": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 67.4
+                },
+                "21": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 1,
+                    "temperature_f": 68.6
+                },
+                "22": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 70.5
+                },
+                "23": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 69.4
+                }
+            }
+        },
+        "2026-06-05": {
+            "weather": "thunderstorm",
+            "wind_severity": 0,
+            "temperature_f": 63.8,
+            "hourly": {
+                "00": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 69.3
+                },
+                "01": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 69.8
+                },
+                "02": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 69.8
+                },
+                "03": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 67.9
+                },
+                "04": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 69.3
+                },
+                "05": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 1,
+                    "temperature_f": 66.6
+                },
+                "06": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 65.2
+                },
+                "07": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 64.8
+                },
+                "08": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 64.9
+                },
+                "09": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 63.4
+                },
+                "10": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 61.9
+                },
+                "11": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 1,
+                    "temperature_f": 60.5
+                },
+                "12": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 58.7
+                },
+                "13": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 1,
+                    "temperature_f": 57.9
+                },
+                "14": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 1,
+                    "temperature_f": 58.0
+                },
+                "15": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 57.8
+                },
+                "16": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 58.2
+                },
+                "17": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 60.7
+                },
+                "18": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 1,
+                    "temperature_f": 60.8
+                },
+                "19": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 61.1
+                },
+                "20": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 63.5
+                },
+                "21": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 63.9
+                },
+                "22": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 66.5
+                },
+                "23": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 1,
+                    "temperature_f": 66.6
+                }
+            }
+        },
+        "2026-06-06": {
+            "weather": "clear",
+            "wind_severity": 0,
+            "temperature_f": 61.5,
+            "hourly": {
+                "00": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 67.1
+                },
+                "01": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 64.9
+                },
+                "02": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 65.7
+                },
+                "03": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 65.6
+                },
+                "04": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 65.6
+                },
+                "05": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 66.3
+                },
+                "06": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 63.5
+                },
+                "07": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 63.4
+                },
+                "08": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 61.8
+                },
+                "09": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 61.1
+                },
+                "10": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 59.8
+                },
+                "11": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 57.4
+                },
+                "12": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 56.6
+                },
+                "13": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 56.9
+                },
+                "14": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 55.3
+                },
+                "15": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 57.0
+                },
+                "16": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 58.3
+                },
+                "17": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 56.5
+                },
+                "18": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 60.0
+                },
+                "19": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 60.7
+                },
+                "20": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 61.0
+                },
+                "21": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 62.0
+                },
+                "22": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 62.9
+                },
+                "23": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 63.9
+                }
+            }
+        },
+        "2026-06-07": {
+            "weather": "rain",
+            "wind_severity": 0,
+            "temperature_f": 60.1,
+            "hourly": {
+                "00": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 65.3
+                },
+                "01": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 63.6
+                },
+                "02": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 64.7
+                },
+                "03": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 66.0
+                },
+                "04": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 65.6
+                },
+                "05": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 62.7
+                },
+                "06": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 62.4
+                },
+                "07": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 61.1
+                },
+                "08": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 59.5
+                },
+                "09": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 59.7
+                },
+                "10": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 58.7
+                },
+                "11": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 58.0
+                },
+                "12": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 55.2
+                },
+                "13": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 54.8
+                },
+                "14": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 55.7
+                },
+                "15": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 55.0
+                },
+                "16": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 56.9
+                },
+                "17": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 55.8
+                },
+                "18": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 56.3
+                },
+                "19": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 58.4
+                },
+                "20": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 60.1
+                },
+                "21": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 61.9
+                },
+                "22": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 64.1
+                },
+                "23": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 62.9
+                }
+            }
+        },
+        "2026-06-08": {
+            "weather": "thunderstorm",
+            "wind_severity": 0,
+            "temperature_f": 56.9,
+            "hourly": {
+                "00": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 1,
+                    "temperature_f": 61.1
+                },
+                "01": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 1,
+                    "temperature_f": 61.1
+                },
+                "02": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 1,
+                    "temperature_f": 63.0
+                },
+                "03": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 1,
+                    "temperature_f": 60.9
+                },
+                "04": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 62.5
+                },
+                "05": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 60.6
+                },
+                "06": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 58.3
+                },
+                "07": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 57.5
+                },
+                "08": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 57.9
+                },
+                "09": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 1,
+                    "temperature_f": 54.7
+                },
+                "10": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 53.9
+                },
+                "11": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 1,
+                    "temperature_f": 53.9
+                },
+                "12": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 54.1
+                },
+                "13": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 1,
+                    "temperature_f": 50.8
+                },
+                "14": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 51.4
+                },
+                "15": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 52.8
+                },
+                "16": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 51.7
+                },
+                "17": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 52.3
+                },
+                "18": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 55.2
+                },
+                "19": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 56.4
+                },
+                "20": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 1,
+                    "temperature_f": 58.3
+                },
+                "21": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 57.4
+                },
+                "22": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 58.8
+                },
+                "23": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 59.9
+                }
+            }
+        },
+        "2026-06-09": {
+            "weather": "thunderstorm",
+            "wind_severity": 2,
+            "temperature_f": 54.5,
+            "hourly": {
+                "00": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 3,
+                    "temperature_f": 59.9
+                },
+                "01": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 2,
+                    "temperature_f": 60.6
+                },
+                "02": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 2,
+                    "temperature_f": 58.5
+                },
+                "03": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 1,
+                    "temperature_f": 60.1
+                },
+                "04": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 2,
+                    "temperature_f": 60.3
+                },
+                "05": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 2,
+                    "temperature_f": 58.3
+                },
+                "06": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 3,
+                    "temperature_f": 55.8
+                },
+                "07": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 3,
+                    "temperature_f": 57.2
+                },
+                "08": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 1,
+                    "temperature_f": 55.6
+                },
+                "09": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 2,
+                    "temperature_f": 53.5
+                },
+                "10": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 3,
+                    "temperature_f": 51.0
+                },
+                "11": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 2,
+                    "temperature_f": 49.5
+                },
+                "12": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 3,
+                    "temperature_f": 49.9
+                },
+                "13": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 1,
+                    "temperature_f": 50.7
+                },
+                "14": {
+                    "weather": "rain",
+                    "wind_severity": 2,
+                    "temperature_f": 50.7
+                },
+                "15": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 2,
+                    "temperature_f": 50.7
+                },
+                "16": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 2,
+                    "temperature_f": 49.2
+                },
+                "17": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 3,
+                    "temperature_f": 49.6
+                },
+                "18": {
+                    "weather": "rain",
+                    "wind_severity": 3,
+                    "temperature_f": 53.5
+                },
+                "19": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 1,
+                    "temperature_f": 52.5
+                },
+                "20": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 1,
+                    "temperature_f": 55.5
+                },
+                "21": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 1,
+                    "temperature_f": 56.2
+                },
+                "22": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 3,
+                    "temperature_f": 57.9
+                },
+                "23": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 2,
+                    "temperature_f": 59.0
+                }
+            }
+        },
+        "2026-06-10": {
+            "weather": "thunderstorm",
+            "wind_severity": 0,
+            "temperature_f": 55.7,
+            "hourly": {
+                "00": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 1,
+                    "temperature_f": 59.8
+                },
+                "01": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 1,
+                    "temperature_f": 61.9
+                },
+                "02": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 1,
+                    "temperature_f": 59.2
+                },
+                "03": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 59.2
+                },
+                "04": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 1,
+                    "temperature_f": 61.1
+                },
+                "05": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 59.2
+                },
+                "06": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 1,
+                    "temperature_f": 59.3
+                },
+                "07": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 57.4
+                },
+                "08": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 55.4
+                },
+                "09": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 53.2
+                },
+                "10": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 52.6
+                },
+                "11": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 1,
+                    "temperature_f": 52.7
+                },
+                "12": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 50.3
+                },
+                "13": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 51.7
+                },
+                "14": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 51.6
+                },
+                "15": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 51.4
+                },
+                "16": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 1,
+                    "temperature_f": 52.1
+                },
+                "17": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 51.4
+                },
+                "18": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 52.5
+                },
+                "19": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 54.4
+                },
+                "20": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 55.8
+                },
+                "21": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 1,
+                    "temperature_f": 56.0
+                },
+                "22": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 58.7
+                },
+                "23": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 1,
+                    "temperature_f": 59.1
+                }
+            }
+        },
+        "2026-06-11": {
+            "weather": "rain",
+            "wind_severity": 0,
+            "temperature_f": 52.8,
+            "hourly": {
+                "00": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 56.0
+                },
+                "01": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 57.1
+                },
+                "02": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 56.9
+                },
+                "03": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 58.2
+                },
+                "04": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 58.4
+                },
+                "05": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 56.0
+                },
+                "06": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 56.1
+                },
+                "07": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 55.3
+                },
+                "08": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 54.1
+                },
+                "09": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 51.7
+                },
+                "10": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 50.5
+                },
+                "11": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 48.4
+                },
+                "12": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 49.8
+                },
+                "13": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 48.4
+                },
+                "14": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 46.4
+                },
+                "15": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 47.3
+                },
+                "16": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 49.0
+                },
+                "17": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 48.0
+                },
+                "18": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 50.6
+                },
+                "19": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 51.9
+                },
+                "20": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 53.7
+                },
+                "21": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 52.8
+                },
+                "22": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 54.0
+                },
+                "23": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 56.5
+                }
+            }
+        },
+        "2026-06-12": {
+            "weather": "rain",
+            "wind_severity": 0,
+            "temperature_f": 52.7,
+            "hourly": {
+                "00": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 56.7
+                },
+                "01": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 56.5
+                },
+                "02": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 56.3
+                },
+                "03": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 58.8
+                },
+                "04": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 58.2
+                },
+                "05": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 55.1
+                },
+                "06": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 53.8
+                },
+                "07": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 54.7
+                },
+                "08": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 52.9
+                },
+                "09": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 51.3
+                },
+                "10": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 51.6
+                },
+                "11": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 47.9
+                },
+                "12": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 49.1
+                },
+                "13": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 47.4
+                },
+                "14": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 47.7
+                },
+                "15": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 47.3
+                },
+                "16": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 47.8
+                },
+                "17": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 50.6
+                },
+                "18": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 49.0
+                },
+                "19": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 52.6
+                },
+                "20": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 54.1
+                },
+                "21": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 53.4
+                },
+                "22": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 54.6
+                },
+                "23": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 57.6
+                }
+            }
+        },
+        "2026-06-13": {
+            "weather": "rain",
+            "wind_severity": 0,
+            "temperature_f": 50.1,
+            "hourly": {
+                "00": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 53.3
+                },
+                "01": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 54.4
+                },
+                "02": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 53.7
+                },
+                "03": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 53.9
+                },
+                "04": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 53.3
+                },
+                "05": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 53.9
+                },
+                "06": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 52.1
+                },
+                "07": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 52.6
+                },
+                "08": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 51.3
+                },
+                "09": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 48.8
+                },
+                "10": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 48.6
+                },
+                "11": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 48.0
+                },
+                "12": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 45.8
+                },
+                "13": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 46.6
+                },
+                "14": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 45.6
+                },
+                "15": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 44.1
+                },
+                "16": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 47.3
+                },
+                "17": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 45.3
+                },
+                "18": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 49.1
+                },
+                "19": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 49.3
+                },
+                "20": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 48.7
+                },
+                "21": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 52.5
+                },
+                "22": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 53.2
+                },
+                "23": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 52.9
+                }
+            }
+        },
+        "2026-06-14": {
+            "weather": "rain",
+            "wind_severity": 0,
+            "temperature_f": 47.0,
+            "hourly": {
+                "00": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 52.5
+                },
+                "01": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 53.0
+                },
+                "02": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 52.7
+                },
+                "03": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 51.4
+                },
+                "04": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 52.7
+                },
+                "05": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 51.5
+                },
+                "06": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 48.8
+                },
+                "07": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 49.2
+                },
+                "08": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 45.7
+                },
+                "09": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 45.8
+                },
+                "10": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 43.2
+                },
+                "11": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 42.0
+                },
+                "12": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 43.5
+                },
+                "13": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 41.3
+                },
+                "14": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 41.5
+                },
+                "15": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 40.8
+                },
+                "16": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 43.3
+                },
+                "17": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 44.4
+                },
+                "18": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 44.1
+                },
+                "19": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 46.9
+                },
+                "20": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 47.3
+                },
+                "21": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 49.0
+                },
+                "22": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 48.5
+                },
+                "23": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 51.1
+                }
+            }
+        },
+        "2026-06-15": {
+            "weather": "clear",
+            "wind_severity": 0,
+            "temperature_f": 50.2,
+            "hourly": {
+                "00": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 54.1
+                },
+                "01": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 54.2
+                },
+                "02": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 55.1
+                },
+                "03": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 54.5
+                },
+                "04": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 55.5
+                },
+                "05": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 53.6
+                },
+                "06": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 52.3
+                },
+                "07": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 50.4
+                },
+                "08": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 49.6
+                },
+                "09": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 48.8
+                },
+                "10": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 46.4
+                },
+                "11": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 46.8
+                },
+                "12": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 45.1
+                },
+                "13": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 45.1
+                },
+                "14": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 44.2
+                },
+                "15": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 45.0
+                },
+                "16": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 46.2
+                },
+                "17": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 46.9
+                },
+                "18": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 47.2
+                },
+                "19": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 49.3
+                },
+                "20": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 51.4
+                },
+                "21": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 50.7
+                },
+                "22": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 52.8
+                },
+                "23": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 53.4
+                }
+            }
+        },
+        "2026-06-16": {
+            "weather": "rain",
+            "wind_severity": 2,
+            "temperature_f": 47.4,
+            "hourly": {
+                "00": {
+                    "weather": "rain",
+                    "wind_severity": 3,
+                    "temperature_f": 53.2
+                },
+                "01": {
+                    "weather": "rain",
+                    "wind_severity": 2,
+                    "temperature_f": 53.0
+                },
+                "02": {
+                    "weather": "rain",
+                    "wind_severity": 3,
+                    "temperature_f": 51.5
+                },
+                "03": {
+                    "weather": "rain",
+                    "wind_severity": 2,
+                    "temperature_f": 53.7
+                },
+                "04": {
+                    "weather": "rain",
+                    "wind_severity": 2,
+                    "temperature_f": 51.8
+                },
+                "05": {
+                    "weather": "rain",
+                    "wind_severity": 2,
+                    "temperature_f": 51.6
+                },
+                "06": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 49.0
+                },
+                "07": {
+                    "weather": "rain",
+                    "wind_severity": 2,
+                    "temperature_f": 48.3
+                },
+                "08": {
+                    "weather": "rain",
+                    "wind_severity": 3,
+                    "temperature_f": 46.6
+                },
+                "09": {
+                    "weather": "rain",
+                    "wind_severity": 2,
+                    "temperature_f": 44.7
+                },
+                "10": {
+                    "weather": "rain",
+                    "wind_severity": 3,
+                    "temperature_f": 45.7
+                },
+                "11": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 45.2
+                },
+                "12": {
+                    "weather": "rain",
+                    "wind_severity": 2,
+                    "temperature_f": 42.1
+                },
+                "13": {
+                    "weather": "rain",
+                    "wind_severity": 3,
+                    "temperature_f": 41.9
+                },
+                "14": {
+                    "weather": "rain",
+                    "wind_severity": 3,
+                    "temperature_f": 41.9
+                },
+                "15": {
+                    "weather": "rain",
+                    "wind_severity": 2,
+                    "temperature_f": 41.4
+                },
+                "16": {
+                    "weather": "rain",
+                    "wind_severity": 3,
+                    "temperature_f": 42.0
+                },
+                "17": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 42.7
+                },
+                "18": {
+                    "weather": "rain",
+                    "wind_severity": 2,
+                    "temperature_f": 44.9
+                },
+                "19": {
+                    "weather": "rain",
+                    "wind_severity": 3,
+                    "temperature_f": 47.2
+                },
+                "20": {
+                    "weather": "rain",
+                    "wind_severity": 2,
+                    "temperature_f": 46.5
+                },
+                "21": {
+                    "weather": "rain",
+                    "wind_severity": 3,
+                    "temperature_f": 50.2
+                },
+                "22": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 50.8
+                },
+                "23": {
+                    "weather": "rain",
+                    "wind_severity": 2,
+                    "temperature_f": 50.8
+                }
+            }
+        },
+        "2026-06-17": {
+            "weather": "clear",
+            "wind_severity": 0,
+            "temperature_f": 53.8,
+            "hourly": {
+                "00": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 56.7
+                },
+                "01": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 58.9
+                },
+                "02": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 58.6
+                },
+                "03": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 58.0
+                },
+                "04": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 57.9
+                },
+                "05": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 56.4
+                },
+                "06": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 55.4
+                },
+                "07": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 55.4
+                },
+                "08": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 54.0
+                },
+                "09": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 51.5
+                },
+                "10": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 50.3
+                },
+                "11": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 49.6
+                },
+                "12": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 50.8
+                },
+                "13": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 48.4
+                },
+                "14": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 47.7
+                },
+                "15": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 49.6
+                },
+                "16": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 50.6
+                },
+                "17": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 49.7
+                },
+                "18": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 52.7
+                },
+                "19": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 51.7
+                },
+                "20": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 54.4
+                },
+                "21": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 55.4
+                },
+                "22": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 57.3
+                },
+                "23": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 58.5
+                }
+            }
+        },
+        "2026-06-18": {
+            "weather": "clear",
+            "wind_severity": 1,
+            "temperature_f": 53.6,
+            "hourly": {
+                "00": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 58.4
+                },
+                "01": {
+                    "weather": "clear",
+                    "wind_severity": 2,
+                    "temperature_f": 58.2
+                },
+                "02": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 59.7
+                },
+                "03": {
+                    "weather": "clear",
+                    "wind_severity": 2,
+                    "temperature_f": 57.4
+                },
+                "04": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 58.9
+                },
+                "05": {
+                    "weather": "clear",
+                    "wind_severity": 2,
+                    "temperature_f": 58.2
+                },
+                "06": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 55.3
+                },
+                "07": {
+                    "weather": "clear",
+                    "wind_severity": 2,
+                    "temperature_f": 55.1
+                },
+                "08": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 52.3
+                },
+                "09": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 53.0
+                },
+                "10": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 51.0
+                },
+                "11": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 49.3
+                },
+                "12": {
+                    "weather": "clear",
+                    "wind_severity": 2,
+                    "temperature_f": 47.9
+                },
+                "13": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 49.4
+                },
+                "14": {
+                    "weather": "clear",
+                    "wind_severity": 2,
+                    "temperature_f": 48.1
+                },
+                "15": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 47.3
+                },
+                "16": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 49.3
+                },
+                "17": {
+                    "weather": "clear",
+                    "wind_severity": 2,
+                    "temperature_f": 50.0
+                },
+                "18": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 51.5
+                },
+                "19": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 52.0
+                },
+                "20": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 53.1
+                },
+                "21": {
+                    "weather": "clear",
+                    "wind_severity": 2,
+                    "temperature_f": 55.2
+                },
+                "22": {
+                    "weather": "rain",
+                    "wind_severity": 2,
+                    "temperature_f": 56.3
+                },
+                "23": {
+                    "weather": "clear",
+                    "wind_severity": 2,
+                    "temperature_f": 56.5
+                }
+            }
+        },
+        "2026-06-19": {
+            "weather": "clear",
+            "wind_severity": 2,
+            "temperature_f": 59.1,
+            "hourly": {
+                "00": {
+                    "weather": "clear",
+                    "wind_severity": 3,
+                    "temperature_f": 63.8
+                },
+                "01": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 63.4
+                },
+                "02": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 64.5
+                },
+                "03": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 64.1
+                },
+                "04": {
+                    "weather": "clear",
+                    "wind_severity": 2,
+                    "temperature_f": 63.2
+                },
+                "05": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 3,
+                    "temperature_f": 62.6
+                },
+                "06": {
+                    "weather": "rain",
+                    "wind_severity": 2,
+                    "temperature_f": 61.2
+                },
+                "07": {
+                    "weather": "clear",
+                    "wind_severity": 2,
+                    "temperature_f": 59.9
+                },
+                "08": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 57.6
+                },
+                "09": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 57.3
+                },
+                "10": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 56.9
+                },
+                "11": {
+                    "weather": "clear",
+                    "wind_severity": 2,
+                    "temperature_f": 56.2
+                },
+                "12": {
+                    "weather": "clear",
+                    "wind_severity": 3,
+                    "temperature_f": 55.2
+                },
+                "13": {
+                    "weather": "clear",
+                    "wind_severity": 3,
+                    "temperature_f": 54.2
+                },
+                "14": {
+                    "weather": "clear",
+                    "wind_severity": 2,
+                    "temperature_f": 53.9
+                },
+                "15": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 55.0
+                },
+                "16": {
+                    "weather": "clear",
+                    "wind_severity": 2,
+                    "temperature_f": 54.2
+                },
+                "17": {
+                    "weather": "clear",
+                    "wind_severity": 2,
+                    "temperature_f": 55.0
+                },
+                "18": {
+                    "weather": "clear",
+                    "wind_severity": 2,
+                    "temperature_f": 56.2
+                },
+                "19": {
+                    "weather": "clear",
+                    "wind_severity": 2,
+                    "temperature_f": 57.8
+                },
+                "20": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 58.2
+                },
+                "21": {
+                    "weather": "clear",
+                    "wind_severity": 3,
+                    "temperature_f": 59.5
+                },
+                "22": {
+                    "weather": "clear",
+                    "wind_severity": 2,
+                    "temperature_f": 63.0
+                },
+                "23": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 63.0
+                }
+            }
+        },
+        "2026-06-20": {
+            "weather": "rain",
+            "wind_severity": 0,
+            "temperature_f": 62.4,
+            "hourly": {
+                "00": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 66.1
+                },
+                "01": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 67.4
+                },
+                "02": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 1,
+                    "temperature_f": 67.8
+                },
+                "03": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 68.5
+                },
+                "04": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 67.2
+                },
+                "05": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 66.4
+                },
+                "06": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 64.3
+                },
+                "07": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 62.7
+                },
+                "08": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 61.4
+                },
+                "09": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 62.3
+                },
+                "10": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 58.5
+                },
+                "11": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 58.9
+                },
+                "12": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 59.5
+                },
+                "13": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 57.8
+                },
+                "14": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 56.9
+                },
+                "15": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 56.2
+                },
+                "16": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 59.4
+                },
+                "17": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 59.8
+                },
+                "18": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 59.5
+                },
+                "19": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 61.4
+                },
+                "20": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 62.8
+                },
+                "21": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 64.5
+                },
+                "22": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 65.6
+                },
+                "23": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 64.7
+                }
+            }
+        },
+        "2026-06-21": {
+            "weather": "rain",
+            "wind_severity": 1,
+            "temperature_f": 62.6,
+            "hourly": {
+                "00": {
+                    "weather": "rain",
+                    "wind_severity": 2,
+                    "temperature_f": 65.8
+                },
+                "01": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 67.4
+                },
+                "02": {
+                    "weather": "rain",
+                    "wind_severity": 2,
+                    "temperature_f": 68.3
+                },
+                "03": {
+                    "weather": "rain",
+                    "wind_severity": 2,
+                    "temperature_f": 66.2
+                },
+                "04": {
+                    "weather": "rain",
+                    "wind_severity": 2,
+                    "temperature_f": 65.5
+                },
+                "05": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 67.6
+                },
+                "06": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 63.6
+                },
+                "07": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 64.3
+                },
+                "08": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 63.5
+                },
+                "09": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 61.5
+                },
+                "10": {
+                    "weather": "rain",
+                    "wind_severity": 2,
+                    "temperature_f": 60.0
+                },
+                "11": {
+                    "weather": "rain",
+                    "wind_severity": 2,
+                    "temperature_f": 59.4
+                },
+                "12": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 57.8
+                },
+                "13": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 56.5
+                },
+                "14": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 58.8
+                },
+                "15": {
+                    "weather": "clear",
+                    "wind_severity": 2,
+                    "temperature_f": 58.1
+                },
+                "16": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 58.7
+                },
+                "17": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 57.6
+                },
+                "18": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 59.4
+                },
+                "19": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 62.3
+                },
+                "20": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 63.8
+                },
+                "21": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 62.6
+                },
+                "22": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 63.6
+                },
+                "23": {
+                    "weather": "rain",
+                    "wind_severity": 2,
+                    "temperature_f": 66.2
+                }
+            }
+        },
+        "2026-06-22": {
+            "weather": "thunderstorm",
+            "wind_severity": 1,
+            "temperature_f": 58.3,
+            "hourly": {
+                "00": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 2,
+                    "temperature_f": 64.0
+                },
+                "01": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 1,
+                    "temperature_f": 62.6
+                },
+                "02": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 63.5
+                },
+                "03": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 61.9
+                },
+                "04": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 2,
+                    "temperature_f": 63.7
+                },
+                "05": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 61.1
+                },
+                "06": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 1,
+                    "temperature_f": 60.5
+                },
+                "07": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 2,
+                    "temperature_f": 60.3
+                },
+                "08": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 56.9
+                },
+                "09": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 1,
+                    "temperature_f": 55.8
+                },
+                "10": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 2,
+                    "temperature_f": 54.4
+                },
+                "11": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 53.4
+                },
+                "12": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 54.7
+                },
+                "13": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 2,
+                    "temperature_f": 54.3
+                },
+                "14": {
+                    "weather": "rain",
+                    "wind_severity": 2,
+                    "temperature_f": 52.7
+                },
+                "15": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 2,
+                    "temperature_f": 52.7
+                },
+                "16": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 54.3
+                },
+                "17": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 54.4
+                },
+                "18": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 54.4
+                },
+                "19": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 1,
+                    "temperature_f": 57.0
+                },
+                "20": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 1,
+                    "temperature_f": 59.0
+                },
+                "21": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 1,
+                    "temperature_f": 59.2
+                },
+                "22": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 59.7
+                },
+                "23": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 2,
+                    "temperature_f": 61.2
+                }
+            }
+        },
+        "2026-06-23": {
+            "weather": "thunderstorm",
+            "wind_severity": 1,
+            "temperature_f": 54.5,
+            "hourly": {
+                "00": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 58.9
+                },
+                "01": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 2,
+                    "temperature_f": 59.4
+                },
+                "02": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 2,
+                    "temperature_f": 60.2
+                },
+                "03": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 2,
+                    "temperature_f": 60.2
+                },
+                "04": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 58.1
+                },
+                "05": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 2,
+                    "temperature_f": 59.2
+                },
+                "06": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 57.0
+                },
+                "07": {
+                    "weather": "rain",
+                    "wind_severity": 2,
+                    "temperature_f": 55.9
+                },
+                "08": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 55.4
+                },
+                "09": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 2,
+                    "temperature_f": 52.5
+                },
+                "10": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 52.2
+                },
+                "11": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 2,
+                    "temperature_f": 51.7
+                },
+                "12": {
+                    "weather": "rain",
+                    "wind_severity": 2,
+                    "temperature_f": 48.8
+                },
+                "13": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 1,
+                    "temperature_f": 51.0
+                },
+                "14": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 1,
+                    "temperature_f": 50.0
+                },
+                "15": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 1,
+                    "temperature_f": 48.3
+                },
+                "16": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 1,
+                    "temperature_f": 50.9
+                },
+                "17": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 51.3
+                },
+                "18": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 1,
+                    "temperature_f": 52.7
+                },
+                "19": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 2,
+                    "temperature_f": 52.6
+                },
+                "20": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 2,
+                    "temperature_f": 53.2
+                },
+                "21": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 55.1
+                },
+                "22": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 2,
+                    "temperature_f": 56.4
+                },
+                "23": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 1,
+                    "temperature_f": 58.2
+                }
+            }
+        },
+        "2026-06-24": {
+            "weather": "thunderstorm",
+            "wind_severity": 0,
+            "temperature_f": 51.9,
+            "hourly": {
+                "00": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 57.6
+                },
+                "01": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 55.9
+                },
+                "02": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 1,
+                    "temperature_f": 55.4
+                },
+                "03": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 56.1
+                },
+                "04": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 55.1
+                },
+                "05": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 55.4
+                },
+                "06": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 55.6
+                },
+                "07": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 53.9
+                },
+                "08": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 53.4
+                },
+                "09": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 51.0
+                },
+                "10": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 50.1
+                },
+                "11": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 49.9
+                },
+                "12": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 1,
+                    "temperature_f": 47.5
+                },
+                "13": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 1,
+                    "temperature_f": 45.7
+                },
+                "14": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 47.5
+                },
+                "15": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 46.8
+                },
+                "16": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 46.6
+                },
+                "17": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 47.7
+                },
+                "18": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 48.8
+                },
+                "19": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 51.2
+                },
+                "20": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 52.3
+                },
+                "21": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 1,
+                    "temperature_f": 52.6
+                },
+                "22": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 55.1
+                },
+                "23": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 0,
+                    "temperature_f": 55.4
+                }
+            }
+        },
+        "2026-06-25": {
+            "weather": "rain",
+            "wind_severity": 0,
+            "temperature_f": 55.7,
+            "hourly": {
+                "00": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 59.6
+                },
+                "01": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 59.2
+                },
+                "02": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 61.3
+                },
+                "03": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 59.6
+                },
+                "04": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 59.5
+                },
+                "05": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 58.0
+                },
+                "06": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 59.2
+                },
+                "07": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 56.6
+                },
+                "08": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 56.6
+                },
+                "09": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 53.9
+                },
+                "10": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 52.3
+                },
+                "11": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 52.7
+                },
+                "12": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 51.7
+                },
+                "13": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 50.3
+                },
+                "14": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 50.8
+                },
+                "15": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 51.8
+                },
+                "16": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 50.2
+                },
+                "17": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 51.7
+                },
+                "18": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 52.7
+                },
+                "19": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 53.6
+                },
+                "20": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 56.2
+                },
+                "21": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 58.3
+                },
+                "22": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 58.2
+                },
+                "23": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 59.7
+                }
+            }
+        },
+        "2026-06-26": {
+            "weather": "clear",
+            "wind_severity": 1,
+            "temperature_f": 59.5,
+            "hourly": {
+                "00": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 62.8
+                },
+                "01": {
+                    "weather": "clear",
+                    "wind_severity": 2,
+                    "temperature_f": 63.3
+                },
+                "02": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 63.5
+                },
+                "03": {
+                    "weather": "clear",
+                    "wind_severity": 2,
+                    "temperature_f": 65.6
+                },
+                "04": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 62.5
+                },
+                "05": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 63.7
+                },
+                "06": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 60.6
+                },
+                "07": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 61.3
+                },
+                "08": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 58.3
+                },
+                "09": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 58.1
+                },
+                "10": {
+                    "weather": "clear",
+                    "wind_severity": 2,
+                    "temperature_f": 55.7
+                },
+                "11": {
+                    "weather": "rain",
+                    "wind_severity": 2,
+                    "temperature_f": 54.6
+                },
+                "12": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 53.7
+                },
+                "13": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 55.6
+                },
+                "14": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 54.4
+                },
+                "15": {
+                    "weather": "clear",
+                    "wind_severity": 2,
+                    "temperature_f": 53.9
+                },
+                "16": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 56.3
+                },
+                "17": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 55.7
+                },
+                "18": {
+                    "weather": "clear",
+                    "wind_severity": 2,
+                    "temperature_f": 55.6
+                },
+                "19": {
+                    "weather": "clear",
+                    "wind_severity": 2,
+                    "temperature_f": 56.8
+                },
+                "20": {
+                    "weather": "clear",
+                    "wind_severity": 2,
+                    "temperature_f": 59.3
+                },
+                "21": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 60.6
+                },
+                "22": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 63.2
+                },
+                "23": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 63.2
+                }
+            }
+        },
+        "2026-06-27": {
+            "weather": "clear",
+            "wind_severity": 3,
+            "temperature_f": 58.0,
+            "hourly": {
+                "00": {
+                    "weather": "clear",
+                    "wind_severity": 3,
+                    "temperature_f": 62.6
+                },
+                "01": {
+                    "weather": "clear",
+                    "wind_severity": 3,
+                    "temperature_f": 64.0
+                },
+                "02": {
+                    "weather": "clear",
+                    "wind_severity": 3,
+                    "temperature_f": 62.7
+                },
+                "03": {
+                    "weather": "clear",
+                    "wind_severity": 2,
+                    "temperature_f": 62.9
+                },
+                "04": {
+                    "weather": "clear",
+                    "wind_severity": 2,
+                    "temperature_f": 61.6
+                },
+                "05": {
+                    "weather": "clear",
+                    "wind_severity": 2,
+                    "temperature_f": 60.6
+                },
+                "06": {
+                    "weather": "clear",
+                    "wind_severity": 3,
+                    "temperature_f": 60.3
+                },
+                "07": {
+                    "weather": "clear",
+                    "wind_severity": 3,
+                    "temperature_f": 59.8
+                },
+                "08": {
+                    "weather": "clear",
+                    "wind_severity": 3,
+                    "temperature_f": 58.7
+                },
+                "09": {
+                    "weather": "clear",
+                    "wind_severity": 3,
+                    "temperature_f": 58.1
+                },
+                "10": {
+                    "weather": "clear",
+                    "wind_severity": 2,
+                    "temperature_f": 56.0
+                },
+                "11": {
+                    "weather": "clear",
+                    "wind_severity": 3,
+                    "temperature_f": 52.9
+                },
+                "12": {
+                    "weather": "clear",
+                    "wind_severity": 3,
+                    "temperature_f": 53.6
+                },
+                "13": {
+                    "weather": "clear",
+                    "wind_severity": 2,
+                    "temperature_f": 54.2
+                },
+                "14": {
+                    "weather": "clear",
+                    "wind_severity": 3,
+                    "temperature_f": 53.1
+                },
+                "15": {
+                    "weather": "clear",
+                    "wind_severity": 3,
+                    "temperature_f": 54.2
+                },
+                "16": {
+                    "weather": "clear",
+                    "wind_severity": 3,
+                    "temperature_f": 53.4
+                },
+                "17": {
+                    "weather": "clear",
+                    "wind_severity": 3,
+                    "temperature_f": 54.4
+                },
+                "18": {
+                    "weather": "clear",
+                    "wind_severity": 2,
+                    "temperature_f": 56.9
+                },
+                "19": {
+                    "weather": "clear",
+                    "wind_severity": 2,
+                    "temperature_f": 57.5
+                },
+                "20": {
+                    "weather": "clear",
+                    "wind_severity": 3,
+                    "temperature_f": 57.5
+                },
+                "21": {
+                    "weather": "clear",
+                    "wind_severity": 3,
+                    "temperature_f": 60.3
+                },
+                "22": {
+                    "weather": "clear",
+                    "wind_severity": 3,
+                    "temperature_f": 60.5
+                },
+                "23": {
+                    "weather": "clear",
+                    "wind_severity": 2,
+                    "temperature_f": 62.5
+                }
+            }
+        },
+        "2026-06-28": {
+            "weather": "clear",
+            "wind_severity": 0,
+            "temperature_f": 61.0,
+            "hourly": {
+                "00": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 64.7
+                },
+                "01": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 66.7
+                },
+                "02": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 65.4
+                },
+                "03": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 64.9
+                },
+                "04": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 66.3
+                },
+                "05": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 63.4
+                },
+                "06": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 62.4
+                },
+                "07": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 61.1
+                },
+                "08": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 61.3
+                },
+                "09": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 59.0
+                },
+                "10": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 57.5
+                },
+                "11": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 56.3
+                },
+                "12": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 57.1
+                },
+                "13": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 55.4
+                },
+                "14": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 57.1
+                },
+                "15": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 57.4
+                },
+                "16": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 56.6
+                },
+                "17": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 58.6
+                },
+                "18": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 57.4
+                },
+                "19": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 59.5
+                },
+                "20": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 60.4
+                },
+                "21": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 63.0
+                },
+                "22": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 64.6
+                },
+                "23": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 63.2
+                }
+            }
+        },
+        "2026-06-29": {
+            "weather": "clear",
+            "wind_severity": 0,
+            "temperature_f": 63.1,
+            "hourly": {
+                "00": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 68.9
+                },
+                "01": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 67.8
+                },
+                "02": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 69.3
+                },
+                "03": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 69.2
+                },
+                "04": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 66.9
+                },
+                "05": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 67.7
+                },
+                "06": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 66.9
+                },
+                "07": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 65.5
+                },
+                "08": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 61.8
+                },
+                "09": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 60.7
+                },
+                "10": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 61.2
+                },
+                "11": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 61.0
+                },
+                "12": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 59.2
+                },
+                "13": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 57.7
+                },
+                "14": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 57.1
+                },
+                "15": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 59.1
+                },
+                "16": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 57.9
+                },
+                "17": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 58.1
+                },
+                "18": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 61.3
+                },
+                "19": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 61.9
+                },
+                "20": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 63.8
+                },
+                "21": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 64.7
+                },
+                "22": {
+                    "weather": "thunderstorm",
+                    "wind_severity": 1,
+                    "temperature_f": 67.0
+                },
+                "23": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 65.3
+                }
+            }
+        },
+        "2026-06-30": {
+            "weather": "clear",
+            "wind_severity": 0,
+            "temperature_f": 60.8,
+            "hourly": {
+                "00": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 64.3
+                },
+                "01": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 66.8
+                },
+                "02": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 64.4
+                },
+                "03": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 66.3
+                },
+                "04": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 64.6
+                },
+                "05": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 63.4
+                },
+                "06": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 63.0
+                },
+                "07": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 62.0
+                },
+                "08": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 59.9
+                },
+                "09": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 58.8
+                },
+                "10": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 58.4
+                },
+                "11": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 57.3
+                },
+                "12": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 57.0
+                },
+                "13": {
+                    "weather": "rain",
+                    "wind_severity": 1,
+                    "temperature_f": 55.7
+                },
+                "14": {
+                    "weather": "rain",
+                    "wind_severity": 0,
+                    "temperature_f": 55.8
+                },
+                "15": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 56.7
+                },
+                "16": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 55.8
+                },
+                "17": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 55.9
+                },
+                "18": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 59.4
+                },
+                "19": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 59.7
+                },
+                "20": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 60.6
+                },
+                "21": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 62.5
+                },
+                "22": {
+                    "weather": "clear",
+                    "wind_severity": 1,
+                    "temperature_f": 62.2
+                },
+                "23": {
+                    "weather": "clear",
+                    "wind_severity": 0,
+                    "temperature_f": 64.2
+                }
+            }
         }
     }
 }

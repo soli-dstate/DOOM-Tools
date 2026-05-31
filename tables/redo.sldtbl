@@ -1,7 +1,7 @@
 {
     "prettyname": "Larp of '24: The Re-up",
     "filename": "redo.sldtbl",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "additional_settings": {
         "bonus_clamp": 5,
         "stat_clamp": 4,

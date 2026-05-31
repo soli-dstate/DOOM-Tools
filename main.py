@@ -28449,7 +28449,22 @@ class App:
                     else:
                         effective_date = now_dt.strftime("%Y-%m-%d")
                     day_weather = forecast.get(effective_date) or forecast.get("default") or {}
-                    logging.info("Weather forecast: effective_date=%s (actual=%s %02d:%02d CST)", effective_date, now_dt.strftime("%Y-%m-%d"), now_dt.hour, now_dt.minute)
+                    if isinstance(day_weather, dict):
+                        hourly = day_weather.get("hourly")
+                        if isinstance(hourly, dict):
+                            hour_key = f"{now_dt.hour:02d}"
+                            hour_weather = hourly.get(hour_key)
+                            if isinstance(hour_weather, dict):
+                                merged_weather = dict(day_weather)
+                                merged_weather.update(hour_weather)
+                                day_weather = merged_weather
+                                logging.info("Weather forecast: effective_date=%s hour=%s CST (actual=%s %02d:%02d CST)", effective_date, hour_key, now_dt.strftime("%Y-%m-%d"), now_dt.hour, now_dt.minute)
+                            else:
+                                logging.info("Weather forecast: effective_date=%s (no hourly match for %s; actual=%s %02d:%02d CST)", effective_date, hour_key, now_dt.strftime("%Y-%m-%d"), now_dt.hour, now_dt.minute)
+                        else:
+                            logging.info("Weather forecast: effective_date=%s (hourly unavailable; actual=%s %02d:%02d CST)", effective_date, now_dt.strftime("%Y-%m-%d"), now_dt.hour, now_dt.minute)
+                    else:
+                        logging.info("Weather forecast: effective_date=%s (invalid day payload; actual=%s %02d:%02d CST)", effective_date, now_dt.strftime("%Y-%m-%d"), now_dt.hour, now_dt.minute)
                 else:
                     day_weather = weather_data
 
