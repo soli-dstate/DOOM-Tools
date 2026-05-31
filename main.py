@@ -2326,7 +2326,7 @@ def populate_equipment_with_subslots(save_data, secondary_platform=None):
         if not tbl_path or not os.path.exists(tbl_path):
             return save_data
 
-        with open(tbl_path, 'r')as f:
+        with open(tbl_path, 'r', encoding = 'utf-8-sig')as f:
             table_data = json.load(f)
 
         tables = table_data.get("tables", {})
@@ -5025,7 +5025,7 @@ class App:
         try:
             tbl_path = get_current_table_path()
             if tbl_path and os.path.exists(tbl_path):
-                with open(tbl_path, 'r')as f:
+                with open(tbl_path, 'r', encoding = 'utf-8-sig')as f:
                     table_data = json.load(f)
                 return table_data.get("tables", {}).get("ammunition", [])
         except Exception:
@@ -8029,7 +8029,7 @@ class App:
                 self._popup_show_info("Error", "No table files found.", sound = "error")
                 return
 
-            with open(tbl_path, 'r')as f:
+            with open(tbl_path, 'r', encoding = 'utf-8-sig')as f:
                 table_data = json.load(f)
 
             lootcrates = table_data.get("lootcrates", [])
@@ -10915,7 +10915,7 @@ class App:
                 self._popup_show_info("Error", "Table file not found.", sound = "error")
                 return
 
-            with open(tbl_path, 'r')as f:
+            with open(tbl_path, 'r', encoding = 'utf-8-sig')as f:
                 table_data = json.load(f)
 
             try:
@@ -20424,7 +20424,7 @@ class App:
         try:
             tbl_path = get_current_table_path()
             if tbl_path and os.path.exists(tbl_path):
-                with open(tbl_path, 'r')as f:
+                with open(tbl_path, 'r', encoding = 'utf-8-sig')as f:
                     table_data = json.load(f)
                     stat_clamp = table_data.get("additional_settings", {}).get("stat_clamp", 20)
                     slot_disable_points = table_data.get("additional_settings", {}).get("slot_disable_points", 1)
@@ -20583,7 +20583,7 @@ class App:
         try:
             tbl_path = get_current_table_path()
             if tbl_path and os.path.exists(tbl_path):
-                with open(tbl_path, 'r')as f:
+                with open(tbl_path, 'r', encoding = 'utf-8-sig')as f:
                     table_data = json.load(f)
                     stat_clamp = table_data.get("additional_settings", {}).get("stat_clamp", 20)
                     slot_disable_points = table_data.get("additional_settings", {}).get("slot_disable_points", 1)
@@ -23977,7 +23977,7 @@ class App:
             import glob, json, os
             tbl_path = get_current_table_path()
             if tbl_path and os.path.exists(tbl_path):
-                with open(tbl_path, 'r')as tf:
+                with open(tbl_path, 'r', encoding = 'utf-8-sig')as tf:
                     td = json.load(tf)
                     sc = td.get("additional_settings", {}).get("stat_clamp")
                     if isinstance(sc, (int, float)):
@@ -28237,7 +28237,7 @@ class App:
             if not tbl_path or not os.path.exists(tbl_path):
                 self._popup_show_info("Error", "No table file found.", sound = "error")
                 return
-            with open(tbl_path, 'r')as f:
+            with open(tbl_path, 'r', encoding = 'utf-8-sig')as f:
                 table_data = json.load(f)
         except Exception as e:
             logging.error(f"Failed to load table: {e}")
@@ -28690,7 +28690,7 @@ class App:
                     try:
                         tbl_path = get_current_table_path()
                         if tbl_path and os.path.exists(tbl_path):
-                            with open(tbl_path, 'r')as tf:
+                            with open(tbl_path, 'r', encoding = 'utf-8-sig')as tf:
                                 td = json.load(tf)
                                 stat_clamp = td.get("additional_settings", {}).get("stat_clamp", stat_clamp)
                     except Exception:
@@ -28802,7 +28802,7 @@ class App:
                         clamp_val = None
                         tbl_path = get_current_table_path()
                         if tbl_path and os.path.exists(tbl_path):
-                            with open(tbl_path, 'r')as tf:
+                            with open(tbl_path, 'r', encoding = 'utf-8-sig')as tf:
                                 td = json.load(tf)
                                 clamp_val = td.get('additional_settings', {}).get('bonus_clamp')
                     except Exception:
@@ -32404,7 +32404,7 @@ class App:
                     try:
                         tbl_path = get_current_table_path()
                         if tbl_path and os.path.exists(tbl_path):
-                            with open(tbl_path, 'r')as f:
+                            with open(tbl_path, 'r', encoding = 'utf-8-sig')as f:
                                 table_data = json.load(f)
                             for ammo in table_data.get("tables", {}).get("ammunition", []):
                                 if ammo.get("caliber")==caliber_part or ammo.get("name")==caliber_part:
@@ -50350,7 +50350,7 @@ class App:
         for table_file in table_files:
             try:
                 table_path = os.path.join("tables", table_file)
-                with open(table_path, 'r')as f:
+                with open(table_path, 'r', encoding = 'utf-8-sig')as f:
                     table_data = json.load(f)
                 pretty_name = table_data.get("prettyname", table_file)
                 table_display_names.append(pretty_name)
@@ -50508,7 +50508,7 @@ class App:
                 self._popup_show_info("Error", "No table files found.", sound = "error")
                 return
 
-            with open(tbl_path, 'r')as f:
+            with open(tbl_path, 'r', encoding = 'utf-8-sig')as f:
                 table_data = json.load(f)
 
             all_items =[]
@@ -52516,7 +52516,7 @@ class App:
                     tbl_path = get_current_table_path()
                     if not tbl_path or not os.path.exists(tbl_path):
                         return[]
-                    with open(tbl_path, 'r')as f:
+                    with open(tbl_path, 'r', encoding = 'utf-8-sig')as f:
                         table_data = json.load(f)
                     return table_data.get("tables", {}).get("rooms", [])
                 except Exception as e:
@@ -52529,7 +52529,7 @@ class App:
                     tbl_path = get_current_table_path()
                     if not tbl_path or not os.path.exists(tbl_path):
                         return[]
-                    with open(tbl_path, 'r')as f:
+                    with open(tbl_path, 'r', encoding = 'utf-8-sig')as f:
                         table_data = json.load(f)
                     return table_data.get("tables", {}).get("enemy_drops", [])
                 except Exception as e:
@@ -53476,7 +53476,7 @@ class App:
                     try:
                         tbl_path = get_current_table_path()
                         if tbl_path and os.path.exists(tbl_path):
-                            with open(tbl_path, 'r')as f:
+                            with open(tbl_path, 'r', encoding = 'utf-8-sig')as f:
                                 full_table = json.load(f)
 
                                 table_data = {
@@ -54871,7 +54871,7 @@ class App:
             if not tbl_path or not os.path.exists(tbl_path):
                 self._popup_show_info("Error", "No table file found.", sound = "error")
                 return
-            with open(tbl_path, 'r')as f:
+            with open(tbl_path, 'r', encoding = 'utf-8-sig')as f:
                 table_data = json.load(f)
         except Exception as e:
             logging.error(f"Failed to load table: {e}")
@@ -55121,7 +55121,7 @@ class App:
             if not tbl_path or not os.path.exists(tbl_path):
                 self._popup_show_info("Error", "No table file found.", sound = "error")
                 return
-            with open(tbl_path, 'r')as f:
+            with open(tbl_path, 'r', encoding = 'utf-8-sig')as f:
                 table_data = json.load(f)
         except Exception as e:
             logging.error(f"Failed to load table: {e}")
@@ -55560,7 +55560,7 @@ class App:
             if not tbl_path or not os.path.exists(tbl_path):
                 self._popup_show_info("Error", "No table files found.", sound = "error")
                 return
-            with open(tbl_path, 'r')as f:
+            with open(tbl_path, 'r', encoding = 'utf-8-sig')as f:
                 table_data = json.load(f)
         except Exception as e:
             logging.error(f"Failed to load tables for loot crate creator: {e}")
@@ -55653,7 +55653,7 @@ class App:
             if not tbl_path or not os.path.exists(tbl_path):
                 self._popup_show_info("Error", "No table files found.", sound = "error")
                 return
-            with open(tbl_path, 'r')as f:
+            with open(tbl_path, 'r', encoding = 'utf-8-sig')as f:
                 table_data = json.load(f)
         except Exception as e:
             logging.error(f"Failed to load tables for loot crate creator: {e}")
@@ -56269,7 +56269,7 @@ class App:
             if not tbl_path or not os.path.exists(tbl_path):
                 self._popup_show_info("Error", "No table files found.", sound = "error")
                 return
-            with open(tbl_path, 'r')as f:
+            with open(tbl_path, 'r', encoding = 'utf-8-sig')as f:
                 table_data = json.load(f)
         except Exception as e:
             logging.error(f"Failed to load tables for item transfer: {e}")
@@ -56620,7 +56620,7 @@ class App:
             if not tbl_path or not os.path.exists(tbl_path):
                 self._popup_show_info("Error", "No table file found.", sound = "error")
                 return
-            with open(tbl_path, 'r')as f:
+            with open(tbl_path, 'r', encoding = 'utf-8-sig')as f:
                 table_data = json.load(f)
         except Exception as e:
             logging.error(f"Failed to load table: {e}")
@@ -57043,7 +57043,7 @@ class App:
             if not tbl_path or not os.path.exists(tbl_path):
                 self._popup_show_info("Error", "No table file found.", sound = "error")
                 return
-            with open(tbl_path, 'r')as f:
+            with open(tbl_path, 'r', encoding = 'utf-8-sig')as f:
                 table_data = json.load(f)
         except Exception as e:
             logging.error(f"Failed to load table: {e}")
@@ -57312,7 +57312,7 @@ class App:
             if not tbl_path or not os.path.exists(tbl_path):
                 self._popup_show_info("Error", "No table file found.", sound = "error")
                 return
-            with open(tbl_path, 'r')as f:
+            with open(tbl_path, 'r', encoding = 'utf-8-sig')as f:
                 table_data = json.load(f)
         except Exception as e:
             logging.error(f"Failed to load table: {e}")

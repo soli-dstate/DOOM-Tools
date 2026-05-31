@@ -1,7 +1,7 @@
 {
     "prettyname": "Larp of '24: The Re-up",
     "filename": "redo.sldtbl",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "additional_settings": {
         "bonus_clamp": 5,
         "stat_clamp": 4,
@@ -56216,6 +56216,66 @@
                 "shop_subcategory": "Miscellaneous",
                 "shop_subcategory2": "Lighters",
                 "armory_category": "Rifle"
+            }
+        ],
+        "non_lootable": [
+            {
+                "name": "Colt's Manufacturing Company M4A1 Carbine",
+                "value": 700,
+                "description": "Standard service weapon for the US Army, USSOCOM, Navy SEALs, Delta Force, Green Berets, US Army Rangers, USMC, USAF... the list goes on. Replaced by the SIG Sauer M7 in 2022, as part of the NGSW program.",
+                "rarity": "Common",
+                "random_quantity": false,
+                "weight": 2.92,
+                "id": 2145,
+                "firearm": true,
+                "type": "conventional",
+                "subtype": "rifle",
+                "platform": "AR-15",
+                "caliber": ["5.56x45mm NATO", ".223 Remington"],
+                "action": ["Semi", "Auto"],
+                "bolt": "closed",
+                "bolt_catch": true,
+                "cyclic": 900,
+                "magazinetype": "Detachable box",
+                "magazinesystem": "STANAG 4179",
+                "jamrate": 0.01,
+                "accessories": [
+                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": {"id": 1697}},
+                    {"name": "Picatinny Rail (Handguard Top)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Left)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Right)", "slot": "picatinny_rifle", "current": null},
+                    {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom", "current": {"id": 1765}},
+                    {"name": "Conversion Kit", "slot": "ar15_conversion_kit", "current": null},
+                    {"name": "Bayonet Lug", "slot": "nato_bayonet_lug", "current": null, "conflicts_with": ["muzzle_556"]},
+                    {"name": "Muzzle Device", "slot": "muzzle_556", "current": {"id": 2146}, "conflicts_with": ["nato_bayonet_lug"]}
+                ],
+                "can_stack": false,
+                "parts": null,
+                "in_armory": true,
+                "armory_category": "Assault Rifle",
+                "shop_category": "Rifles",
+                "shop_subcategory": "Intermediate Rifles",
+                "armory_subcategory": "Intermediate Rifles"
+            },
+            {
+                "name": "M4A1's Suppressor",
+                "value": 899,
+                "rarity": "Rare",
+                "description": "A large, dark green suppressor for 5.56 rifles.",
+                "random_quantity": false,
+                "weight": 0.48,
+                "id": 2146,
+                "attachment": true,
+                "slot": "muzzle_556",
+                "suppressor": true,
+                "can_stack": false,
+                "in_armory": true,
+                "armory_category": "Attachments",
+                "armory_subcategory": "Rifle Attachments",
+                "armory_subcategory2": "Sound Suppressors",
+                "shop_category": "Attachments",
+                "shop_subcategory": "Rifle Attachments",
+                "shop_subcategory2": "Sound Suppressors"
             }
         ],
         "stores": [
