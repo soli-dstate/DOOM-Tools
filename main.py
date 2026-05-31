@@ -1,4 +1,4 @@
-version = "2.0.2"
+version = "2.0.3"
 current_resource_link = "https://files.catbox.moe/qpyv1e.zip"
 import os
 import logging
@@ -3300,17 +3300,47 @@ def _apply_part_wear(weapon, shots_fired=1, wrong_ammo=False):
 RARITY_SALE_MULTIPLIERS = {
     "Common": 1.0,
     "Uncommon": 1.25,
-    "Rare": 1.75,
+    "Rare": 1.5,
     "Legendary": 2.5,
     "Mythic": 4.0,
 }
 
-def _cc_item_price(item):
+RARITY_SALE_ALIASES = {
+    "normal": "Common",
+    "uncommon": "Uncommon",
+    "rare": "Rare",
+    "legendary": "Legendary",
+    "mythic": "Mythic",
+    "epic": "Legendary",
+    "very rare": "Legendary",
+}
+
+def _normalize_rarity_name(rarity, default = "Common"):
+    if rarity is None:
+        return default
+    txt = str(rarity).strip()
+    if not txt:
+        return default
+    key = txt.lower()
+    if key in RARITY_SALE_ALIASES:
+        return RARITY_SALE_ALIASES[key]
+    for known in RARITY_SALE_MULTIPLIERS.keys():
+        if key == known.lower():
+            return known
+    return txt
+
+def _rarity_sale_multiplier(rarity):
+    return _safe_float(RARITY_SALE_MULTIPLIERS.get(_normalize_rarity_name(rarity), 1.0), 1.0) or 1.0
+
+def _cc_item_price(item, apply_firearm_modifiers = True):
     """Budget price for character creation: base value × rarity multiplier (no market demand)."""
     base = float(item.get("value", 0) or 0)
-    rarity = item.get("rarity") or "Common"
-    mult = RARITY_SALE_MULTIPLIERS.get(rarity, 1.0)
-    return round(base * mult, 2)
+    rarity = _normalize_rarity_name(item.get("rarity") or "Common")
+    mult = _rarity_sale_multiplier(rarity)
+    value = base * mult
+    if apply_firearm_modifiers:
+        value = _apply_firearm_round_wear_to_value(value, item)
+    return round(value, 2)
 
 def _safe_float(val, default = None):
     try:
@@ -3350,7 +3380,7 @@ def _apply_ammo_variant_data(item_obj, ammo_def = None, variant_info = None):
     rarity_val = variant_info.get("rarity") or item_obj.get("rarity")
     if not rarity_val and isinstance(ammo_def, dict):
         rarity_val = ammo_def.get("rarity")
-    item_obj["rarity"] = rarity_val or "Common"
+    item_obj["rarity"] = _normalize_rarity_name(rarity_val or "Common")
 
     labels = _get_ammo_variant_labels(variant_info)
     if labels:
@@ -3364,7 +3394,7 @@ def _apply_ammo_variant_data(item_obj, ammo_def = None, variant_info = None):
         base_value = _safe_float(ammo_def.get("value"), 0.0)
     if base_value is not None:
         price_modifier = _safe_float(variant_info.get("price_modifier"), 1.0) or 1.0
-        rarity_mult = _safe_float(RARITY_SALE_MULTIPLIERS.get(item_obj.get("rarity") or "Common", 1.0), 1.0) or 1.0
+        rarity_mult = _rarity_sale_multiplier(item_obj.get("rarity") or "Common")
         item_obj["value"] = max(0.01, float(base_value) * price_modifier * rarity_mult)
 
     return item_obj
@@ -3868,32 +3898,145 @@ def _get_seeded_store_firearm_rounds_fired(item, store_name, item_position, used
 
 def _apply_sale_modifiers(base_value, item, table_data=None):
     """Apply hardcore-mode rarity and rounds_fired modifiers to an item's sale value."""
-    if not table_data:
-        return base_value
-    if not table_data.get("additional_settings", {}).get("hardcore_mode", False):
-        return base_value
     value = float(base_value)
-    rarity = item.get("rarity") or "Common"
-    value *= RARITY_SALE_MULTIPLIERS.get(rarity, 1.0)
-    if item.get("firearm"):
-        rf = item.get("rounds_fired", 0)
-        if isinstance(rf, (int, float)) and rf > 0:
-            value *= max(0.1, 1.0 - (rf / 75000.0))
+    # Keep rarity-based hardcore economics as-is.
+    if table_data and table_data.get("additional_settings", {}).get("hardcore_mode", False):
+        rarity = _normalize_rarity_name(item.get("rarity") or "Common")
+        value *= _rarity_sale_multiplier(rarity)
+    # Firearm wear depreciation should apply consistently in all modes.
+    value = _apply_firearm_round_wear_to_value(value, item)
     return value
 
-def _get_depreciated_item_value(base_value, item):
-    """Return base value after firearm wear depreciation."""
+def _is_new_historical_firearm(item):
+    if not isinstance(item, dict) or not item.get("firearm"):
+        return False
+
+    table_cat = str(item.get("table_category") or item.get("_table_category") or "").strip().lower()
+    is_historical = table_cat == "historical_firearms" or bool(item.get("_is_historical_firearm"))
+    if not is_historical:
+        return False
+
+    try:
+        rf = float(item.get("rounds_fired", 0) or 0)
+    except (TypeError, ValueError):
+        rf = 0.0
+    return rf <= 0.0
+
+def _get_firearm_round_wear_multiplier(rounds_fired):
+    """Return value multiplier for firearm wear from round count.
+
+    Targets (approx):
+    - 3,000 rounds -> 75%
+    - 10,000 rounds -> 33%
+    - 30,000 rounds -> 8.3%
+    """
+    try:
+        rf = max(0.0, float(rounds_fired or 0))
+    except (TypeError, ValueError):
+        rf = 0.0
+
+    # Piecewise linear curve tuned to service-life expectations.
+    points = [
+        (0.0, 1.0),
+        (3000.0, 0.75),
+        (10000.0, 1.0 / 3.0),
+        (30000.0, 1.0 / 12.0),
+        (60000.0, 0.04),
+        (100000.0, 0.02),
+    ]
+
+    if rf <= points[0][0]:
+        return points[0][1]
+
+    for idx in range(1, len(points)):
+        x0, y0 = points[idx - 1]
+        x1, y1 = points[idx]
+        if rf <= x1:
+            span = x1 - x0
+            if span <= 0:
+                return y1
+            t = (rf - x0) / span
+            return y0 + (y1 - y0) * t
+
+    return points[-1][1]
+
+def _get_firearm_installed_condition_ratio(item):
+    """Return 0..1 condition ratio from installed firearm parts and spring."""
+    if not isinstance(item, dict):
+        return 0.0
+
+    ratios = []
+
+    def _to_float_or_none(v):
+        try:
+            return float(v)
+        except (TypeError, ValueError):
+            return None
+
+    for part in item.get("parts") or []:
+        if not isinstance(part, dict):
+            continue
+        current_obj = part.get("current")
+        cur_val = part.get("current_durability")
+        if cur_val is None and isinstance(current_obj, dict):
+            cur_val = current_obj.get("current_durability")
+        cur_num = _to_float_or_none(cur_val)
+        if cur_num is None:
+            continue
+
+        max_val = part.get("durability")
+        max_txt = str(max_val).strip().lower() if max_val is not None else ""
+        if max_val is None or max_txt in ("", "null", "none", "set_by_looting"):
+            if isinstance(current_obj, dict):
+                max_val = current_obj.get("durability")
+
+        max_num = _to_float_or_none(max_val)
+        if max_num is None or max_num <= 0:
+            max_num = float(PART_DURABILITY_MAX)
+
+        ratio = max(0.0, min(1.0, cur_num / max_num))
+        ratios.append(ratio)
+
+    spring_num = _to_float_or_none(item.get("spring_durability"))
+    if spring_num is not None:
+        ratios.append(max(0.0, min(1.0, spring_num / float(PART_DURABILITY_MAX))))
+
+    if not ratios:
+        return 0.0
+    return sum(ratios) / float(len(ratios))
+
+def _apply_firearm_round_wear_to_value(base_value, item, min_price_floor = 100.0):
+    """Return firearm value after historical/new markup and wear adjustments."""
     value = float(base_value or 0)
     if not isinstance(item, dict) or not item.get("firearm"):
         return value
+
+    if _is_new_historical_firearm(item):
+        return value * 25.0
+
     rf = item.get("rounds_fired")
     try:
         rf = float(rf) if rf is not None else 0.0
     except (TypeError, ValueError):
         rf = 0.0
-    if rf > 0:
-        value *= max(0.1, 1.0 - (rf / 75000.0))
-    return value
+
+    if rf <= 0:
+        return value
+
+    round_mult = _get_firearm_round_wear_multiplier(rf)
+    condition_ratio = _get_firearm_installed_condition_ratio(item)
+
+    # Good installed condition recovers up to 15% of value lost to high round count.
+    recovery_mult = (1.0 - round_mult) * max(0.0, min(1.0, condition_ratio)) * 0.15
+    effective_mult = min(1.0, round_mult + recovery_mult)
+
+    worn_value = value * effective_mult
+    # Floor at $100 for used firearms, but never increase above base value.
+    return min(value, max(float(min_price_floor), worn_value))
+
+def _get_depreciated_item_value(base_value, item):
+    """Return base value after firearm wear depreciation."""
+    return _apply_firearm_round_wear_to_value(base_value, item)
 
 def _randomize_part_durability(weapon):
     parts = weapon.get("parts")
@@ -3994,6 +4137,7 @@ def _set_armory_used_good_weapon_condition(item):
 
     # Ensure any still-unset part durability does not render as N/A in UI.
     _repair_item_parts_durability_recursive(item, fallback_value = PART_DURABILITY_MAX * 0.9)
+    _sync_firearm_cleanliness_from_rounds_fired(item)
 
 def _set_durability_from_rounds_fired(item, rounds_fired):
     """Set part durability proportional to a user-specified rounds-fired count.
@@ -4040,6 +4184,66 @@ def _set_durability_from_rounds_fired(item, rounds_fired):
         sd_min = max(float(spring_dur) * 0.05, sd_max * 0.3)
         item["spring_durability"] = round(random.uniform(sd_min, sd_max), 2)
     _repair_item_parts_durability_recursive(item)
+
+def _estimate_firearm_cleanliness_from_rounds_fired(rounds_fired):
+    """Estimate starting barrel cleanliness from rounds fired.
+
+    Used firearms should spawn noticeably dirty; brand-new firearms stay clean.
+    """
+    try:
+        rf = max(0, int(float(rounds_fired or 0)))
+    except (TypeError, ValueError):
+        rf = 0
+    if rf <= 0:
+        return 100.0
+
+    # Log-scale decay: quickly moves used guns out of "clean", then tapers.
+    est = 72.0 - (math.log10(rf + 10.0) * 11.0)
+    return max(12.0, min(68.0, est))
+
+def _sync_firearm_cleanliness_from_rounds_fired(item):
+    if not isinstance(item, dict) or not item.get("firearm"):
+        return
+    item["barrel_cleanliness"] = round(
+        _estimate_firearm_cleanliness_from_rounds_fired(item.get("rounds_fired")),
+        2,
+    )
+
+def _get_weapon_cleanliness(combat_state, weapon, default = 100.0, cache_to_state = False):
+    """Resolve cleanliness from combat state, then item field, then rounds-fired estimate."""
+    if not isinstance(combat_state, dict):
+        combat_state = {}
+    if not isinstance(weapon, dict):
+        return float(default)
+
+    weapon_id = str(weapon.get("id"))
+    map_obj = combat_state.setdefault("barrel_cleanliness", {}) if cache_to_state else combat_state.get("barrel_cleanliness", {})
+    if isinstance(map_obj, dict):
+        mapped = map_obj.get(weapon_id)
+        if mapped is not None:
+            try:
+                return float(mapped)
+            except (TypeError, ValueError):
+                pass
+
+    item_clean = weapon.get("barrel_cleanliness")
+    if item_clean is not None:
+        try:
+            clean_val = float(item_clean)
+            if isinstance(map_obj, dict) and cache_to_state:
+                map_obj[weapon_id] = clean_val
+            return clean_val
+        except (TypeError, ValueError):
+            pass
+
+    clean_val = float(default)
+    if weapon.get("firearm"):
+        clean_val = _estimate_firearm_cleanliness_from_rounds_fired(weapon.get("rounds_fired"))
+
+    if isinstance(map_obj, dict) and cache_to_state:
+        map_obj[weapon_id] = clean_val
+    weapon["barrel_cleanliness"] = round(clean_val, 2)
+    return clean_val
 
 def _repair_item_parts_durability_recursive(node, fallback_value = 100.0):
     """Recursively normalize broken part durability values.
@@ -9707,6 +9911,8 @@ class App:
                     else:
                         item["rounds_fired"] = int(150000 + random.random() * 350000)
 
+                _sync_firearm_cleanliness_from_rounds_fired(item)
+
                 # Deep-copy parts so shared table dicts are not mutated between
                 # multiple items of the same type looted in one session.
                 if isinstance(item.get("parts"), list):
@@ -13181,6 +13387,9 @@ class App:
         if not isinstance(firearm_item, dict) or not firearm_item.get("firearm"):
             self._popup_show_info("Test Firearm", "Only firearms can be tested.", sound = "error")
             return
+        if _is_new_historical_firearm(firearm_item):
+            self._popup_show_info("Test Firearm", "Brand-new historical firearms cannot be test-fired.", sound = "error")
+            return
         if firearm_item.get("_test_used"):
             self._popup_show_info("Test Firearm", "This firearm has already been test-fired.", sound = "error")
             return
@@ -13694,6 +13903,10 @@ class App:
 
             add_row("State:", firearm_state, firearm_state_color)
 
+            if _is_new_historical_firearm(item):
+                add_row("Premium:", "Historical Premium x25", "#FFD700")
+                add_row("Testing:", "Unavailable for new historical firearms", "#FFD700")
+
             cond_text, cond_color = _get_weapon_condition_label(item)
             add_row("Condition:", cond_text, cond_color)
 
@@ -13718,6 +13931,7 @@ class App:
                 _t_is_new = (_trf is None or int(_trf or 0) == 0)
             except Exception:
                 _t_is_new = True
+            _t_historical_blocked = _is_new_historical_firearm(item)
             try:
                 _t_bp = float(buy_price or 0)
             except Exception:
@@ -13733,13 +13947,13 @@ class App:
                         pass
             _t_btn = self._create_sound_button(
                 btn_row,
-                "Already Tested" if _t_already_used else f"Test Firearm ({format_price(_t_cost)})",
+                "Testing Disabled" if _t_historical_blocked else ("Already Tested" if _t_already_used else f"Test Firearm ({format_price(_t_cost)})"),
                 lambda: self._start_shop_firearm_test(item, table_data, on_test_purchase = on_test_purchase, buy_price = buy_price, on_test_started = _on_test_started_cb),
                 width = 170,
                 height = 32,
                 font = customtkinter.CTkFont(size = 12),
             )
-            if _t_already_used:
+            if _t_already_used or _t_historical_blocked:
                 _t_btn.configure(state = "disabled")
             _t_btn.pack(side = "left", padx = (0, 8))
             _t_btn_ref[0] = _t_btn
@@ -14348,6 +14562,8 @@ class App:
             # Prevent tiny positive ammunition prices from rounding down to zero.
             if str(item_obj.get("_table_category", "")).lower() == "ammunition" and raw_price > 0 and buy_price_value < 0.01:
                 return 0.01
+            if item_obj.get("firearm") and float(item_obj.get("rounds_fired", 0) or 0) > 0:
+                return max(100.0, max(0.0, buy_price_value))
             return max(0.0, buy_price_value)
 
         for inv_entry in store_inv_config:
@@ -14411,10 +14627,12 @@ class App:
             if not isinstance(inv_item, dict) or not inv_item.get("firearm"):
                 continue
             if inv_item.get("rounds_fired") is not None:
+                _sync_firearm_cleanliness_from_rounds_fired(inv_item)
                 continue
             seeded_rf = _get_seeded_store_firearm_rounds_fired(inv_item, store.get("name", ""), item_idx, used_firearm_chance)
             if seeded_rf is not None:
                 inv_item["rounds_fired"] = seeded_rf
+                _sync_firearm_cleanliness_from_rounds_fired(inv_item)
 
         inv_qty = store.get("inventory_quantity", "disabled")
         if inv_qty !="disabled"and isinstance(inv_qty, dict):
@@ -14648,6 +14866,8 @@ class App:
                     info_parts.append(f"Pen: {item.get('pen')}")
                 if item.get("ammo_labels") and isinstance(item.get("ammo_labels"), list):
                     info_parts.append(" / ".join(str(x) for x in item.get("ammo_labels") if x))
+                if _is_new_historical_firearm(item):
+                    info_parts.append("Historical Premium x25")
                 info_parts.append(f"Available: {int(item.get('_shop_available_qty', 1) or 1)}")
 
                 if info_parts:
@@ -14727,6 +14947,8 @@ class App:
                         info_parts.append(f"Pen: {item.get('pen')}")
                     if item.get("ammo_labels") and isinstance(item.get("ammo_labels"), list):
                         info_parts.append(" / ".join(str(x) for x in item.get("ammo_labels") if x))
+                    if _is_new_historical_firearm(item):
+                        info_parts.append("Historical Premium x25")
                     info_parts.append(f"Available: {int(item.get('_shop_available_qty', 1) or 1)}")
 
                     if info_parts:
@@ -15005,6 +15227,8 @@ class App:
             base_value = self._compute_item_value_with_installed_components(item)
             effective_value = _apply_sale_modifiers(base_value, item, table_data)
             sell_price = int(effective_value * buy_mult * _get_item_market_multiplier(item, market_demand))
+            if item.get("firearm") and float(item.get("rounds_fired", 0) or 0) > 0:
+                sell_price = max(100, sell_price)
 
             location_text = location.replace("equipment.", "").replace(".list.", " #").replace(".subslot.", " sub#")
             name_label = customtkinter.CTkLabel(item_frame, text = f"{self._format_item_name(item)} - {format_price(sell_price)}", font = customtkinter.CTkFont(size = 13, weight = "bold"), anchor = "w")
@@ -15212,6 +15436,9 @@ class App:
                     _cart_orig = cart_entry.get("_original_item")
                     if is_stackable:
                         item_copy = cart_entry["item"].copy()
+                        _src_table_cat = str(item_copy.get("_table_category") or item_copy.get("table_category") or "").strip().lower()
+                        if _src_table_cat == "historical_firearms":
+                            item_copy["_is_historical_firearm"] = True
                         item_copy.pop("_table_category", None)
                         item_copy["quantity"] = qty
                         item_copy["_purchase_price"] = unit_price
@@ -15226,6 +15453,9 @@ class App:
                     else:
                         for _ in range(qty):
                             item_copy = cart_entry["item"].copy()
+                            _src_table_cat = str(item_copy.get("_table_category") or item_copy.get("table_category") or "").strip().lower()
+                            if _src_table_cat == "historical_firearms":
+                                item_copy["_is_historical_firearm"] = True
                             item_copy.pop("_table_category", None)
                             item_copy["_purchase_price"] = unit_price
                             if isinstance(_cart_orig, dict) and _cart_orig.get("firearm") and "rounds_fired" in _cart_orig:
@@ -20349,6 +20579,7 @@ class App:
         table_data = {}
         equipment_editor = False
         starting_budget = 0
+        free_points = 0
         try:
             tbl_path = get_current_table_path()
             if tbl_path and os.path.exists(tbl_path):
@@ -20358,9 +20589,11 @@ class App:
                     slot_disable_points = table_data.get("additional_settings", {}).get("slot_disable_points", 1)
                     equipment_editor = bool(table_data.get("additional_settings", {}).get("equipment_editor", False))
                     starting_budget = int(table_data.get("additional_settings", {}).get("starting_budget", 0))
+                    free_points = int(table_data.get("additional_settings", {}).get("free_points", 0))
                     logging.info(f"Loaded stat_clamp from table: {stat_clamp}")
                     logging.info(f"Loaded slot_disable_points from table: {slot_disable_points}")
                     logging.info(f"equipment_editor={equipment_editor}, starting_budget={starting_budget}")
+                    logging.info(f"Loaded free_points from table: {free_points}")
         except Exception as e:
             logging.warning(f"Failed to load table settings, using default clamp: {e}")
         self.root.grid_rowconfigure(0, weight = 1)
@@ -20481,16 +20714,25 @@ class App:
         sum_value_label.grid(row = 0, column = 1, sticky = "w")
 
         def update_sum(*args):
-            stat_total = sum(int(float(stat_sliders[stat].get()))for stat in stat_names)
-            disabled_slots = sum(1 for slot, checkbox in slot_checkboxes.items()if not checkbox.get())
-            bonus_points = disabled_slots *slot_disable_points *-1
-            total = stat_total +bonus_points
+            stat_total = sum(int(float(stat_sliders[stat].get())) for stat in stat_names)
+            disabled_slots = sum(1 for slot, checkbox in slot_checkboxes.items() if not checkbox.get())
+            bonus_points = disabled_slots * slot_disable_points * -1
+            # Apply free_points logic: user can spend up to free_points for free
+            effective_stat_total = stat_total
+            if free_points > 0:
+                effective_stat_total = max(0, stat_total - free_points)
+            total = effective_stat_total + bonus_points
 
-            sum_value_label.configure(text = f"{stat_total} + {bonus_points} = {total}")
+            # Show the calculation in the label
+            if free_points > 0:
+                sum_value_label.configure(text = f"{stat_total} (−{free_points} free) + {bonus_points} = {total}")
+            else:
+                sum_value_label.configure(text = f"{stat_total} + {bonus_points} = {total}")
+
             if disable_limits_var.get():
                 sum_value_label.configure(text_color = "white")
                 create_button.configure(state = "normal")
-            elif total >0:
+            elif total > 0:
                 sum_value_label.configure(text_color = "red")
                 create_button.configure(state = "disabled")
             else:
@@ -20554,10 +20796,15 @@ class App:
                 self._popup_show_info("Error", "Please enter a character name.", sound = "error")
                 return
 
-            stat_total = sum(int(float(stat_sliders[stat].get()))for stat in stat_names)
-            disabled_slots = sum(1 for slot, checkbox in slot_checkboxes.items()if not checkbox.get())
-            bonus_points = disabled_slots *slot_disable_points *-1
-            total = stat_total +bonus_points
+            stat_total = sum(int(float(stat_sliders[stat].get())) for stat in stat_names)
+            logging.debug(f"Stat total before free points: {stat_total}, free points: {free_points}")
+            # Apply free_points logic: user can spend up to free_points for free
+            effective_stat_total = stat_total
+            if free_points > 0:
+                effective_stat_total = max(0, stat_total - free_points)
+            disabled_slots = sum(1 for slot, checkbox in slot_checkboxes.items() if not checkbox.get())
+            bonus_points = disabled_slots * slot_disable_points * -1
+            total = effective_stat_total + bonus_points
 
             def _do_proceed():
                 if equipment_editor:
@@ -20576,11 +20823,11 @@ class App:
 
             if disable_limits_var.get():
                 _do_proceed()
-            elif total <0:
+            elif total < 0:
                 self._popup_confirm(
-                "Negative Balance Warning",
-                f"Your point balance is {total}(negative).This means you have unspent points.\n\nAre you sure you want to continue?",
-                lambda _=None: _do_proceed()
+                    "Negative Balance Warning",
+                    f"Your point balance is {total}(negative).This means you have unspent points.\n\nAre you sure you want to continue?",
+                    lambda _=None: _do_proceed()
                 )
             else:
                 _do_proceed()
@@ -21050,7 +21297,8 @@ class App:
                 on_done(item_copy)
                 return
 
-            base_price = _cc_item_price(item_copy)
+            base_price_raw = _cc_item_price(item_copy, apply_firearm_modifiers = False)
+            base_price = _cc_item_price(item_copy, apply_firearm_modifiers = True)
             mag_cals = _item_calibers(item_copy)
 
             popup = customtkinter.CTkToplevel(self.root)
@@ -21972,6 +22220,7 @@ class App:
             right_f.grid_rowconfigure(1, weight = 1)
             right_f.grid_columnconfigure(0, weight = 1)
 
+            base_price_raw = _cc_item_price(item_copy, apply_firearm_modifiers = False)
             base_price = _cc_item_price(item_copy)
 
             price_label = customtkinter.CTkLabel(
@@ -22008,8 +22257,7 @@ class App:
                 preview = _copy.deepcopy(item_copy)
                 if rf > 0:
                     _set_durability_from_rounds_fired(preview, rf)
-                    wear = max(0.1, 1.0 - rf / 75000.0)
-                    disp_price = round(base_price * wear, 2)
+                    disp_price = round(_apply_firearm_round_wear_to_value(base_price_raw, preview), 2)
                     price_color = "#FFD700" if disp_price > base_price * 0.5 else "#FF7070"
                 else:
                     _set_full_part_durability(preview)
@@ -22117,8 +22365,9 @@ class App:
                     except Exception:
                         rf = 1
                     _set_durability_from_rounds_fired(item_copy, rf)
+                    _sync_firearm_cleanliness_from_rounds_fired(item_copy)
                     # Update _cc_price so the budget charge reflects the used condition
-                    item_copy["_cc_price"] = round(base_price * max(0.1, 1.0 - rf / 75000.0), 2)
+                    item_copy["_cc_price"] = round(_apply_firearm_round_wear_to_value(base_price_raw, item_copy), 2)
                     popup.destroy()
                     _prompt_firearm_attachments(item_copy, item_copy.get("_cc_price", base_price), on_done)
 
@@ -22130,6 +22379,7 @@ class App:
             def _on_new():
                 _set_full_part_durability(item_copy)
                 item_copy["rounds_fired"] = 0
+                item_copy["barrel_cleanliness"] = 100.0
                 item_copy["_cc_price"] = base_price
                 popup.destroy()
                 _prompt_firearm_attachments(item_copy, base_price, on_done)
@@ -22157,6 +22407,8 @@ class App:
         # ── Add item to character ─────────────────────────────────────────────
         def add_item_to_char(item):
             item_copy = {k: v for k, v in item.items() if k != "table_category"}
+            if item.get("table_category") is not None and item_copy.get("_table_category") is None:
+                item_copy["_table_category"] = item.get("table_category")
             item_copy = add_subslots_to_item(item_copy)
             item_val = _cc_item_price(item_copy)
             item_copy["_cc_price"] = item_val
@@ -22180,6 +22432,8 @@ class App:
         # ── Equip item from catalog directly into a slot ──────────────────────
         def equip_from_catalog(item, equip_choices):
             item_copy = {k: v for k, v in item.items() if k != "table_category"}
+            if item.get("table_category") is not None and item_copy.get("_table_category") is None:
+                item_copy["_table_category"] = item.get("table_category")
             item_copy = add_subslots_to_item(item_copy)
             item_val = _cc_item_price(item_copy)
             item_copy["_cc_price"] = item_val
@@ -22301,6 +22555,15 @@ class App:
                         anchor = "w",
                     ).pack(anchor = "w")
 
+                    if _is_new_historical_firearm(cand):
+                        customtkinter.CTkLabel(
+                            info,
+                            text = "Historical Premium x25",
+                            font = customtkinter.CTkFont(size = 9, weight = "bold"),
+                            text_color = "#FFD700",
+                            anchor = "w",
+                        ).pack(anchor = "w")
+
                     customtkinter.CTkLabel(
                         row,
                         text = format_price(_cc_item_price(cand)),
@@ -22377,6 +22640,15 @@ class App:
                 text_color = "gray",
                 anchor = "w",
             ).pack(anchor = "w")
+
+            if _is_new_historical_firearm(item):
+                customtkinter.CTkLabel(
+                    info_f,
+                    text = "Historical Premium x25",
+                    font = customtkinter.CTkFont(size = 9, weight = "bold"),
+                    text_color = "#FFD700",
+                    anchor = "w",
+                ).pack(anchor = "w")
 
             rarity_color = {"Uncommon": "#A8D8A8", "Rare": "#7EC8E3", "Legendary": "#FFD700", "Mythic": "#FF69B4"}.get(rarity, "#CCCCCC")
             customtkinter.CTkLabel(
@@ -28160,6 +28432,9 @@ class App:
                 return now_dt.strftime("%H:%M:%S" if show_seconds else "%H:%M")
             return now_dt.strftime("%I:%M:%S" if show_seconds else "%I:%M")
 
+
+        import pytz
+        CST = pytz.timezone('US/Central')
         weather_state = {"weather": "clear", "wind_severity": 0, "temperature_f": combat_state.get("ambient_temperature", 70)}
         try:
             weather_path = os.path.join('remotedata', 'weather.json')
@@ -28168,13 +28443,13 @@ class App:
                     weather_data = json.load(f)
                 forecast = weather_data.get("forecast")
                 if isinstance(forecast, dict):
-                    now_dt = datetime.now()
+                    now_dt = datetime.now(CST)
                     if now_dt.hour < 12:
                         effective_date = (now_dt - timedelta(days = 1)).strftime("%Y-%m-%d")
                     else:
                         effective_date = now_dt.strftime("%Y-%m-%d")
                     day_weather = forecast.get(effective_date) or forecast.get("default") or {}
-                    logging.info("Weather forecast: effective_date=%s (actual=%s %02d:%02d)", effective_date, now_dt.strftime("%Y-%m-%d"), now_dt.hour, now_dt.minute)
+                    logging.info("Weather forecast: effective_date=%s (actual=%s %02d:%02d CST)", effective_date, now_dt.strftime("%Y-%m-%d"), now_dt.hour, now_dt.minute)
                 else:
                     day_weather = weather_data
 
@@ -33187,8 +33462,7 @@ class App:
         def check_cleanliness():
             import time
             wpn = current_weapon_state["weapon"]
-            wpn_id = str(wpn.get("id"))
-            cleanliness = combat_state.get("barrel_cleanliness", {}).get(wpn_id, 100.0)
+            cleanliness = _get_weapon_cleanliness(combat_state, wpn, default = 100.0, cache_to_state = True)
 
             self._play_weapon_action_sound(wpn, "boltback", block = True)
             time.sleep(0.3)
@@ -41774,7 +42048,7 @@ class App:
 
         weapon_id = weapon.get("id")
         temperature = combat_state.get("barrel_temperatures", {}).get(str(weapon_id), combat_state["ambient_temperature"])
-        cleanliness = combat_state.get("barrel_cleanliness", {}).get(str(weapon_id), 100)
+        cleanliness = _get_weapon_cleanliness(combat_state, weapon, default = 100.0, cache_to_state = True)
 
         has_hud = self._check_for_hud(save_data)
 
@@ -44504,7 +44778,7 @@ class App:
             wrong_ammo_firing = False
 
         temperature = combat_state.get("barrel_temperatures", {}).get(weapon_id, combat_state["ambient_temperature"])
-        cleanliness = combat_state.get("barrel_cleanliness", {}).get(weapon_id, 100)
+        cleanliness = _get_weapon_cleanliness(combat_state, weapon, default = 100.0, cache_to_state = True)
 
         base_jamrate = weapon.get("jamrate", 0.01)
 
@@ -45225,6 +45499,7 @@ class App:
 
         combat_state["barrel_temperatures"][weapon_id]= temperature
         combat_state["barrel_cleanliness"][weapon_id]= cleanliness
+        weapon["barrel_cleanliness"] = cleanliness
         combat_state["weapon_last_used"][weapon_id]= time.time()
 
         if is_bolt and rounds_fired >0 and not jammed:
@@ -48393,7 +48668,7 @@ class App:
         weapon_id = str(weapon.get("id"))
         logging.info("_clean_weapon start: id=%s name=%s", weapon_id, weapon.get("name", "Unknown"))
 
-        cleanliness = combat_state.get("barrel_cleanliness", {}).get(weapon_id, 100)
+        cleanliness = _get_weapon_cleanliness(combat_state, weapon, default = 100.0, cache_to_state = True)
         cause_text = f"Cleaning weapon (current cleanliness: {cleanliness:.0f}%)"
 
         mg_popup = None

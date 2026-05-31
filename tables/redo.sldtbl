@@ -13,7 +13,7 @@
         "hardcore_require_same_parts_for_caliber": false,
         "currency": "EUR",
         "equipment_editor": true,
-        "starting_budget": 3500
+        "starting_budget": 5000
     },
     "rarity_weights": {
         "Common": 40,
@@ -1405,7 +1405,7 @@
                 "caliber": ["9x19mm Parabellum", "9x19mm NATO"],
                 "action": ["Semi"],
                 "bolt": "closed",
-                "bolt_catch": true,
+                "bolt_catch": false,
                 "cyclic": 400,
                 "magazinetype": "Detachable box",
                 "magazinesystem": "Glock 9x19mm Parabellum",
@@ -1441,7 +1441,7 @@
                 "caliber": ["9x19mm Parabellum", "9x19mm NATO"],
                 "action": ["Semi"],
                 "bolt": "closed",
-                "bolt_catch": true,
+                "bolt_catch": false,
                 "cyclic": 400,
                 "magazinetype": "Detachable box",
                 "magazinesystem": "Glock 9x19mm Parabellum",
@@ -1478,7 +1478,7 @@
                 "caliber": ["9x19mm Parabellum", "9x19mm NATO"],
                 "action": ["Semi"],
                 "bolt": "closed",
-                "bolt_catch": true,
+                "bolt_catch": false,
                 "cyclic": 400,
                 "magazinetype": "Detachable box",
                 "magazinesystem": "Glock 9x19mm Parabellum",
@@ -45958,7 +45958,10 @@
                 "equippable": true,
                 "encumbrance_reduction": 1.5,
                 "slot": "head",
-                "subslots": null,
+                "subslots": [
+                    {"name": "NVG Dovetail Bracket Mount", "slot": "nvg_mount_mount", "current": null},
+                    {"name": "IR Strobe Mount", "slot": "ir_strobe_mount", "current": null}
+                ],
                 "material": "Kevlar",
                 "protection": "IIIa",
                 "in_armory": true,
@@ -56215,65 +56218,6 @@
                 "armory_category": "Rifle"
             }
         ],
-        "non_lootable": [
-            {
-                "name": "Colt's Manufacturing Company M4A1 Carbine",
-                "value": 700,
-                "description": "Standard service weapon for the US Army, USSOCOM, Navy SEALs, Delta Force, Green Berets, US Army Rangers, USMC, USAF... the list goes on. Replaced by the SIG Sauer M7 in 2022, as part of the NGSW program. This rifle has tan furniture with green accents on the buffer tube.",
-                "rarity": "Common",
-                "random_quantity": false,
-                "weight": 2.92,
-                "id": 2145,
-                "firearm": true,
-                "type": "conventional",
-                "subtype": "rifle",
-                "platform": "AR-15",
-                "caliber": ["5.56x45mm NATO", ".223 Remington"],
-                "action": ["Semi", "Auto"],
-                "bolt": "closed",
-                "bolt_catch": true,
-                "cyclic": 900,
-                "magazinetype": "Detachable box",
-                "magazinesystem": "STANAG 4179",
-                "jamrate": 0.01,
-                "accessories": [
-                    {"name": "Picatinny Rail (Upper Receiver)", "slot": "picatinny_optic", "current": {"id": 1697}},
-                    {"name": "Picatinny Rail (Handguard Top)", "slot": "picatinny_rifle", "current": null},
-                    {"name": "Picatinny Rail (Handguard Left)", "slot": "picatinny_rifle", "current": null},
-                    {"name": "Picatinny Rail (Handguard Right)", "slot": "picatinny_rifle", "current": null},
-                    {"name": "Picatinny Rail (Handguard Bottom)", "slot": "picatinny_bottom", "current": {"id": 1765}},
-                    {"name": "Conversion Kit", "slot": "ar15_conversion_kit", "current": null},
-                    {"name": "Bayonet Lug", "slot": "nato_bayonet_lug", "current": null, "conflicts_with": ["muzzle_556"]},
-                    {"name": "Muzzle Device", "slot": "muzzle_556", "current": {"id": 2146}, "conflicts_with": ["nato_bayonet_lug"]}
-                ],
-                "can_stack": false,
-                "parts": null,
-                "armory_category": "Assault Rifle",
-                "shop_category": "Rifles",
-                "shop_subcategory": "Intermediate Rifles",
-                "armory_subcategory": "Intermediate Rifles"
-            },
-            {
-                "name": "M4A1's Suppressor",
-                "value": 899,
-                "rarity": "Rare",
-                "description": "A dark green sound suppressor designed for the M4A1 Carbine.",
-                "random_quantity": false,
-                "weight": 0.48,
-                "id": 2146,
-                "attachment": true,
-                "slot": "muzzle_556",
-                "suppressor": true,
-                "can_stack": false,
-                "in_armory": true,
-                "armory_category": "Attachments",
-                "armory_subcategory": "Rifle Attachments",
-                "armory_subcategory2": "Sound Suppressors",
-                "shop_category": "Attachments",
-                "shop_subcategory": "Rifle Attachments",
-                "shop_subcategory2": "Sound Suppressors"
-            }
-        ],
         "stores": [
             {
                 "name": "LEDF Armory",
@@ -56282,7 +56226,8 @@
                 "armory_points": "disabled",
                 "music": true,
                 "playlist": ["armory"],
-                "inventory_quantity": "disabled"
+                "inventory_quantity": "disabled",
+                "display_in_program": false
             },
             {
                 "name": "Ammo Supplier",
@@ -56298,6 +56243,17 @@
                     {"id": 493, "type": "magazine", "ammunition": 445, "variant": "DM51 Low Emission Ball", "quantity": 200}
                 ],
                 "inventory_quantity": {"min": 25, "max": 50}
+            },
+            {
+                "name": "Gunsmith",
+                "type": "gunsmith",
+                "shopkeeper": "Rosemonde 'Rose' Barbier",
+                "music": true,
+                "playlist": ["market"],
+                "service_cost": {
+                    "repair": 100
+                },
+                "display_in_program": false
             },
             {
                 "name": "Weapons Merchant",
@@ -56324,7 +56280,8 @@
                 },
                 "can_order_ammo": true,
                 "restock_time_minutes": 30,
-                "accepts_trades": true
+                "accepts_trades": true,
+                "display_in_program": false
             },
             {
                 "name": "Medical Merchant",
@@ -56341,7 +56298,8 @@
                     "sell": 1.25
                 },
                 "restock_time_minutes": 30,
-                "accepts_trades": true
+                "accepts_trades": true,
+                "display_in_program": false
             },
             {
                 "name": "General Trader",
@@ -56359,7 +56317,8 @@
                     "sell": 1.25
                 },
                 "restock_time_minutes": 30,
-                "accepts_trades": true
+                "accepts_trades": true,
+                "display_in_program": false
             },
             {
                 "name": "Casino",
@@ -56375,7 +56334,8 @@
                     "blackjack": 2,
                     "high-low": 2.8,
                     "roulette": 5.26
-                }
+                },
+                "display_in_program": false
             }
         ],
         "lootcrates": [

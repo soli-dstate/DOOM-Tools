@@ -62,6 +62,7 @@ env/
 *.swo
 *~
 /scripts_local/
+/images_local/
 
 # OS
 .DS_Store

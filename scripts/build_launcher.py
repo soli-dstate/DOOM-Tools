@@ -44,6 +44,7 @@ MAIN_PY = ROOT / "main.py"
 LAUNCHER_PY = ROOT / "launcher.py"
 BUILD_DIR = ROOT / "build"
 DIST_DIR = ROOT / "dist"
+ICON_PATH = ROOT / "images_local" / "Bitcrushed_Sanya.png"
 
 
 def get_version_from_main():
@@ -76,6 +77,11 @@ def build_exe(name="launcher", onefile=True, clean=True):
     if onefile:
         pyinstaller_cmd.append("--onefile")
 
+    if ICON_PATH.exists():
+        pyinstaller_cmd += ["--icon", str(ICON_PATH)]
+    else:
+        logging.warning("Icon file not found at %s; building without explicit icon", ICON_PATH)
+
     pyinstaller_cmd += ["--name", name, str(LAUNCHER_PY)]
     rc = run(pyinstaller_cmd, cwd=str(ROOT))
     return rc == 0
@@ -93,12 +99,12 @@ def find_executable(name="launcher"):
     return None
 
 
-def export_release_exe(exe_path: Path, out_dir: Path, version: str = "0.0.0", name: str = "launcher") -> Path:
+def export_release_exe(exe_path: Path, out_dir: Path) -> Path:
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    out_dir.mkdir(parents=True, exist_ok=True)
+    timestamp_dir = out_dir / "dist" / timestamp
+    timestamp_dir.mkdir(parents=True, exist_ok=True)
     suffix = exe_path.suffix if exe_path.suffix else (".exe" if os.name == "nt" else "")
-    out_name = f"{name}-v{version}-{timestamp}{suffix}"
-    out_path = out_dir / out_name
+    out_path = timestamp_dir / f"DOOM-Tools Launcher{suffix}"
     shutil.copy2(exe_path, out_path)
     logging.info("Copied release executable to: %s", out_path)
     return out_path
@@ -147,7 +153,7 @@ def main():
         logging.error("Could not find built launcher executable in dist/")
         return 1
 
-    release_exe = export_release_exe(exe, BUILD_DIR, version=version, name=args.name)
+    release_exe = export_release_exe(exe, BUILD_DIR)
     logging.info("Launcher build is ready: %s", release_exe)
     send_windows_notification("Launcher Build Complete", f"Launcher v{version} is ready!\n{release_exe.name}")
     return 0
