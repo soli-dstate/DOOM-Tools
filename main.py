@@ -1,4 +1,4 @@
-version = "2.0.4"
+version = "2.0.5"
 current_resource_link = "https://files.catbox.moe/qpyv1e.zip"
 import os
 import logging
@@ -170,7 +170,8 @@ try:
                 if hasattr(w, "yview_scroll"):
                     return w
                 try:
-                    queue.extend(w.winfo_children())
+                    for _child in w.winfo_children():
+                        queue.append(_child)
                 except Exception:
                     pass
         except Exception:
@@ -5781,26 +5782,6 @@ class App:
 
             _tkdnd_require(self.root)
 
-            # TkinterDnD patches BaseWidget methods, but CTk (Tk) is not a
-            # BaseWidget. Bind to a real child widget when needed.
-            dnd_target = self.root
-            if not hasattr(dnd_target, 'drop_target_register'):
-                queue = list(self.root.winfo_children())
-                while queue:
-                    w = queue.pop(0)
-                    if hasattr(w, 'drop_target_register') and hasattr(w, 'dnd_bind'):
-                        dnd_target = w
-                        break
-                    try:
-                        queue.extend(w.winfo_children())
-                    except Exception:
-                        pass
-            if not hasattr(dnd_target, 'drop_target_register') or not hasattr(dnd_target, 'dnd_bind'):
-                raise RuntimeError("tkinterdnd2 loaded but no compatible Tk widget found for DnD binding")
-
-            # Register the widget as a drop target for files.
-            dnd_target.drop_target_register(_tkdnd.DND_FILES)
-
             def _on_tkdnd_drop(event):
                 try:
                     # event.data is a Tcl list string; splitlist handles
@@ -5813,8 +5794,41 @@ class App:
                     logging.exception("Drag-drop tkdnd handler error")
                 return _tkdnd.COPY
 
-            dnd_target.dnd_bind('<<Drop>>', _on_tkdnd_drop)
-            logging.info("Drag-and-drop registered via tkinterdnd2 on widget: %s", dnd_target)
+            # Keep a persistent reference so Tcl callback bindings remain valid.
+            self._tkdnd_drop_handler = _on_tkdnd_drop
+
+            # Bind all compatible live widgets so menu rebuilds don't break DnD.
+            bound_widgets = []
+            queue = [self.root]
+            seen = set()
+            while queue:
+                w = queue.pop(0)
+                try:
+                    wid = str(w)
+                    if wid in seen:
+                        continue
+                    seen.add(wid)
+                except Exception:
+                    pass
+
+                try:
+                    if hasattr(w, 'drop_target_register') and hasattr(w, 'dnd_bind') and w.winfo_exists():
+                        w.drop_target_register(_tkdnd.DND_FILES)
+                        w.dnd_bind('<<Drop>>', self._tkdnd_drop_handler)
+                        bound_widgets.append(w)
+                except Exception:
+                    pass
+
+                try:
+                    for _child in w.winfo_children():
+                        queue.append(_child)
+                except Exception:
+                    pass
+
+            if not bound_widgets:
+                raise RuntimeError("tkinterdnd2 loaded but no compatible Tk widget found for DnD binding")
+
+            logging.info("Drag-and-drop registered via tkinterdnd2 on %d widget(s); primary=%s", len(bound_widgets), bound_widgets[0])
             return
         except Exception as exc:
             logging.warning("tkinterdnd2 unavailable (%s); falling back to ctypes WM_DROPFILES.", exc)
@@ -5940,10 +5954,12 @@ class App:
         ext_routes = {
             lc_ext: ("lootcrates", "Loot Crate"),
             el_ext: ("enemyloot", "Enemy Loot"),
+            ".sldtrf": ("transfers", "Transfer File"),
             ".sldsv": (_sv_folder, "Character Save"),
             ".sldtbl": ("tables", "Table File"),
         }
         results = []
+        moved_exts = set()
         for src_path in paths:
             ext = os.path.splitext(src_path)[1].lower()
             if ext not in ext_routes:
@@ -5958,6 +5974,7 @@ class App:
                     results.append(f"\u2022 {dest_name} \u2014 already in {dest_dir}/")
                     continue
                 shutil.move(src_path, dest_path)
+                moved_exts.add(ext)
                 results.append(f"\u2022 {dest_name} \u2192 {dest_dir}/ ({label})")
                 logging.info("Drag-drop: moved '%s' -> '%s'", src_path, dest_path)
             except Exception as exc:
@@ -5965,6 +5982,34 @@ class App:
                 logging.error("Drag-drop move failed '%s': %s", src_path, exc)
         if results:
             self._popup_show_info("Files Received", "\n".join(results))
+
+        try:
+            refresh_cfg = getattr(self, "_dnd_refresh_handler", None)
+            if isinstance(refresh_cfg, dict) and moved_exts:
+                cb = refresh_cfg.get("callback")
+                exts = refresh_cfg.get("exts")
+                if callable(cb):
+                    if not exts or moved_exts.intersection(exts):
+                        self.root.after(50, cb)
+        except Exception:
+            logging.exception("Drag-drop refresh callback failed")
+
+    def _set_dnd_refresh_handler(self, callback = None, exts = None):
+        """Set a menu-scoped callback invoked after successful drag-drop moves.
+
+        exts: iterable of file extensions (e.g. ['.sldlct']). If omitted, callback
+        runs after any moved file type.
+        """
+        try:
+            ext_set = set()
+            if exts:
+                for e in exts:
+                    if not e:
+                        continue
+                    ext_set.add(str(e).lower())
+            self._dnd_refresh_handler = {"callback": callback, "exts": ext_set}
+        except Exception:
+            self._dnd_refresh_handler = {"callback": None, "exts": set()}
 
     def _play_ui_sound(self, sound_filename):
         sound_path = os.path.join("sounds", "ui", sound_filename +".ogg")
@@ -5981,7 +6026,13 @@ class App:
                 self._play_ui_sound("click")
                 command()
             except Exception as e:
-                logging.exception("Button command failed for '%s': %s", text, e)
+                try:
+                    safe_text = str(text).encode("ascii", errors = "backslashreplace").decode("ascii")
+                    safe_err = str(e).encode("ascii", errors = "backslashreplace").decode("ascii")
+                except Exception:
+                    safe_text = "<unprintable>"
+                    safe_err = "<unprintable>"
+                logging.exception("Button command failed for '%s': %s", safe_text, safe_err)
         button = customtkinter.CTkButton(
         parent, text = text, command = safe_command, **kwargs
         )
@@ -7025,6 +7076,10 @@ class App:
                 pass
         logging.debug("Cleared window called")
     def _build_main_menu(self):
+        try:
+            self._set_dnd_refresh_handler(None, [])
+        except Exception:
+            pass
         self.root.grid_rowconfigure(0, weight = 1)
         self.root.grid_columnconfigure(0, weight = 1)
         main_frame = customtkinter.CTkFrame(self.root)
@@ -7158,6 +7213,11 @@ class App:
             except Exception:
                 pass
         main_frame.bind("<Destroy>", _konami_cleanup, add = "+") # type: ignore
+
+        try:
+            self.root.after(50, self._setup_drag_drop)
+        except Exception:
+            pass
 
     def _create_dev_toolbar(self):
         try:
@@ -8013,6 +8073,22 @@ class App:
     def _open_loot_tool(self):
         logging.info("Looting definition called")
         self._clear_window()
+
+        try:
+            self._set_dnd_refresh_handler(
+                callback = self._open_loot_tool,
+                exts = [
+                    global_variables.get("lootcrate_extension", ".sldlct"),
+                    global_variables.get("enemyloot_extension", ".sldenlt"),
+                ],
+            )
+        except Exception:
+            pass
+
+        try:
+            self.root.after(50, self._setup_drag_drop)
+        except Exception:
+            pass
 
         self.root.grid_rowconfigure(0, weight = 1)
         self.root.grid_columnconfigure(0, weight = 1)
@@ -10941,6 +11017,7 @@ class App:
             regular_stores =[s for s in stores if s.get("type")=="store"]
             casinos =[s for s in stores if s.get("type")=="casino"]
             ammo_suppliers =[s for s in stores if s.get("type")=="ammo_supplier"]
+            gunsmiths =[s for s in stores if s.get("type")=="gunsmith"]
 
             # Deliver any due orders before showing the UI
             try:
@@ -11050,6 +11127,41 @@ class App:
                     enter_button = self._create_sound_button(store_frame, "Enter", lambda s = store:self._open_ammo_supplier_interface(s, table_data), width = 200, height = 40, font = customtkinter.CTkFont(size = 12))
                     enter_button.pack(pady = 10, padx = 10)
 
+            if gunsmiths:
+                gunsmith_section = customtkinter.CTkLabel(scroll_frame, text = "Gunsmiths", font = customtkinter.CTkFont(size = 18, weight = "bold"))
+                gunsmith_section.pack(pady =(20, 10), anchor = "w", padx = 10)
+
+                for store in gunsmiths:
+                    store_frame = customtkinter.CTkFrame(scroll_frame)
+                    store_frame.pack(fill = "x", pady = 10, padx = 10)
+
+                    name_label = customtkinter.CTkLabel(store_frame, text = store.get("name", "Unknown Gunsmith"), font = customtkinter.CTkFont(size = 14, weight = "bold"))
+                    name_label.pack(anchor = "w", padx = 10, pady =(10, 5))
+
+                    smith_label = customtkinter.CTkLabel(store_frame, text = f"Gunsmith: {store.get('shopkeeper', 'Unknown')}", font = customtkinter.CTkFont(size = 11), text_color = "gray")
+                    smith_label.pack(anchor = "w", padx = 10)
+
+                    costs = store.get("service_cost", {}) if isinstance(store.get("service_cost", {}), dict) else {}
+                    part_cost = int(costs.get("part_repair", 100) or 100)
+                    whole_cost = int(costs.get("whole_gun_repair", 350) or 350)
+                    pricing_label = customtkinter.CTkLabel(
+                        store_frame,
+                        text = f"Part repair: {format_price(part_cost)} | Whole gun repair: {format_price(whole_cost)}",
+                        font = customtkinter.CTkFont(size = 11),
+                        text_color = "orange"
+                    )
+                    pricing_label.pack(anchor = "w", padx = 10)
+
+                    enter_button = self._create_sound_button(
+                        store_frame,
+                        "Enter Gunsmith",
+                        lambda s = store:self._open_gunsmith_interface(s),
+                        width = 200,
+                        height = 40,
+                        font = customtkinter.CTkFont(size = 12)
+                    )
+                    enter_button.pack(pady = 10, padx = 10)
+
             market_button = self._create_sound_button(main_frame, "Market Overview", self._open_market_graph, width = 500, height = 40, font = customtkinter.CTkFont(size = 13))
             market_button.pack(pady = (10, 4))
 
@@ -11064,6 +11176,446 @@ class App:
         except Exception as e:
             logging.error(f"Failed to open business tool: {e}")
             self._popup_show_info("Error", f"Failed to load businesses: {e}", sound = "error")
+
+    def _open_gunsmith_interface(self, store):
+        logging.info("Gunsmith interface opened: %s", store.get("name", "Unknown"))
+        music_channel = None
+        if store.get("music") and store.get("playlist"):
+            music_channel = self._start_business_music(store.get("playlist"), first_play = True)
+
+        marquee_job:list[object] = [None]
+
+        def stop_ui_music():
+            try:
+                if marquee_job[0]:
+                    try:
+                        self.root.after_cancel(marquee_job[0])# type: ignore[arg-type]
+                    except Exception:
+                        pass
+                    marquee_job[0] = None
+            except Exception:
+                pass
+            try:
+                self._stop_business_music(music_channel)
+            except Exception:
+                pass
+
+        def _leave_gunsmith():
+            stop_ui_music()
+            self._clear_window()
+            self._open_business_tool()
+
+        self._clear_window()
+
+        if currentsave is None:
+            self._popup_show_info("Error", "No character loaded.", sound = "error")
+            stop_ui_music()
+            self._build_main_menu()
+            return
+
+        save_data = self._load_file((currentsave or "") + ".sldsv")
+        if save_data is None:
+            self._popup_show_info("Error", "Failed to load character data.", sound = "error")
+            _leave_gunsmith()
+            return
+
+        costs = store.get("service_cost", {}) if isinstance(store.get("service_cost", {}), dict) else {}
+        part_repair_cost = int(costs.get("part_repair", 100) or 100)
+        whole_repair_cost = int(costs.get("whole_gun_repair", 350) or 350)
+
+        self.root.grid_rowconfigure(0, weight = 1)
+        self.root.grid_columnconfigure(0, weight = 1)
+
+        main_frame = customtkinter.CTkFrame(self.root)
+        main_frame.grid(row = 0, column = 0, sticky = "nsew")
+        main_frame.grid_columnconfigure(0, weight = 1)
+        main_frame.grid_rowconfigure(1, weight = 1)
+
+        header_frame = customtkinter.CTkFrame(main_frame, fg_color = "transparent")
+        header_frame.grid(row = 0, column = 0, sticky = "ew", padx = 20, pady = 10)
+
+        title_label = customtkinter.CTkLabel(header_frame, text = store.get("name", "Gunsmith"), font = customtkinter.CTkFont(size = 24, weight = "bold"))
+        title_label.pack(pady =(10, 5))
+
+        smith_name = store.get("shopkeeper", "Unknown")
+        smith_label = customtkinter.CTkLabel(header_frame, text = f"Gunsmith: {smith_name}", font = customtkinter.CTkFont(size = 14), text_color = "gray")
+        smith_label.pack()
+
+        service_label = customtkinter.CTkLabel(
+            header_frame,
+            text = f"Part repair: {format_price(part_repair_cost)} | Whole gun repair: {format_price(whole_repair_cost)}",
+            font = customtkinter.CTkFont(size = 12),
+            text_color = "orange"
+        )
+        service_label.pack(pady =(4, 2))
+
+        money_label = customtkinter.CTkLabel(header_frame, text = "", font = customtkinter.CTkFont(size = 16, weight = "bold"), text_color = "green")
+        money_label.pack(pady = (2, 6))
+
+        if music_channel and music_channel.get("track"):
+            try:
+                def _get_track_info(track_path):
+                    artist = None
+                    title = None
+                    length = None
+                    try:
+                        try:
+                            sound = pygame.mixer.Sound(track_path)
+                            length = float(sound.get_length())
+                        except Exception:
+                            length = None
+                        try:
+                            from mutagen._file import File as MutagenFile
+                            mf = MutagenFile(track_path)
+                            if mf is not None:
+                                tags = getattr(mf, "tags", {}) or {}
+                                def _get_tag(keys):
+                                    for k in keys:
+                                        v = tags.get(k)
+                                        if v:
+                                            try:
+                                                if isinstance(v, (list, tuple)):
+                                                    return str(v[0])
+                                                return str(v)
+                                            except Exception:
+                                                return str(v)
+                                    return None
+                                artist = _get_tag(["artist", "ARTIST", "TPE1", "IART"])
+                                title = _get_tag(["title", "TITLE", "TIT2", "INAM"])
+                        except Exception:
+                            pass
+                    except Exception:
+                        pass
+                    if not title:
+                        try:
+                            title = os.path.basename(track_path or "")
+                        except Exception:
+                            title = "Unknown"
+                    return {"artist": artist, "title": title, "length": length}
+
+                marquee_frame = customtkinter.CTkFrame(header_frame, fg_color = "black")
+                marquee_frame.pack(pady = (6, 0))
+                try:
+                    marquee_frame.configure(width = 500)
+                    marquee_frame.pack_propagate(False)
+                except Exception:
+                    pass
+
+                label_font = customtkinter.CTkFont(size = 12)
+                try:
+                    import ctypes
+                    import tkinter.font as tkfont
+                    fp = os.path.join(os.path.dirname(__file__), "fonts", "Tims_8x5_LCD_Matrix.ttf")
+                    if os.path.exists(fp) and hasattr(ctypes, "windll"):
+                        try:
+                            FR_PRIVATE = 0x10
+                            ctypes.windll.gdi32.AddFontResourceExW(fp, FR_PRIVATE, 0)
+                        except Exception:
+                            pass
+                        try:
+                            self.root.update_idletasks()
+                            for family_name in list(tkfont.families()):
+                                if any(x in family_name.lower() for x in ("tims", "8x5", "lcd")):
+                                    label_font = customtkinter.CTkFont(size = 12, family = family_name)
+                                    break
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+
+                marquee_label = customtkinter.CTkLabel(
+                    marquee_frame,
+                    text = "",
+                    anchor = "w",
+                    font = label_font,
+                    width = 480,
+                    height = 26,
+                    text_color = "#7CFC00",
+                )
+                marquee_label.pack(anchor = "center", padx = 4)
+
+                try:
+                    self.root.update_idletasks()
+                    label_h = marquee_label.winfo_reqheight() or marquee_label.winfo_height()
+                    if label_h:
+                        marquee_frame.configure(height = label_h)
+                except Exception:
+                    pass
+
+                pos = [0]
+                prev_track = [music_channel.get("track") if music_channel else None]
+
+                def _fmt_time(seconds):
+                    try:
+                        seconds = max(0, int(seconds))
+                        return f"{seconds // 60}:{seconds % 60:02d}"
+                    except Exception:
+                        return "0:00"
+
+                def _update_marquee():
+                    try:
+                        current = getattr(self, "_current_business_music", music_channel) or music_channel
+                        track_path = (current or {}).get("track")
+                        if track_path != prev_track[0]:
+                            prev_track[0] = track_path
+                            pos[0] = 0
+
+                        meta_info = (current or {}).get("_meta")
+                        if not meta_info:
+                            try:
+                                if current and not current.get("_meta_loading"):
+                                    current["_meta_loading"] = True
+                                    def _bg_load():
+                                        try:
+                                            info = _get_track_info((current or {}).get("track"))
+                                            def _apply():
+                                                try:
+                                                    target = getattr(self, "_current_business_music", None) or current
+                                                    if target is not None:
+                                                        target.update({"_meta": info})
+                                                except Exception:
+                                                    pass
+                                            self.root.after(0, _apply)
+                                        except Exception:
+                                            pass
+                                        finally:
+                                            try:
+                                                current.pop("_meta_loading", None)
+                                            except Exception:
+                                                pass
+                                    import threading
+                                    threading.Thread(target = _bg_load, daemon = True).start()
+                            except Exception:
+                                pass
+
+                        meta_info = (current or {}).get("_meta") or {}
+                        base_artist = meta_info.get("artist") or ""
+                        base_title = meta_info.get("title") or os.path.basename(track_path or "")
+                        total = meta_info.get("length") or 0.0
+
+                        started = (current or {}).get("started_at") or time.time()
+                        start_offset = (current or {}).get("start_pos") or 0.0
+                        elapsed = (time.time() - started) + float(start_offset)
+
+                        meta = f"{base_artist} | {base_title} | {_fmt_time(elapsed)}/{_fmt_time(total)}" if (base_artist or base_title) else os.path.basename(track_path or "")
+
+                        try:
+                            self.root.update_idletasks()
+                            label_px = marquee_label.winfo_width() or int(marquee_label.cget("width") or 480)
+                        except Exception:
+                            label_px = int(marquee_label.cget("width") or 480)
+
+                        visible_chars = max(8, int(label_px / 8))
+                        scrollfull = " " + meta + " "
+                        if len(scrollfull) < visible_chars:
+                            scrollfull = scrollfull + (" " * (visible_chars - len(scrollfull) + 2))
+
+                        doubled = scrollfull * 3
+                        marquee_label.configure(text = doubled[pos[0]:pos[0] + visible_chars])
+                        pos[0] = (pos[0] + 1) % max(1, len(scrollfull))
+                        marquee_job[0] = self.root.after(140, _update_marquee)
+                    except Exception:
+                        try:
+                            marquee_label.configure(text = os.path.basename((getattr(self, "_current_business_music", music_channel) or {}).get("track") or ""))
+                        except Exception:
+                            pass
+
+                _update_marquee()
+            except Exception:
+                pass
+
+        content_scroll = customtkinter.CTkScrollableFrame(main_frame)
+        content_scroll.grid(row = 1, column = 0, sticky = "nsew", padx = 20, pady = (0, 10))
+
+        firearm_rows = []
+
+        def _collect_firearms(node, path_label):
+            if isinstance(node, dict):
+                if node.get("firearm"):
+                    firearm_rows.append((path_label, node))
+
+                for k, v in node.items():
+                    if k == "current" and isinstance(v, dict):
+                        continue
+                    next_path = f"{path_label}.{k}" if path_label else str(k)
+                    _collect_firearms(v, next_path)
+            elif isinstance(node, list):
+                for i, v in enumerate(node):
+                    _collect_firearms(v, f"{path_label}[{i}]")
+
+        _collect_firearms(save_data.get("hands", {}), "hands")
+        _collect_firearms(save_data.get("equipment", {}), "equipment")
+        _collect_firearms(save_data.get("storage", []), "storage")
+
+        dedup = {}
+        for p, itm in firearm_rows:
+            dedup[id(itm)] = (p, itm)
+        firearm_rows = list(dedup.values())
+
+        if not firearm_rows:
+            empty = customtkinter.CTkLabel(content_scroll, text = "No firearms found in equipment, hands, or storage.", text_color = "orange", font = customtkinter.CTkFont(size = 13))
+            empty.pack(pady = 20, padx = 10, anchor = "w")
+
+            button_row = customtkinter.CTkFrame(main_frame, fg_color = "transparent")
+            button_row.grid(row = 2, column = 0, sticky = "ew", padx = 20, pady = (0, 20))
+            self._create_sound_button(button_row, "Back to Businesses", _leave_gunsmith, width = 220, height = 44, font = customtkinter.CTkFont(size = 14)).pack(side = "left")
+            return
+
+        firearm_options = []
+        firearm_map = {}
+        for idx, (path_label, itm) in enumerate(firearm_rows, start = 1):
+            gun_name = itm.get("name", f"Firearm {idx}")
+            label = f"{gun_name} [{path_label}]"
+            firearm_options.append(label)
+            firearm_map[label] = itm
+
+        select_frame = customtkinter.CTkFrame(content_scroll)
+        select_frame.pack(fill = "x", pady = 8, padx = 10)
+        customtkinter.CTkLabel(select_frame, text = "Select Firearm", font = customtkinter.CTkFont(size = 13, weight = "bold")).pack(anchor = "w", padx = 10, pady = (10, 6))
+
+        selected_firearm_var = customtkinter.StringVar(value = firearm_options[0])
+        firearm_menu = customtkinter.CTkOptionMenu(select_frame, values = firearm_options, variable = selected_firearm_var)
+        firearm_menu.pack(fill = "x", padx = 10, pady = (0, 10))
+
+        service_frame = customtkinter.CTkFrame(content_scroll)
+        service_frame.pack(fill = "x", pady = 8, padx = 10)
+        customtkinter.CTkLabel(service_frame, text = "Service Type", font = customtkinter.CTkFont(size = 13, weight = "bold")).pack(anchor = "w", padx = 10, pady = (10, 6))
+
+        service_mode_var = customtkinter.StringVar(value = "part")
+        customtkinter.CTkRadioButton(service_frame, text = f"Repair individual part ({format_price(part_repair_cost)})", variable = service_mode_var, value = "part").pack(anchor = "w", padx = 10, pady = 2)
+        customtkinter.CTkRadioButton(service_frame, text = f"Repair whole gun ({format_price(whole_repair_cost)})", variable = service_mode_var, value = "whole").pack(anchor = "w", padx = 10, pady = (2, 10))
+
+        part_frame = customtkinter.CTkFrame(content_scroll)
+        part_frame.pack(fill = "x", pady = 8, padx = 10)
+        customtkinter.CTkLabel(part_frame, text = "Part Selection (individual repair)", font = customtkinter.CTkFont(size = 13, weight = "bold")).pack(anchor = "w", padx = 10, pady = (10, 6))
+
+        part_option_var = customtkinter.StringVar(value = "")
+        part_menu = customtkinter.CTkOptionMenu(part_frame, values = ["No repairable parts"], variable = part_option_var)
+        part_menu.pack(fill = "x", padx = 10, pady = (0, 10))
+
+        part_map = {}
+
+        def _refresh_money_label():
+            money_label.configure(text = f"Your Money: {format_price(save_data.get('money', 0))}")
+
+        _refresh_money_label()
+
+        def _get_repair_parts(item):
+            rows = []
+            parts = item.get("parts", [])
+            if not isinstance(parts, list):
+                return rows
+            for idx, p in enumerate(parts):
+                if not isinstance(p, dict):
+                    continue
+                cur = p.get("current") if isinstance(p.get("current"), dict) else p
+                if not isinstance(cur, dict):
+                    continue
+
+                cur_d = cur.get("current_durability")
+                max_d = cur.get("durability")
+                if max_d is None:
+                    max_d = p.get("durability")
+                if max_d is None:
+                    max_d = PART_DURABILITY_MAX
+
+                name = cur.get("name") or p.get("name") or f"Part {idx + 1}"
+                try:
+                    cur_val = float(cur_d) if cur_d is not None else float(max_d)
+                except Exception:
+                    cur_val = float(max_d)
+                try:
+                    max_val = float(max_d)
+                except Exception:
+                    max_val = float(PART_DURABILITY_MAX)
+
+                disp = f"{name} ({int(round(cur_val))}/{int(round(max_val))})"
+                rows.append((disp, p))
+            return rows
+
+        def _refresh_parts_menu(*_):
+            selected = firearm_map.get(selected_firearm_var.get())
+            part_map.clear()
+            if not isinstance(selected, dict):
+                part_menu.configure(values = ["No repairable parts"])
+                part_option_var.set("No repairable parts")
+                return
+
+            rows = _get_repair_parts(selected)
+            if not rows:
+                part_menu.configure(values = ["No repairable parts"])
+                part_option_var.set("No repairable parts")
+                return
+
+            vals = [d for d, _ in rows]
+            for d, p in rows:
+                part_map[d] = p
+            part_menu.configure(values = vals)
+            part_option_var.set(vals[0])
+
+        firearm_menu.configure(command = lambda _v: _refresh_parts_menu())
+        _refresh_parts_menu()
+
+        def _repair_selected_part(part_entry):
+            if not isinstance(part_entry, dict):
+                return False
+            cur = part_entry.get("current") if isinstance(part_entry.get("current"), dict) else part_entry
+            if not isinstance(cur, dict):
+                return False
+            max_d = cur.get("durability")
+            if max_d is None:
+                max_d = part_entry.get("durability")
+            if max_d is None:
+                max_d = PART_DURABILITY_MAX
+            try:
+                max_val = float(max_d)
+            except Exception:
+                max_val = float(PART_DURABILITY_MAX)
+            cur["current_durability"] = max_val
+            if part_entry is not cur and isinstance(part_entry, dict):
+                part_entry["current_durability"] = max_val
+            return True
+
+        def _perform_service():
+            selected_firearm = firearm_map.get(selected_firearm_var.get())
+            if not isinstance(selected_firearm, dict):
+                self._popup_show_info("Error", "Select a valid firearm.", sound = "error")
+                return
+
+            mode = service_mode_var.get()
+            cost = part_repair_cost if mode == "part" else whole_repair_cost
+            cur_money = float(save_data.get("money", 0) or 0)
+            if cur_money < cost:
+                self._popup_show_info("Insufficient Funds", f"You need {format_price(cost)} for this service.", sound = "error")
+                return
+
+            changed = False
+            if mode == "part":
+                part_entry = part_map.get(part_option_var.get())
+                if not part_entry:
+                    self._popup_show_info("Error", "No repairable part selected.", sound = "error")
+                    return
+                changed = _repair_selected_part(part_entry)
+                action_text = "Part repaired"
+            else:
+                _repair_item_parts_durability_recursive(selected_firearm, fallback_value = PART_DURABILITY_MAX)
+                changed = True
+                action_text = "Whole firearm repaired"
+
+            if not changed:
+                self._popup_show_info("Error", "Failed to apply repair.", sound = "error")
+                return
+
+            save_data["money"] = cur_money - cost
+            self._save_file(save_data)
+            _refresh_money_label()
+            _refresh_parts_menu()
+            self._popup_show_info("Gunsmith", f"{action_text} for {format_price(cost)}.", sound = "success")
+
+        action_frame = customtkinter.CTkFrame(main_frame, fg_color = "transparent")
+        action_frame.grid(row = 2, column = 0, sticky = "ew", padx = 20, pady = (0, 20))
+        self._create_sound_button(action_frame, "Apply Service", _perform_service, width = 220, height = 44, font = customtkinter.CTkFont(size = 14)).pack(side = "left", padx = (0, 10))
+        self._create_sound_button(action_frame, "Back to Businesses", _leave_gunsmith, width = 220, height = 44, font = customtkinter.CTkFont(size = 14)).pack(side = "left")
 
     def _open_market_graph(self):
         """Open a popup showing a line graph of market demand for the past 30 days."""
@@ -12003,6 +12555,23 @@ class App:
         equipped_calibers = set()
         equipped_magazine_systems = set()
 
+        def _normalize_mag_system_values(raw_value):
+            if raw_value is None:
+                return []
+            if isinstance(raw_value, str):
+                return [raw_value]
+            if isinstance(raw_value, (list, tuple, set)):
+                vals = []
+                for v in raw_value:
+                    if v is None:
+                        continue
+                    vals.append(str(v))
+                return vals
+            return [str(raw_value)]
+
+        def _mag_system_matches(raw_value):
+            return any(ms in equipped_magazine_systems for ms in _normalize_mag_system_values(raw_value))
+
         for wpn in equipped_weapons:
             item = wpn.get("item", {})
             calibers = item.get("caliber", [])
@@ -12012,8 +12581,9 @@ class App:
                 equipped_calibers.add(cal)
 
             mag_system = item.get("magazinesystem")
-            if mag_system:
-                equipped_magazine_systems.add(mag_system)
+            for ms in _normalize_mag_system_values(mag_system):
+                if ms:
+                    equipped_magazine_systems.add(ms)
 
         equipped_attachment_slots = set()
         for wpn in equipped_weapons:
@@ -12197,7 +12767,7 @@ class App:
 
                     if item.get("_table_category")=="magazines":
                         mag_system = item.get("magazinesystem")
-                        if mag_system in equipped_magazine_systems:
+                        if _mag_system_matches(mag_system):
                             for cal in calibers:
                                 if cal in equipped_calibers:
                                     is_highlighted = True
@@ -12327,10 +12897,18 @@ class App:
                                     vcols = {v: cpal[i % len(cpal)] for i, v in enumerate(vlist)}
 
                                     vtips = {}
+                                    variant_to_caliber = {}
                                     for vn, (ad, vr) in variant_map.items():
                                         t = vr.get('tip')
                                         if t and isinstance(t, str) and t.startswith('#'):
                                             vtips[vn] = t
+                                        ac = ad.get('caliber')
+                                        variant_to_caliber[vn] = (ac[0] if isinstance(ac, list) and ac else ac) or 'Unknown'
+                                    _cg_raw = {}
+                                    for vn in vlist:
+                                        _cg_raw.setdefault(variant_to_caliber.get(vn, 'Unknown'), []).append(vn)
+                                    caliber_order = sorted(_cg_raw.keys())
+                                    caliber_groups = {k: sorted(v) for k, v in _cg_raw.items()}
 
                                     def _tip_for(vn):
                                         return vtips.get(vn, '#e0c060')
@@ -12359,9 +12937,14 @@ class App:
 
                                     SLOT_H = 28; SLOT_W = 260; ox_mag = 20
                                     CHIP_W, CHIP_H, CHIP_PAD = 130, 28, 6
+                                    CAL_HEADER_H = 18
+                                    CAL_GROUP_PAD = 8
                                     _cols = max(1, (SLOT_W + 40) // (CHIP_W + CHIP_PAD))
-                                    _rows_need = max(1, (len(vlist) + _cols - 1) // _cols) if vlist else 1
-                                    SEL_H = 22 + _rows_need * (CHIP_H + CHIP_PAD) + 4
+                                    _sel_h_acc = 22
+                                    for _cg in caliber_order:
+                                        _cg_rows = max(1, (len(caliber_groups[_cg]) + _cols - 1) // _cols)
+                                        _sel_h_acc += CAL_HEADER_H + _cg_rows * (CHIP_H + CHIP_PAD) + CAL_GROUP_PAD
+                                    SEL_H = _sel_h_acc + 4
                                     HINT_H = 22
                                     MAG_TOP = SEL_H + HINT_H
                                     SPRING_H = 14
@@ -12388,22 +12971,30 @@ class App:
 
                                     def _draw_chips():
                                         mag_canvas.delete('chips')
+                                        chip_hitboxes.clear()
                                         mag_canvas.create_text(canvas_w // 2, 10, text = 'AVAILABLE ROUNDS', fill = '#888888', font = ('Consolas', 9, 'bold'), tags = 'chips')
                                         if not vlist:
                                             mag_canvas.create_text(canvas_w // 2, SEL_H // 2 + 10, text = 'No rounds available', fill = '#555555', font = ('Consolas', 9), tags = 'chips')
                                             return
-                                        start_x = (canvas_w - min(len(vlist), _cols) * (CHIP_W + CHIP_PAD) + CHIP_PAD) // 2
-                                        for idx, vn in enumerate(vlist):
-                                            row_i = idx // _cols; col_i = idx % _cols
-                                            x1 = start_x + col_i * (CHIP_W + CHIP_PAD)
-                                            y1 = 22 + row_i * (CHIP_H + CHIP_PAD)
-                                            x2 = x1 + CHIP_W; y2 = y1 + CHIP_H
-                                            chip_hitboxes[vn] = (x1, y1, x2, y2)
-                                            c = vcols.get(vn, '#c4a032')
-                                            mag_canvas.create_rectangle(x1, y1, x2, y2, fill = c, outline = '#dddddd', width = 1, tags = 'chips')
-                                            mag_canvas.create_oval(x1 + 3, y1 + 3, x1 + 19, y2 - 3, fill = _tip_for(vn), outline = _tip_ol_for(vn), tags = 'chips')
-                                            disp = vn if len(vn) <= 11 else vn[:10] + '\u2026'
-                                            mag_canvas.create_text((x1 + x2) // 2 + 8, (y1 + y2) // 2, text = f'{disp} x\u221e', fill = '#1a1a1a', font = ('Consolas', 8, 'bold'), tags = 'chips')
+                                        cur_y = 22
+                                        for cal in caliber_order:
+                                            cal_vns = caliber_groups[cal]
+                                            mag_canvas.create_text(6, cur_y + CAL_HEADER_H // 2, text = cal, fill = '#99aacc', font = ('Consolas', 9, 'bold'), anchor = 'w', tags = 'chips')
+                                            cur_y += CAL_HEADER_H
+                                            start_x = (canvas_w - min(len(cal_vns), _cols) * (CHIP_W + CHIP_PAD) + CHIP_PAD) // 2
+                                            for idx, vn in enumerate(cal_vns):
+                                                row_i = idx // _cols; col_i = idx % _cols
+                                                x1 = start_x + col_i * (CHIP_W + CHIP_PAD)
+                                                y1 = cur_y + row_i * (CHIP_H + CHIP_PAD)
+                                                x2 = x1 + CHIP_W; y2 = y1 + CHIP_H
+                                                chip_hitboxes[vn] = (x1, y1, x2, y2)
+                                                c = vcols.get(vn, '#c4a032')
+                                                mag_canvas.create_rectangle(x1, y1, x2, y2, fill = c, outline = '#dddddd', width = 1, tags = 'chips')
+                                                mag_canvas.create_oval(x1 + 3, y1 + 3, x1 + 19, y2 - 3, fill = _tip_for(vn), outline = _tip_ol_for(vn), tags = 'chips')
+                                                disp = vn if len(vn) <= 11 else vn[:10] + '\u2026'
+                                                mag_canvas.create_text((x1 + x2) // 2 + 8, (y1 + y2) // 2, text = f'{disp} x\u221e', fill = '#1a1a1a', font = ('Consolas', 8, 'bold'), tags = 'chips')
+                                            rows_for_cal = max(1, (len(cal_vns) + _cols - 1) // _cols)
+                                            cur_y += rows_for_cal * (CHIP_H + CHIP_PAD) + CAL_GROUP_PAD
 
                                     def _draw_mag_body():
                                         mag_canvas.delete('mag')
@@ -12674,25 +13265,55 @@ class App:
                                         if len(vlist) == 1:
                                             _shop_reloader_auto_fill(vlist[0])
                                             return
-                                        sel_popup = customtkinter.CTkToplevel(editor)
-                                        sel_popup.title('Select Round Type')
-                                        sel_popup.transient(editor)
-                                        sel_popup.grab_set()
-                                        customtkinter.CTkLabel(sel_popup, text = 'Select variant for reloader:', font = customtkinter.CTkFont(size = 12)).pack(pady = 8)
-                                        sel_var = customtkinter.StringVar(value = vlist[0])
+                                        _avail_cal_groups = {}
                                         for vn in vlist:
-                                            customtkinter.CTkRadioButton(sel_popup, text = f'{vn} (x\u221e)', variable = sel_var, value = vn).pack(anchor = 'w', padx = 16, pady = 2)
-                                        def _go():
-                                            v = sel_var.get()
-                                            sel_popup.destroy()
-                                            _shop_reloader_auto_fill(v)
-                                        customtkinter.CTkButton(sel_popup, text = 'Hook Up & Load', command = _go, width = 160).pack(pady = 8)
-                                        customtkinter.CTkButton(sel_popup, text = 'Cancel', command = sel_popup.destroy, width = 120, fg_color = '#444444').pack(pady = 4)
-                                        sel_popup.update_idletasks()
-                                        _sw = sel_popup.winfo_screenwidth(); _sh = sel_popup.winfo_screenheight()
-                                        sel_popup.geometry(f'+{_sw // 2 - 150}+{_sh // 2 - 100}')
-                                        sel_popup.lift()
-                                        self._safe_focus(sel_popup)
+                                            cal = variant_to_caliber.get(vn, 'Unknown')
+                                            _avail_cal_groups.setdefault(cal, []).append(vn)
+                                        _calibers = sorted(_avail_cal_groups.keys())
+                                        def _open_variant_picker(cal_vns):
+                                            sel_popup = customtkinter.CTkToplevel(editor)
+                                            sel_popup.title('Select Round Type')
+                                            sel_popup.transient(editor)
+                                            sel_popup.grab_set()
+                                            customtkinter.CTkLabel(sel_popup, text = 'Select variant for reloader:', font = customtkinter.CTkFont(size = 12)).pack(pady = 8)
+                                            sel_var = customtkinter.StringVar(value = cal_vns[0])
+                                            sf = customtkinter.CTkScrollableFrame(sel_popup, height = min(240, len(cal_vns) * 36 + 10), width = 260)
+                                            sf.pack(fill = 'x', padx = 8, pady = 4)
+                                            for vn in cal_vns:
+                                                customtkinter.CTkRadioButton(sf, text = f'{vn} (x\u221e)', variable = sel_var, value = vn).pack(anchor = 'w', padx = 8, pady = 2)
+                                            def _go():
+                                                v = sel_var.get()
+                                                sel_popup.destroy()
+                                                _shop_reloader_auto_fill(v)
+                                            customtkinter.CTkButton(sel_popup, text = 'Hook Up & Load', command = _go, width = 160).pack(pady = 8)
+                                            customtkinter.CTkButton(sel_popup, text = 'Cancel', command = sel_popup.destroy, width = 120, fg_color = '#444444').pack(pady = 4)
+                                            sel_popup.update_idletasks()
+                                            _sw2 = sel_popup.winfo_screenwidth(); _sh2 = sel_popup.winfo_screenheight()
+                                            _pw = sel_popup.winfo_reqwidth(); _ph = sel_popup.winfo_reqheight()
+                                            sel_popup.geometry(f'+{_sw2 // 2 - _pw // 2}+{max(0, _sh2 // 2 - _ph // 2)}')
+                                            sel_popup.lift()
+                                            self._safe_focus(sel_popup)
+                                        if len(_calibers) == 1:
+                                            _open_variant_picker(vlist)
+                                            return
+                                        cal_popup = customtkinter.CTkToplevel(editor)
+                                        cal_popup.title('Select Caliber')
+                                        cal_popup.transient(editor)
+                                        cal_popup.grab_set()
+                                        customtkinter.CTkLabel(cal_popup, text = 'Select caliber to load:', font = customtkinter.CTkFont(size = 12)).pack(pady = 8)
+                                        for cal in _calibers:
+                                            cal_vns = list(_avail_cal_groups[cal])
+                                            def _pick(cv = cal_vns):
+                                                cal_popup.destroy()
+                                                _open_variant_picker(cv)
+                                            customtkinter.CTkButton(cal_popup, text = cal, command = _pick, width = 220, height = 32).pack(padx = 16, pady = 4)
+                                        customtkinter.CTkButton(cal_popup, text = 'Cancel', command = cal_popup.destroy, width = 120, fg_color = '#444444').pack(pady = 8)
+                                        cal_popup.update_idletasks()
+                                        _sw3 = cal_popup.winfo_screenwidth(); _sh3 = cal_popup.winfo_screenheight()
+                                        _cw = cal_popup.winfo_reqwidth(); _ch2 = cal_popup.winfo_reqheight()
+                                        cal_popup.geometry(f'+{_sw3 // 2 - _cw // 2}+{max(0, _sh3 // 2 - _ch2 // 2)}')
+                                        cal_popup.lift()
+                                        self._safe_focus(cal_popup)
 
                                     _shop_reloader['btn'] = customtkinter.CTkButton(side, text = '\u2699 Use Reloader', command = _use_shop_reloader, width = 160, height = 30, font = customtkinter.CTkFont(size = 11), fg_color = '#2a6a2a', hover_color = '#3a7a3a')
                                     _shop_reloader['btn'].pack(pady = 4)
@@ -12942,7 +13563,7 @@ class App:
                                     break
                                 if it2.get("_table_category") == "magazines":
                                     mag_sys2 = it2.get("magazinesystem")
-                                    if mag_sys2 in equipped_magazine_systems:
+                                    if _mag_system_matches(mag_sys2):
                                         for cal2 in calibers2:
                                             if cal2 in equipped_calibers:
                                                 has_highlighted2 = True
@@ -13012,7 +13633,7 @@ class App:
                             break
                         if it.get("_table_category")=="magazines":
                             mag_system = it.get("magazinesystem")
-                            if mag_system in equipped_magazine_systems:
+                            if _mag_system_matches(mag_system):
                                 for cal in calibers:
                                     if cal in equipped_calibers:
                                         has_highlighted = True
@@ -21348,6 +21969,15 @@ class App:
                 vlist = sorted(variant_map.keys())
                 color_palette = ["#c4a032", "#b87333", "#a0a0a0", "#d4af37", "#8b4513", "#cd7f32", "#e8c872", "#a08060"]
                 vcols = {v: color_palette[i % len(color_palette)] for i, v in enumerate(vlist)}
+                _cc_v2c = {}
+                for _vn_k, (_ad_k, _vr_k) in variant_map.items():
+                    _ac_k = _ad_k.get('caliber')
+                    _cc_v2c[_vn_k] = (_ac_k[0] if isinstance(_ac_k, list) and _ac_k else _ac_k) or 'Unknown'
+                _cc_cg_raw = {}
+                for _vn_k in vlist:
+                    _cc_cg_raw.setdefault(_cc_v2c.get(_vn_k, 'Unknown'), []).append(_vn_k)
+                cc_caliber_order = sorted(_cc_cg_raw.keys())
+                cc_caliber_groups = {k: sorted(v) for k, v in _cc_cg_raw.items()}
 
                 def _tip_for(vname):
                     pair = variant_map.get(vname)
@@ -21369,9 +21999,14 @@ class App:
                 SLOT_W = 260
                 ox_mag = 20
                 CHIP_W, CHIP_H, CHIP_PAD = 130, 28, 6
+                CC_CAL_HEADER_H = 18
+                CC_CAL_GROUP_PAD = 8
                 cols = max(1, (SLOT_W + 40) // (CHIP_W + CHIP_PAD))
-                rows_needed = max(1, (len(vlist) + cols - 1) // cols)
-                selector_h = 22 + rows_needed * (CHIP_H + CHIP_PAD) + 4
+                _cc_sel_h = 22
+                for _cc_cg in cc_caliber_order:
+                    _cc_cg_rows = max(1, (len(cc_caliber_groups[_cc_cg]) + cols - 1) // cols)
+                    _cc_sel_h += CC_CAL_HEADER_H + _cc_cg_rows * (CHIP_H + CHIP_PAD) + CC_CAL_GROUP_PAD
+                selector_h = _cc_sel_h + 4
                 mag_top = selector_h + 22
                 spring_h = 14
                 canvas_h = mag_top + cap * SLOT_H + spring_h + 8
@@ -21448,21 +22083,32 @@ class App:
 
                 def _draw_chips():
                     mag_canvas.delete("chips")
+                    chip_hitboxes.clear()
                     mag_canvas.create_text(canvas_w // 2, 10, text = "AVAILABLE ROUNDS", fill = "#888888", font = ("Consolas", 9, "bold"), tags = "chips")
-                    start_x = (canvas_w - min(len(vlist), cols) * (CHIP_W + CHIP_PAD) + CHIP_PAD) // 2
-                    for idx, vname in enumerate(vlist):
-                        row_i = idx // cols
-                        col_i = idx % cols
-                        x1 = start_x + col_i * (CHIP_W + CHIP_PAD)
-                        y1 = 22 + row_i * (CHIP_H + CHIP_PAD)
-                        x2 = x1 + CHIP_W
-                        y2 = y1 + CHIP_H
-                        chip_hitboxes[vname] = (x1, y1, x2, y2)
-                        c = vcols.get(vname, "#c4a032")
-                        mag_canvas.create_rectangle(x1, y1, x2, y2, fill = c, outline = "#dddddd", width = 1, tags = "chips")
-                        mag_canvas.create_oval(x1 + 3, y1 + 3, x1 + 19, y2 - 3, fill = _tip_for(vname), outline = _tip_ol_for(vname), tags = "chips")
-                        disp = vname if len(vname) <= 16 else vname[:15] + "..."
-                        mag_canvas.create_text((x1 + x2) // 2 + 8, (y1 + y2) // 2, text = disp, fill = "#1a1a1a", font = ("Consolas", 8, "bold"), tags = "chips")
+                    if not vlist:
+                        mag_canvas.create_text(canvas_w // 2, selector_h // 2 + 10, text = "No rounds available", fill = "#555555", font = ("Consolas", 9), tags = "chips")
+                        return
+                    cur_y = 22
+                    for cal in cc_caliber_order:
+                        cal_vns = cc_caliber_groups[cal]
+                        mag_canvas.create_text(6, cur_y + CC_CAL_HEADER_H // 2, text = cal, fill = "#99aacc", font = ("Consolas", 9, "bold"), anchor = "w", tags = "chips")
+                        cur_y += CC_CAL_HEADER_H
+                        start_x = (canvas_w - min(len(cal_vns), cols) * (CHIP_W + CHIP_PAD) + CHIP_PAD) // 2
+                        for idx, vname in enumerate(cal_vns):
+                            row_i = idx // cols
+                            col_i = idx % cols
+                            x1 = start_x + col_i * (CHIP_W + CHIP_PAD)
+                            y1 = cur_y + row_i * (CHIP_H + CHIP_PAD)
+                            x2 = x1 + CHIP_W
+                            y2 = y1 + CHIP_H
+                            chip_hitboxes[vname] = (x1, y1, x2, y2)
+                            c = vcols.get(vname, "#c4a032")
+                            mag_canvas.create_rectangle(x1, y1, x2, y2, fill = c, outline = "#dddddd", width = 1, tags = "chips")
+                            mag_canvas.create_oval(x1 + 3, y1 + 3, x1 + 19, y2 - 3, fill = _tip_for(vname), outline = _tip_ol_for(vname), tags = "chips")
+                            disp = vname if len(vname) <= 16 else vname[:15] + "..."
+                            mag_canvas.create_text((x1 + x2) // 2 + 8, (y1 + y2) // 2, text = disp, fill = "#1a1a1a", font = ("Consolas", 8, "bold"), tags = "chips")
+                        cc_rows = max(1, (len(cal_vns) + cols - 1) // cols)
+                        cur_y += cc_rows * (CHIP_H + CHIP_PAD) + CC_CAL_GROUP_PAD
 
                 def _draw_mag_body():
                     mag_canvas.delete("mag")
@@ -21572,16 +22218,55 @@ class App:
                     if len(vlist) == 1:
                         _auto_fill_variant(vlist[0])
                         return
-                    sel_popup = customtkinter.CTkToplevel(editor)
-                    sel_popup.title("Select Round Type")
-                    sel_popup.transient(editor)
-                    sel_popup.grab_set()
-                    customtkinter.CTkLabel(sel_popup, text = "Select variant for reloader:", font = customtkinter.CTkFont(size = 12)).pack(pady = 8)
-                    sel_var = customtkinter.StringVar(value = vlist[0])
+                    _cc_avail_cg = {}
                     for vn in vlist:
-                        customtkinter.CTkRadioButton(sel_popup, text = vn, variable = sel_var, value = vn).pack(anchor = "w", padx = 16, pady = 2)
-                    customtkinter.CTkButton(sel_popup, text = "Hook Up & Load", command = lambda: (sel_popup.destroy(), _auto_fill_variant(sel_var.get())), width = 170).pack(pady = 8)
-                    customtkinter.CTkButton(sel_popup, text = "Cancel", command = sel_popup.destroy, width = 120, fg_color = "#444444").pack(pady = 4)
+                        cal = _cc_v2c.get(vn, 'Unknown')
+                        _cc_avail_cg.setdefault(cal, []).append(vn)
+                    _cc_calibers = sorted(_cc_avail_cg.keys())
+                    def _cc_open_variant_picker(cal_vns):
+                        sel_popup = customtkinter.CTkToplevel(editor)
+                        sel_popup.title("Select Round Type")
+                        sel_popup.transient(editor)
+                        sel_popup.grab_set()
+                        customtkinter.CTkLabel(sel_popup, text = "Select variant for reloader:", font = customtkinter.CTkFont(size = 12)).pack(pady = 8)
+                        sel_var = customtkinter.StringVar(value = cal_vns[0])
+                        sf = customtkinter.CTkScrollableFrame(sel_popup, height = min(240, len(cal_vns) * 36 + 10), width = 280)
+                        sf.pack(fill = "x", padx = 8, pady = 4)
+                        for vn in cal_vns:
+                            customtkinter.CTkRadioButton(sf, text = vn, variable = sel_var, value = vn).pack(anchor = "w", padx = 8, pady = 2)
+                        def _go_cc():
+                            v = sel_var.get()
+                            sel_popup.destroy()
+                            _auto_fill_variant(v)
+                        customtkinter.CTkButton(sel_popup, text = "Hook Up & Load", command = _go_cc, width = 170).pack(pady = 8)
+                        customtkinter.CTkButton(sel_popup, text = "Cancel", command = sel_popup.destroy, width = 120, fg_color = "#444444").pack(pady = 4)
+                        sel_popup.update_idletasks()
+                        _sw2 = sel_popup.winfo_screenwidth(); _sh2 = sel_popup.winfo_screenheight()
+                        _pw = sel_popup.winfo_reqwidth(); _ph = sel_popup.winfo_reqheight()
+                        sel_popup.geometry(f"+{_sw2 // 2 - _pw // 2}+{max(0, _sh2 // 2 - _ph // 2)}")
+                        sel_popup.lift()
+                        self._safe_focus(sel_popup)
+                    if len(_cc_calibers) == 1:
+                        _cc_open_variant_picker(vlist)
+                        return
+                    cal_popup = customtkinter.CTkToplevel(editor)
+                    cal_popup.title("Select Caliber")
+                    cal_popup.transient(editor)
+                    cal_popup.grab_set()
+                    customtkinter.CTkLabel(cal_popup, text = "Select caliber to load:", font = customtkinter.CTkFont(size = 12)).pack(pady = 8)
+                    for cal in _cc_calibers:
+                        cal_vns = list(_cc_avail_cg[cal])
+                        def _pick_cc(cv = cal_vns):
+                            cal_popup.destroy()
+                            _cc_open_variant_picker(cv)
+                        customtkinter.CTkButton(cal_popup, text = cal, command = _pick_cc, width = 220, height = 32).pack(padx = 16, pady = 4)
+                    customtkinter.CTkButton(cal_popup, text = "Cancel", command = cal_popup.destroy, width = 120, fg_color = "#444444").pack(pady = 8)
+                    cal_popup.update_idletasks()
+                    _sw3 = cal_popup.winfo_screenwidth(); _sh3 = cal_popup.winfo_screenheight()
+                    _cw = cal_popup.winfo_reqwidth(); _ch2 = cal_popup.winfo_reqheight()
+                    cal_popup.geometry(f"+{_sw3 // 2 - _cw // 2}+{max(0, _sh3 // 2 - _ch2 // 2)}")
+                    cal_popup.lift()
+                    self._safe_focus(cal_popup)
 
                 customtkinter.CTkButton(side, text = "Use Reloader", command = _use_reloader, width = 170, height = 32, fg_color = "#2a6a2a", hover_color = "#3a7a3a").pack(pady = 4)
 
@@ -24022,6 +24707,19 @@ class App:
             return
 
         self._clear_window()
+
+        try:
+            self._set_dnd_refresh_handler(
+                callback = self._transfer_player,
+                exts = [".sldtrf"],
+            )
+        except Exception:
+            pass
+
+        try:
+            self.root.after(50, self._setup_drag_drop)
+        except Exception:
+            pass
 
         main_frame = customtkinter.CTkFrame(self.root)
         main_frame.pack(fill = "both", expand = True, padx = 20, pady = 20)
@@ -28400,7 +29098,8 @@ class App:
                 "snowstorm": "5",
                 "thunder_rain": "6",
                 "thunder_hard_rain": "7",
-                "thunderstorm": "8",
+                "thunderstorm": "6",
+                "thundersnow": "6",
                 "thunder": "8",
                 "sun_and_cloud": "9",
             }
@@ -28423,9 +29122,7 @@ class App:
             return f"-{abs(temp_fi):02d}°F"
 
         def _watch_temperature_ghost_text():
-            if appearance_settings.get("units") == "metric":
-                return "888°C"
-            return "888°F"
+            return "8888"
 
         def _watch_time_text(now_dt, show_seconds, use_24h = True):
             if use_24h:
@@ -29393,6 +30090,10 @@ class App:
             watch_items_local = _get_equipped_watches(save_data, table_data)
             watch_frame_local = customtkinter.CTkFrame(parent_frame, corner_radius = 6)
             watch_frame_local.place(relx = 0.0, y = 4, anchor = "nw", x = 4)
+            watch_beep_mute_map = combat_state.get("watch_hourly_beep_muted")
+            if not isinstance(watch_beep_mute_map, dict):
+                watch_beep_mute_map = {}
+            combat_state["watch_hourly_beep_muted"] = watch_beep_mute_map
 
             time_24h_var = customtkinter.BooleanVar(value = bool(combat_state.get("watch_time_24h", True)))
 
@@ -29438,6 +30139,7 @@ class App:
                 watch_item = watch_data["item"]
                 watch_type = str(watch_item.get("watch_type", "")).strip().lower()
                 is_digital = watch_type == "digital"
+                beep_key = f"{watch_item.get('id', 'watch')}|{watch_data.get('slot', '')}"
 
                 row_bg = "#2E3821" if is_digital else "#1F2B35"
                 row = customtkinter.CTkFrame(watch_frame_local, fg_color = row_bg)
@@ -29450,86 +30152,84 @@ class App:
                 ).pack(anchor = "w", padx = 8, pady =(4, 0))
 
                 time_label = None
+                time_canvas = None
+                time_ghost_item = None
+                time_live_item = None
                 analog_canvas = None
                 weather_icon_label = None
+                weather_canvas = None
+                weather_ghost_item = None
+                weather_live_item = None
                 weather_temp_label = None
+                temp_canvas = None
+                temp_ghost_item = None
+                temp_live_item = None
                 am_label = None
                 pm_label = None
+                beep_toggle_btn = None
                 if is_digital:
+                    def _toggle_watch_hourly_beep(_k = beep_key):
+                        try:
+                            _muted = bool(watch_beep_mute_map.get(_k, False))
+                            watch_beep_mute_map[_k] = not _muted
+                            combat_state["watch_hourly_beep_muted"] = watch_beep_mute_map
+                            update_watch_display()
+                        except Exception:
+                            pass
+
                     info_row = customtkinter.CTkFrame(row, fg_color = "#313B21")
                     info_row.pack(fill = "x", padx = 8, pady =(0, 6))
 
-                    time_font = customtkinter.CTkFont(family = "DSEG7 Modern-Regular", size = 16)
-                    time_stack = customtkinter.CTkFrame(info_row, fg_color = "transparent", width = 142, height = 30)
-                    time_stack.pack(side = "left", padx =(6, 4), pady = 4)
+                    time_stack = customtkinter.CTkFrame(info_row, fg_color = "transparent", width = 240, height = 52)
+                    time_stack.pack(side = "left", padx =(8, 6), pady = 5)
                     time_stack.pack_propagate(False)
-                    time_ghost_label = customtkinter.CTkLabel(
-                        time_stack,
-                        text = "88:88:88",
-                        font = time_font,
-                        text_color = "#75895A"
-                    )
-                    time_ghost_label.place(relx = 1.0, rely = 0.5, anchor = "e")
-                    time_label = customtkinter.CTkLabel(
-                        time_stack,
-                        text = "00:00",
-                        font = time_font,
-                        text_color = "#C7F089"
-                    )
-                    time_label.place(relx = 1.0, rely = 0.5, anchor = "e")
-                    ampm_frame = customtkinter.CTkFrame(info_row, fg_color = "transparent", width = 42, height = 40)
-                    ampm_frame.pack(side = "left", padx =(0, 3), pady =(1, 0))
+                    time_canvas = customtkinter.CTkCanvas(time_stack, width = 240, height = 52, bg = "#313B21", highlightthickness = 0)
+                    time_canvas.pack(fill = "both", expand = True)
+                    time_ghost_item = time_canvas.create_text(236, 26, text = "88:88:88", fill = "#4F6338", font = ("DSEG7 Modern-Regular", 22), anchor = "e")
+                    time_live_item = time_canvas.create_text(236, 26, text = "00:00", fill = "#C7F089", font = ("DSEG7 Modern-Regular", 22), anchor = "e")
+                    ampm_frame = customtkinter.CTkFrame(info_row, fg_color = "transparent", width = 52, height = 46)
+                    ampm_frame.pack(side = "left", padx =(0, 4), pady =(1, 0))
                     ampm_frame.pack_propagate(False)
                     pm_label = customtkinter.CTkLabel(
                         ampm_frame,
                         text = "PM",
-                        font = customtkinter.CTkFont(size = 9),
-                        text_color = "#7D9561"
+                        font = customtkinter.CTkFont(size = 10),
+                        text_color = "#4F6338"
                     )
                     pm_label.place(relx = 0.5, rely = 0.36, anchor = "center")
                     am_label = customtkinter.CTkLabel(
                         ampm_frame,
                         text = "AM",
-                        font = customtkinter.CTkFont(size = 9),
-                        text_color = "#7D9561"
+                        font = customtkinter.CTkFont(size = 10),
+                        text_color = "#4F6338"
                     )
                     am_label.place(relx = 0.5, rely = 0.77, anchor = "center")
 
-                    weather_stack = customtkinter.CTkFrame(info_row, fg_color = "transparent", width = 32, height = 28)
-                    weather_stack.pack(side = "left", padx =(2, 4), pady = 4)
+                    weather_stack = customtkinter.CTkFrame(info_row, fg_color = "transparent", width = 62, height = 48)
+                    weather_stack.pack(side = "left", padx =(4, 6), pady = 5)
                     weather_stack.pack_propagate(False)
-                    weather_ghost_label = customtkinter.CTkLabel(
-                        weather_stack,
-                        text = "0",
-                        font = customtkinter.CTkFont(family = "DSEG Weather", size = 22),
-                        text_color = "#75895A"
-                    )
-                    weather_ghost_label.place(relx = 0.5, rely = 0.5, anchor = "center")
-                    weather_icon_label = customtkinter.CTkLabel(
-                        weather_stack,
-                        text = _watch_weather_icon_code(weather_state.get("weather", "clear")),
-                        font = customtkinter.CTkFont(family = "DSEG Weather", size = 22),
-                        text_color = "#C7F089"
-                    )
-                    weather_icon_label.place(relx = 0.5, rely = 0.5, anchor = "center")
+                    weather_canvas = customtkinter.CTkCanvas(weather_stack, width = 62, height = 48, bg = "#313B21", highlightthickness = 0)
+                    weather_canvas.pack(fill = "both", expand = True)
+                    weather_ghost_item = weather_canvas.create_text(31, 24, text = "0", fill = "#4F6338", font = ("DSEG Weather", 28), anchor = "center")
+                    weather_live_item = weather_canvas.create_text(31, 24, text = _watch_weather_icon_code(weather_state.get("weather", "clear")), fill = "#C7F089", font = ("DSEG Weather", 28), anchor = "center")
 
-                    temp_stack = customtkinter.CTkFrame(info_row, fg_color = "transparent", width = 96, height = 30)
-                    temp_stack.pack(side = "left", padx =(0, 6), pady = 4)
+                    temp_stack = customtkinter.CTkFrame(info_row, fg_color = "transparent", width = 168, height = 52)
+                    temp_stack.pack(side = "left", padx =(0, 8), pady = 5)
                     temp_stack.pack_propagate(False)
-                    weather_temp_ghost_label = customtkinter.CTkLabel(
-                        temp_stack,
-                        text = _watch_temperature_ghost_text(),
-                        font = customtkinter.CTkFont(family = "DSEG7 Modern-Regular", size = 16),
-                        text_color = "#75895A"
+                    temp_canvas = customtkinter.CTkCanvas(temp_stack, width = 168, height = 52, bg = "#313B21", highlightthickness = 0)
+                    temp_canvas.pack(fill = "both", expand = True)
+                    temp_ghost_item = temp_canvas.create_text(164, 26, text = _watch_temperature_ghost_text(), fill = "#4F6338", font = ("DSEG7 Modern-Regular", 22), anchor = "e")
+                    temp_live_item = temp_canvas.create_text(164, 26, text = _watch_temperature_text(weather_state.get("temperature_f", combat_state.get("ambient_temperature", 70))), fill = "#C7F089", font = ("DSEG7 Modern-Regular", 22), anchor = "e")
+
+                    beep_toggle_btn = self._create_sound_button(
+                        info_row,
+                        text = "BEEP ON" if not bool(watch_beep_mute_map.get(beep_key, False)) else "BEEP OFF",
+                        command = _toggle_watch_hourly_beep,
+                        width = 84,
+                        height = 28,
+                        font = customtkinter.CTkFont(size = 9, weight = "bold")
                     )
-                    weather_temp_ghost_label.place(relx = 1.0, rely = 0.5, anchor = "e")
-                    weather_temp_label = customtkinter.CTkLabel(
-                        temp_stack,
-                        text = _watch_temperature_text(weather_state.get("temperature_f", combat_state.get("ambient_temperature", 70))),
-                        font = customtkinter.CTkFont(family = "DSEG7 Modern-Regular", size = 16),
-                        text_color = "#C7F089"
-                    )
-                    weather_temp_label.place(relx = 1.0, rely = 0.5, anchor = "e")
+                    beep_toggle_btn.pack(side = "right", padx =(0, 6), pady = 5)
                 else:
                     analog_canvas = customtkinter.CTkCanvas(
                         row,
@@ -29545,12 +30245,23 @@ class App:
                     "watch_type": watch_type,
                     "seconds": bool(watch_item.get("seconds")),
                     "time_label": time_label,
+                    "time_canvas": time_canvas if is_digital else None,
+                    "time_ghost_item": time_ghost_item if is_digital else None,
+                    "time_live_item": time_live_item if is_digital else None,
                     "analog_canvas": analog_canvas,
                     "weather_icon_label": weather_icon_label,
+                    "weather_canvas": weather_canvas if is_digital else None,
+                    "weather_ghost_item": weather_ghost_item if is_digital else None,
+                    "weather_live_item": weather_live_item if is_digital else None,
                     "weather_temp_label": weather_temp_label,
-                    "time_ghost_label": time_ghost_label if is_digital else None,
-                    "weather_ghost_label": weather_ghost_label if is_digital else None,
-                    "weather_temp_ghost_label": weather_temp_ghost_label if is_digital else None,
+                    "temp_canvas": temp_canvas if is_digital else None,
+                    "temp_ghost_item": temp_ghost_item if is_digital else None,
+                    "temp_live_item": temp_live_item if is_digital else None,
+                    "time_ghost_label": None,
+                    "weather_ghost_label": None,
+                    "weather_temp_ghost_label": None,
+                    "beep_key": beep_key if is_digital else None,
+                    "beep_toggle_btn": beep_toggle_btn if is_digital else None,
                     "am_label": am_label,
                     "pm_label": pm_label,
                     "time_24h_var": time_24h_var,
@@ -32864,26 +33575,34 @@ class App:
                         vcols = {v:cpal[i %len(cpal)]for i, v in enumerate(vlist)}
 
                         vtips = {}
+                        arm_v2c = {}
                         try:
-                            _mcal = mag_item.get('caliber')
-                            _mcal_str = _mcal if isinstance(_mcal, str)else(_mcal[0]if isinstance(_mcal, list)and _mcal else None)
+                            _mcals = mag_item.get('caliber')
+                            if isinstance(_mcals, str):
+                                _mcals = [_mcals]
+                            elif not isinstance(_mcals, list):
+                                _mcals = []
                             _ammo_tbl = self._get_ammo_table_data()
                             for _atbl in _ammo_tbl:
                                 _ac = _atbl.get('caliber')
-                                _match = False
-                                if isinstance(_ac, list):
-                                    _match = _mcal_str in _ac if _mcal_str else False
-                                else:
-                                    _match =(_ac ==_mcal_str)if _mcal_str else False
-                                if _match:
+                                _ac_list = [_ac] if isinstance(_ac, str) else (_ac if isinstance(_ac, list) else [])
+                                _ac_str = _ac_list[0] if _ac_list else None
+                                _match = any(c in _ac_list for c in _mcals) if _mcals else False
+                                if _match and _ac_str:
                                     for _av in _atbl.get('variants', []):
                                         _atn = _av.get('name')
-                                        _att = _av.get('tip')
-                                        if _atn and _att and isinstance(_att, str)and _att.startswith('#'):
-                                            vtips[_atn]= _att
-                                    break
+                                        if _atn:
+                                            arm_v2c[_atn] = _ac_str
+                                            _att = _av.get('tip')
+                                            if _att and isinstance(_att, str) and _att.startswith('#'):
+                                                vtips[_atn] = _att
                         except Exception:
                             pass
+                        _arm_cg_raw = {}
+                        for _vn_a in vlist:
+                            _arm_cg_raw.setdefault(arm_v2c.get(_vn_a, 'Unknown'), []).append(_vn_a)
+                        arm_caliber_order = sorted(_arm_cg_raw.keys())
+                        arm_caliber_groups = {k: sorted(v) for k, v in _arm_cg_raw.items()}
 
                         def _tip_for(vn):
                             return vtips.get(vn, '#e0c060')
@@ -32913,9 +33632,14 @@ class App:
                             return '#aa8820'
 
                         CHIP_W, CHIP_H, CHIP_PAD = 130, 28, 6
+                        ARM_CAL_HEADER_H = 18
+                        ARM_CAL_GROUP_PAD = 8
                         _cols = max(1, (SLOT_W +40)//(CHIP_W +CHIP_PAD))
-                        _rows_need = max(1, (len(vlist)+_cols -1)//_cols)if vlist else 1
-                        SEL_H = 22 +_rows_need *(CHIP_H +CHIP_PAD)+4
+                        _arm_sel_h = 22
+                        for _arm_cg in arm_caliber_order:
+                            _arm_cg_rows = max(1, (len(arm_caliber_groups[_arm_cg]) + _cols - 1) // _cols)
+                            _arm_sel_h += ARM_CAL_HEADER_H + _arm_cg_rows * (CHIP_H + CHIP_PAD) + ARM_CAL_GROUP_PAD
+                        SEL_H = _arm_sel_h + 4
                         HINT_H = 22
                         MAG_TOP = SEL_H +HINT_H
                         SPRING_H = 14
@@ -32943,34 +33667,43 @@ class App:
 
                         def _draw_chips():
                             mag_canvas.delete('chips')
+                            chip_hitboxes.clear()
                             mag_canvas.create_text(canvas_w //2, 10, text = 'AVAILABLE ROUNDS', fill = '#888888',
                             font =('Consolas', 9, 'bold'), tags = 'chips')
                             if not vlist:
                                 mag_canvas.create_text(canvas_w //2, SEL_H //2 +10, text = 'No rounds available',
                                 fill = '#555555', font =('Consolas', 9), tags = 'chips')
                                 return
-                            start_x =(canvas_w -min(len(vlist), _cols)*(CHIP_W +CHIP_PAD)+CHIP_PAD)//2
-                            for idx, vn in enumerate(vlist):
-                                cnt = available_by_variant.get(vn, 0)
-                                row_i = idx //_cols
-                                col_i = idx %_cols
-                                x1 = start_x +col_i *(CHIP_W +CHIP_PAD)
-                                y1 = 22 +row_i *(CHIP_H +CHIP_PAD)
-                                x2 = x1 +CHIP_W
-                                y2 = y1 +CHIP_H
-                                chip_hitboxes[vn]=(x1, y1, x2, y2)
-                                c = vcols.get(vn, '#c4a032')
-                                is_avail = cnt >0
-                                fill = c if is_avail else '#2a2a2a'
-                                ol = '#dddddd'if is_avail else '#3a3a3a'
-                                mag_canvas.create_rectangle(x1, y1, x2, y2, fill = fill, outline = ol, width = 1, tags = 'chips')
-                                mag_canvas.create_oval(x1 +3, y1 +3, x1 +19, y2 -3, fill = _tip_for(vn)if is_avail else '#3a3a3a',
-                                outline = _tip_ol_for(vn)if is_avail else '#3a3a3a', tags = 'chips')
-                                disp = vn if len(vn)<=11 else vn[:10]+'\u2026'
-                                mag_canvas.create_text((x1 +x2)//2 +8, (y1 +y2)//2,
-                                text = f'{disp} x{cnt}',
-                                fill = '#1a1a1a'if is_avail else '#555555',
-                                font =('Consolas', 8, 'bold'), tags = 'chips')
+                            cur_y = 22
+                            for cal in arm_caliber_order:
+                                cal_vns = arm_caliber_groups[cal]
+                                mag_canvas.create_text(6, cur_y + ARM_CAL_HEADER_H // 2, text = cal, fill = '#99aacc',
+                                font = ('Consolas', 9, 'bold'), anchor = 'w', tags = 'chips')
+                                cur_y += ARM_CAL_HEADER_H
+                                start_x = (canvas_w - min(len(cal_vns), _cols) * (CHIP_W + CHIP_PAD) + CHIP_PAD) // 2
+                                for idx, vn in enumerate(cal_vns):
+                                    cnt = available_by_variant.get(vn, 0)
+                                    row_i = idx //_cols
+                                    col_i = idx %_cols
+                                    x1 = start_x +col_i *(CHIP_W +CHIP_PAD)
+                                    y1 = cur_y +row_i *(CHIP_H +CHIP_PAD)
+                                    x2 = x1 +CHIP_W
+                                    y2 = y1 +CHIP_H
+                                    chip_hitboxes[vn]=(x1, y1, x2, y2)
+                                    c = vcols.get(vn, '#c4a032')
+                                    is_avail = cnt >0
+                                    fill = c if is_avail else '#2a2a2a'
+                                    ol = '#dddddd'if is_avail else '#3a3a3a'
+                                    mag_canvas.create_rectangle(x1, y1, x2, y2, fill = fill, outline = ol, width = 1, tags = 'chips')
+                                    mag_canvas.create_oval(x1 +3, y1 +3, x1 +19, y2 -3, fill = _tip_for(vn)if is_avail else '#3a3a3a',
+                                    outline = _tip_ol_for(vn)if is_avail else '#3a3a3a', tags = 'chips')
+                                    disp = vn if len(vn)<=11 else vn[:10]+'\u2026'
+                                    mag_canvas.create_text((x1 +x2)//2 +8, (y1 +y2)//2,
+                                    text = f'{disp} x{cnt}',
+                                    fill = '#1a1a1a'if is_avail else '#555555',
+                                    font =('Consolas', 8, 'bold'), tags = 'chips')
+                                arm_rows_for_cal = max(1, (len(cal_vns) + _cols - 1) // _cols)
+                                cur_y += arm_rows_for_cal * (CHIP_H + CHIP_PAD) + ARM_CAL_GROUP_PAD
 
                         def _draw_mag_body():
                             mag_canvas.delete('mag')
@@ -33348,26 +34081,57 @@ class App:
                             if len(avail_vnames) == 1:
                                 _reloader_auto_fill(avail_vnames[0])
                                 return
-                            sel_popup = customtkinter.CTkToplevel(editor)
-                            sel_popup.title('Select Round Type')
-                            sel_popup.transient(editor)
-                            sel_popup.grab_set()
-                            customtkinter.CTkLabel(sel_popup, text = 'Select variant for reloader:', font = customtkinter.CTkFont(size = 12)).pack(pady = 8)
-                            sel_var = customtkinter.StringVar(value = avail_vnames[0])
+                            _arm_avail_cg = {}
                             for vn in avail_vnames:
-                                cnt = available_by_variant.get(vn, 0)
-                                customtkinter.CTkRadioButton(sel_popup, text = f'{vn} (x{cnt})', variable = sel_var, value = vn).pack(anchor = 'w', padx = 16, pady = 2)
-                            def _go():
-                                v = sel_var.get()
-                                sel_popup.destroy()
-                                _reloader_auto_fill(v)
-                            customtkinter.CTkButton(sel_popup, text = 'Hook Up & Load', command = _go, width = 160).pack(pady = 8)
-                            customtkinter.CTkButton(sel_popup, text = 'Cancel', command = sel_popup.destroy, width = 120, fg_color = '#444444').pack(pady = 4)
-                            sel_popup.update_idletasks()
-                            _sw = sel_popup.winfo_screenwidth(); _sh = sel_popup.winfo_screenheight()
-                            sel_popup.geometry(f'+{_sw // 2 - 150}+{_sh // 2 - 100}')
-                            sel_popup.lift()
-                            self._safe_focus(sel_popup)
+                                cal = arm_v2c.get(vn, 'Unknown')
+                                _arm_avail_cg.setdefault(cal, []).append(vn)
+                            _arm_calibers = sorted(_arm_avail_cg.keys())
+                            def _arm_open_variant_picker(cal_vns):
+                                sel_popup = customtkinter.CTkToplevel(editor)
+                                sel_popup.title('Select Round Type')
+                                sel_popup.transient(editor)
+                                sel_popup.grab_set()
+                                customtkinter.CTkLabel(sel_popup, text = 'Select variant for reloader:', font = customtkinter.CTkFont(size = 12)).pack(pady = 8)
+                                sel_var = customtkinter.StringVar(value = cal_vns[0])
+                                sf = customtkinter.CTkScrollableFrame(sel_popup, height = min(240, len(cal_vns) * 36 + 10), width = 260)
+                                sf.pack(fill = 'x', padx = 8, pady = 4)
+                                for vn in cal_vns:
+                                    cnt = available_by_variant.get(vn, 0)
+                                    customtkinter.CTkRadioButton(sf, text = f'{vn} (x{cnt})', variable = sel_var, value = vn).pack(anchor = 'w', padx = 8, pady = 2)
+                                def _go():
+                                    v = sel_var.get()
+                                    sel_popup.destroy()
+                                    _reloader_auto_fill(v)
+                                customtkinter.CTkButton(sel_popup, text = 'Hook Up & Load', command = _go, width = 160).pack(pady = 8)
+                                customtkinter.CTkButton(sel_popup, text = 'Cancel', command = sel_popup.destroy, width = 120, fg_color = '#444444').pack(pady = 4)
+                                sel_popup.update_idletasks()
+                                _sw2 = sel_popup.winfo_screenwidth(); _sh2 = sel_popup.winfo_screenheight()
+                                _pw = sel_popup.winfo_reqwidth(); _ph = sel_popup.winfo_reqheight()
+                                sel_popup.geometry(f'+{_sw2 // 2 - _pw // 2}+{max(0, _sh2 // 2 - _ph // 2)}')
+                                sel_popup.lift()
+                                self._safe_focus(sel_popup)
+                            if len(_arm_calibers) == 1:
+                                _arm_open_variant_picker(avail_vnames)
+                                return
+                            cal_popup = customtkinter.CTkToplevel(editor)
+                            cal_popup.title('Select Caliber')
+                            cal_popup.transient(editor)
+                            cal_popup.grab_set()
+                            customtkinter.CTkLabel(cal_popup, text = 'Select caliber to load:', font = customtkinter.CTkFont(size = 12)).pack(pady = 8)
+                            for cal in _arm_calibers:
+                                cal_vns = list(_arm_avail_cg[cal])
+                                cnt_total = sum(available_by_variant.get(vn, 0) for vn in cal_vns)
+                                def _pick_arm(cv = cal_vns, ct = cnt_total):
+                                    cal_popup.destroy()
+                                    _arm_open_variant_picker(cv)
+                                customtkinter.CTkButton(cal_popup, text = f'{cal}  ({cnt_total} rds)', command = _pick_arm, width = 240, height = 32).pack(padx = 16, pady = 4)
+                            customtkinter.CTkButton(cal_popup, text = 'Cancel', command = cal_popup.destroy, width = 120, fg_color = '#444444').pack(pady = 8)
+                            cal_popup.update_idletasks()
+                            _sw3 = cal_popup.winfo_screenwidth(); _sh3 = cal_popup.winfo_screenheight()
+                            _cw = cal_popup.winfo_reqwidth(); _ch2 = cal_popup.winfo_reqheight()
+                            cal_popup.geometry(f'+{_sw3 // 2 - _cw // 2}+{max(0, _sh3 // 2 - _ch2 // 2)}')
+                            cal_popup.lift()
+                            self._safe_focus(cal_popup)
 
                         if _has_reloader:
                             _reloader_state['btn'] = customtkinter.CTkButton(side, text = '\u2699 Use Reloader', command = _use_reloader, width = 160, height = 30, font = customtkinter.CTkFont(size = 11), fg_color = '#2a6a2a', hover_color = '#3a7a3a')
@@ -41120,6 +41884,7 @@ class App:
             ).pack(side = "right", padx = 10, pady = 5)
 
         watch_cancel = None
+        watch_runtime_active = [True]
         watch_sound_clock_state = {"last_second": (-1, -1, -1), "last_hourly_beep": (-1, -1, -1)}
 
         def _play_watch_sound(filename, *, volume, pitch_range):
@@ -41188,16 +41953,41 @@ class App:
 
             nonlocal watch_cancel
             try:
+                if not watch_runtime_active[0]:
+                    watch_cancel = None
+                    return
+
+                active_watch_rows = []
+                for _row in watch_rows:
+                    _widget = _row.get("time_canvas") or _row.get("time_label") or _row.get("analog_canvas")
+                    try:
+                        if _widget and _widget.winfo_exists():
+                            active_watch_rows.append(_row)
+                    except Exception:
+                        pass
+
+                if not active_watch_rows:
+                    watch_cancel = None
+                    return
+
                 now_dt = datetime.now()
                 weather_name = str(weather_state.get("weather", "clear")).strip().lower()
                 weather_temp = weather_state.get("temperature_f", combat_state.get("ambient_temperature", 70))
                 weather_temp_text = _watch_temperature_text(weather_temp)
-                has_analog_watch = any(str(row.get("watch_type", "")).strip().lower() != "digital" for row in watch_rows)
+                has_analog_watch = any(str(row.get("watch_type", "")).strip().lower() != "digital" for row in active_watch_rows)
+                _beep_mutes = combat_state.get("watch_hourly_beep_muted", {})
+                if not isinstance(_beep_mutes, dict):
+                    _beep_mutes = {}
+                has_unmuted_digital = any(
+                    str(row.get("watch_type", "")).strip().lower() == "digital" and
+                    not bool(_beep_mutes.get(row.get("beep_key"), False))
+                    for row in active_watch_rows
+                )
 
                 second_key = (now_dt.hour, now_dt.minute, now_dt.second)
                 if watch_sound_clock_state.get("last_second") != second_key:
                     watch_sound_clock_state["last_second"] = second_key
-                    if now_dt.minute == 0 and now_dt.second == 0:
+                    if has_unmuted_digital and now_dt.minute == 0 and now_dt.second == 0:
                         hourly_key = (now_dt.year, now_dt.timetuple().tm_yday, now_dt.hour)
                         if watch_sound_clock_state.get("last_hourly_beep") != hourly_key:
                             watch_sound_clock_state["last_hourly_beep"] = hourly_key
@@ -41210,7 +42000,7 @@ class App:
                         else:
                             _play_watch_sound("clocktick.ogg", volume = 0.22, pitch_range = (0.96, 1.04))
 
-                for row_state in watch_rows:
+                for row_state in active_watch_rows:
                     use_24h = True
                     try:
                         use_24h = bool(row_state.get("time_24h_var").get())
@@ -41221,40 +42011,68 @@ class App:
                         row_state["toggle_btn"].configure(text = "24H" if use_24h else "12H")
 
                     time_label = row_state.get("time_label")
+                    time_canvas = row_state.get("time_canvas")
                     analog_canvas = row_state.get("analog_canvas")
-                    if not time_label and not analog_canvas:
+                    if not time_label and not time_canvas and not analog_canvas:
                         continue
 
-                    if time_label and time_label.winfo_exists():
+                    if time_canvas and time_canvas.winfo_exists():
+                        _time_live_item = row_state.get("time_live_item")
+                        _time_ghost_item = row_state.get("time_ghost_item")
+                        if _time_live_item is not None:
+                            time_canvas.itemconfigure(_time_live_item, text = _watch_time_text(now_dt, row_state["seconds"], use_24h = use_24h))
+                        if _time_ghost_item is not None:
+                            time_canvas.itemconfigure(_time_ghost_item, text = "88:88:88")
+                    elif time_label and time_label.winfo_exists():
                         time_label.configure(text = _watch_time_text(now_dt, row_state["seconds"], use_24h = use_24h))
 
                         time_ghost = row_state.get("time_ghost_label")
                         if time_ghost and time_ghost.winfo_exists():
-                            time_ghost.configure(text = "88:88:88" if row_state.get("seconds") else "88:88")
+                            time_ghost.configure(text = "88:88:88")
 
-                        am_lbl = row_state.get("am_label")
-                        pm_lbl = row_state.get("pm_label")
-                        if am_lbl and pm_lbl and am_lbl.winfo_exists() and pm_lbl.winfo_exists():
-                            if use_24h:
-                                am_lbl.configure(text_color = "#7D9561")
-                                pm_lbl.configure(text_color = "#7D9561")
-                            else:
-                                is_pm = now_dt.hour >= 12
-                                am_lbl.configure(text_color = "#AEDD93" if not is_pm else "#7D9561")
-                                pm_lbl.configure(text_color = "#AEDD93" if is_pm else "#7D9561")
+                    am_lbl = row_state.get("am_label")
+                    pm_lbl = row_state.get("pm_label")
+                    if am_lbl and pm_lbl and am_lbl.winfo_exists() and pm_lbl.winfo_exists():
+                        if use_24h:
+                            am_lbl.configure(text_color = "#4F6338")
+                            pm_lbl.configure(text_color = "#4F6338")
+                        else:
+                            is_pm = now_dt.hour >= 12
+                            am_lbl.configure(text_color = "#AEDD93" if not is_pm else "#4F6338")
+                            pm_lbl.configure(text_color = "#AEDD93" if is_pm else "#4F6338")
 
                     if analog_canvas and analog_canvas.winfo_exists():
                         _draw_analog_watch(analog_canvas, now_dt, bool(row_state.get("seconds")))
 
                     if row_state["watch_type"] == "digital":
-                        if row_state["weather_icon_label"] and row_state["weather_icon_label"].winfo_exists():
+                        _row_beep_btn = row_state.get("beep_toggle_btn")
+                        if _row_beep_btn and _row_beep_btn.winfo_exists():
+                            _muted = bool(_beep_mutes.get(row_state.get("beep_key"), False))
+                            _row_beep_btn.configure(
+                                text = "BEEP OFF" if _muted else "BEEP ON",
+                                fg_color = "#4D2E2E" if _muted else "#2E4D2E"
+                            )
+                        _weather_canvas = row_state.get("weather_canvas")
+                        if _weather_canvas and _weather_canvas.winfo_exists():
+                            _weather_live_item = row_state.get("weather_live_item")
+                            _weather_ghost_item = row_state.get("weather_ghost_item")
+                            if _weather_live_item is not None:
+                                _weather_canvas.itemconfigure(_weather_live_item, text = _watch_weather_icon_code(weather_name))
+                            if _weather_ghost_item is not None:
+                                _weather_canvas.itemconfigure(_weather_ghost_item, text = "0")
+                        elif row_state["weather_icon_label"] and row_state["weather_icon_label"].winfo_exists():
                             row_state["weather_icon_label"].configure(text = _watch_weather_icon_code(weather_name))
-                        if row_state.get("weather_ghost_label") and row_state["weather_ghost_label"].winfo_exists():
-                            row_state["weather_ghost_label"].configure(text = "0")
-                        if row_state["weather_temp_label"] and row_state["weather_temp_label"].winfo_exists():
+
+                        _temp_canvas = row_state.get("temp_canvas")
+                        if _temp_canvas and _temp_canvas.winfo_exists():
+                            _temp_live_item = row_state.get("temp_live_item")
+                            _temp_ghost_item = row_state.get("temp_ghost_item")
+                            if _temp_live_item is not None:
+                                _temp_canvas.itemconfigure(_temp_live_item, text = weather_temp_text)
+                            if _temp_ghost_item is not None:
+                                _temp_canvas.itemconfigure(_temp_ghost_item, text = _watch_temperature_ghost_text())
+                        elif row_state["weather_temp_label"] and row_state["weather_temp_label"].winfo_exists():
                             row_state["weather_temp_label"].configure(text = weather_temp_text)
-                        if row_state.get("weather_temp_ghost_label") and row_state["weather_temp_ghost_label"].winfo_exists():
-                            row_state["weather_temp_ghost_label"].configure(text = _watch_temperature_ghost_text())
 
                 watch_cancel = self.root.after(1000, update_watch_display)
             except Exception:
@@ -41365,6 +42183,7 @@ class App:
         def exit_combat():
 
             nonlocal poll_cancel, reload_pending_id, watch_cancel
+            watch_runtime_active[0] = False
 
             if poll_cancel:
                 try:

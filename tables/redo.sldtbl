@@ -56311,7 +56311,8 @@
                 "music": true,
                 "playlist": ["market"],
                 "service_cost": {
-                    "repair": 100
+                    "part_repair": 100,
+                    "whole_gun_repair": 350
                 },
                 "display_in_program": false
             },
