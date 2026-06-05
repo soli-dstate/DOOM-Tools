@@ -1,7 +1,7 @@
 {
     "prettyname": "Larp of '24: The Re-up",
     "filename": "redo.sldtbl",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "additional_settings": {
         "bonus_clamp": 5,
         "stat_clamp": 4,
@@ -49421,7 +49421,7 @@
                 "weight": 0.8,
                 "id": 1726,
                 "attachment": true,
-                "slot": "picatinny_rifle",
+                "slot": "picatinny_optic",
                 "modes": [
                     {"name": "1.2x", "type": "magnification", "usage": null, "modifiers": null, "position": 0},
                     {"name": "2.4x", "type": "magnification", "usage": null, "modifiers": null, "position": 45},
@@ -49447,7 +49447,7 @@
                 "weight": 0.8,
                 "id": 1727,
                 "attachment": true,
-                "slot": "picatinny_rifle",
+                "slot": "picatinny_optic",
                 "modes": [
                     {"name": "3x", "type": "magnification", "usage": null, "modifiers": null, "position": 0},
                     {"name": "6x", "type": "magnification", "usage": null, "modifiers": null, "position": 45},
@@ -56292,7 +56292,7 @@
             {
                 "name": "Ammo Supplier",
                 "type": "ammo_supplier",
-                "shopkeeper": "Jane Doe",
+                "shopkeeper": "Kaitlyn 'Maple' LaClaire",
                 "music": true,
                 "playlist": ["market"],
                 "free_ammo": true,
@@ -56309,12 +56309,12 @@
                 "type": "gunsmith",
                 "shopkeeper": "Rosemonde 'Rose' Barbier",
                 "music": true,
-                "playlist": ["market"],
+                "playlist": ["rosana"],
                 "service_cost": {
                     "part_repair": 100,
                     "whole_gun_repair": 350
                 },
-                "display_in_program": false
+                "display_in_program": true
             },
             {
                 "name": "Weapons Merchant",

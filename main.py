@@ -5637,6 +5637,28 @@ class App:
         self.root.geometry(appearance_settings["resolution"])
         self.root.resizable(False, False)
 
+        # Multi-monitor support: auto-place every popup on the main window's
+        # monitor. Patch CTkToplevel once so any dialog that defaults to the
+        # primary display gets relocated after it is shown. Borderless overlays
+        # (flashbang/lightning) and popups already on the correct monitor are
+        # left untouched — see _reposition_popup_win32.
+        try:
+            if not getattr(customtkinter.CTkToplevel, "_doomtools_monitor_patch", False):
+                _orig_ctk_toplevel_init = customtkinter.CTkToplevel.__init__
+                _app_ref = self
+
+                def _doomtools_toplevel_init(tl_self, *args, **kwargs):
+                    _orig_ctk_toplevel_init(tl_self, *args, **kwargs)
+                    try:
+                        tl_self.after(0, lambda: _app_ref._reposition_popup_win32(tl_self))
+                    except Exception:
+                        pass
+
+                customtkinter.CTkToplevel.__init__ = _doomtools_toplevel_init
+                customtkinter.CTkToplevel._doomtools_monitor_patch = True
+        except Exception:
+            logging.exception("Failed to install multi-monitor popup patch")
+
         _original_report = self.root.report_callback_exception
         def _suppress_after_errors(exc_type, exc_value, exc_tb):
             msg = str(exc_value)
@@ -6516,6 +6538,86 @@ class App:
 
             self._add_item_to_container(container_items, stack_item)
 
+    def _get_window_monitor_rect(self, win = None):
+        """Return (left, top, width, height) of the monitor containing `win`.
+
+        Used so popups land on the same monitor as the main window instead of
+        always snapping to the primary display. Detection uses the window's
+        real HWND (MonitorFromWindow) — the same authoritative call CustomTkinter
+        uses for DPI — so it does not depend on Tk coordinate reporting.
+
+        On failure it falls back to the FULL virtual desktop (all monitors), not
+        the primary monitor, so a detection hiccup never force-pins popups back
+        to the primary display.
+        """
+        win = win or self.root
+
+        if platform.system() == "Windows":
+            try:
+                MONITOR_DEFAULTTONEAREST = 2
+
+                class RECT(ctypes.Structure):
+                    _fields_ = [("left", ctypes.c_long), ("top", ctypes.c_long),
+                                ("right", ctypes.c_long), ("bottom", ctypes.c_long)]
+
+                class MONITORINFO(ctypes.Structure):
+                    _fields_ = [("cbSize", ctypes.c_ulong), ("rcMonitor", RECT),
+                                ("rcWork", RECT), ("dwFlags", ctypes.c_ulong)]
+
+                user32 = ctypes.windll.user32
+                user32.GetParent.restype = ctypes.c_void_p
+                user32.GetParent.argtypes = [ctypes.c_void_p]
+                user32.MonitorFromWindow.restype = ctypes.c_void_p
+                user32.MonitorFromWindow.argtypes = [ctypes.c_void_p, ctypes.c_ulong]
+                user32.GetMonitorInfoW.argtypes = [ctypes.c_void_p, ctypes.POINTER(MONITORINFO)]
+
+                win.update_idletasks()
+                raw_id = ctypes.c_void_p(win.winfo_id())
+                parent = user32.GetParent(raw_id)
+                hwnd = ctypes.c_void_p(parent) if parent else raw_id
+
+                hmon = user32.MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST)
+                mi = MONITORINFO()
+                mi.cbSize = ctypes.sizeof(MONITORINFO)
+                if hmon and user32.GetMonitorInfoW(hmon, ctypes.byref(mi)):
+                    r = mi.rcMonitor
+                    w = r.right - r.left
+                    h = r.bottom - r.top
+                    if w > 0 and h > 0:
+                        logging.debug(f"_get_window_monitor_rect: monitor=({r.left},{r.top},{w},{h})")
+                        return (r.left, r.top, w, h)
+            except Exception:
+                logging.exception("_get_window_monitor_rect failed; using virtual screen")
+
+        # Fallback: whole virtual desktop, so we never snap a popup to primary.
+        return self._get_virtual_screen_rect()
+
+    def _get_virtual_screen_rect(self):
+        """Return (left, top, width, height) spanning ALL monitors.
+
+        A single overrideredirect window using this geometry covers every
+        display, so full-screen flashes (flashbang, lightning) hit both
+        monitors at once. Falls back to the primary screen on failure.
+        """
+        if platform.system() == "Windows":
+            try:
+                user32 = ctypes.windll.user32
+                SM_XVIRTUALSCREEN, SM_YVIRTUALSCREEN = 76, 77
+                SM_CXVIRTUALSCREEN, SM_CYVIRTUALSCREEN = 78, 79
+                vx = user32.GetSystemMetrics(SM_XVIRTUALSCREEN)
+                vy = user32.GetSystemMetrics(SM_YVIRTUALSCREEN)
+                vw = user32.GetSystemMetrics(SM_CXVIRTUALSCREEN)
+                vh = user32.GetSystemMetrics(SM_CYVIRTUALSCREEN)
+                if vw > 0 and vh > 0:
+                    return (vx, vy, vw, vh)
+            except Exception:
+                pass
+
+        try:
+            return (0, 0, self.root.winfo_screenwidth(), self.root.winfo_screenheight())
+        except Exception:
+            return (0, 0, 1920, 1080)
+
     def _center_popup_on_window(self, popup, width = None, height = None):
 
         try:
@@ -6534,18 +6636,121 @@ class App:
             x = root_x +(root_width //2)-(width //2)
             y = root_y +(root_height //2)-(height //2)
 
-            screen_width = popup.winfo_screenwidth()
-            screen_height = popup.winfo_screenheight()
-            x = max(0, min(x, screen_width -width))
-            y = max(0, min(y, screen_height -height))
+            # Clamp to the monitor the main window is on (not just the primary
+            # display) so popups stay on the correct screen in multi-monitor setups.
+            mon_left, mon_top, mon_w, mon_h = self._get_window_monitor_rect(self.root)
+            x = max(mon_left, min(x, mon_left + mon_w - width))
+            y = max(mon_top, min(y, mon_top + mon_h - height))
 
+            logging.debug(f"_center_popup_on_window: root=({root_x},{root_y},{root_width},{root_height}) "
+                          f"monitor=({mon_left},{mon_top},{mon_w},{mon_h}) popup={width}x{height}+{x}+{y}")
             popup.geometry(f"{width}x{height}+{x}+{y}")
+
+            # Tk's window coordinates can be skewed across monitors (mixed-DPI),
+            # and an un-positioned Toplevel defaults to the PRIMARY monitor. Once
+            # the popup is realized, re-place it physically with Win32 GetWindowRect
+            # + SetWindowPos (true screen pixels) so it lands on the main window's
+            # monitor regardless of what Tk reports.
+            try:
+                popup.after(0, lambda p = popup: self._reposition_popup_win32(p))
+            except Exception:
+                pass
         except Exception:
 
             try:
                 popup.geometry("+100+100")
             except Exception:
                 pass
+
+    def _reposition_popup_win32(self, popup):
+        """Center `popup` on the main window's monitor using raw Win32 calls.
+
+        Reads true physical screen rectangles via GetWindowRect (for both the
+        main window and the popup) and moves the popup with SetWindowPos. This
+        bypasses Tk/CTk coordinate reporting, which can place popups on the
+        wrong monitor in multi-monitor / mixed-DPI setups. No-op off Windows.
+        """
+        if platform.system() != "Windows":
+            return False
+        try:
+            if not popup.winfo_exists():
+                return False
+        except Exception:
+            return False
+
+        # Never move borderless full-screen overlays (flashbang/lightning) — they
+        # are intentionally sized to span every monitor.
+        try:
+            if bool(popup.overrideredirect()):
+                return False
+        except Exception:
+            pass
+
+        try:
+            user32 = ctypes.windll.user32
+
+            class RECT(ctypes.Structure):
+                _fields_ = [("left", ctypes.c_long), ("top", ctypes.c_long),
+                            ("right", ctypes.c_long), ("bottom", ctypes.c_long)]
+
+            user32.GetParent.restype = ctypes.c_void_p
+            user32.GetParent.argtypes = [ctypes.c_void_p]
+            user32.GetWindowRect.argtypes = [ctypes.c_void_p, ctypes.POINTER(RECT)]
+            user32.GetWindowRect.restype = ctypes.c_int
+            user32.SetWindowPos.argtypes = [ctypes.c_void_p, ctypes.c_void_p,
+                                            ctypes.c_int, ctypes.c_int, ctypes.c_int,
+                                            ctypes.c_int, ctypes.c_uint]
+
+            def _top_hwnd(win):
+                raw = ctypes.c_void_p(win.winfo_id())
+                parent = user32.GetParent(raw)
+                return ctypes.c_void_p(parent) if parent else raw
+
+            root_hwnd = _top_hwnd(self.root)
+            popup_hwnd = _top_hwnd(popup)
+
+            rr = RECT()
+            pr = RECT()
+            if not user32.GetWindowRect(root_hwnd, ctypes.byref(rr)):
+                return False
+            if not user32.GetWindowRect(popup_hwnd, ctypes.byref(pr)):
+                return False
+
+            pw = pr.right - pr.left
+            ph = pr.bottom - pr.top
+            if pw <= 1 or ph <= 1:
+                return False
+
+            mon_left, mon_top, mon_w, mon_h = self._get_window_monitor_rect(self.root)
+
+            # Only relocate popups that actually landed on a DIFFERENT monitor than
+            # the main window. If the popup is already on the correct monitor, leave
+            # its position untouched so intentionally-placed dialogs aren't disturbed.
+            popup_cx = pr.left + (pr.right - pr.left) // 2
+            popup_cy = pr.top + (pr.bottom - pr.top) // 2
+            if (mon_left <= popup_cx < mon_left + mon_w
+                    and mon_top <= popup_cy < mon_top + mon_h):
+                return False
+
+            cx = rr.left + (rr.right - rr.left) // 2
+            cy = rr.top + (rr.bottom - rr.top) // 2
+            x = cx - (pw // 2)
+            y = cy - (ph // 2)
+
+            x = max(mon_left, min(x, mon_left + mon_w - pw))
+            y = max(mon_top, min(y, mon_top + mon_h - ph))
+
+            SWP_NOSIZE = 0x0001
+            SWP_NOZORDER = 0x0004
+            SWP_NOACTIVATE = 0x0010
+            user32.SetWindowPos(popup_hwnd, None, int(x), int(y), 0, 0,
+                                SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE)
+            logging.debug(f"_reposition_popup_win32: root_rect=({rr.left},{rr.top},{rr.right},{rr.bottom}) "
+                          f"popup={pw}x{ph} monitor=({mon_left},{mon_top},{mon_w},{mon_h}) -> +{x}+{y}")
+            return True
+        except Exception:
+            logging.exception("_reposition_popup_win32 failed")
+            return False
 
     def _popup_show_info(self, title, message, sound = "popup"):
         self._play_ui_sound(sound)
@@ -9872,6 +10077,53 @@ class App:
                     looted_grains = random.randint(max(1, int(full_grains * 0.2)), full_grains)
                     item["grains_left"] = looted_grains
                     _rescale_blackpowder_weight(item, full_grains_hint = full_grains, full_weight_hint = item.get("weight"))
+
+            # Looted standalone weapon parts can define durability at loot-time.
+            if not item.get("firearm"):
+                dur_val = item.get("durability")
+                dur_txt = str(dur_val).strip().lower() if dur_val is not None else ""
+                if dur_txt == "set_by_looting":
+                    cur_dur = item.get("current_durability")
+                    try:
+                        has_numeric_cur = cur_dur is not None and not math.isnan(float(cur_dur))
+                    except(Exception, ValueError, TypeError):
+                        has_numeric_cur = False
+                    if not has_numeric_cur:
+                        item["current_durability"] = round(
+                            random.uniform(PART_DURABILITY_MAX * 0.15, PART_DURABILITY_MAX),
+                            2,
+                        )
+
+            # Looted standalone ammunition needs a concrete variant selected
+            # (weighted by variant rarity) so it doesn't carry the raw variant
+            # list into inventory with no variant chosen. Magazines/firearms are
+            # excluded; their rounds are filled separately below.
+            if (isinstance(item.get("variants"), list) and item.get("variants")
+                    and not item.get("firearm") and not item.get("magazinesystem")
+                    and not item.get("variant")):
+                ammo_variants = [v for v in item.get("variants", []) if isinstance(v, dict)]
+                if ammo_variants:
+                    rarity_weights = (table_data or {}).get("rarity_weights", {})
+                    variant_weights = []
+                    for var in ammo_variants:
+                        v_rarity = var.get("rarity") or item.get("rarity") or "Common"
+                        try:
+                            w = float(rarity_weights.get(v_rarity, 1)) or 1.0
+                        except(TypeError, ValueError):
+                            w = 1.0
+                        variant_weights.append(max(0.0001, w))
+                    chosen_variant = random.choices(ammo_variants, weights = variant_weights, k = 1)[0]
+                    cal = item.get("caliber")
+                    if isinstance(cal, (list, tuple)):
+                        cal_str = ", ".join(str(c).strip() for c in cal if str(c).strip())
+                    else:
+                        cal_str = str(cal).strip() if cal else ""
+                    vname = str(chosen_variant.get("name") or chosen_variant.get("type") or "FMJ")
+                    item["variant"] = vname
+                    if cal_str:
+                        item["name"] = f"{vname} ({cal_str})"
+                    _apply_ammo_variant_data(item, item, chosen_variant)
+                    item.pop("variants", None)
 
             if table_data and item.get("capacity")and item.get("magazinesystem")and not item.get("firearm"):
 
@@ -29261,9 +29513,8 @@ class App:
             try:
                 ov = customtkinter.CTkToplevel(self.root)
                 ov.overrideredirect(True)
-                sw = self.root.winfo_screenwidth()
-                sh = self.root.winfo_screenheight()
-                ov.geometry(f"{sw}x{sh}+0+0")
+                vx, vy, vw, vh = self._get_virtual_screen_rect()
+                ov.geometry(f"{vw}x{vh}+{vx}+{vy}")
                 try:
                     ov.attributes('-topmost', True)
                 except Exception:
@@ -30178,7 +30429,7 @@ class App:
                             pass
 
                     info_row = customtkinter.CTkFrame(row, fg_color = "#313B21")
-                    info_row.pack(fill = "x", padx = 8, pady =(0, 6))
+                    info_row.pack(anchor = "w", padx = 8, pady =(0, 6))
 
                     time_stack = customtkinter.CTkFrame(info_row, fg_color = "transparent", width = 240, height = 52)
                     time_stack.pack(side = "left", padx =(8, 6), pady = 5)
@@ -30229,7 +30480,7 @@ class App:
                         height = 28,
                         font = customtkinter.CTkFont(size = 9, weight = "bold")
                     )
-                    beep_toggle_btn.pack(side = "right", padx =(0, 6), pady = 5)
+                    beep_toggle_btn.pack(side = "left", padx =(0, 6), pady = 5)
                 else:
                     analog_canvas = customtkinter.CTkCanvas(
                         row,
@@ -39966,9 +40217,8 @@ class App:
                         try:
                             ov = customtkinter.CTkToplevel(self.root)
                             ov.overrideredirect(True)
-                            sw = self.root.winfo_screenwidth()
-                            sh = self.root.winfo_screenheight()
-                            ov.geometry(f"{sw}x{sh}+0+0")
+                            vx, vy, vw, vh = self._get_virtual_screen_rect()
+                            ov.geometry(f"{vw}x{vh}+{vx}+{vy}")
                             try:
                                 ov.attributes('-topmost', True)
                             except Exception:
@@ -40111,9 +40361,8 @@ class App:
                     try:
                         ov = customtkinter.CTkToplevel(self.root)
                         ov.overrideredirect(True)
-                        sw = self.root.winfo_screenwidth()
-                        sh = self.root.winfo_screenheight()
-                        ov.geometry(f"{sw}x{sh}+0+0")
+                        vx, vy, vw, vh = self._get_virtual_screen_rect()
+                        ov.geometry(f"{vw}x{vh}+{vx}+{vy}")
                         try:
                             ov.attributes('-topmost', True)
                         except Exception:
@@ -40215,9 +40464,8 @@ class App:
                     try:
                         ov = customtkinter.CTkToplevel(self.root)
                         ov.overrideredirect(True)
-                        sw = self.root.winfo_screenwidth()
-                        sh = self.root.winfo_screenheight()
-                        ov.geometry(f"{sw}x{sh}+0+0")
+                        vx, vy, vw, vh = self._get_virtual_screen_rect()
+                        ov.geometry(f"{vw}x{vh}+{vx}+{vy}")
                         try:
                             ov.attributes('-topmost', True)
                         except Exception:
