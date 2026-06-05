@@ -1,4 +1,4 @@
-version = "2.0.5"
+version = "2.0.6"
 current_resource_link = "https://files.catbox.moe/qpyv1e.zip"
 import os
 import logging
