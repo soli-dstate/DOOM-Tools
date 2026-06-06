@@ -4583,32 +4583,32 @@
             "temperature_f": 61.5,
             "hourly": {
                 "00": {
-                    "weather": "clear",
+                    "weather": "thunderstorm",
                     "wind_severity": 0,
                     "temperature_f": 67.1
                 },
                 "01": {
-                    "weather": "clear",
+                    "weather": "thunderstorm",
                     "wind_severity": 0,
                     "temperature_f": 64.9
                 },
                 "02": {
-                    "weather": "clear",
+                    "weather": "thunderstorm",
                     "wind_severity": 0,
                     "temperature_f": 65.7
                 },
                 "03": {
-                    "weather": "clear",
+                    "weather": "thunderstorm",
                     "wind_severity": 0,
                     "temperature_f": 65.6
                 },
                 "04": {
-                    "weather": "clear",
+                    "weather": "thunderstorm",
                     "wind_severity": 0,
                     "temperature_f": 65.6
                 },
                 "05": {
-                    "weather": "clear",
+                    "weather": "thunderstorm",
                     "wind_severity": 0,
                     "temperature_f": 66.3
                 },
