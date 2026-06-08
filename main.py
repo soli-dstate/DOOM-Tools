@@ -271,6 +271,26 @@ def _cloud_credential_file_candidates():
     return candidates
 
 
+def _cloud_credentials_source():
+    """Where valid credentials came from (for diagnostics); never returns the secret."""
+    if os.getenv("DOOMTOOLS_GDRIVE_CLIENT_ID", "").strip() and os.getenv("DOOMTOOLS_GDRIVE_CLIENT_SECRET", "").strip():
+        return "env vars"
+    seen = set()
+    for path in _cloud_credential_file_candidates():
+        ap = os.path.abspath(path)
+        if ap in seen:
+            continue
+        seen.add(ap)
+        try:
+            if os.path.exists(path):
+                data = json.load(open(path, "r", encoding="utf-8"))
+                if str(data.get("client_id", "")).strip() and str(data.get("client_secret", "")).strip():
+                    return f"file: {path}"
+        except Exception:
+            pass
+    return None
+
+
 def _load_cloud_credentials():
     cid = os.getenv("DOOMTOOLS_GDRIVE_CLIENT_ID", "").strip()
     csecret = os.getenv("DOOMTOOLS_GDRIVE_CLIENT_SECRET", "").strip()
@@ -6232,6 +6252,24 @@ class App:
             logging.exception('Error while syncing equipment slots')
             return data
     def __init__(self):
+        # Diagnostic: record cloud-saves config so release-vs-local issues are
+        # visible in the log (frozen builds set sys._MEIPASS; source mode does not).
+        try:
+            frozen = getattr(sys, "frozen", False)
+            meipass = getattr(sys, "_MEIPASS", None)
+            if cloud_is_configured():
+                logging.info(f"Cloud saves configured (credentials from {_cloud_credentials_source()}; "
+                             f"frozen={frozen}).")
+            else:
+                logging.warning(
+                    "Cloud saves NOT configured: no Google credentials found "
+                    f"(frozen={frozen}, _MEIPASS={meipass!r}). On a release build this means the "
+                    "GDRIVE_CLIENT_ID/SECRET GitHub Actions secrets were missing at build time; "
+                    "if frozen=False you are running from source, which never bundles credentials."
+                )
+        except Exception:
+            logging.exception("Cloud config diagnostic failed")
+
         customtkinter.set_appearance_mode(appearance_settings["appearance_mode"])
 
         theme_name = appearance_settings["color_theme"]

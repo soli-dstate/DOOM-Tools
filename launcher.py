@@ -34,6 +34,7 @@ except Exception:
 OWNER = "soli-dstate"
 REPO = "DOOM-Tools"
 GITHUB_API_RELEASE = f"https://api.github.com/repos/{OWNER}/{REPO}/releases/latest"
+GITHUB_API_RELEASES = f"https://api.github.com/repos/{OWNER}/{REPO}/releases"
 GITHUB_RAW_MAIN = f"https://raw.githubusercontent.com/{OWNER}/{REPO}/master/main.py"
 
 APP_NAME = "DOOM-Tools Launcher"
@@ -53,6 +54,7 @@ DEFAULT_LAUNCH_SETTINGS = {
     "debug": False,
     "dmmode": False,
     "keep_console_open": False,
+    "use_prerelease": False,
 }
 
 SOURCE_COPY_DIRS = ("tables", "themes", "fonts")
@@ -366,13 +368,31 @@ def _request_with_retry(
     raise LauncherError(f"Failed to fetch URL after retries: {url} | {last_error}")
 
 
-def fetch_latest_release() -> dict:
-    with _request_with_retry(
-        GITHUB_API_RELEASE,
-        timeout=20,
-        headers={"Accept": "application/vnd.github+json"},
-    ) as response:
-        data = response.json()
+def fetch_latest_release(include_prerelease: bool = False) -> dict:
+    if include_prerelease:
+        with _request_with_retry(
+            GITHUB_API_RELEASES,
+            timeout=20,
+            headers={"Accept": "application/vnd.github+json"},
+        ) as response:
+            releases = response.json()
+        if not isinstance(releases, list):
+            raise LauncherError("Releases list response was not a list")
+        # The API returns releases newest-first; pick the most recent published
+        # (non-draft) release, which may be a prerelease.
+        data = next(
+            (r for r in releases if isinstance(r, dict) and not r.get("draft")),
+            None,
+        )
+        if data is None:
+            raise LauncherError("No published releases found")
+    else:
+        with _request_with_retry(
+            GITHUB_API_RELEASE,
+            timeout=20,
+            headers={"Accept": "application/vnd.github+json"},
+        ) as response:
+            data = response.json()
     tag = str(data.get("tag_name", "")).strip()
     zipball_url = str(data.get("zipball_url", "")).strip()
     assets = data.get("assets", [])
@@ -933,6 +953,7 @@ def prepare_or_update(
     logger,
     progress=None,
     transfer=None,
+    use_prerelease: bool = False,
 ) -> tuple[list[str], Path, dict]:
     def report(step: int, status: str, detail: str = "") -> None:
         if progress:
@@ -945,8 +966,11 @@ def prepare_or_update(
     state = load_json(state_path)
 
     report(0, "Checking release", "Checking latest GitHub release metadata")
-    logger("Checking latest GitHub release...")
-    release = fetch_latest_release()
+    if use_prerelease:
+        logger("Checking latest GitHub release (pre-releases included)...")
+    else:
+        logger("Checking latest GitHub release...")
+    release = fetch_latest_release(include_prerelease=use_prerelease)
     latest_tag = release["tag"]
 
     source_root = cache_dir / SOURCE_DIR_NAME / latest_tag
@@ -1200,8 +1224,9 @@ class LauncherUI:
 
     def _refresh_launch_options_label(self) -> None:
         console_mode = "on" if self.launch_settings.get("keep_console_open", False) else "off"
+        channel = "pre-release" if self.launch_settings.get("use_prerelease", False) else "stable"
         self.options_label.configure(
-            text=f"Launch options: {self._launch_flags_text()} | console: {console_mode}"
+            text=f"Launch options: {self._launch_flags_text()} | console: {console_mode} | channel: {channel}"
         )
 
     def _open_settings_dialog(self) -> None:
@@ -1232,10 +1257,24 @@ class LauncherUI:
         debug_var = tk.BooleanVar(value=self.launch_settings.get("debug", False))
         dmmode_var = tk.BooleanVar(value=self.launch_settings.get("dmmode", False))
         console_var = tk.BooleanVar(value=self.launch_settings.get("keep_console_open", False))
+        prerelease_var = tk.BooleanVar(value=self.launch_settings.get("use_prerelease", False))
 
         ttk.Checkbutton(flags_group, text="Enable Dev Mode (--dev)", variable=devmode_var).pack(anchor=W)
         ttk.Checkbutton(flags_group, text="Enable Debug Mode (--debug)", variable=debug_var).pack(anchor=W)
         ttk.Checkbutton(flags_group, text="Enable DM Mode (--dm)", variable=dmmode_var).pack(anchor=W)
+
+        updates_group = ttk.LabelFrame(frame, text="Updates", padding=(10, 8, 10, 8))
+        updates_group.pack(fill="x", pady=(10, 0))
+        ttk.Checkbutton(
+            updates_group,
+            text="Use pre-release builds",
+            variable=prerelease_var,
+        ).pack(anchor=W)
+        ttk.Label(
+            updates_group,
+            text="Installs the newest release including pre-releases (alpha/beta/rc). May be unstable.",
+            style="Subtle.TLabel",
+        ).pack(anchor=W, pady=(4, 0))
 
         console_group = ttk.LabelFrame(frame, text="Console", padding=(10, 8, 10, 8))
         console_group.pack(fill="x", pady=(10, 0))
@@ -1259,6 +1298,7 @@ class LauncherUI:
                 "debug": bool(debug_var.get()),
                 "dmmode": bool(dmmode_var.get()),
                 "keep_console_open": bool(console_var.get()),
+                "use_prerelease": bool(prerelease_var.get()),
             }
             self._save_launch_settings()
             self._refresh_launch_options_label()
@@ -1419,6 +1459,7 @@ class LauncherUI:
                 self.log,
                 progress=self.set_progress,
                 transfer=self.set_transfer,
+                use_prerelease=self.launch_settings.get("use_prerelease", False),
             )
             self.runtime_launch_cmd = launch_cmd
             self.runtime_cwd = launch_cwd
