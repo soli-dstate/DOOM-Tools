@@ -1,7 +1,7 @@
 {
     "prettyname": "Larp of '24: The Re-up",
     "filename": "redo.sldtbl",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "additional_settings": {
         "bonus_clamp": 5,
         "stat_clamp": 4,
@@ -54768,8 +54768,7 @@
                 "uses_left": 20,
                 "lighting_device_required": true,
                 "shop_category": "Consumables",
-                "shop_subcategory": "Tobacco Products",
-                "armory_category": "Rifle"
+                "shop_subcategory": "Tobacco Products"
             },
             {
                 "name": "Altria Marlboro Black Cigarette Pack",
@@ -54788,8 +54787,7 @@
                 "uses_left": 20,
                 "lighting_device_required": true,
                 "shop_category": "Consumables",
-                "shop_subcategory": "Tobacco Products",
-                "armory_category": "Rifle"
+                "shop_subcategory": "Tobacco Products"
             },
             {
                 "name": "British American Tobacco Newport Cigarette Pack",
@@ -54808,8 +54806,7 @@
                 "uses_left": 20,
                 "lighting_device_required": true,
                 "shop_category": "Consumables",
-                "shop_subcategory": "Tobacco Products",
-                "armory_category": "Rifle"
+                "shop_subcategory": "Tobacco Products"
             },
             {
                 "name": "British American Tobacco Newport Reds Cigarette Pack",
@@ -54828,8 +54825,7 @@
                 "uses_left": 20,
                 "lighting_device_required": true,
                 "shop_category": "Consumables",
-                "shop_subcategory": "Tobacco Products",
-                "armory_category": "Rifle"
+                "shop_subcategory": "Tobacco Products"
             },
             {
                 "name": "British American Tobacco Camel Filter Cigarette Pack",
@@ -54848,8 +54844,7 @@
                 "uses_left": 20,
                 "lighting_device_required": true,
                 "shop_category": "Consumables",
-                "shop_subcategory": "Tobacco Products",
-                "armory_category": "Rifle"
+                "shop_subcategory": "Tobacco Products"
             },
             {
                 "name": "British American Tobacco Camel Crush Cigarette Pack",
@@ -54868,8 +54863,7 @@
                 "uses_left": 20,
                 "lighting_device_required": true,
                 "shop_category": "Consumables",
-                "shop_subcategory": "Tobacco Products",
-                "armory_category": "Rifle"
+                "shop_subcategory": "Tobacco Products"
             },
             {
                 "name": "British American Tobacco Camel Turkish Royal Cigarette Pack",
@@ -54888,8 +54882,7 @@
                 "uses_left": 20,
                 "lighting_device_required": true,
                 "shop_category": "Consumables",
-                "shop_subcategory": "Tobacco Products",
-                "armory_category": "Rifle"
+                "shop_subcategory": "Tobacco Products"
             },
             {
                 "name": "British American Tobacco Pall Mall Red Cigarette Pack",
@@ -54908,8 +54901,7 @@
                 "uses_left": 20,
                 "lighting_device_required": true,
                 "shop_category": "Consumables",
-                "shop_subcategory": "Tobacco Products",
-                "armory_category": "Rifle"
+                "shop_subcategory": "Tobacco Products"
             },
             {
                 "name": "British American Tobacco Pall Mall Green Cigarette Pack",
@@ -54928,8 +54920,7 @@
                 "uses_left": 20,
                 "lighting_device_required": true,
                 "shop_category": "Consumables",
-                "shop_subcategory": "Tobacco Products",
-                "armory_category": "Rifle"
+                "shop_subcategory": "Tobacco Products"
             },
             {
                 "name": "ITG Brands Winston Red Cigarette Pack",
@@ -54948,8 +54939,7 @@
                 "uses_left": 20,
                 "lighting_device_required": true,
                 "shop_category": "Consumables",
-                "shop_subcategory": "Tobacco Products",
-                "armory_category": "Rifle"
+                "shop_subcategory": "Tobacco Products"
             },
             {
                 "name": "Altria L&M Red Cigarette Pack",
@@ -54968,8 +54958,7 @@
                 "uses_left": 20,
                 "lighting_device_required": true,
                 "shop_category": "Consumables",
-                "shop_subcategory": "Tobacco Products",
-                "armory_category": "Rifle"
+                "shop_subcategory": "Tobacco Products"
             },
             {
                 "name": "Altria L&M Green Cigarette Pack",
@@ -54988,8 +54977,7 @@
                 "uses_left": 20,
                 "lighting_device_required": true,
                 "shop_category": "Consumables",
-                "shop_subcategory": "Tobacco Products",
-                "armory_category": "Rifle"
+                "shop_subcategory": "Tobacco Products"
             },
             {
                 "name": "ITG Brands Maverick Red Cigarette Pack",
@@ -55008,8 +54996,7 @@
                 "uses_left": 20,
                 "lighting_device_required": true,
                 "shop_category": "Consumables",
-                "shop_subcategory": "Tobacco Products",
-                "armory_category": "Rifle"
+                "shop_subcategory": "Tobacco Products"
             },
             {
                 "name": "Liggett Group Pyramid Red Cigarette Pack",
@@ -55028,8 +55015,7 @@
                 "uses_left": 20,
                 "lighting_device_required": true,
                 "shop_category": "Consumables",
-                "shop_subcategory": "Tobacco Products",
-                "armory_category": "Rifle"
+                "shop_subcategory": "Tobacco Products"
             },
             {
                 "name": "ITG Brands Kool Filters Cigarette Pack",
@@ -55048,8 +55034,7 @@
                 "uses_left": 20,
                 "lighting_device_required": true,
                 "shop_category": "Consumables",
-                "shop_subcategory": "Tobacco Products",
-                "armory_category": "Rifle"
+                "shop_subcategory": "Tobacco Products"
             },
             {
                 "name": "ITG Brands Misty Blue Cigarette Pack",
@@ -55068,8 +55053,7 @@
                 "uses_left": 20,
                 "lighting_device_required": true,
                 "shop_category": "Consumables",
-                "shop_subcategory": "Tobacco Products",
-                "armory_category": "Rifle"
+                "shop_subcategory": "Tobacco Products"
             },
             {
                 "name": "British American Tobacco Lucky Strike Red Cigarette Pack",
@@ -55088,8 +55072,7 @@
                 "uses_left": 20,
                 "lighting_device_required": true,
                 "shop_category": "Consumables",
-                "shop_subcategory": "Tobacco Products",
-                "armory_category": "Rifle"
+                "shop_subcategory": "Tobacco Products"
             },
             {
                 "name": "Coca-Cola Company Coca-Cola Classic 12-Pack",
@@ -55106,8 +55089,7 @@
                 "used_up": true,
                 "uses_left": 12,
                 "shop_category": "Consumables",
-                "shop_subcategory": "Soft Drinks",
-                "armory_category": "Rifle"
+                "shop_subcategory": "Soft Drinks"
             },
             {
                 "name": "Coca-Cola Company Coca-Cola Classic Bottle",
@@ -55124,8 +55106,7 @@
                 "used_up": true,
                 "uses_left": 1,
                 "shop_category": "Consumables",
-                "shop_subcategory": "Soft Drinks",
-                "armory_category": "Rifle"
+                "shop_subcategory": "Soft Drinks"
             },
             {
                 "name": "Keurig-Dr Pepper Dr. Pepper 12-Pack",
@@ -55142,8 +55123,7 @@
                 "used_up": true,
                 "uses_left": 12,
                 "shop_category": "Consumables",
-                "shop_subcategory": "Soft Drinks",
-                "armory_category": "Rifle"
+                "shop_subcategory": "Soft Drinks"
             },
             {
                 "name": "Keurig-Dr Pepper Dr. Pepper Bottle",
@@ -55160,8 +55140,7 @@
                 "used_up": true,
                 "uses_left": 1,
                 "shop_category": "Consumables",
-                "shop_subcategory": "Soft Drinks",
-                "armory_category": "Rifle"
+                "shop_subcategory": "Soft Drinks"
             },
             {
                 "name": "PepsiCo Pepsi 12-Pack",
@@ -55178,8 +55157,7 @@
                 "used_up": true,
                 "uses_left": 12,
                 "shop_category": "Consumables",
-                "shop_subcategory": "Soft Drinks",
-                "armory_category": "Rifle"
+                "shop_subcategory": "Soft Drinks"
             },
             {
                 "name": "PepsiCo Pepsi Bottle",
@@ -55196,8 +55174,7 @@
                 "used_up": true,
                 "uses_left": 1,
                 "shop_category": "Consumables",
-                "shop_subcategory": "Soft Drinks",
-                "armory_category": "Rifle"
+                "shop_subcategory": "Soft Drinks"
             },
             {
                 "name": "Coca-Cola Company Diet Coke 12-Pack",
@@ -55214,8 +55191,7 @@
                 "used_up": true,
                 "uses_left": 12,
                 "shop_category": "Consumables",
-                "shop_subcategory": "Soft Drinks",
-                "armory_category": "Rifle"
+                "shop_subcategory": "Soft Drinks"
             },
             {
                 "name": "Coca-Cola Company Diet Coke Bottle",
@@ -55232,8 +55208,7 @@
                 "used_up": true,
                 "uses_left": 1,
                 "shop_category": "Consumables",
-                "shop_subcategory": "Soft Drinks",
-                "armory_category": "Rifle"
+                "shop_subcategory": "Soft Drinks"
             },
             {
                 "name": "Coca-Cola Company Sprite 12-Pack",
@@ -55250,8 +55225,7 @@
                 "used_up": true,
                 "uses_left": 12,
                 "shop_category": "Consumables",
-                "shop_subcategory": "Soft Drinks",
-                "armory_category": "Rifle"
+                "shop_subcategory": "Soft Drinks"
             },
             {
                 "name": "Coca-Cola Company Sprite Bottle",
@@ -55268,8 +55242,7 @@
                 "used_up": true,
                 "uses_left": 1,
                 "shop_category": "Consumables",
-                "shop_subcategory": "Soft Drinks",
-                "armory_category": "Rifle"
+                "shop_subcategory": "Soft Drinks"
             },
             {
                 "name": "PepsiCo Mountain Dew 12-Pack",
@@ -55286,8 +55259,7 @@
                 "used_up": true,
                 "uses_left": 12,
                 "shop_category": "Consumables",
-                "shop_subcategory": "Soft Drinks",
-                "armory_category": "Rifle"
+                "shop_subcategory": "Soft Drinks"
             },
             {
                 "name": "Coca-Cola Company Coke Zero Sugar 12-Pack",
@@ -55304,8 +55276,7 @@
                 "used_up": true,
                 "uses_left": 12,
                 "shop_category": "Consumables",
-                "shop_subcategory": "Soft Drinks",
-                "armory_category": "Rifle"
+                "shop_subcategory": "Soft Drinks"
             },
             {
                 "name": "Coca-Cola Company Coke Zero Sugar Bottle",
@@ -55322,8 +55293,7 @@
                 "used_up": true,
                 "uses_left": 1,
                 "shop_category": "Consumables",
-                "shop_subcategory": "Soft Drinks",
-                "armory_category": "Rifle"
+                "shop_subcategory": "Soft Drinks"
             },
             {
                 "name": "PepsiCo Diet Pepsi 12-Pack",
@@ -55340,8 +55310,7 @@
                 "used_up": true,
                 "uses_left": 12,
                 "shop_category": "Consumables",
-                "shop_subcategory": "Soft Drinks",
-                "armory_category": "Rifle"
+                "shop_subcategory": "Soft Drinks"
             },
             {
                 "name": "Coca-Cola Company Fanta Orange 12-Pack",
@@ -55358,8 +55327,7 @@
                 "used_up": true,
                 "uses_left": 12,
                 "shop_category": "Consumables",
-                "shop_subcategory": "Soft Drinks",
-                "armory_category": "Rifle"
+                "shop_subcategory": "Soft Drinks"
             },
             {
                 "name": "Coca-Cola Company Fanta Orange Bottle",
@@ -55376,8 +55344,7 @@
                 "used_up": true,
                 "uses_left": 1,
                 "shop_category": "Consumables",
-                "shop_subcategory": "Soft Drinks",
-                "armory_category": "Rifle"
+                "shop_subcategory": "Soft Drinks"
             },
             {
                 "name": "Keurig-Dr Pepper Diet Dr. Pepper 12-Pack",
@@ -55394,8 +55361,7 @@
                 "used_up": true,
                 "uses_left": 12,
                 "shop_category": "Consumables",
-                "shop_subcategory": "Soft Drinks",
-                "armory_category": "Rifle"
+                "shop_subcategory": "Soft Drinks"
             },
             {
                 "name": "Keurig-Dr Pepper Diet Dr. Pepper Bottle",
@@ -55412,8 +55378,177 @@
                 "used_up": true,
                 "uses_left": 1,
                 "shop_category": "Consumables",
-                "shop_subcategory": "Soft Drinks",
-                "armory_category": "Rifle"
+                "shop_subcategory": "Soft Drinks"
+            },
+            {
+                "name": "Red Bull GmbH Red Bull Original Energy Drink Can",
+                "value": 2.94,
+                "description": "A 12 fl oz (355 ml) can of Red Bull Original, the classic energy drink known for its signature taste and blend of caffeine, taurine, and B-vitamins that 'gives you wings'.",
+                "rarity": "Common",
+                "weight": 0.4,
+                "id": 2149,
+                "consumable": true,
+                "consumable_sounds": [
+                    "drinkcanopen.ogg",
+                    "drink.ogg"
+                ],
+                "used_up": true,
+                "uses_left": 1,
+                "shop_category": "Consumables",
+                "shop_subcategory": "Energy Drinks"
+            },
+            {
+                "name": "Red Bull GmbH Red Bull Sugarfree Energy Drink Can",
+                "value": 2.94,
+                "description": "A 12 fl oz (355 ml) can of Red Bull Sugarfree, a sugar-free and calorie-conscious version of the classic energy drink that delivers the same caffeine and taurine kick without the sugar.",
+                "rarity": "Common",
+                "weight": 0.4,
+                "id": 2150,
+                "consumable": true,
+                "consumable_sounds": [
+                    "drinkcanopen.ogg",
+                    "drink.ogg"
+                ],
+                "used_up": true,
+                "uses_left": 1,
+                "shop_category": "Consumables",
+                "shop_subcategory": "Energy Drinks"
+            },
+            {
+                "name": "Monster Beverage Monster Energy Original Green Can",
+                "value": 2.68,
+                "description": "A 16 fl oz (473 ml) can of Monster Energy Original, the bold green-canned energy drink known for its heavy caffeine load and smooth, sweet flavor.",
+                "rarity": "Common",
+                "weight": 0.52,
+                "id": 2151,
+                "consumable": true,
+                "consumable_sounds": [
+                    "drinkcanopen.ogg",
+                    "drink.ogg"
+                ],
+                "used_up": true,
+                "uses_left": 1,
+                "shop_category": "Consumables",
+                "shop_subcategory": "Energy Drinks"
+            },
+            {
+                "name": "Monster Beverage Monster Energy Zero Ultra Can",
+                "value": 2.68,
+                "description": "A 16 fl oz (473 ml) can of Monster Energy Zero Ultra, the white-canned sugar-free variant prized for its light, crisp, citrus-forward flavor and full energy blend.",
+                "rarity": "Common",
+                "weight": 0.52,
+                "id": 2152,
+                "consumable": true,
+                "consumable_sounds": [
+                    "drinkcanopen.ogg",
+                    "drink.ogg"
+                ],
+                "used_up": true,
+                "uses_left": 1,
+                "shop_category": "Consumables",
+                "shop_subcategory": "Energy Drinks"
+            },
+            {
+                "name": "Monster Beverage Juice Monster Mango Loco Can",
+                "value": 2.68,
+                "description": "A 16 fl oz (473 ml) can of Juice Monster Mango Loco, a tropical juice-blend energy drink bursting with exotic mango flavor alongside the signature Monster energy blend.",
+                "rarity": "Common",
+                "weight": 0.52,
+                "id": 2153,
+                "consumable": true,
+                "consumable_sounds": [
+                    "drinkcanopen.ogg",
+                    "drink.ogg"
+                ],
+                "used_up": true,
+                "uses_left": 1,
+                "shop_category": "Consumables",
+                "shop_subcategory": "Energy Drinks"
+            },
+            {
+                "name": "Monster Beverage Monster Rehab Tea + Lemonade Can",
+                "value": 2.68,
+                "description": "A 15.5 fl oz (458 ml) can of Monster Rehab Tea + Lemonade, a non-carbonated energy drink combining iced tea, lemonade, and electrolytes for a refreshing, hydrating boost.",
+                "rarity": "Common",
+                "weight": 0.5,
+                "id": 2154,
+                "consumable": true,
+                "consumable_sounds": [
+                    "drinkcanopen.ogg",
+                    "drink.ogg"
+                ],
+                "used_up": true,
+                "uses_left": 1,
+                "shop_category": "Consumables",
+                "shop_subcategory": "Energy Drinks"
+            },
+            {
+                "name": "Ghost Lifestyle Ghost Energy Sour Patch Kids Blue Raspberry Can",
+                "value": 2.48,
+                "description": "A 16 fl oz (473 ml) can of Ghost Energy Sour Patch Kids Blue Raspberry, an officially licensed candy-flavored energy drink with a sour-then-sweet blue raspberry kick.",
+                "rarity": "Common",
+                "weight": 0.52,
+                "id": 2155,
+                "consumable": true,
+                "consumable_sounds": [
+                    "drinkcanopen.ogg",
+                    "drink.ogg"
+                ],
+                "used_up": true,
+                "uses_left": 1,
+                "shop_category": "Consumables",
+                "shop_subcategory": "Energy Drinks"
+            },
+            {
+                "name": "Celsius Holdings Alani Nu Cosmic Stardust Can",
+                "value": 2.48,
+                "description": "A 12 fl oz (355 ml) can of Alani Nu Cosmic Stardust, a sugar-free energy drink with a sweet, fruity cotton-candy-inspired flavor and a smooth caffeine boost.",
+                "rarity": "Common",
+                "weight": 0.4,
+                "id": 2156,
+                "consumable": true,
+                "consumable_sounds": [
+                    "drinkcanopen.ogg",
+                    "drink.ogg"
+                ],
+                "used_up": true,
+                "uses_left": 1,
+                "shop_category": "Consumables",
+                "shop_subcategory": "Energy Drinks"
+            },
+            {
+                "name": "Celsius Holdings Celsius Sparkling Orange Can",
+                "value": 1.97,
+                "description": "A 12 fl oz (355 ml) can of Celsius Sparkling Orange, a sugar-free sparkling energy drink with a bright citrus orange flavor and a metabolism-boosting energy blend.",
+                "rarity": "Common",
+                "weight": 0.4,
+                "id": 2157,
+                "consumable": true,
+                "consumable_sounds": [
+                    "drinkcanopen.ogg",
+                    "drink.ogg"
+                ],
+                "used_up": true,
+                "uses_left": 1,
+                "shop_category": "Consumables",
+                "shop_subcategory": "Energy Drinks"
+            },
+            {
+                "name": "Celsius Holdings Celsius Kiwi Guava Can",
+                "value": 1.97,
+                "description": "A 12 fl oz (355 ml) can of Celsius Kiwi Guava, a sugar-free sparkling energy drink blending tangy kiwi and tropical guava with a metabolism-boosting energy blend.",
+                "rarity": "Common",
+                "weight": 0.4,
+                "id": 2158,
+                "consumable": true,
+                "consumable_sounds": [
+                    "drinkcanopen.ogg",
+                    "drink.ogg"
+                ],
+                "used_up": true,
+                "uses_left": 1,
+                "shop_category": "Consumables",
+                "shop_subcategory": "Energy Drinks"
             },
             {
                 "name": "Hershey Company Reese's Peanut Butter Cups 2-Pack",
@@ -55430,8 +55565,7 @@
                 "uses_left": 2,
                 "shop_category": "Consumables",
                 "shop_subcategory": "Snacks",
-                "shop_subcategory2": "Candy",
-                "armory_category": "Rifle"
+                "shop_subcategory2": "Candy"
             },
             {
                 "name": "Mars, Inc. Snickers Bar",
@@ -55448,8 +55582,7 @@
                 "uses_left": 1,
                 "shop_category": "Consumables",
                 "shop_subcategory": "Snacks",
-                "shop_subcategory2": "Candy",
-                "armory_category": "Rifle"
+                "shop_subcategory2": "Candy"
             },
             {
                 "name": "Mars, Inc. M&M's Milk Chocolate 1.69 oz Bag",
@@ -55466,8 +55599,7 @@
                 "uses_left": 1,
                 "shop_category": "Consumables",
                 "shop_subcategory": "Snacks",
-                "shop_subcategory2": "Candy",
-                "armory_category": "Rifle"
+                "shop_subcategory2": "Candy"
             },
             {
                 "name": "Hershey Company Hershey's Milk Chocolate Bar",
@@ -55484,8 +55616,7 @@
                 "uses_left": 1,
                 "shop_category": "Consumables",
                 "shop_subcategory": "Snacks",
-                "shop_subcategory2": "Candy",
-                "armory_category": "Rifle"
+                "shop_subcategory2": "Candy"
             },
             {
                 "name": "Hershey Company Kit Kat Bar",
@@ -55502,8 +55633,7 @@
                 "uses_left": 1,
                 "shop_category": "Consumables",
                 "shop_subcategory": "Snacks",
-                "shop_subcategory2": "Candy",
-                "armory_category": "Rifle"
+                "shop_subcategory2": "Candy"
             },
             {
                 "name": "Mars, Inc. Twix Bar",
@@ -55520,8 +55650,7 @@
                 "uses_left": 2,
                 "shop_category": "Consumables",
                 "shop_subcategory": "Snacks",
-                "shop_subcategory2": "Candy",
-                "armory_category": "Rifle"
+                "shop_subcategory2": "Candy"
             },
             {
                 "name": "Mars, Inc. Skittles Original 2.17 oz Bag",
@@ -55538,8 +55667,7 @@
                 "uses_left": 1,
                 "shop_category": "Consumables",
                 "shop_subcategory": "Snacks",
-                "shop_subcategory2": "Candy",
-                "armory_category": "Rifle"
+                "shop_subcategory2": "Candy"
             },
             {
                 "name": "Ferrero Group NERDS Gummy Clusters 3 oz Bag",
@@ -55556,8 +55684,7 @@
                 "uses_left": 1,
                 "shop_category": "Consumables",
                 "shop_subcategory": "Snacks",
-                "shop_subcategory2": "Candy",
-                "armory_category": "Rifle"
+                "shop_subcategory2": "Candy"
             },
             {
                 "name": "Mars, Inc. Starburst Pack",
@@ -55574,8 +55701,7 @@
                 "uses_left": 1,
                 "shop_category": "Consumables",
                 "shop_subcategory": "Snacks",
-                "shop_subcategory2": "Candy",
-                "armory_category": "Rifle"
+                "shop_subcategory2": "Candy"
             },
             {
                 "name": "Mondelēz International Sour Patch Kids Original 3.5 oz Bag",
@@ -55592,8 +55718,7 @@
                 "uses_left": 1,
                 "shop_category": "Consumables",
                 "shop_subcategory": "Snacks",
-                "shop_subcategory2": "Candy",
-                "armory_category": "Rifle"
+                "shop_subcategory2": "Candy"
             },
             {
                 "name": "Constellation Brands Modelo Especial 12-Pack",
@@ -55611,8 +55736,7 @@
                 "uses_left": 12,
                 "shop_category": "Consumables",
                 "shop_subcategory": "Alcohol",
-                "shop_subcategory2": "Beer",
-                "armory_category": "Rifle"
+                "shop_subcategory2": "Beer"
             },
             {
                 "name": "Anheuser-Busch Bud Light 24-Pack",
@@ -55630,8 +55754,7 @@
                 "uses_left": 24,
                 "shop_category": "Consumables",
                 "shop_subcategory": "Alcohol",
-                "shop_subcategory2": "Beer",
-                "armory_category": "Rifle"
+                "shop_subcategory2": "Beer"
             },
             {
                 "name": "Anheuser-Busch Michelob Ultra 12-Pack",
@@ -55649,8 +55772,7 @@
                 "uses_left": 12,
                 "shop_category": "Consumables",
                 "shop_subcategory": "Alcohol",
-                "shop_subcategory2": "Beer",
-                "armory_category": "Rifle"
+                "shop_subcategory2": "Beer"
             },
             {
                 "name": "Molson Coors Coors Light 24-Pack",
@@ -55668,8 +55790,7 @@
                 "uses_left": 24,
                 "shop_category": "Consumables",
                 "shop_subcategory": "Alcohol",
-                "shop_subcategory2": "Beer",
-                "armory_category": "Rifle"
+                "shop_subcategory2": "Beer"
             },
             {
                 "name": "Molson Coors Miller Lite 24-Pack",
@@ -55687,8 +55808,7 @@
                 "uses_left": 24,
                 "shop_category": "Consumables",
                 "shop_subcategory": "Alcohol",
-                "shop_subcategory2": "Beer",
-                "armory_category": "Rifle"
+                "shop_subcategory2": "Beer"
             },
             {
                 "name": "Constellation Brands Corona Extra 6-Pack",
@@ -55706,8 +55826,7 @@
                 "uses_left": 6,
                 "shop_category": "Consumables",
                 "shop_subcategory": "Alcohol",
-                "shop_subcategory2": "Beer",
-                "armory_category": "Rifle"
+                "shop_subcategory2": "Beer"
             },
             {
                 "name": "Anhueser-Busch Busch Light 30-Pack",
@@ -55725,8 +55844,7 @@
                 "uses_left": 30,
                 "shop_category": "Consumables",
                 "shop_subcategory": "Alcohol",
-                "shop_subcategory2": "Beer",
-                "armory_category": "Rifle"
+                "shop_subcategory2": "Beer"
             },
             {
                 "name": "Anheuser-Busch Budweiser 12-Pack",
@@ -55744,8 +55862,7 @@
                 "uses_left": 12,
                 "shop_category": "Consumables",
                 "shop_subcategory": "Alcohol",
-                "shop_subcategory2": "Beer",
-                "armory_category": "Rifle"
+                "shop_subcategory2": "Beer"
             },
             {
                 "name": "Heineken N.V. Heineken 6-Pack",
@@ -55763,8 +55880,7 @@
                 "uses_left": 6,
                 "shop_category": "Consumables",
                 "shop_subcategory": "Alcohol",
-                "shop_subcategory2": "Beer",
-                "armory_category": "Rifle"
+                "shop_subcategory2": "Beer"
             },
             {
                 "name": "Molson Coors Blue Moon Belgian White 6-Pack",
@@ -55782,8 +55898,7 @@
                 "uses_left": 6,
                 "shop_category": "Consumables",
                 "shop_subcategory": "Alcohol",
-                "shop_subcategory2": "Beer",
-                "armory_category": "Rifle"
+                "shop_subcategory2": "Beer"
             },
             {
                 "name": "Fifth Generation, Inc. Tito's Handmade Vodka 750ml Bottle",
@@ -55801,8 +55916,7 @@
                 "uses_left": 16,
                 "shop_category": "Consumables",
                 "shop_subcategory": "Alcohol",
-                "shop_subcategory2": "Spirits",
-                "armory_category": "Rifle"
+                "shop_subcategory2": "Spirits"
             },
             {
                 "name": "E. & J. Gallo Winery High Noon Sun Sips 8-Pack",
@@ -55820,8 +55934,7 @@
                 "uses_left": 8,
                 "shop_category": "Consumables",
                 "shop_subcategory": "Alcohol",
-                "shop_subcategory2": "Hard Seltzer",
-                "armory_category": "Rifle"
+                "shop_subcategory2": "Hard Seltzer"
             },
             {
                 "name": "Proximo Spirits Jose Cuervo Especial Silver Tequila 750ml Bottle",
@@ -55839,8 +55952,7 @@
                 "uses_left": 16,
                 "shop_category": "Consumables",
                 "shop_subcategory": "Alcohol",
-                "shop_subcategory2": "Spirits",
-                "armory_category": "Rifle"
+                "shop_subcategory2": "Spirits"
             },
             {
                 "name": "Brown-Forman Corporation Jack Daniel's Old No. 7 Tennessee Whiskey 750ml Bottle",
@@ -55858,8 +55970,7 @@
                 "uses_left": 12,
                 "shop_category": "Consumables",
                 "shop_subcategory": "Alcohol",
-                "shop_subcategory2": "Spirits",
-                "armory_category": "Rifle"
+                "shop_subcategory2": "Spirits"
             },
             {
                 "name": "Diageo PLC Crown Royal Canadian Whisky 750ml Bottle",
@@ -55877,8 +55988,7 @@
                 "uses_left": 16,
                 "shop_category": "Consumables",
                 "shop_subcategory": "Alcohol",
-                "shop_subcategory2": "Spirits",
-                "armory_category": "Rifle"
+                "shop_subcategory2": "Spirits"
             },
             {
                 "name": "Bacardi Limited Patron Silver Tequila 750ml Bottle",
@@ -55896,8 +56006,7 @@
                 "uses_left": 12,
                 "shop_category": "Consumables",
                 "shop_subcategory": "Alcohol",
-                "shop_subcategory2": "Spirits",
-                "armory_category": "Rifle"
+                "shop_subcategory2": "Spirits"
             },
             {
                 "name": "Stateside Brands Surfside Hard Tea 4-Pack",
@@ -55915,8 +56024,7 @@
                 "uses_left": 4,
                 "shop_category": "Consumables",
                 "shop_subcategory": "Alcohol",
-                "shop_subcategory2": "Hard Tea",
-                "armory_category": "Rifle"
+                "shop_subcategory2": "Hard Tea"
             },
             {
                 "name": "Sazerac Company Fireball Cinnamon Whisky 750ml Bottle",
@@ -55934,8 +56042,7 @@
                 "uses_left": 12,
                 "shop_category": "Consumables",
                 "shop_subcategory": "Alcohol",
-                "shop_subcategory2": "Spirits",
-                "armory_category": "Rifle"
+                "shop_subcategory2": "Spirits"
             },
             {
                 "name": "LVMH Moët Hennessy Louis Vuitton Hennessy V.S Cognac 750ml Bottle",
@@ -55953,8 +56060,7 @@
                 "uses_left": 12,
                 "shop_category": "Consumables",
                 "shop_subcategory": "Alcohol",
-                "shop_subcategory2": "Spirits",
-                "armory_category": "Rifle"
+                "shop_subcategory2": "Spirits"
             },
             {
                 "name": "Pernod Ricard Jameson Irish Whiskey 750ml Bottle",
@@ -55972,8 +56078,7 @@
                 "uses_left": 12,
                 "shop_category": "Consumables",
                 "shop_subcategory": "Alcohol",
-                "shop_subcategory2": "Spirits",
-                "armory_category": "Rifle"
+                "shop_subcategory2": "Spirits"
             },
             {
                 "name": "Frito-Lay Doritos Nacho Cheese 2.75 oz Bag",
@@ -55991,8 +56096,7 @@
                 "uses_left": 1,
                 "shop_category": "Consumables",
                 "shop_subcategory": "Snacks",
-                "shop_subcategory2": "Chips",
-                "armory_category": "Rifle"
+                "shop_subcategory2": "Chips"
             },
             {
                 "name": "Frito-Lay Doritos Cool Ranch 2.75 oz Bag",
@@ -56010,8 +56114,7 @@
                 "uses_left": 1,
                 "shop_category": "Consumables",
                 "shop_subcategory": "Snacks",
-                "shop_subcategory2": "Chips",
-                "armory_category": "Rifle"
+                "shop_subcategory2": "Chips"
             },
             {
                 "name": "Frito-Lay Lay's Classic Potato Chips 2.62 oz Bag",
@@ -56029,8 +56132,7 @@
                 "uses_left": 1,
                 "shop_category": "Consumables",
                 "shop_subcategory": "Snacks",
-                "shop_subcategory2": "Chips",
-                "armory_category": "Rifle"
+                "shop_subcategory2": "Chips"
             },
             {
                 "name": "Frito-Lay Cheetos Crunchy 2.75 oz Bag",
@@ -56048,8 +56150,7 @@
                 "uses_left": 1,
                 "shop_category": "Consumables",
                 "shop_subcategory": "Snacks",
-                "shop_subcategory2": "Chips",
-                "armory_category": "Rifle"
+                "shop_subcategory2": "Chips"
             },
             {
                 "name": "Frito-Lay Cheetos Flamin' Hot 2.75 oz Bag",
@@ -56067,8 +56168,7 @@
                 "uses_left": 1,
                 "shop_category": "Consumables",
                 "shop_subcategory": "Snacks",
-                "shop_subcategory2": "Chips",
-                "armory_category": "Rifle"
+                "shop_subcategory2": "Chips"
             },
             {
                 "name": "Kellanova Pringles Original 2.3 oz Can",
@@ -56086,8 +56186,7 @@
                 "uses_left": 1,
                 "shop_category": "Consumables",
                 "shop_subcategory": "Snacks",
-                "shop_subcategory2": "Chips",
-                "armory_category": "Rifle"
+                "shop_subcategory2": "Chips"
             },
             {
                 "name": "Kellanova Pringles Sour Cream & Onion 2.3 oz Can",
@@ -56105,8 +56204,7 @@
                 "uses_left": 1,
                 "shop_category": "Consumables",
                 "shop_subcategory": "Snacks",
-                "shop_subcategory2": "Chips",
-                "armory_category": "Rifle"
+                "shop_subcategory2": "Chips"
             },
             {
                 "name": "Frito-Lay Ruffles Cheddar & Sour Cream 2.5 oz Bag",
@@ -56124,8 +56222,7 @@
                 "uses_left": 1,
                 "shop_category": "Consumables",
                 "shop_subcategory": "Snacks",
-                "shop_subcategory2": "Chips",
-                "armory_category": "Rifle"
+                "shop_subcategory2": "Chips"
             },
             {
                 "name": "Frito-Lay Tostitos Scoops! 3.5 oz Bag",
@@ -56143,8 +56240,7 @@
                 "uses_left": 1,
                 "shop_category": "Consumables",
                 "shop_subcategory": "Snacks",
-                "shop_subcategory2": "Chips",
-                "armory_category": "Rifle"
+                "shop_subcategory2": "Chips"
             },
             {
                 "name": "Barcel USA Takis Fuego 3.25 oz Bag",
@@ -56162,8 +56258,7 @@
                 "uses_left": 1,
                 "shop_category": "Consumables",
                 "shop_subcategory": "Snacks",
-                "shop_subcategory2": "Chips",
-                "armory_category": "Rifle"
+                "shop_subcategory2": "Chips"
             },
             {
                 "name": "D.D Bean & Sons Matchbook",
@@ -56173,6 +56268,7 @@
                 "weight": 0.05,
                 "id": 2064,
                 "consumable": true,
+                "lighting_device": true,
                 "consumable_sounds": [
                     "match.ogg"
                 ],
@@ -56180,8 +56276,7 @@
                 "uses_left": 10,
                 "shop_category": "Consumables",
                 "shop_subcategory": "Miscellaneous",
-                "shop_subcategory2": "Matches",
-                "armory_category": "Rifle"
+                "shop_subcategory2": "Matches"
             },
             {
                 "name": "BIC Classic Lighter",
@@ -56191,14 +56286,14 @@
                 "weight": 0.1,
                 "id": 2065,
                 "consumable": true,
+                "lighting_device": true,
                 "consumable_sounds": [
                     "biclighter.ogg"
                 ],
                 "used_up": false,
                 "shop_category": "Consumables",
                 "shop_subcategory": "Miscellaneous",
-                "shop_subcategory2": "Lighters",
-                "armory_category": "Rifle"
+                "shop_subcategory2": "Lighters"
             },
             {
                 "name": "Zippo Classic Windproof Lighter",
@@ -56208,14 +56303,52 @@
                 "weight": 0.2,
                 "id": 2066,
                 "consumable": true,
+                "lighting_device": true,
                 "consumable_sounds": [
                     "zippolighter.ogg"
                 ],
                 "used_up": false,
                 "shop_category": "Consumables",
                 "shop_subcategory": "Miscellaneous",
-                "shop_subcategory2": "Lighters",
-                "armory_category": "Rifle"
+                "shop_subcategory2": "Lighters"
+            },
+            {
+                "name": "Indica Joint",
+                "value": 24.95,
+                "description": "A pre-rolled joint containing 1 gram of high-quality indica cannabis, known for its relaxing and sedative effects, often used for stress relief and promoting sleep.",
+                "rarity": "Uncommon",
+                "weight": 0.05,
+                "id": 2147,
+                "consumable": true,
+                "used_up": true,
+                "consumable_sounds": [
+                    "lightingdevice",
+                    "joint.ogg"
+                ],
+                "uses_left": 1,
+                "lighting_device_required": true,
+                "shop_category": "Consumables",
+                "shop_subcategory": "Miscellaneous",
+                "shop_subcategory2": "Cannabis"
+            },
+            {
+                "name": "Sativa Joint",
+                "value": 24.95,
+                "description": "A pre-rolled joint containing 1 gram of high-quality sativa cannabis, known for its uplifting and energizing effects, often used for creativity and socializing.",
+                "rarity": "Uncommon",
+                "weight": 0.05,
+                "id": 2148,
+                "consumable": true,
+                "used_up": true,
+                "consumable_sounds": [
+                    "lightingdevice",
+                    "joint.ogg"
+                ],
+                "uses_left": 1,
+                "lighting_device_required": true,
+                "shop_category": "Consumables",
+                "shop_subcategory": "Miscellaneous",
+                "shop_subcategory2": "Cannabis"
             }
         ],
         "non_lootable": [

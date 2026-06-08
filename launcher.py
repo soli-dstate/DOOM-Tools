@@ -58,6 +58,7 @@ DEFAULT_LAUNCH_SETTINGS = {
 SOURCE_COPY_DIRS = ("tables", "themes", "fonts")
 RESOURCE_DIRS = ("sounds", "images")
 FONT_SUFFIXES = (".ttf", ".otf")
+FONT_INSTALL_VERSION = 2
 
 INSTALL_STEPS = [
     "Checking release",
@@ -832,17 +833,17 @@ def list_font_files(fonts_dir: Path) -> list[Path]:
     return files
 
 
-def get_installed_font_names_windows() -> set[str]:
+def get_system_font_names_windows() -> set[str]:
+    # Only machine-wide fonts in C:\Windows\Fonts are treated as "already
+    # installed" and skipped. Per-user fonts are (re)registered on every check
+    # run, because a stale/incorrect registry entry can leave the file present
+    # but the font unusable -- which is what made fonts appear to uninstall.
     names: set[str] = set()
     windows_fonts = Path(os.environ.get("WINDIR", "C:\\Windows")) / "Fonts"
-    user_fonts = Path.home() / "AppData" / "Local" / "Microsoft" / "Windows" / "Fonts"
-
-    for folder in (windows_fonts, user_fonts):
-        if folder.exists():
-            for file_path in folder.iterdir():
-                if file_path.is_file():
-                    names.add(file_path.name.lower())
-
+    if windows_fonts.exists():
+        for file_path in windows_fonts.iterdir():
+            if file_path.is_file():
+                names.add(file_path.name.lower())
     return names
 
 
@@ -856,10 +857,19 @@ def install_font_windows(font_path: Path, logger) -> bool:
     dest_path = user_fonts_dir / dest_name
     shutil.copy2(font_path, dest_path)
 
-    value_name = f"{font_path.stem} (TrueType)"
-    reg_path = r"Software\\Microsoft\\Windows NT\\CurrentVersion\\Fonts"
+    # Load the font into the current session so it is usable immediately; without
+    # this, WM_FONTCHANGE only notifies apps and the font is not registered with GDI.
+    if ctypes.windll.gdi32.AddFontResourceW(str(dest_path)) == 0:
+        logger(f"Warning: AddFontResourceW reported no fonts added for {dest_name}")
+
+    # Persist across logons. Per-user fonts (HKCU) MUST store the FULL path to the
+    # file in %LOCALAPPDATA%; only system fonts in C:\Windows\Fonts use a bare name.
+    # Storing the bare name here is why fonts appeared to "uninstall" after logoff.
+    font_type = "OpenType" if font_path.suffix.lower() == ".otf" else "TrueType"
+    value_name = f"{font_path.stem} ({font_type})"
+    reg_path = r"Software\Microsoft\Windows NT\CurrentVersion\Fonts"
     with winreg.OpenKey(winreg.HKEY_CURRENT_USER, reg_path, 0, winreg.KEY_SET_VALUE) as key:
-        winreg.SetValueEx(key, value_name, 0, winreg.REG_SZ, dest_name)
+        winreg.SetValueEx(key, value_name, 0, winreg.REG_SZ, str(dest_path))
 
     HWND_BROADCAST = 0xFFFF
     WM_FONTCHANGE = 0x001D
@@ -889,11 +899,11 @@ def install_missing_fonts(source_root: Path, state: dict, logger) -> None:
         logger("Font installation is only automated on Windows")
         return
 
-    installed = get_installed_font_names_windows()
+    system_fonts = get_system_font_names_windows()
     installed_any = False
 
     for font_file in remote_fonts:
-        if font_file.name.lower() in installed:
+        if font_file.name.lower() in system_fonts:
             continue
         try:
             installed_any = install_font_windows(font_file, logger) or installed_any
@@ -904,6 +914,7 @@ def install_missing_fonts(source_root: Path, state: dict, logger) -> None:
         logger("All release fonts are already installed")
 
     state["installed_fonts_checked_tag"] = state.get("release_tag", "")
+    state["font_install_version"] = FONT_INSTALL_VERSION
 
 
 def prepare_or_update(
@@ -1040,7 +1051,11 @@ def prepare_or_update(
         logger("Release source cache updated")
 
     report(4, "Checking fonts", "Validating release fonts against installed fonts")
-    if state.get("installed_fonts_checked_tag") != state.get("release_tag"):
+    fonts_need_check = (
+        state.get("installed_fonts_checked_tag") != state.get("release_tag")
+        or state.get("font_install_version") != FONT_INSTALL_VERSION
+    )
+    if fonts_need_check:
         logger("Checking release fonts...")
         install_missing_fonts(source_root, state, logger)
     else:

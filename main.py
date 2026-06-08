@@ -1,5 +1,5 @@
 version = "2.0.6"
-current_resource_link = "https://files.catbox.moe/qpyv1e.zip"
+current_resource_link = "https://pixeldrain.com/api/file/oQCZXyJJ"
 import os
 import logging
 import re
@@ -24298,6 +24298,124 @@ class App:
         else:
             return f"{weight_kg:.2f} kg"
 
+    def _iter_carried_items(self, save_data, include_storage = False):
+        """Yield (location, item) for every item the player is carrying.
+
+        Recurses through hands and all equipment containers (items, subslots,
+        accessories and nested containers) so consumables / lighting devices are
+        found no matter which worn container they sit in. Storage is excluded
+        unless include_storage is True.
+        """
+        results = []
+        seen = set()
+
+        def _walk(node, loc):
+            if not isinstance(node, dict):
+                return
+            nid = id(node)
+            if nid in seen:
+                return
+            seen.add(nid)
+            for child in node.get("items", []) or []:
+                if isinstance(child, dict):
+                    results.append((loc, child))
+                    _walk(child, loc)
+            for field in ("subslots", "accessories"):
+                for entry in node.get(field, []) or []:
+                    if isinstance(entry, dict):
+                        curr = entry.get("current")
+                        if isinstance(curr, dict):
+                            results.append((loc, curr))
+                            _walk(curr, loc)
+
+        hands = save_data.get("hands", {})
+        if isinstance(hands, dict):
+            _walk(hands, "hands")
+
+        for slot_name, eq_item in (save_data.get("equipment", {}) or {}).items():
+            if isinstance(eq_item, dict):
+                _walk(eq_item, f"equipment.{slot_name}")
+
+        if include_storage:
+            for st_item in save_data.get("storage", []) or []:
+                if isinstance(st_item, dict):
+                    results.append(("storage", st_item))
+                    _walk(st_item, "storage")
+
+        return results
+
+    def _find_item_container(self, save_data, target, include_storage = True):
+        """Find the live container holding `target` (by identity).
+
+        Returns (parent, key): parent is a list (integer index key) or a subslot/
+        accessory dict (key 'current'). Returns (None, None) if not found.
+        """
+        found = [None, None]
+        seen = set()
+
+        def _walk(node):
+            if found[0] is not None or not isinstance(node, dict):
+                return
+            nid = id(node)
+            if nid in seen:
+                return
+            seen.add(nid)
+            lst = node.get("items")
+            if isinstance(lst, list):
+                for i, it in enumerate(lst):
+                    if it is target:
+                        found[0], found[1] = lst, i
+                        return
+                for it in lst:
+                    _walk(it)
+                    if found[0] is not None:
+                        return
+            for field in ("subslots", "accessories"):
+                for entry in node.get(field, []) or []:
+                    if isinstance(entry, dict):
+                        if entry.get("current") is target:
+                            found[0], found[1] = entry, "current"
+                            return
+                        _walk(entry.get("current"))
+                        if found[0] is not None:
+                            return
+
+        hands = save_data.get("hands", {})
+        if isinstance(hands, dict):
+            _walk(hands)
+        if found[0] is None:
+            for _slot, eq_item in (save_data.get("equipment", {}) or {}).items():
+                _walk(eq_item)
+                if found[0] is not None:
+                    break
+        if found[0] is None and include_storage:
+            storage = save_data.get("storage", [])
+            if isinstance(storage, list):
+                for i, it in enumerate(storage):
+                    if it is target:
+                        found[0], found[1] = storage, i
+                        break
+                    _walk(it)
+                    if found[0] is not None:
+                        break
+        return found[0], found[1]
+
+    def _remove_item_by_identity(self, save_data, target, include_storage = True):
+        """Remove `target` from whichever carried/stored container holds it."""
+        parent, key = self._find_item_container(save_data, target, include_storage = include_storage)
+        if parent is None:
+            return False
+        try:
+            if key == "current":
+                parent["current"] = None
+            elif isinstance(key, int):
+                parent.pop(key)
+            else:
+                return False
+            return True
+        except Exception:
+            return False
+
     def _consume_item(self, item, location, save_data, on_complete = None):
 
         import threading
@@ -24336,27 +24454,11 @@ class App:
         if item.get("disinfectant_required"):
 
             disinfectant_found = None
-            disinfectant_location = None
-            disinfectant_idx = -1
 
-            for idx, inv_item in enumerate(save_data.get("hands", {}).get("items", [])):
+            for _loc, inv_item in self._iter_carried_items(save_data, include_storage = False):
                 if isinstance(inv_item, dict)and inv_item.get("id")==257:
                     disinfectant_found = inv_item
-                    disinfectant_location = "hands"
-                    disinfectant_idx = idx
                     break
-
-            if not disinfectant_found:
-                for slot_name, eq_item in save_data.get("equipment", {}).items():
-                    if isinstance(eq_item, dict)and eq_item.get("items"):
-                        for idx, inv_item in enumerate(eq_item.get("items", [])):
-                            if isinstance(inv_item, dict)and inv_item.get("id")==257:
-                                disinfectant_found = inv_item
-                                disinfectant_location = f"equipment.{slot_name}"
-                                disinfectant_idx = idx
-                                break
-                    if disinfectant_found:
-                        break
 
             if not disinfectant_found:
                 self._popup_show_info("Disinfectant Required",
@@ -24379,18 +24481,7 @@ class App:
                         if dis_orig_uses >0 and dis_orig_weight >0:
                             disinfectant_found["weight"]= dis_orig_weight *(uses -1)/dis_orig_uses
                 else:
-
-                    if disinfectant_location =="hands"and isinstance(disinfectant_idx, int):
-                        items_list = save_data.get("hands", {}).get("items", [])
-                        if disinfectant_idx >=0 and disinfectant_idx <len(items_list):
-                            items_list.pop(disinfectant_idx)
-                    elif disinfectant_location and disinfectant_location.startswith("equipment.")and isinstance(disinfectant_idx, int):
-                        slot = disinfectant_location.split(".")[1]
-                        eq_item = save_data.get("equipment", {}).get(slot)
-                        if eq_item and isinstance(eq_item, dict):
-                            items_list = eq_item.get("items", [])
-                            if disinfectant_idx >=0 and disinfectant_idx <len(items_list):
-                                items_list.pop(disinfectant_idx)
+                    self._remove_item_by_identity(save_data, disinfectant_found, include_storage = False)
 
         def find_item_in_location(loc, target_item):
 
@@ -24430,6 +24521,12 @@ class App:
                         for idx, it in enumerate(items_list):
                             if it is target_item:
                                 return items_list, idx
+
+            # Fallback: locate the item anywhere it is carried/stored by identity,
+            # so deeply-nested consumables can still be removed when used up.
+            parent, key = self._find_item_container(save_data, target_item, include_storage = True)
+            if parent is not None:
+                return parent, key
             return None, -1
 
         def play_sounds_and_finish():
@@ -24439,19 +24536,10 @@ class App:
             if item.get("lighting_device_required"):
 
                 lighting_device = None
-                for inv_item in save_data.get("hands", {}).get("items", []):
+                for _loc, inv_item in self._iter_carried_items(save_data, include_storage = False):
                     if isinstance(inv_item, dict)and inv_item.get("lighting_device"):
                         lighting_device = inv_item
                         break
-                if not lighting_device:
-                    for slot_name, eq_item in save_data.get("equipment", {}).items():
-                        if isinstance(eq_item, dict)and eq_item.get("items"):
-                            for inv_item in eq_item.get("items", []):
-                                if isinstance(inv_item, dict)and inv_item.get("lighting_device"):
-                                    lighting_device = inv_item
-                                    break
-                        if lighting_device:
-                            break
 
                 if not lighting_device:
                     self._popup_show_info("Lighting Device Required",
@@ -24481,18 +24569,7 @@ class App:
                             if ld_orig_uses >0 and ld_orig_weight >0:
                                 lighting_device["weight"]= ld_orig_weight *(uses -1)/ld_orig_uses
                     else:
-
-                        for idx, inv_item in enumerate(save_data.get("hands", {}).get("items", [])):
-                            if inv_item is lighting_device:
-                                save_data["hands"]["items"].pop(idx)
-                                break
-                        else:
-                            for slot_name, eq_item in save_data.get("equipment", {}).items():
-                                if isinstance(eq_item, dict)and eq_item.get("items"):
-                                    for idx, inv_item in enumerate(eq_item.get("items", [])):
-                                        if inv_item is lighting_device:
-                                            eq_item["items"].pop(idx)
-                                            break
+                        self._remove_item_by_identity(save_data, lighting_device, include_storage = False)
 
             if item.get("disinfectant_required")and disinfectant_found:
                 for snd in disinfectant_sounds:
@@ -30339,8 +30416,37 @@ class App:
 
             local_rows = []
             watch_items_local = _get_equipped_watches(save_data, table_data)
-            watch_frame_local = customtkinter.CTkFrame(parent_frame, corner_radius = 6)
-            watch_frame_local.place(relx = 0.0, y = 4, anchor = "nw", x = 4)
+
+            # Resolution-based scaling: 1920px-wide screen == 1.0, clamped so the
+            # watch stays usable on small/large displays.
+            from tkinter import font as _tkfont
+            try:
+                _res_w = int(str(appearance_settings.get("resolution", "1920x1080")).split("x")[0])
+            except Exception:
+                _res_w = 1920
+            watch_scale = max(0.8, min(2.0, _res_w / 1920.0))
+
+            def _s(v):
+                return max(1, int(round(v * watch_scale)))
+
+            def _wf(size, weight = "normal"):
+                return customtkinter.CTkFont(size = max(7, int(round(size * watch_scale))), weight = weight)
+
+            def _seg_dims(sample_text, family, base_size, pad_x = 8, pad_y = 6):
+                """Measure a 7-segment/icon string at the scaled size so the canvas
+                hugs its content (kills dead space) and scales with resolution."""
+                size = max(7, int(round(base_size * watch_scale)))
+                try:
+                    fo = _tkfont.Font(family = family, size = size)
+                    tw = fo.measure(sample_text)
+                    th = fo.metrics("linespace")
+                except Exception:
+                    tw = int(len(sample_text) * size * 0.7)
+                    th = int(size * 1.4)
+                return size, tw + _s(pad_x), th + _s(pad_y)
+
+            watch_frame_local = customtkinter.CTkFrame(parent_frame, corner_radius = _s(6))
+            watch_frame_local.place(relx = 0.0, y = _s(4), anchor = "nw", x = _s(4))
             watch_beep_mute_map = combat_state.get("watch_hourly_beep_muted")
             if not isinstance(watch_beep_mute_map, dict):
                 watch_beep_mute_map = {}
@@ -30349,12 +30455,12 @@ class App:
             time_24h_var = customtkinter.BooleanVar(value = bool(combat_state.get("watch_time_24h", True)))
 
             title_row = customtkinter.CTkFrame(watch_frame_local, fg_color = "transparent")
-            title_row.pack(fill = "x", pady =(4, 2), padx = 8)
+            title_row.pack(fill = "x", pady =(_s(4), _s(2)), padx = _s(8))
 
             watch_title = customtkinter.CTkLabel(
                 title_row,
                 text = "Watches",
-                font = customtkinter.CTkFont(size = 12, weight = "bold")
+                font = _wf(12, "bold")
             )
             watch_title.pack(side = "left")
 
@@ -30371,9 +30477,9 @@ class App:
                 title_row,
                 text = "24H" if time_24h_var.get() else "12H",
                 command = _toggle_watch_time_mode,
-                width = 58,
-                height = 24,
-                font = customtkinter.CTkFont(size = 10, weight = "bold")
+                width = _s(58),
+                height = _s(24),
+                font = _wf(10, "bold")
             )
             toggle_btn.pack(side = "right")
 
@@ -30381,9 +30487,9 @@ class App:
                 customtkinter.CTkLabel(
                     watch_frame_local,
                     text = "No watches equipped.",
-                    font = customtkinter.CTkFont(size = 10),
+                    font = _wf(10),
                     text_color = "#A0A0A0"
-                ).pack(pady =(0, 6), padx = 8)
+                ).pack(pady =(0, _s(6)), padx = _s(8))
                 return local_rows
 
             for watch_data in watch_items_local:
@@ -30394,13 +30500,13 @@ class App:
 
                 row_bg = "#2E3821" if is_digital else "#1F2B35"
                 row = customtkinter.CTkFrame(watch_frame_local, fg_color = row_bg)
-                row.pack(fill = "x", padx = 6, pady = 3)
+                row.pack(fill = "x", padx = _s(6), pady = _s(3))
 
                 customtkinter.CTkLabel(
                     row,
                     text = str(watch_data.get("display_name", "Watch")),
-                    font = customtkinter.CTkFont(size = 10, weight = "bold")
-                ).pack(anchor = "w", padx = 8, pady =(4, 0))
+                    font = _wf(10, "bold")
+                ).pack(anchor = "w", padx = _s(8), pady =(_s(4), 0))
 
                 time_label = None
                 time_canvas = None
@@ -30429,67 +30535,85 @@ class App:
                             pass
 
                     info_row = customtkinter.CTkFrame(row, fg_color = "#313B21")
-                    info_row.pack(anchor = "w", padx = 8, pady =(0, 6))
+                    info_row.pack(anchor = "w", padx = _s(8), pady =(0, _s(6)))
 
-                    time_stack = customtkinter.CTkFrame(info_row, fg_color = "transparent", width = 240, height = 52)
-                    time_stack.pack(side = "left", padx =(8, 6), pady = 5)
+                    # Each segment canvas is measured to hug its content so there is
+                    # no dead space, and a shared row height keeps them aligned.
+                    time_size, time_w, row_h = _seg_dims("88:88:88", "DSEG7 Modern-Regular", 22)
+                    cy = row_h // 2
+
+                    time_stack = customtkinter.CTkFrame(info_row, fg_color = "transparent", width = time_w, height = row_h)
+                    time_stack.pack(side = "left", padx =(_s(6), _s(4)), pady = _s(4))
                     time_stack.pack_propagate(False)
-                    time_canvas = customtkinter.CTkCanvas(time_stack, width = 240, height = 52, bg = "#313B21", highlightthickness = 0)
+                    time_canvas = customtkinter.CTkCanvas(time_stack, width = time_w, height = row_h, bg = "#313B21", highlightthickness = 0)
                     time_canvas.pack(fill = "both", expand = True)
-                    time_ghost_item = time_canvas.create_text(236, 26, text = "88:88:88", fill = "#4F6338", font = ("DSEG7 Modern-Regular", 22), anchor = "e")
-                    time_live_item = time_canvas.create_text(236, 26, text = "00:00", fill = "#C7F089", font = ("DSEG7 Modern-Regular", 22), anchor = "e")
-                    ampm_frame = customtkinter.CTkFrame(info_row, fg_color = "transparent", width = 52, height = 46)
-                    ampm_frame.pack(side = "left", padx =(0, 4), pady =(1, 0))
+                    time_ghost_item = time_canvas.create_text(time_w - _s(4), cy, text = "88:88:88", fill = "#4F6338", font = ("DSEG7 Modern-Regular", time_size), anchor = "e")
+                    time_live_item = time_canvas.create_text(time_w - _s(4), cy, text = "00:00", fill = "#C7F089", font = ("DSEG7 Modern-Regular", time_size), anchor = "e")
+
+                    ampm_w = _seg_dims("PM", None, 10, pad_x = 6)[1]
+                    ampm_frame = customtkinter.CTkFrame(info_row, fg_color = "transparent", width = ampm_w, height = row_h)
+                    ampm_frame.pack(side = "left", padx =(0, _s(4)), pady =(_s(1), 0))
                     ampm_frame.pack_propagate(False)
                     pm_label = customtkinter.CTkLabel(
                         ampm_frame,
                         text = "PM",
-                        font = customtkinter.CTkFont(size = 10),
+                        font = _wf(10),
                         text_color = "#4F6338"
                     )
                     pm_label.place(relx = 0.5, rely = 0.36, anchor = "center")
                     am_label = customtkinter.CTkLabel(
                         ampm_frame,
                         text = "AM",
-                        font = customtkinter.CTkFont(size = 10),
+                        font = _wf(10),
                         text_color = "#4F6338"
                     )
                     am_label.place(relx = 0.5, rely = 0.77, anchor = "center")
 
-                    weather_stack = customtkinter.CTkFrame(info_row, fg_color = "transparent", width = 62, height = 48)
-                    weather_stack.pack(side = "left", padx =(4, 6), pady = 5)
+                    wx_size, wx_w, _wx_h = _seg_dims("8", "DSEG Weather", 28, pad_x = 10, pad_y = 8)
+                    weather_stack = customtkinter.CTkFrame(info_row, fg_color = "transparent", width = wx_w, height = row_h)
+                    weather_stack.pack(side = "left", padx =(_s(2), _s(6)), pady = _s(4))
                     weather_stack.pack_propagate(False)
-                    weather_canvas = customtkinter.CTkCanvas(weather_stack, width = 62, height = 48, bg = "#313B21", highlightthickness = 0)
+                    weather_canvas = customtkinter.CTkCanvas(weather_stack, width = wx_w, height = row_h, bg = "#313B21", highlightthickness = 0)
                     weather_canvas.pack(fill = "both", expand = True)
-                    weather_ghost_item = weather_canvas.create_text(31, 24, text = "0", fill = "#4F6338", font = ("DSEG Weather", 28), anchor = "center")
-                    weather_live_item = weather_canvas.create_text(31, 24, text = _watch_weather_icon_code(weather_state.get("weather", "clear")), fill = "#C7F089", font = ("DSEG Weather", 28), anchor = "center")
+                    weather_ghost_item = weather_canvas.create_text(wx_w // 2, cy, text = "0", fill = "#4F6338", font = ("DSEG Weather", wx_size), anchor = "center")
+                    weather_live_item = weather_canvas.create_text(wx_w // 2, cy, text = _watch_weather_icon_code(weather_state.get("weather", "clear")), fill = "#C7F089", font = ("DSEG Weather", wx_size), anchor = "center")
 
-                    temp_stack = customtkinter.CTkFrame(info_row, fg_color = "transparent", width = 168, height = 52)
-                    temp_stack.pack(side = "left", padx =(0, 8), pady = 5)
+                    # Temperature: size to the widest reading the formatter can emit
+                    # ("888°F"/"-88°F") and the ghost ("8888") so nothing clips.
+                    temp_size = max(7, int(round(22 * watch_scale)))
+                    try:
+                        _temp_fo = _tkfont.Font(family = "DSEG7 Modern-Regular", size = temp_size)
+                        temp_text_w = max(_temp_fo.measure(_t) for _t in ("8888", "888°F", "-88°F"))
+                    except Exception:
+                        temp_text_w = int(5 * temp_size * 0.7)
+                    temp_w = temp_text_w + _s(8)
+                    temp_stack = customtkinter.CTkFrame(info_row, fg_color = "transparent", width = temp_w, height = row_h)
+                    temp_stack.pack(side = "left", padx =(0, _s(6)), pady = _s(4))
                     temp_stack.pack_propagate(False)
-                    temp_canvas = customtkinter.CTkCanvas(temp_stack, width = 168, height = 52, bg = "#313B21", highlightthickness = 0)
+                    temp_canvas = customtkinter.CTkCanvas(temp_stack, width = temp_w, height = row_h, bg = "#313B21", highlightthickness = 0)
                     temp_canvas.pack(fill = "both", expand = True)
-                    temp_ghost_item = temp_canvas.create_text(164, 26, text = _watch_temperature_ghost_text(), fill = "#4F6338", font = ("DSEG7 Modern-Regular", 22), anchor = "e")
-                    temp_live_item = temp_canvas.create_text(164, 26, text = _watch_temperature_text(weather_state.get("temperature_f", combat_state.get("ambient_temperature", 70))), fill = "#C7F089", font = ("DSEG7 Modern-Regular", 22), anchor = "e")
+                    temp_ghost_item = temp_canvas.create_text(temp_w - _s(4), cy, text = _watch_temperature_ghost_text(), fill = "#4F6338", font = ("DSEG7 Modern-Regular", temp_size), anchor = "e")
+                    temp_live_item = temp_canvas.create_text(temp_w - _s(4), cy, text = _watch_temperature_text(weather_state.get("temperature_f", combat_state.get("ambient_temperature", 70))), fill = "#C7F089", font = ("DSEG7 Modern-Regular", temp_size), anchor = "e")
 
                     beep_toggle_btn = self._create_sound_button(
                         info_row,
                         text = "BEEP ON" if not bool(watch_beep_mute_map.get(beep_key, False)) else "BEEP OFF",
                         command = _toggle_watch_hourly_beep,
-                        width = 84,
-                        height = 28,
-                        font = customtkinter.CTkFont(size = 9, weight = "bold")
+                        width = _s(84),
+                        height = _s(28),
+                        font = _wf(9, "bold")
                     )
-                    beep_toggle_btn.pack(side = "left", padx =(0, 6), pady = 5)
+                    beep_toggle_btn.pack(side = "left", padx =(0, _s(6)), pady = _s(4))
                 else:
+                    analog_sz = _s(92)
                     analog_canvas = customtkinter.CTkCanvas(
                         row,
-                        width = 92,
-                        height = 92,
+                        width = analog_sz,
+                        height = analog_sz,
                         bg = "#1F2B35",
                         highlightthickness = 0
                     )
-                    analog_canvas.pack(padx = 8, pady =(0, 6))
+                    analog_canvas.pack(padx = _s(8), pady =(0, _s(6)))
 
                 local_rows.append({
                     "item": watch_item,
@@ -39986,50 +40110,17 @@ class App:
             return items
 
         def _find_consumables_in_inventory():
-
-            items =[]
-
-            for itm in save_data.get('hands', {}).get('items', []):
-                try:
-                    if itm and isinstance(itm, dict)and itm.get('consumable'):
-                        items.append(('hands', itm))
-                except Exception:
-                    pass
-
-            for slot_name, eq_item in save_data.get('equipment', {}).items():
-                try:
-                    if not eq_item or not isinstance(eq_item, dict):
-                        continue
-
-                    if 'items'in eq_item and isinstance(eq_item['items'], list):
-                        for itm in eq_item['items']:
-                            try:
-                                if itm and isinstance(itm, dict)and itm.get('consumable'):
-                                    items.append((f'equipment.{slot_name}', itm))
-                            except Exception:
-                                pass
-
-                    if 'subslots'in eq_item:
-                        for sub_idx, sub in enumerate(eq_item.get('subslots', [])):
-                            try:
-                                curr = sub.get('current')if isinstance(sub, dict)else None
-                                if curr and isinstance(curr, dict):
-
-                                    if curr.get('consumable'):
-                                        items.append((f'equipment.{slot_name}.subslots.{sub_idx}.current', curr))
-
-                                    if 'items'in curr and isinstance(curr['items'], list):
-                                        for itm in curr['items']:
-                                            try:
-                                                if itm and isinstance(itm, dict)and itm.get('consumable'):
-                                                    items.append((f'equipment.{slot_name}.subslots.{sub_idx}.current', itm))
-                                            except Exception:
-                                                pass
-                            except Exception:
-                                pass
-                except Exception:
-                    pass
-            return items
+            # All carried containers (hands + every equipment container, nested),
+            # excluding storage.
+            try:
+                return [
+                    (loc, itm)
+                    for loc, itm in self._iter_carried_items(save_data, include_storage = False)
+                    if isinstance(itm, dict) and itm.get('consumable')
+                ]
+            except Exception:
+                logging.exception("Failed to enumerate consumables")
+                return []
 
         def _has_ear_protection():
             try:
@@ -40801,44 +40892,8 @@ class App:
                     return
                 popup.destroy()
 
-                item_id = itm.get('id')
-                item_name = itm.get('name')
-
-                actual_item = None
-                if loc =="hands":
-                    for inv_item in save_data.get('hands', {}).get('items', []):
-                        if isinstance(inv_item, dict)and inv_item.get('id')==item_id and inv_item.get('name')==item_name:
-                            actual_item = inv_item
-                            break
-                elif loc.startswith("equipment."):
-                    parts = loc.split(".")
-                    slot = parts[1]
-                    eq = save_data.get("equipment", {}).get(slot)
-                    if eq and isinstance(eq, dict):
-                        if len(parts)>=5 and parts[2]=="subslots":
-                            try:
-                                subslot_idx = int(parts[3])
-                                subslots = eq.get("subslots", [])
-                                if subslot_idx <len(subslots):
-                                    subslot = subslots[subslot_idx]
-                                    curr = subslot.get("current")if isinstance(subslot, dict)else None
-                                    if curr and isinstance(curr, dict):
-                                        if curr.get('id')==item_id and curr.get('name')==item_name:
-                                            actual_item = curr
-                                        elif 'items'in curr:
-                                            for inv_item in curr.get('items', []):
-                                                if isinstance(inv_item, dict)and inv_item.get('id')==item_id and inv_item.get('name')==item_name:
-                                                    actual_item = inv_item
-                                                    break
-                            except(ValueError, IndexError):
-                                pass
-                        else:
-                            for inv_item in eq.get('items', []):
-                                if isinstance(inv_item, dict)and inv_item.get('id')==item_id and inv_item.get('name')==item_name:
-                                    actual_item = inv_item
-                                    break
-
-                if actual_item is None:
+                # itm is a live reference into save_data; consume it directly.
+                if not isinstance(itm, dict):
                     self._popup_show_info('Error', 'Could not find item in inventory', sound = 'error')
                     return
 
@@ -40848,7 +40903,7 @@ class App:
                     except Exception:
                         pass
 
-                self._consume_item(actual_item, loc, save_data, on_complete = on_consume_complete)
+                self._consume_item(itm, loc, save_data, on_complete = on_consume_complete)
 
             bframe = customtkinter.CTkFrame(popup, fg_color = 'transparent')
             bframe.pack(fill = 'x', padx = 10, pady = 6)
@@ -42167,18 +42222,33 @@ class App:
                     return
                 canvas.delete("all")
 
-                cx = 46
-                cy = 46
-                radius = 35
-                canvas.create_oval(cx - radius, cy - radius, cx + radius, cy + radius, fill = "#E8E1CC", outline = "#8E8A7D", width = 2)
+                # Derive geometry from the canvas size so the analog face scales
+                # with the resolution-scaled canvas (design reference radius = 35).
+                w = canvas.winfo_width()
+                h = canvas.winfo_height()
+                if w <= 1 or h <= 1:
+                    try:
+                        w = int(float(canvas.cget("width")))
+                        h = int(float(canvas.cget("height")))
+                    except Exception:
+                        w = h = 92
+                cx = w / 2.0
+                cy = h / 2.0
+                radius = min(cx, cy) - max(2.0, w * 0.12)
+                sc = radius / 35.0
 
-                for h in range(12):
-                    ang = math.radians((h * 30) - 90)
-                    x1 = cx +(radius - 6) * math.cos(ang)
-                    y1 = cy +(radius - 6) * math.sin(ang)
-                    x2 = cx +(radius - 2) * math.cos(ang)
-                    y2 = cy +(radius - 2) * math.sin(ang)
-                    canvas.create_line(x1, y1, x2, y2, fill = "#3B3B3B", width = 2)
+                def _lw(v):
+                    return max(1, int(round(v * sc)))
+
+                canvas.create_oval(cx - radius, cy - radius, cx + radius, cy + radius, fill = "#E8E1CC", outline = "#8E8A7D", width = _lw(2))
+
+                for hh in range(12):
+                    ang = math.radians((hh * 30) - 90)
+                    x1 = cx +(radius - 6 * sc) * math.cos(ang)
+                    y1 = cy +(radius - 6 * sc) * math.sin(ang)
+                    x2 = cx +(radius - 2 * sc) * math.cos(ang)
+                    y2 = cy +(radius - 2 * sc) * math.sin(ang)
+                    canvas.create_line(x1, y1, x2, y2, fill = "#3B3B3B", width = _lw(2))
 
                 hr = now_dt.hour % 12
                 mn = now_dt.minute
@@ -42188,12 +42258,13 @@ class App:
                 min_ang = math.radians(((mn + sec / 60.0) * 6) - 90)
                 sec_ang = math.radians((sec * 6) - 90)
 
-                canvas.create_line(cx, cy, cx +18 * math.cos(hour_ang), cy +18 * math.sin(hour_ang), fill = "#202020", width = 4)
-                canvas.create_line(cx, cy, cx +26 * math.cos(min_ang), cy +26 * math.sin(min_ang), fill = "#202020", width = 3)
+                canvas.create_line(cx, cy, cx +18 * sc * math.cos(hour_ang), cy +18 * sc * math.sin(hour_ang), fill = "#202020", width = _lw(4))
+                canvas.create_line(cx, cy, cx +26 * sc * math.cos(min_ang), cy +26 * sc * math.sin(min_ang), fill = "#202020", width = _lw(3))
                 if show_seconds:
-                    canvas.create_line(cx, cy, cx +29 * math.cos(sec_ang), cy +29 * math.sin(sec_ang), fill = "#C23232", width = 1)
+                    canvas.create_line(cx, cy, cx +29 * sc * math.cos(sec_ang), cy +29 * sc * math.sin(sec_ang), fill = "#C23232", width = _lw(1))
 
-                canvas.create_oval(cx -3, cy -3, cx +3, cy +3, fill = "#202020", outline = "#202020")
+                _dot = 3 * sc
+                canvas.create_oval(cx - _dot, cy - _dot, cx + _dot, cy + _dot, fill = "#202020", outline = "#202020")
             except Exception:
                 pass
 

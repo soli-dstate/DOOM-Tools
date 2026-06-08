@@ -8,7 +8,8 @@ from pathlib import Path
 import requests
 
 
-API_URL = "https://catbox.moe/user/api.php"
+PIXELDRAIN_UPLOAD_URL = "https://pixeldrain.com/api/file"
+PIXELDRAIN_FILE_URL = "https://pixeldrain.com/api/file/{id}"
 ROOT = Path(__file__).resolve().parents[1]
 MAIN_PY = ROOT / "main.py"
 BUILD_DIR = ROOT / "build" / "resources"
@@ -44,28 +45,31 @@ def create_resource_zip() -> Path:
     return zip_path
 
 
-def upload_to_catbox(zip_path: Path, userhash: str | None, timeout: int) -> str:
-    data = {"reqtype": "fileupload"}
-    if userhash:
-        data["userhash"] = userhash
+def upload_to_pixeldrain(zip_path: Path, api_key: str | None, timeout: int) -> str:
+    # Pixeldrain accepts the raw file via PUT /api/file/{name}. An API key is
+    # optional; when supplied it is sent as HTTP Basic auth (empty username,
+    # key as password) so the file is tied to the account and not purged for
+    # anonymous inactivity.
+    auth = ("", api_key) if api_key else None
 
     with zip_path.open("rb") as handle:
-        files = {
-            "fileToUpload": (
-                zip_path.name,
-                handle,
-                "application/zip",
-            )
-        }
-        response = requests.post(API_URL, data=data, files=files, timeout=timeout)
-
+        response = requests.put(
+            f"{PIXELDRAIN_UPLOAD_URL}/{zip_path.name}",
+            data=handle,
+            auth=auth,
+            headers={"Content-Type": "application/zip"},
+            timeout=timeout,
+        )
     response.raise_for_status()
-    body = response.text.strip()
-    if not body.lower().startswith("http"):
-        raise RuntimeError(f"Unexpected Catbox response: {body}")
 
-    _log(f"Uploaded to Catbox: {body}")
-    return body
+    payload = response.json()
+    file_id = payload.get("id")
+    if not file_id:
+        raise RuntimeError(f"Unexpected Pixeldrain response: {response.text}")
+
+    link = PIXELDRAIN_FILE_URL.format(id=file_id)
+    _log(f"Uploaded to Pixeldrain: {link}")
+    return link
 
 
 def update_main_resource_link(new_link: str) -> None:
@@ -87,17 +91,20 @@ def update_main_resource_link(new_link: str) -> None:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Package sounds/images into a zip, upload to Catbox, and update main.py link."
+        description="Package sounds/images into a zip, upload to Pixeldrain, and update main.py link."
     )
     parser.add_argument(
-        "--userhash",
-        default=os.getenv("CATBOX_USERHASH", "").strip(),
-        help="Catbox userhash. Defaults to CATBOX_USERHASH env var. Optional for anonymous uploads.",
+        "--api-key",
+        default=os.getenv("PIXELDRAIN_API_KEY", "").strip(),
+        help=(
+            "Pixeldrain API key. Defaults to PIXELDRAIN_API_KEY env var. Optional "
+            "for anonymous uploads, but recommended so the file is not purged for inactivity."
+        ),
     )
     parser.add_argument(
         "--timeout",
         type=int,
-        default=180,
+        default=300,
         help="HTTP timeout in seconds for upload requests.",
     )
     parser.add_argument(
@@ -115,11 +122,11 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
-    userhash = args.userhash or None
+    api_key = args.api_key or None
 
     zip_path = create_resource_zip()
     try:
-        link = upload_to_catbox(zip_path, userhash=userhash, timeout=args.timeout)
+        link = upload_to_pixeldrain(zip_path, api_key=api_key, timeout=args.timeout)
         if not args.no_update_main:
             update_main_resource_link(link)
         _log("Done")
