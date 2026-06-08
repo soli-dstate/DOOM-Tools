@@ -1,5 +1,8 @@
 version = "2.0.8"
-current_resource_link = "https://pixeldrain.com/api/file/oQCZXyJJ"
+current_resource_links = [
+    "https://files.catbox.moe/gtbtty.001",
+    "https://files.catbox.moe/r3ic2z.002",
+]
 import os
 import logging
 import re

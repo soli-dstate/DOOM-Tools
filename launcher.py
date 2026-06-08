@@ -383,14 +383,24 @@ def fetch_latest_release() -> dict:
     return {"tag": tag, "zipball_url": zipball_url, "assets": assets}
 
 
-def fetch_remote_resource_link() -> str:
+def fetch_remote_resource_links() -> list[str]:
+    """Return the ordered list of resource part URLs declared in main.py.
+
+    Supports the current ``current_resource_links = [ ... ]`` list form and falls
+    back to the legacy single-string ``current_resource_link = "..."`` form.
+    """
     with _request_with_retry(GITHUB_RAW_MAIN, timeout=20) as response:
         text = response.text
-    pattern = re.compile(r"^current_resource_link\s*=\s*[\"\'](.*?)[\"\']\s*$", re.MULTILINE)
-    match = pattern.search(text)
-    if not match:
-        return ""
-    return match.group(1).strip()
+
+    list_match = re.search(r"current_resource_links\s*=\s*\[(.*?)\]", text, re.DOTALL)
+    if list_match:
+        urls = re.findall(r"[\"']([^\"']+)[\"']", list_match.group(1))
+        return [u.strip() for u in urls if u.strip()]
+
+    single = re.search(r"^current_resource_link\s*=\s*[\"\'](.*?)[\"\']\s*$", text, re.MULTILINE)
+    if single and single.group(1).strip():
+        return [single.group(1).strip()]
+    return []
 
 
 def _format_size(value: float) -> str:
@@ -1064,26 +1074,36 @@ def prepare_or_update(
     report(5, "Checking resources", "Validating remote resource package link")
     logger("Checking remote resource link...")
     try:
-        remote_resource_link = fetch_remote_resource_link()
+        remote_resource_links = fetch_remote_resource_links()
     except Exception as link_exc:
         logger(f"Remote resource link check failed; keeping existing resources: {link_exc}")
-        remote_resource_link = ""
-    if remote_resource_link and state.get("resource_link") != remote_resource_link:
-        logger("Resource link changed. Downloading updated resources...")
+        remote_resource_links = []
+    if remote_resource_links and state.get("resource_links") != remote_resource_links:
+        part_count = len(remote_resource_links)
+        logger(f"Resource links changed. Downloading {part_count} part(s)...")
         resource_zip = cache_dir / "resources_latest.zip"
         try:
-            download_file(
-                remote_resource_link,
-                resource_zip,
-                on_progress=lambda d, t, s: report_transfer("Resource download", d, t, s),
-            )
+            # The zip is split across parts so each stays under the host's size
+            # cap; download each in order and concatenate back into one zip.
+            with open(resource_zip, "wb") as combined:
+                for index, link in enumerate(remote_resource_links, start=1):
+                    part_path = cache_dir / f"resources_part_{index}.bin"
+                    label = f"Resource download (part {index}/{part_count})"
+                    download_file(
+                        link,
+                        part_path,
+                        on_progress=lambda d, t, s, _l=label: report_transfer(_l, d, t, s),
+                    )
+                    with open(part_path, "rb") as part_file:
+                        shutil.copyfileobj(part_file, combined)
+                    part_path.unlink(missing_ok=True)
             replace_resources_from_zip(resource_zip, runtime_content_root, logger)
             resource_zip.unlink(missing_ok=True)
-            state["resource_link"] = remote_resource_link
+            state["resource_links"] = remote_resource_links
         except Exception as resource_exc:
             logger(f"Resource update failed; keeping previous resources: {resource_exc}")
-    elif not remote_resource_link:
-        logger("Remote current_resource_link is empty; keeping local resources")
+    elif not remote_resource_links:
+        logger("Remote current_resource_links is empty; keeping local resources")
     else:
         logger("Resources are already up to date")
 
