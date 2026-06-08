@@ -544,9 +544,33 @@ def _cloud_list_folder(folder_id):
     return resp.json().get("files", [])
 
 
-def _cloud_upload_file(folder_id, local_path, remote_name, existing_id=None):
-    with open(local_path, "rb") as f:
-        content = f.read()
+class _CloudUploadBody:
+    """Streaming body for a Drive media upload that reports bytes as they are sent.
+
+    __iter__ makes requests stream it; __len__ sets Content-Length (no chunked).
+    """
+
+    def __init__(self, path, on_chunk=None, block=262144):
+        self._path = path
+        self._size = os.path.getsize(path)
+        self._on_chunk = on_chunk
+        self._block = block
+
+    def __len__(self):
+        return self._size
+
+    def __iter__(self):
+        with open(self._path, "rb") as handle:
+            while True:
+                chunk = handle.read(self._block)
+                if not chunk:
+                    break
+                if self._on_chunk:
+                    self._on_chunk(len(chunk))
+                yield chunk
+
+
+def _cloud_upload_file(folder_id, local_path, remote_name, existing_id=None, on_chunk=None):
     if not existing_id:
         meta = requests.post(f"{DRIVE_API}/files", headers=_cloud_headers(),
                              json={"name": remote_name, "parents": [folder_id]},
@@ -556,7 +580,8 @@ def _cloud_upload_file(folder_id, local_path, remote_name, existing_id=None):
     media = requests.patch(
         f"{DRIVE_UPLOAD_API}/files/{existing_id}",
         headers={**_cloud_headers(), "Content-Type": "application/octet-stream"},
-        params={"uploadType": "media"}, data=content, timeout=120)
+        params={"uploadType": "media"},
+        data=_CloudUploadBody(local_path, on_chunk=on_chunk), timeout=120)
     _cloud_raise(media)
     return existing_id
 
@@ -568,6 +593,30 @@ def _cloud_download_file(file_id, dest_path):
     os.makedirs(os.path.dirname(dest_path) or ".", exist_ok=True)
     with open(dest_path, "wb") as f:
         f.write(resp.content)
+
+
+def _cloud_get_storage_quota():
+    """Return the account's Drive storage quota dict (works with drive.file scope).
+
+    Keys (bytes, as strings): 'limit' (absent if unlimited), 'usage',
+    'usageInDrive', 'usageInDriveTrash'.
+    """
+    resp = requests.get(f"{DRIVE_API}/about", headers=_cloud_headers(),
+                        params={"fields": "storageQuota"}, timeout=30)
+    _cloud_raise(resp)
+    return resp.json().get("storageQuota", {})
+
+
+def _format_bytes(num):
+    try:
+        num = float(num)
+    except (TypeError, ValueError):
+        return "?"
+    for unit in ("B", "KB", "MB", "GB", "TB", "PB"):
+        if abs(num) < 1024.0 or unit == "PB":
+            return f"{num:.1f} {unit}" if unit != "B" else f"{int(num)} B"
+        num /= 1024.0
+    return f"{num:.1f} PB"
 
 pygame.init()
 
@@ -5119,15 +5168,35 @@ class App:
 
     # ----- Cloud saves (Google Drive) -----
     def _cloud_sync_file_set(self):
-        """(local_path, remote_name) pairs to push: top-level .sldsv + signing key."""
+        """(local_path, remote_name) pairs to push.
+
+        Includes top-level .sldsv saves and the per-character backup saves under
+        backups/<char>/, but NOT the zipped backup archives in backups/<char>/archive/.
+        Backup files use their saves-relative path (posix) as the remote name so
+        they restore back into the right subfolder; the signing key is also pushed.
+        """
         pairs = []
         folder = saves_folder or "saves"
         try:
             for fname in os.listdir(folder):
-                if fname.lower().endswith(".sldsv") and fname not in CLOUD_SYNC_EXCLUDE:
-                    pairs.append((os.path.join(folder, fname), fname))
+                full = os.path.join(folder, fname)
+                if os.path.isfile(full) and fname.lower().endswith(".sldsv") and fname not in CLOUD_SYNC_EXCLUDE:
+                    pairs.append((full, fname))
         except Exception:
             pass
+
+        backups_root = os.path.join(folder, "backups")
+        if os.path.isdir(backups_root):
+            for root, dirs, fnames in os.walk(backups_root):
+                # Don't descend into archive/ folders -> excludes the backup archives.
+                dirs[:] = [d for d in dirs if d.lower() != "archive"]
+                for fname in fnames:
+                    if not fname.lower().endswith(".sldsv"):
+                        continue
+                    full = os.path.join(root, fname)
+                    rel = os.path.relpath(full, folder).replace(os.sep, "/")
+                    pairs.append((full, rel))
+
         key_path = _get_save_key_path()
         if os.path.exists(key_path):
             pairs.append((key_path, CLOUD_KEY_REMOTE_NAME))
@@ -5145,14 +5214,15 @@ class App:
             pass
         return False
 
-    def _cloud_upload_all(self, logger=None):
+    def _cloud_upload_all(self, logger=None, on_chunk=None):
         log = logger or (lambda m: logging.info(m))
         folder_id = _cloud_get_folder_id(create=True)
         remote = {f["name"]: f["id"] for f in _cloud_list_folder(folder_id)}
         count = 0
         for local_path, remote_name in self._cloud_sync_file_set():
             try:
-                _cloud_upload_file(folder_id, local_path, remote_name, remote.get(remote_name))
+                _cloud_upload_file(folder_id, local_path, remote_name,
+                                   remote.get(remote_name), on_chunk=on_chunk)
                 count += 1
             except Exception as e:
                 log(f"Cloud upload failed for {remote_name}: {e}")
@@ -5182,7 +5252,12 @@ class App:
                     continue
                 if name in CLOUD_SYNC_EXCLUDE or not name.lower().endswith(".sldsv"):
                     continue
-                _cloud_download_file(f["id"], os.path.join(folder, name))
+                # Remote names may be saves-relative paths (e.g. backups/<char>/x.sldsv);
+                # rebuild the local path and drop any traversal segments.
+                rel_parts = [p for p in name.split("/") if p not in ("", ".", "..")]
+                if not rel_parts:
+                    continue
+                _cloud_download_file(f["id"], os.path.join(folder, *rel_parts))
                 count += 1
             except Exception as e:
                 log(f"Cloud download failed for {name}: {e}")
@@ -5213,15 +5288,85 @@ class App:
         threading.Thread(target=runner, daemon=True).start()
 
     def _cloud_sync_on_exit(self):
-        """Best-effort upload during autosave-on-exit. Synchronous, time-bounded."""
+        """Upload saves during autosave-on-exit, with a progress popup (MB/s).
+
+        Runs synchronously on the main thread (the UI is still alive here) and
+        pumps the popup from the per-chunk upload callback.
+        """
         try:
             if not (cloud_is_configured() and cloud_is_signed_in()):
                 return
+        except Exception:
+            return
+
+        try:
+            total_bytes = sum(
+                os.path.getsize(p) for p, _ in self._cloud_sync_file_set() if os.path.exists(p)
+            )
+        except Exception:
+            total_bytes = 0
+
+        popup = None
+        bar = None
+        status = None
+        try:
+            popup = customtkinter.CTkToplevel(self.root)
+            popup.title("Cloud Saves")
+            popup.geometry("420x150")
+            popup.transient(self.root)
+            popup.protocol("WM_DELETE_WINDOW", lambda: None)
+            customtkinter.CTkLabel(
+                popup, text="Syncing saves to the cloud...",
+                font=customtkinter.CTkFont(size=14, weight="bold")
+            ).pack(pady=(22, 10))
+            bar = customtkinter.CTkProgressBar(popup, width=360)
+            bar.set(0.0)
+            bar.pack(pady=4)
+            status = customtkinter.CTkLabel(
+                popup, text=f"0.0 / {total_bytes / 1048576:.1f} MB",
+                font=customtkinter.CTkFont(size=12)
+            )
+            status.pack(pady=(8, 12))
+            self._center_popup_on_window(popup, 420, 150)
+            popup.update()
+        except Exception:
+            popup = None
+
+        state = {"done": 0, "start": time.monotonic(), "last": 0.0}
+
+        def on_chunk(n):
+            state["done"] += n
+            if popup is None:
+                return
+            now = time.monotonic()
+            if now - state["last"] < 0.05 and (not total_bytes or state["done"] < total_bytes):
+                return
+            state["last"] = now
+            elapsed = now - state["start"]
+            speed = (state["done"] / elapsed / 1048576) if elapsed > 0 else 0.0
+            frac = min(state["done"] / total_bytes, 1.0) if total_bytes else 1.0
+            try:
+                bar.set(frac)
+                status.configure(
+                    text=f"{state['done'] / 1048576:.1f} / {total_bytes / 1048576:.1f} MB"
+                         f"    {speed:.2f} MB/s"
+                )
+                popup.update()
+            except Exception:
+                pass
+
+        try:
             logging.info("Uploading saves to cloud...")
-            uploaded = self._cloud_upload_all()
+            uploaded = self._cloud_upload_all(on_chunk=on_chunk)
             logging.info(f"Cloud sync uploaded {uploaded} file(s).")
         except Exception as e:
             logging.error(f"Cloud sync on exit failed: {e}")
+        finally:
+            if popup is not None:
+                try:
+                    popup.destroy()
+                except Exception:
+                    pass
 
     def _cloud_begin_restore_flow(self):
         def work():
@@ -5319,6 +5464,41 @@ class App:
                                       width=500, height=50,
                                       font=customtkinter.CTkFont(size=16)).pack(pady=10)
         else:
+            storage_label = customtkinter.CTkLabel(
+                main_frame, text="Drive storage: checking...",
+                font=customtkinter.CTkFont(size=13))
+            storage_label.pack(pady=(0, 10))
+
+            def _load_storage():
+                try:
+                    quota = _cloud_get_storage_quota()
+                except Exception as exc:
+                    text = f"Drive storage: unavailable ({exc})"
+                else:
+                    usage = int(quota.get("usage", 0) or 0)
+                    limit_raw = quota.get("limit")
+                    if limit_raw in (None, ""):
+                        text = f"Drive storage: {_format_bytes(usage)} used (unlimited)"
+                    else:
+                        limit = int(limit_raw)
+                        free = max(limit - usage, 0)
+                        pct = (usage / limit * 100) if limit else 0
+                        text = (f"Drive storage: {_format_bytes(usage)} / {_format_bytes(limit)} "
+                                f"used ({pct:.0f}%)  •  {_format_bytes(free)} free")
+
+                def apply():
+                    try:
+                        storage_label.configure(text=text)
+                    except Exception:
+                        pass
+
+                try:
+                    self.root.after(0, apply)
+                except Exception:
+                    pass
+
+            threading.Thread(target=_load_storage, daemon=True).start()
+
             def do_upload():
                 def done(result, error):
                     if error:
