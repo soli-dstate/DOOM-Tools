@@ -1,4 +1,4 @@
-version = "2.0.9"
+version = "2.0.10"
 current_resource_links = [
     "https://files.catbox.moe/gtbtty.001",
     "https://files.catbox.moe/r3ic2z.002",
@@ -323,6 +323,10 @@ DRIVE_API = "https://www.googleapis.com/drive/v3"
 DRIVE_UPLOAD_API = "https://www.googleapis.com/upload/drive/v3"
 CLOUD_FOLDER_NAME = "DOOM-Tools Cloud Saves"
 CLOUD_KEY_REMOTE_NAME = "doomtools.savekey"
+# Saves are bundled into this single zip in the cloud folder (one fast upload
+# instead of many per-file requests). The arcname inside the zip is the
+# saves-relative path; the signing key is stored under CLOUD_KEY_REMOTE_NAME.
+CLOUD_ARCHIVE_NAME = "doomtools-cloud-saves.zip"
 # Top-level saves we do NOT push to the cloud (kept device-local).
 CLOUD_SYNC_EXCLUDE = {"dm_settings.sldsv"}
 
@@ -5214,46 +5218,136 @@ class App:
             pass
         return False
 
-    def _cloud_upload_all(self, logger=None, on_chunk=None):
+    def _cloud_upload_all(self, logger=None, on_chunk=None, on_total=None, on_compress=None):
+        """Bundle the sync set into one zip and upload it as a single Drive file.
+
+        on_compress(done, total) fires as files are read into the zip (input bytes);
+        on_total(zip_bytes) fires once the zip is built (so a progress UI can set
+        its upload denominator); on_chunk(n) fires as the zip streams to Drive.
+        """
+        import tempfile
         log = logger or (lambda m: logging.info(m))
-        folder_id = _cloud_get_folder_id(create=True)
-        remote = {f["name"]: f["id"] for f in _cloud_list_folder(folder_id)}
-        count = 0
-        for local_path, remote_name in self._cloud_sync_file_set():
+        pairs = self._cloud_sync_file_set()
+        if not pairs:
+            return 0
+
+        pairs = [(p, a) for p, a in pairs if os.path.exists(p)]
+        compress_total = sum(os.path.getsize(p) for p, _ in pairs)
+        compressed = 0
+        if on_compress:
             try:
-                _cloud_upload_file(folder_id, local_path, remote_name,
-                                   remote.get(remote_name), on_chunk=on_chunk)
-                count += 1
-            except Exception as e:
-                log(f"Cloud upload failed for {remote_name}: {e}")
-        return count
+                on_compress(0, compress_total)
+            except Exception:
+                pass
+
+        tmp_zip = os.path.join(tempfile.gettempdir(), f"doomtools-cloud-up-{os.getpid()}.zip")
+        added = 0
+        try:
+            with zipfile.ZipFile(tmp_zip, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+                for local_path, arcname in pairs:
+                    try:
+                        with open(local_path, "rb") as src, zf.open(arcname, "w") as dst:
+                            while True:
+                                block = src.read(262144)
+                                if not block:
+                                    break
+                                dst.write(block)
+                                compressed += len(block)
+                                if on_compress:
+                                    try:
+                                        on_compress(compressed, compress_total)
+                                    except Exception:
+                                        pass
+                        added += 1
+                    except Exception as e:
+                        log(f"Cloud zip add failed for {arcname}: {e}")
+            if on_total:
+                try:
+                    on_total(os.path.getsize(tmp_zip))
+                except Exception:
+                    pass
+
+            folder_id = _cloud_get_folder_id(create=True)
+            existing = {f["name"]: f["id"] for f in _cloud_list_folder(folder_id)}
+            _cloud_upload_file(folder_id, tmp_zip, CLOUD_ARCHIVE_NAME,
+                               existing.get(CLOUD_ARCHIVE_NAME), on_chunk=on_chunk)
+            log(f"Cloud sync uploaded {added} file(s) in {CLOUD_ARCHIVE_NAME}.")
+        finally:
+            try:
+                os.remove(tmp_zip)
+            except Exception:
+                pass
+        return added
+
+    def _cloud_apply_key_bytes(self, raw):
+        """Store a restored signing key so downloaded saves verify here."""
+        try:
+            with open(_cloud_imported_key_path(), "wb") as f:
+                f.write(raw)
+        except Exception:
+            return
+        primary = _get_save_key_path()
+        if not os.path.exists(primary):
+            try:
+                os.makedirs(os.path.dirname(primary), exist_ok=True)
+                shutil.copy2(_cloud_imported_key_path(), primary)
+            except Exception:
+                pass
 
     def _cloud_restore_all(self, logger=None):
+        import tempfile
         log = logger or (lambda m: logging.info(m))
         folder_id = _cloud_get_folder_id(create=False)
         if not folder_id:
             return 0
         folder = saves_folder or "saves"
         os.makedirs(folder, exist_ok=True)
+        listing = {f["name"]: f["id"] for f in _cloud_list_folder(folder_id)}
+
+        archive_id = listing.get(CLOUD_ARCHIVE_NAME)
+        if archive_id:
+            tmp_zip = os.path.join(tempfile.gettempdir(), f"doomtools-cloud-dl-{os.getpid()}.zip")
+            count = 0
+            try:
+                _cloud_download_file(archive_id, tmp_zip)
+                with zipfile.ZipFile(tmp_zip, "r") as zf:
+                    for member in zf.namelist():
+                        if member.endswith("/"):
+                            continue
+                        parts = [p for p in member.replace("\\", "/").split("/")
+                                 if p not in ("", ".", "..")]
+                        if not parts:
+                            continue
+                        try:
+                            if parts == [CLOUD_KEY_REMOTE_NAME]:
+                                self._cloud_apply_key_bytes(zf.read(member))
+                                continue
+                            dest = os.path.join(folder, *parts)
+                            os.makedirs(os.path.dirname(dest) or folder, exist_ok=True)
+                            with zf.open(member) as src, open(dest, "wb") as dst:
+                                shutil.copyfileobj(src, dst)
+                            count += 1
+                        except Exception as e:
+                            log(f"Cloud restore failed for {member}: {e}")
+            finally:
+                try:
+                    os.remove(tmp_zip)
+                except Exception:
+                    pass
+            return count
+
+        # Back-compat: clouds created before zip bundling stored individual files.
         count = 0
         for f in _cloud_list_folder(folder_id):
             name = f["name"]
             try:
                 if name == CLOUD_KEY_REMOTE_NAME:
-                    # Keep the cloud signing key so downloaded saves verify here.
-                    _cloud_download_file(f["id"], _cloud_imported_key_path())
-                    primary = _get_save_key_path()
-                    if not os.path.exists(primary):
-                        try:
-                            os.makedirs(os.path.dirname(primary), exist_ok=True)
-                            shutil.copy2(_cloud_imported_key_path(), primary)
-                        except Exception:
-                            pass
+                    self._cloud_apply_key_bytes(requests.get(
+                        f"{DRIVE_API}/files/{f['id']}", headers=_cloud_headers(),
+                        params={"alt": "media"}, timeout=120).content)
                     continue
                 if name in CLOUD_SYNC_EXCLUDE or not name.lower().endswith(".sldsv"):
                     continue
-                # Remote names may be saves-relative paths (e.g. backups/<char>/x.sldsv);
-                # rebuild the local path and drop any traversal segments.
                 rel_parts = [p for p in name.split("/") if p not in ("", ".", "..")]
                 if not rel_parts:
                     continue
@@ -5299,13 +5393,6 @@ class App:
         except Exception:
             return
 
-        try:
-            total_bytes = sum(
-                os.path.getsize(p) for p, _ in self._cloud_sync_file_set() if os.path.exists(p)
-            )
-        except Exception:
-            total_bytes = 0
-
         popup = None
         bar = None
         status = None
@@ -5323,7 +5410,7 @@ class App:
             bar.set(0.0)
             bar.pack(pady=4)
             status = customtkinter.CTkLabel(
-                popup, text=f"0.0 / {total_bytes / 1048576:.1f} MB",
+                popup, text="Compressing saves...",
                 font=customtkinter.CTkFont(size=12)
             )
             status.pack(pady=(8, 12))
@@ -5332,33 +5419,45 @@ class App:
         except Exception:
             popup = None
 
-        state = {"done": 0, "start": time.monotonic(), "last": 0.0}
+        # total is the compressed zip size for upload; set once the archive is built.
+        state = {"done": 0, "total": 0, "start": time.monotonic(), "last": 0.0}
 
-        def on_chunk(n):
-            state["done"] += n
+        def _render(prefix, done, total, speed=None):
             if popup is None:
                 return
             now = time.monotonic()
-            if now - state["last"] < 0.05 and (not total_bytes or state["done"] < total_bytes):
+            if now - state["last"] < 0.05 and (not total or done < total):
                 return
             state["last"] = now
-            elapsed = now - state["start"]
-            speed = (state["done"] / elapsed / 1048576) if elapsed > 0 else 0.0
-            frac = min(state["done"] / total_bytes, 1.0) if total_bytes else 1.0
+            frac = min(done / total, 1.0) if total else 0.0
+            text = f"{prefix}: {done / 1048576:.1f} / {total / 1048576:.1f} MB"
+            if speed is not None:
+                text += f"    {speed:.2f} MB/s"
             try:
                 bar.set(frac)
-                status.configure(
-                    text=f"{state['done'] / 1048576:.1f} / {total_bytes / 1048576:.1f} MB"
-                         f"    {speed:.2f} MB/s"
-                )
+                status.configure(text=text)
                 popup.update()
             except Exception:
                 pass
 
+        def on_compress(done, total):
+            _render("Compressing", done, total)
+
+        def on_total(zip_bytes):
+            state["total"] = zip_bytes
+            state["start"] = time.monotonic()
+            state["last"] = 0.0
+
+        def on_chunk(n):
+            state["done"] += n
+            total = state["total"]
+            elapsed = time.monotonic() - state["start"]
+            speed = (state["done"] / elapsed / 1048576) if elapsed > 0 else 0.0
+            _render("Uploading", state["done"], total, speed)
+
         try:
             logging.info("Uploading saves to cloud...")
-            uploaded = self._cloud_upload_all(on_chunk=on_chunk)
-            logging.info(f"Cloud sync uploaded {uploaded} file(s).")
+            self._cloud_upload_all(on_chunk=on_chunk, on_total=on_total, on_compress=on_compress)
         except Exception as e:
             logging.error(f"Cloud sync on exit failed: {e}")
         finally:
