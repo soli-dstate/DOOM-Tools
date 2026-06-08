@@ -1,4 +1,4 @@
-version = "2.0.6"
+version = "2.0.7"
 current_resource_link = "https://pixeldrain.com/api/file/oQCZXyJJ"
 import os
 import logging
