@@ -38,11 +38,26 @@ jobs:
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
           pip install pyinstaller
 
+      - name: Write cloud credentials
+        shell: bash
+        env:
+          GDRIVE_CLIENT_ID: ${{ secrets.GDRIVE_CLIENT_ID }}
+          GDRIVE_CLIENT_SECRET: ${{ secrets.GDRIVE_CLIENT_SECRET }}
+        run: |
+          if [ -n "$GDRIVE_CLIENT_ID" ] && [ -n "$GDRIVE_CLIENT_SECRET" ]; then
+            printf '{"client_id":"%s","client_secret":"%s"}' "$GDRIVE_CLIENT_ID" "$GDRIVE_CLIENT_SECRET" > cloud_credentials.json
+            echo "Cloud credentials written for build."
+          else
+            echo "No GDRIVE_CLIENT_ID/SECRET secrets set; cloud saves disabled in this build."
+          fi
+
       - name: Build exe with PyInstaller
         shell: bash
         run: |
           echo "Building $APP_NAME from $ENTRY_PATH"
-          pyinstaller --onefile --name "$APP_NAME" "$ENTRY_PATH"
+          ARGS=(--onefile --name "$APP_NAME" --hidden-import http.server --hidden-import webbrowser --hidden-import urllib.parse)
+          if [ -f cloud_credentials.json ]; then ARGS+=(--add-data "cloud_credentials.json;."); fi
+          pyinstaller "${ARGS[@]}" "$ENTRY_PATH"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -69,11 +84,26 @@ jobs:
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
           pip install pyinstaller
 
+      - name: Write cloud credentials
+        shell: bash
+        env:
+          GDRIVE_CLIENT_ID: ${{ secrets.GDRIVE_CLIENT_ID }}
+          GDRIVE_CLIENT_SECRET: ${{ secrets.GDRIVE_CLIENT_SECRET }}
+        run: |
+          if [ -n "$GDRIVE_CLIENT_ID" ] && [ -n "$GDRIVE_CLIENT_SECRET" ]; then
+            printf '{"client_id":"%s","client_secret":"%s"}' "$GDRIVE_CLIENT_ID" "$GDRIVE_CLIENT_SECRET" > cloud_credentials.json
+            echo "Cloud credentials written for build."
+          else
+            echo "No GDRIVE_CLIENT_ID/SECRET secrets set; cloud saves disabled in this build."
+          fi
+
       - name: Build binary with PyInstaller
         shell: bash
         run: |
           echo "Building $APP_NAME from $ENTRY_PATH"
-          pyinstaller --onefile --name "$APP_NAME" "$ENTRY_PATH"
+          ARGS=(--onefile --name "$APP_NAME" --hidden-import http.server --hidden-import webbrowser --hidden-import urllib.parse)
+          if [ -f cloud_credentials.json ]; then ARGS+=(--add-data "cloud_credentials.json:."); fi
+          pyinstaller "${ARGS[@]}" "$ENTRY_PATH"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

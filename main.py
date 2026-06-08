@@ -1,4 +1,4 @@
-version = "2.0.7"
+version = "2.0.8"
 current_resource_link = "https://pixeldrain.com/api/file/oQCZXyJJ"
 import os
 import logging
@@ -39,9 +39,38 @@ def _sanitize_log(s):
 import hashlib as _hashlib
 import hmac as _hmac
 
+def _get_shared_key_dir():
+    # Single machine-wide location for the save signing key, independent of
+    # devmode. Both devmode (./saves) and production (LOCALAPPDATA) sign with the
+    # same key so character saves transfer between modes on the same PC.
+    if os.name == 'nt':
+        base = os.getenv('LOCALAPPDATA')or os.path.expanduser('~')
+        return os.path.join(base, 'soli_dstate', 'DOOM-Tools')
+    return os.path.expanduser('~/.local/share/soli_dstate/DOOM-Tools')
+
 def _get_save_key_path():
+    return os.path.join(_get_shared_key_dir(), ".save_key")
+
+def _legacy_save_key_paths():
+    # Older per-folder key locations, checked once to migrate existing saves so
+    # they keep verifying after the key moved to a shared location.
+    paths = []
     folder = saves_folder if 'saves_folder' in globals() and saves_folder else "saves"
-    return os.path.join(folder, ".save_key")
+    paths.append(os.path.join(folder, ".save_key"))
+    paths.append(os.path.join("saves", ".save_key"))
+    if os.name == 'nt':
+        base = os.getenv('LOCALAPPDATA')or os.path.expanduser('~')
+        paths.append(os.path.join(base, 'soli_dstate', 'DOOM-Tools', 'saves', ".save_key"))
+    else:
+        paths.append(os.path.expanduser('~/.local/share/soli_dstate/DOOM-Tools/saves/.save_key'))
+    seen = set()
+    out = []
+    for p in paths:
+        ap = os.path.abspath(p)
+        if ap not in seen:
+            seen.add(ap)
+            out.append(p)
+    return out
 
 def _get_save_key():
     key_path = _get_save_key_path()
@@ -51,6 +80,19 @@ def _get_save_key():
             key = f.read()
         if len(key) >= 32:
             return key
+    # Adopt an existing per-folder key (devmode or production) so saves signed
+    # before this change still load and remain transferable between modes.
+    for legacy_path in _legacy_save_key_paths():
+        try:
+            if os.path.exists(legacy_path):
+                with open(legacy_path, 'rb') as f:
+                    legacy_key = f.read()
+                if len(legacy_key) >= 32:
+                    with open(key_path, 'wb') as f:
+                        f.write(legacy_key)
+                    return legacy_key
+        except Exception:
+            pass
     key = secrets.token_bytes(32)
     with open(key_path, 'wb') as f:
         f.write(key)
@@ -58,14 +100,49 @@ def _get_save_key():
 
 _PORTABLE_KEY = _hashlib.sha256(b"DOOM-Tools-portable-transfer-signing-key-v1").digest()
 
+def _candidate_save_keys():
+    # The shared key (used for new signatures) plus any legacy per-folder keys,
+    # so saves signed before the key was unified still verify on this machine.
+    keys = []
+    try:
+        keys.append(_get_save_key())
+    except Exception:
+        pass
+    for legacy_path in _legacy_save_key_paths():
+        try:
+            if os.path.exists(legacy_path):
+                with open(legacy_path, 'rb') as f:
+                    legacy_key = f.read()
+                if len(legacy_key) >= 32 and legacy_key not in keys:
+                    keys.append(legacy_key)
+        except Exception:
+            pass
+    # Signing key imported from cloud restore, so saves created on another
+    # machine still verify here.
+    try:
+        cloud_key_path = os.path.join(_get_shared_key_dir(), ".cloud_save_key")
+        if os.path.exists(cloud_key_path):
+            with open(cloud_key_path, 'rb') as f:
+                cloud_key = f.read()
+            if len(cloud_key) >= 32 and cloud_key not in keys:
+                keys.append(cloud_key)
+    except Exception:
+        pass
+    return keys
+
 def _sign_data(payload_str, *, portable = False):
     key = _PORTABLE_KEY if portable else _get_save_key()
     return _hmac.new(key, payload_str.encode('utf-8'), _hashlib.sha256).hexdigest()
 
 def _verify_signature(payload_str, signature, *, portable = False):
-    key = _PORTABLE_KEY if portable else _get_save_key()
-    expected = _hmac.new(key, payload_str.encode('utf-8'), _hashlib.sha256).hexdigest()
-    return _hmac.compare_digest(expected, signature)
+    if portable:
+        expected = _hmac.new(_PORTABLE_KEY, payload_str.encode('utf-8'), _hashlib.sha256).hexdigest()
+        return _hmac.compare_digest(expected, signature)
+    for key in _candidate_save_keys():
+        expected = _hmac.new(key, payload_str.encode('utf-8'), _hashlib.sha256).hexdigest()
+        if _hmac.compare_digest(expected, signature):
+            return True
+    return False
 
 def _signed_json_write(filepath, data, *, binary_mode = False, comment_lines = None, portable = False):
     payload_str = json.dumps(data, ensure_ascii = False, sort_keys = True)
@@ -150,6 +227,324 @@ def _signed_json_read(filepath, *, allow_unsigned = False, portable = False):
         return None, comment_lines, "unsigned"
     else:
         return None, comment_lines, "invalid_structure"
+
+# ============================================================
+# Optional cloud saves (Google Drive)
+# ------------------------------------------------------------
+# Talks to the Drive REST API directly (no google client libraries) using the
+# drive.file scope, so the app can only ever see files it created. Sign-in uses
+# the OAuth 2.0 loopback flow: a browser opens, the user authorises, and Google
+# redirects back to a short-lived local web server.
+#
+# TO ENABLE: in Google Cloud, create a project, enable the Google Drive API,
+# configure the OAuth consent screen (add yourself / users as testers, or
+# publish), create an OAuth client of type "Desktop app", then supply its client
+# id/secret WITHOUT committing them to git, via any of (checked in order):
+#   1. env vars DOOMTOOLS_GDRIVE_CLIENT_ID / DOOMTOOLS_GDRIVE_CLIENT_SECRET
+#   2. a git-ignored cloud_credentials.json: {"client_id": "...", "client_secret": "..."}
+#      placed next to main.py / the exe, in the app data dir, or bundled into the
+#      build (scripts/build_release.py adds it via PyInstaller --add-data).
+# While none are present, every cloud feature stays disabled and the program
+# behaves exactly as before.
+# ============================================================
+def _cloud_credential_file_candidates():
+    candidates = []
+    meipass = getattr(sys, "_MEIPASS", None)
+    if meipass:
+        candidates.append(os.path.join(meipass, "cloud_credentials.json"))
+    try:
+        candidates.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "cloud_credentials.json"))
+    except Exception:
+        pass
+    try:
+        candidates.append(os.path.join(os.path.dirname(os.path.abspath(sys.executable)), "cloud_credentials.json"))
+    except Exception:
+        pass
+    try:
+        candidates.append(os.path.join(_get_shared_key_dir(), "cloud_credentials.json"))
+    except Exception:
+        pass
+    candidates.append(os.path.join(os.getcwd(), "cloud_credentials.json"))
+    return candidates
+
+
+def _load_cloud_credentials():
+    cid = os.getenv("DOOMTOOLS_GDRIVE_CLIENT_ID", "").strip()
+    csecret = os.getenv("DOOMTOOLS_GDRIVE_CLIENT_SECRET", "").strip()
+    if cid and csecret:
+        return cid, csecret
+    seen = set()
+    for path in _cloud_credential_file_candidates():
+        ap = os.path.abspath(path)
+        if ap in seen:
+            continue
+        seen.add(ap)
+        try:
+            if os.path.exists(path):
+                with open(path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                cid = str(data.get("client_id", "")).strip()
+                csecret = str(data.get("client_secret", "")).strip()
+                if cid and csecret:
+                    return cid, csecret
+        except Exception as e:
+            logging.warning(f"Failed to read cloud credentials from {path}: {e}")
+    return "", ""
+
+
+GOOGLE_OAUTH_CLIENT_ID, GOOGLE_OAUTH_CLIENT_SECRET = _load_cloud_credentials()
+GOOGLE_OAUTH_SCOPE = "https://www.googleapis.com/auth/drive.file"
+GOOGLE_AUTH_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth"
+GOOGLE_TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
+DRIVE_API = "https://www.googleapis.com/drive/v3"
+DRIVE_UPLOAD_API = "https://www.googleapis.com/upload/drive/v3"
+CLOUD_FOLDER_NAME = "DOOM-Tools Cloud Saves"
+CLOUD_KEY_REMOTE_NAME = "doomtools.savekey"
+# Top-level saves we do NOT push to the cloud (kept device-local).
+CLOUD_SYNC_EXCLUDE = {"dm_settings.sldsv"}
+
+
+def cloud_is_configured():
+    return bool(GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET)
+
+
+def _cloud_token_path():
+    return os.path.join(_get_shared_key_dir(), ".cloud_auth.json")
+
+
+def _cloud_state_path():
+    return os.path.join(_get_shared_key_dir(), ".cloud_state.json")
+
+
+def _cloud_imported_key_path():
+    return os.path.join(_get_shared_key_dir(), ".cloud_save_key")
+
+
+def _cloud_load_json(path):
+    try:
+        if os.path.exists(path):
+            with open(path, "r", encoding="utf-8") as f:
+                return json.load(f)
+    except Exception:
+        pass
+    return {}
+
+
+def _cloud_save_json(path, data):
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(data, f)
+        return True
+    except Exception as e:
+        logging.error(f"Failed to write {path}: {e}")
+        return False
+
+
+def cloud_is_signed_in():
+    return bool(_cloud_load_json(_cloud_token_path()).get("refresh_token"))
+
+
+def cloud_sign_out():
+    try:
+        token_path = _cloud_token_path()
+        if os.path.exists(token_path):
+            os.remove(token_path)
+    except Exception:
+        pass
+
+
+def cloud_oauth_login(timeout=180):
+    """Run the loopback OAuth flow and persist tokens. Blocking; returns True."""
+    import http.server
+    import urllib.parse
+    import webbrowser
+
+    if not cloud_is_configured():
+        raise RuntimeError("Cloud saves are not configured (missing OAuth client id/secret).")
+
+    auth_result = {"code": None, "error": None}
+
+    class _Handler(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            params = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            if "code" in params:
+                auth_result["code"] = params["code"][0]
+                body = b"<html><body><h2>DOOM-Tools: sign-in complete.</h2><p>You can close this tab.</p></body></html>"
+            elif "error" in params:
+                auth_result["error"] = params["error"][0]
+                body = b"<html><body><h2>DOOM-Tools: sign-in failed.</h2></body></html>"
+            else:
+                body = b"<html><body>Waiting...</body></html>"
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html")
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *args):
+            pass
+
+    server = http.server.HTTPServer(("127.0.0.1", 0), _Handler)
+    server.timeout = 1
+    port = server.server_address[1]
+    redirect_uri = f"http://127.0.0.1:{port}"
+
+    params = {
+        "client_id": GOOGLE_OAUTH_CLIENT_ID,
+        "redirect_uri": redirect_uri,
+        "response_type": "code",
+        "scope": GOOGLE_OAUTH_SCOPE,
+        "access_type": "offline",
+        "prompt": "consent",
+    }
+    auth_url = GOOGLE_AUTH_ENDPOINT + "?" + urllib.parse.urlencode(params)
+    try:
+        webbrowser.open(auth_url)
+    except Exception:
+        pass
+
+    deadline = time.time() + timeout
+    while auth_result["code"] is None and auth_result["error"] is None and time.time() < deadline:
+        server.handle_request()
+    try:
+        server.server_close()
+    except Exception:
+        pass
+
+    if auth_result["error"]:
+        raise RuntimeError(f"OAuth error: {auth_result['error']}")
+    if not auth_result["code"]:
+        raise RuntimeError("Sign-in timed out or was cancelled.")
+
+    resp = requests.post(GOOGLE_TOKEN_ENDPOINT, data={
+        "code": auth_result["code"],
+        "client_id": GOOGLE_OAUTH_CLIENT_ID,
+        "client_secret": GOOGLE_OAUTH_CLIENT_SECRET,
+        "redirect_uri": redirect_uri,
+        "grant_type": "authorization_code",
+    }, timeout=30)
+    _cloud_raise(resp)
+    tokens = resp.json()
+    if "refresh_token" not in tokens:
+        existing = _cloud_load_json(_cloud_token_path())
+        if existing.get("refresh_token"):
+            tokens["refresh_token"] = existing["refresh_token"]
+    tokens["_obtained_at"] = int(time.time())
+    _cloud_save_json(_cloud_token_path(), tokens)
+    return True
+
+
+def _cloud_access_token():
+    tokens = _cloud_load_json(_cloud_token_path())
+    if not tokens.get("refresh_token"):
+        raise RuntimeError("Not signed in to cloud.")
+    obtained = tokens.get("_obtained_at", 0)
+    expires_in = tokens.get("expires_in", 0)
+    access = tokens.get("access_token")
+    if access and obtained and time.time() < obtained + expires_in - 120:
+        return access
+    resp = requests.post(GOOGLE_TOKEN_ENDPOINT, data={
+        "client_id": GOOGLE_OAUTH_CLIENT_ID,
+        "client_secret": GOOGLE_OAUTH_CLIENT_SECRET,
+        "refresh_token": tokens["refresh_token"],
+        "grant_type": "refresh_token",
+    }, timeout=30)
+    _cloud_raise(resp)
+    refreshed = resp.json()
+    tokens["access_token"] = refreshed.get("access_token")
+    tokens["expires_in"] = refreshed.get("expires_in", 3600)
+    tokens["_obtained_at"] = int(time.time())
+    _cloud_save_json(_cloud_token_path(), tokens)
+    return tokens["access_token"]
+
+
+def _cloud_headers():
+    return {"Authorization": f"Bearer {_cloud_access_token()}"}
+
+
+def _cloud_raise(resp):
+    """raise_for_status, but surface Google's error message body (not just the URL)."""
+    if resp.status_code < 400:
+        return resp
+    detail = resp.text
+    try:
+        payload = resp.json()
+        err = payload.get("error")
+        if isinstance(err, dict):
+            detail = err.get("message") or detail
+        elif isinstance(err, str):
+            detail = payload.get("error_description") or err
+    except Exception:
+        pass
+    raise RuntimeError(f"{resp.status_code} {resp.reason}: {str(detail).strip()[:400]}")
+
+
+def _cloud_get_folder_id(create=True):
+    state = _cloud_load_json(_cloud_state_path())
+    folder_id = state.get("folder_id")
+    if folder_id:
+        check = requests.get(f"{DRIVE_API}/files/{folder_id}", headers=_cloud_headers(),
+                             params={"fields": "id,trashed"}, timeout=30)
+        if check.status_code == 200 and not check.json().get("trashed"):
+            return folder_id
+        folder_id = None
+    query = ("mimeType='application/vnd.google-apps.folder' and trashed=false and "
+             f"name='{CLOUD_FOLDER_NAME}'")
+    resp = requests.get(f"{DRIVE_API}/files", headers=_cloud_headers(),
+                        params={"q": query, "spaces": "drive", "fields": "files(id,name)"},
+                        timeout=30)
+    _cloud_raise(resp)
+    files = resp.json().get("files", [])
+    if files:
+        folder_id = files[0]["id"]
+    elif create:
+        created = requests.post(f"{DRIVE_API}/files", headers=_cloud_headers(),
+                                json={"name": CLOUD_FOLDER_NAME,
+                                      "mimeType": "application/vnd.google-apps.folder"},
+                                timeout=30)
+        _cloud_raise(created)
+        folder_id = created.json()["id"]
+    else:
+        return None
+    state["folder_id"] = folder_id
+    _cloud_save_json(_cloud_state_path(), state)
+    return folder_id
+
+
+def _cloud_list_folder(folder_id):
+    resp = requests.get(f"{DRIVE_API}/files", headers=_cloud_headers(),
+                        params={"q": f"'{folder_id}' in parents and trashed=false",
+                                "spaces": "drive",
+                                "fields": "files(id,name,modifiedTime,size)"},
+                        timeout=30)
+    _cloud_raise(resp)
+    return resp.json().get("files", [])
+
+
+def _cloud_upload_file(folder_id, local_path, remote_name, existing_id=None):
+    with open(local_path, "rb") as f:
+        content = f.read()
+    if not existing_id:
+        meta = requests.post(f"{DRIVE_API}/files", headers=_cloud_headers(),
+                             json={"name": remote_name, "parents": [folder_id]},
+                             timeout=30)
+        _cloud_raise(meta)
+        existing_id = meta.json()["id"]
+    media = requests.patch(
+        f"{DRIVE_UPLOAD_API}/files/{existing_id}",
+        headers={**_cloud_headers(), "Content-Type": "application/octet-stream"},
+        params={"uploadType": "media"}, data=content, timeout=120)
+    _cloud_raise(media)
+    return existing_id
+
+
+def _cloud_download_file(file_id, dest_path):
+    resp = requests.get(f"{DRIVE_API}/files/{file_id}", headers=_cloud_headers(),
+                        params={"alt": "media"}, timeout=120)
+    _cloud_raise(resp)
+    os.makedirs(os.path.dirname(dest_path) or ".", exist_ok=True)
+    with open(dest_path, "wb") as f:
+        f.write(resp.content)
 
 pygame.init()
 
@@ -4698,6 +5093,260 @@ class App:
             logging.info(f"Persistent data saved to {persistent_path}")
         except Exception as e:
             logging.error(f"Failed to save persistent data: {e}")
+
+    # ----- Cloud saves (Google Drive) -----
+    def _cloud_sync_file_set(self):
+        """(local_path, remote_name) pairs to push: top-level .sldsv + signing key."""
+        pairs = []
+        folder = saves_folder or "saves"
+        try:
+            for fname in os.listdir(folder):
+                if fname.lower().endswith(".sldsv") and fname not in CLOUD_SYNC_EXCLUDE:
+                    pairs.append((os.path.join(folder, fname), fname))
+        except Exception:
+            pass
+        key_path = _get_save_key_path()
+        if os.path.exists(key_path):
+            pairs.append((key_path, CLOUD_KEY_REMOTE_NAME))
+        return pairs
+
+    def _cloud_local_has_character_saves(self):
+        folder = saves_folder or "saves"
+        reserved = {"settings.sldsv", "appearance_settings.sldsv",
+                    "persistent_data.sldsv", "dm_settings.sldsv"}
+        try:
+            for fname in os.listdir(folder):
+                if fname.lower().endswith(".sldsv") and fname not in reserved:
+                    return True
+        except Exception:
+            pass
+        return False
+
+    def _cloud_upload_all(self, logger=None):
+        log = logger or (lambda m: logging.info(m))
+        folder_id = _cloud_get_folder_id(create=True)
+        remote = {f["name"]: f["id"] for f in _cloud_list_folder(folder_id)}
+        count = 0
+        for local_path, remote_name in self._cloud_sync_file_set():
+            try:
+                _cloud_upload_file(folder_id, local_path, remote_name, remote.get(remote_name))
+                count += 1
+            except Exception as e:
+                log(f"Cloud upload failed for {remote_name}: {e}")
+        return count
+
+    def _cloud_restore_all(self, logger=None):
+        log = logger or (lambda m: logging.info(m))
+        folder_id = _cloud_get_folder_id(create=False)
+        if not folder_id:
+            return 0
+        folder = saves_folder or "saves"
+        os.makedirs(folder, exist_ok=True)
+        count = 0
+        for f in _cloud_list_folder(folder_id):
+            name = f["name"]
+            try:
+                if name == CLOUD_KEY_REMOTE_NAME:
+                    # Keep the cloud signing key so downloaded saves verify here.
+                    _cloud_download_file(f["id"], _cloud_imported_key_path())
+                    primary = _get_save_key_path()
+                    if not os.path.exists(primary):
+                        try:
+                            os.makedirs(os.path.dirname(primary), exist_ok=True)
+                            shutil.copy2(_cloud_imported_key_path(), primary)
+                        except Exception:
+                            pass
+                    continue
+                if name in CLOUD_SYNC_EXCLUDE or not name.lower().endswith(".sldsv"):
+                    continue
+                _cloud_download_file(f["id"], os.path.join(folder, name))
+                count += 1
+            except Exception as e:
+                log(f"Cloud download failed for {name}: {e}")
+        return count
+
+    def _cloud_run_async(self, title, message, work, on_done):
+        prog = self._popup_progress(title, message)
+        result = {}
+
+        def runner():
+            try:
+                result["value"] = work()
+            except Exception as e:
+                result["error"] = e
+
+            def finish():
+                try:
+                    prog["close"]()
+                except Exception:
+                    pass
+                on_done(result.get("value"), result.get("error"))
+
+            try:
+                self.root.after(0, finish)
+            except Exception:
+                pass
+
+        threading.Thread(target=runner, daemon=True).start()
+
+    def _cloud_sync_on_exit(self):
+        """Best-effort upload during autosave-on-exit. Synchronous, time-bounded."""
+        try:
+            if not (cloud_is_configured() and cloud_is_signed_in()):
+                return
+            logging.info("Uploading saves to cloud...")
+            uploaded = self._cloud_upload_all()
+            logging.info(f"Cloud sync uploaded {uploaded} file(s).")
+        except Exception as e:
+            logging.error(f"Cloud sync on exit failed: {e}")
+
+    def _cloud_begin_restore_flow(self):
+        def work():
+            if not cloud_is_signed_in():
+                cloud_oauth_login()
+            return self._cloud_restore_all()
+
+        def done(result, error):
+            if error:
+                self._popup_show_info("Cloud Saves", f"Could not load from cloud:\n{error}", sound="error")
+                return
+            self._popup_show_info(
+                "Cloud Saves",
+                f"Loaded {result} file(s) from the cloud.\nOpen a character to use them.",
+                sound="success")
+            try:
+                self._clear_window()
+                self._build_main_menu()
+            except Exception:
+                pass
+
+        self._cloud_run_async("Cloud Saves", "Connecting to Google Drive...", work, done)
+
+    def _maybe_prompt_cloud_restore(self):
+        try:
+            if not cloud_is_configured():
+                return
+            if self._cloud_local_has_character_saves():
+                return
+            state = _cloud_load_json(_cloud_state_path())
+            if state.get("fresh_prompt_done"):
+                return
+            state["fresh_prompt_done"] = True
+            _cloud_save_json(_cloud_state_path(), state)
+
+            def after_confirm(yes):
+                if yes:
+                    self._cloud_begin_restore_flow()
+
+            self._popup_confirm(
+                "Cloud Saves",
+                "No local saves were found on this system.\n\n"
+                "Would you like to sign in with Google and load your saves from the cloud?",
+                after_confirm)
+        except Exception:
+            logging.exception("Cloud fresh-launch prompt failed")
+
+    def _open_cloud_saves(self):
+        self._clear_window()
+        self.root.grid_rowconfigure(0, weight=1)
+        self.root.grid_columnconfigure(0, weight=1)
+        main_frame = customtkinter.CTkFrame(self.root)
+        main_frame.grid(row=0, column=0, sticky="nsew")
+
+        customtkinter.CTkLabel(main_frame, text="Cloud Saves",
+                               font=customtkinter.CTkFont(size=24, weight="bold")).pack(pady=20)
+
+        if not cloud_is_configured():
+            customtkinter.CTkLabel(
+                main_frame,
+                text=("Cloud saves are not configured.\n\n"
+                      "Provide a Google Desktop OAuth client id/secret via the\n"
+                      "DOOMTOOLS_GDRIVE_CLIENT_ID / DOOMTOOLS_GDRIVE_CLIENT_SECRET env vars\n"
+                      "or a cloud_credentials.json file to enable."),
+                font=customtkinter.CTkFont(size=14), justify="center").pack(pady=20)
+            self._create_sound_button(main_frame, "Back to Settings",
+                                      lambda: [self._clear_window(), self._open_settings()],
+                                      width=500, height=50,
+                                      font=customtkinter.CTkFont(size=16)).pack(pady=10)
+            return
+
+        signed_in = cloud_is_signed_in()
+        status = "Signed in to Google Drive" if signed_in else "Not signed in"
+        customtkinter.CTkLabel(main_frame, text=status,
+                               font=customtkinter.CTkFont(size=15)).pack(pady=10)
+
+        if not signed_in:
+            def do_login():
+                def work():
+                    cloud_oauth_login()
+                    return True
+
+                def done(_result, error):
+                    if error:
+                        self._popup_show_info("Cloud Saves", f"Sign-in failed:\n{error}", sound="error")
+                    else:
+                        self._popup_show_info("Cloud Saves", "Signed in successfully.", sound="success")
+                    self._open_cloud_saves()
+
+                self._cloud_run_async("Cloud Saves",
+                                      "A browser window has opened.\nComplete sign-in there...",
+                                      work, done)
+
+            self._create_sound_button(main_frame, "Sign in with Google", do_login,
+                                      width=500, height=50,
+                                      font=customtkinter.CTkFont(size=16)).pack(pady=10)
+        else:
+            def do_upload():
+                def done(result, error):
+                    if error:
+                        self._popup_show_info("Cloud Saves", f"Upload failed:\n{error}", sound="error")
+                    else:
+                        self._popup_show_info("Cloud Saves", f"Uploaded {result} file(s) to the cloud.", sound="success")
+
+                self._cloud_run_async("Cloud Saves", "Uploading to Google Drive...",
+                                      self._cloud_upload_all, done)
+
+            def do_restore():
+                def confirmed(yes):
+                    if not yes:
+                        return
+
+                    def done(result, error):
+                        if error:
+                            self._popup_show_info("Cloud Saves", f"Restore failed:\n{error}", sound="error")
+                        else:
+                            self._popup_show_info("Cloud Saves",
+                                                  f"Downloaded {result} file(s) from the cloud.", sound="success")
+                            self._clear_window()
+                            self._build_main_menu()
+
+                    self._cloud_run_async("Cloud Saves", "Downloading from Google Drive...",
+                                          self._cloud_restore_all, done)
+
+                self._popup_confirm("Cloud Saves",
+                                    "Download cloud saves into this system?\n"
+                                    "Files with the same name will be overwritten.",
+                                    confirmed)
+
+            def do_signout():
+                def confirmed(yes):
+                    if yes:
+                        cloud_sign_out()
+                        self._open_cloud_saves()
+
+                self._popup_confirm("Cloud Saves", "Sign out of Google Drive on this system?", confirmed)
+
+            self._create_sound_button(main_frame, "Upload Saves to Cloud", do_upload,
+                                      width=500, height=50, font=customtkinter.CTkFont(size=16)).pack(pady=10)
+            self._create_sound_button(main_frame, "Restore Saves from Cloud", do_restore,
+                                      width=500, height=50, font=customtkinter.CTkFont(size=16)).pack(pady=10)
+            self._create_sound_button(main_frame, "Sign Out", do_signout,
+                                      width=500, height=50, font=customtkinter.CTkFont(size=16)).pack(pady=10)
+
+        self._create_sound_button(main_frame, "Back to Settings",
+                                  lambda: [self._clear_window(), self._open_settings()],
+                                  width=500, height=50, font=customtkinter.CTkFont(size=16)).pack(pady=10)
+
     def _format_item_name(self, item):
         try:
             if not isinstance(item, dict):
@@ -5731,6 +6380,11 @@ class App:
                 else:
                     logging.warning(f"Failed to load last save: {save_filename}")
         self._build_main_menu()
+
+        try:
+            self.root.after(600, self._maybe_prompt_cloud_restore)
+        except Exception:
+            pass
 
         try:
             if global_variables.get("devmode", {}).get("value"):
@@ -51043,6 +51697,11 @@ class App:
             except Exception as e:
                 logging.error(f"Failed to save persistent data on exit: {e}")
 
+            try:
+                self._cloud_sync_on_exit()
+            except Exception as e:
+                logging.error(f"Cloud sync on exit failed: {e}")
+
             logging.info("Program exited safely.")
         except Exception as e:
             logging.exception("Error during safe exit: %s", e)
@@ -51648,6 +52307,17 @@ class App:
         height = 40
         )
         back_button.grid(row = 0, column = 1, padx =(10, 0))
+
+        if cloud_is_configured():
+            button_frame.grid_columnconfigure((0, 1, 2), weight = 1)
+            cloud_button = self._create_sound_button(
+            button_frame,
+            "Cloud Saves",
+            lambda: [self._clear_window(), self._open_cloud_saves()],
+            width = 200,
+            height = 40
+            )
+            cloud_button.grid(row = 0, column = 2, padx =(10, 0))
     def _open_add_item_by_id_tool(self):
         logging.info("Add Item By ID definition called")
 

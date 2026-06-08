@@ -33,6 +33,9 @@ backup/
 dm_config.json
 saves/.save_key
 
+# Google Drive OAuth credentials for cloud
+cloud_credentials.json
+
 # PyInstaller
 *.manifest
 *.spec

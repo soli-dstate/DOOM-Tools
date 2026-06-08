@@ -83,6 +83,23 @@ def build_exe(name='DOOM-Tools', onefile=True, clean=True):
         logging.info('Adding PyInstaller data: %s', add_data_str)
         pyinstaller_cmd += ['--add-data', add_data_str]
 
+    # Cloud-saves modules are imported lazily inside functions; ensure PyInstaller
+    # bundles them so prebuilt (no-Python) users never hit a frozen-only ImportError.
+    for mod in ('http.server', 'webbrowser', 'urllib.parse'):
+        pyinstaller_cmd += ['--hidden-import', mod]
+
+    # Bundle Google Drive OAuth credentials into the build WITHOUT committing them
+    # to git. Provide a git-ignored cloud_credentials.json in the repo root (or set
+    # CLOUD_CREDENTIALS_FILE) and it is embedded at the bundle root for main.py to
+    # read from sys._MEIPASS. Absent -> cloud saves stay disabled in the build.
+    creds_file = Path(os.getenv('CLOUD_CREDENTIALS_FILE', str(ROOT / 'cloud_credentials.json')))
+    if creds_file.exists():
+        add_creds_str = f"{str(creds_file)}{os.pathsep}."
+        logging.info('Bundling cloud credentials (not logged): %s', creds_file.name)
+        pyinstaller_cmd += ['--add-data', add_creds_str]
+    else:
+        logging.info('No cloud_credentials.json found; cloud saves will be disabled in this build')
+
     pyinstaller_cmd += ['--name', name, str(MAIN_PY)]
     rc = run(pyinstaller_cmd, cwd=str(ROOT))
     return rc == 0
