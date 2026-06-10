@@ -592,55 +592,64 @@ def ensure_venv(venv_dir: Path, logger, python_cmd: list[str]) -> Path:
     return python_path
 
 
-def detect_python_command() -> list[str] | None:
-    candidates: list[list[str]] = []
-    if os.name == "nt" and shutil.which("py"):
-        candidates.append(["py", "-3.13t"])
-        candidates.append(["py", "-3.13"])
-        candidates.append(["py", "-3"])
-    if shutil.which("python"):
-        candidates.append(["python"])
-    if shutil.which("python3"):
-        candidates.append(["python3"])
-
-    version_script = (
+def _python_version_script() -> str:
+    return (
         "import sys; "
         "print(f'{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}')"
     )
 
-    for base in candidates:
-        try:
-            version_check = subprocess.run(
-                base + ["-c", version_script],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                timeout=10,
-                check=False,
-            )
-            required_version = ".".join(str(part) for part in REQUIRED_PYTHON_VERSION)
-            if version_check.returncode != 0 or version_check.stdout.strip() != required_version:
-                continue
 
-            gil_env = os.environ.copy()
-            gil_env["PYTHON_GIL"] = "0"
-            gil_probe = subprocess.run(
-                base + ["-c", "import sys; print(sys.version)"],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                timeout=10,
-                check=False,
-                env=gil_env,
+def detect_python_command(logger=None) -> list[str] | None:
+    """Return a command for the exact required Python version, or None.
+
+    Free-threaded (no-GIL) builds are *preferred* (probed first) but NOT
+    required: the launcher sets PYTHON_GIL=0 at launch and DOOM-Tools runs with
+    or without the GIL, so a standard build of the required version is accepted.
+    Each candidate's result is logged to aid diagnosis.
+    """
+    def _log(msg: str) -> None:
+        if logger:
+            try:
+                logger(msg)
+            except Exception:
+                pass
+
+    candidates: list[list[str]] = []
+    if os.name == "nt" and shutil.which("py"):
+        candidates += [["py", "-3.13t"], ["py", "-3.13"], ["py", "-3"]]
+    for exe in ("python", "python3"):
+        if shutil.which(exe):
+            candidates.append([exe])
+
+    required_version = ".".join(str(part) for part in REQUIRED_PYTHON_VERSION)
+    version_script = _python_version_script()
+
+    for base in candidates:
+        label = " ".join(base)
+        try:
+            probe = subprocess.run(
+                base + ["-c", version_script],
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                timeout=10, check=False,
             )
-            if gil_probe.returncode == 0:
-                return base
-        except Exception:
+        except Exception as exc:
+            _log(f"Python probe '{label}' failed: {exc}")
             continue
+
+        version = probe.stdout.strip()
+        if probe.returncode != 0 or not version:
+            continue
+        if version != required_version:
+            _log(f"Found Python {version} via '{label}' (need {required_version}); skipping.")
+            continue
+
+        _log(f"Using Python {version} via '{label}'.")
+        return base
+
     return None
 
 
-def detect_any_python() -> tuple[list[str] | None, str | None]:
+def detect_any_python(logger=None) -> tuple[list[str] | None, str | None]:
     """Return (command, "X.Y.Z") for the first usable Python of ANY version.
 
     Having *any* Python is the signal that a user might want to build from
@@ -654,10 +663,7 @@ def detect_any_python() -> tuple[list[str] | None, str | None]:
         if shutil.which(exe):
             candidates.append([exe])
 
-    version_script = (
-        "import sys; "
-        "print(f'{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}')"
-    )
+    version_script = _python_version_script()
     for base in candidates:
         try:
             result = subprocess.run(
@@ -667,6 +673,11 @@ def detect_any_python() -> tuple[list[str] | None, str | None]:
             )
             version = result.stdout.strip()
             if result.returncode == 0 and version:
+                if logger:
+                    try:
+                        logger(f"Detected Python {version} via '{' '.join(base)}'.")
+                    except Exception:
+                        pass
                 return base, version
         except Exception:
             continue
@@ -1139,8 +1150,8 @@ def prepare_or_update(
     runtime_content_root: Path
 
     required_version = ".".join(str(part) for part in REQUIRED_PYTHON_VERSION)
-    required_cmd = detect_python_command()          # exact required version (+ GIL)
-    any_cmd, any_version = detect_any_python()       # ANY python, just as a signal
+    required_cmd = detect_python_command(logger=logger)   # exact required version
+    any_cmd, any_version = detect_any_python(logger=logger)  # ANY python, as a signal
 
     report(2, "Preparing environment", "Selecting runtime")
     ctx = {
@@ -2043,11 +2054,15 @@ class LauncherUI:
 
         if os.name == "nt":
             if self.launch_settings.get("debug", False):
-                # In debug mode, keep failure output visible by pausing only when the app exits non-zero.
+                # In debug mode, ALWAYS keep the console open after the app exits
+                # (success or crash) so tracebacks / import errors stay readable.
+                # The exit code is captured immediately into a var because the
+                # following commands would otherwise reset %errorlevel%.
                 cmdline = subprocess.list2cmdline(launch_cmd)
                 guarded_cmd = (
-                    f"{cmdline} || (echo. & echo DOOM-Tools exited with error code !errorlevel!. "
-                    "Press any key to close... & pause >nul)"
+                    f'{cmdline} & set "DT_RC=!errorlevel!" '
+                    '& echo. & echo [DOOM-Tools debug] process exited with code !DT_RC!. '
+                    '& echo Press any key to close this console... & pause >nul'
                 )
                 subprocess.Popen(
                     ["cmd", "/v:on", "/c", guarded_cmd],
