@@ -42,8 +42,9 @@ logging.basicConfig(
 level = logging.INFO,
 handlers =[console_handler]
 )
-ROOT = Path(__file__).resolve().parents[1]      
+ROOT = Path(__file__).resolve().parents[1]
 MAIN_PY = ROOT / 'main.py'
+FOUNDATION_PY = ROOT / 'app' / 'foundation.py'   # `version` lives here post-refactor
 SOUNDS_DIR = ROOT / 'sounds'
 TABLES_DIR = ROOT / 'tables'
 BUILD_DIR = ROOT / 'build'
@@ -51,13 +52,16 @@ DIST_DIR = ROOT / 'dist'
 FONTS_DIR = ROOT / 'fonts'
 IMAGES_DIR = ROOT / 'images'
 def get_version_from_main():
-    if not MAIN_PY.exists():
-        return '0.0.0'
-    with open(MAIN_PY, 'r', encoding='utf-8') as f:
-        first_line = f.readline().strip()
-    match = re.match(r'version\s*=\s*["\']([^"\']+)["\']', first_line)
-    if match:
-        return match.group(1)
+    # `version` moved out of main.py into app/foundation.py during the package
+    # refactor; scan that file for it, falling back to main.py for older trees.
+    for src in (FOUNDATION_PY, MAIN_PY):
+        if not src.exists():
+            continue
+        with open(src, 'r', encoding='utf-8') as f:
+            for line in f:
+                match = re.match(r'version\s*=\s*["\']([^"\']+)["\']', line.strip())
+                if match:
+                    return match.group(1)
     return '0.0.0'
 def run(cmd, **kwargs):
     logging.info('Running: %s', ' '.join(cmd))
@@ -87,6 +91,11 @@ def build_exe(name='DOOM-Tools', onefile=True, clean=True):
     # bundles them so prebuilt (no-Python) users never hit a frozen-only ImportError.
     for mod in ('http.server', 'webbrowser', 'urllib.parse'):
         pyinstaller_cmd += ['--hidden-import', mod]
+
+    # The app is now an `app/` package whose mixin submodules are imported by
+    # app.core. They are statically discoverable, but --collect-submodules makes
+    # the bundling robust to any future lazy/dynamic imports of app.* modules.
+    pyinstaller_cmd += ['--collect-submodules', 'app']
 
     # Bundle Google Drive OAuth credentials into the build WITHOUT committing them
     # to git. Provide a git-ignored cloud_credentials.json in the repo root (or set

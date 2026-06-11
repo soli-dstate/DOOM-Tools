@@ -55,7 +55,7 @@ jobs:
         shell: bash
         run: |
           echo "Building $APP_NAME from $ENTRY_PATH"
-          ARGS=(--onefile --name "$APP_NAME" --hidden-import http.server --hidden-import webbrowser --hidden-import urllib.parse)
+          ARGS=(--onefile --name "$APP_NAME" --collect-submodules app --hidden-import http.server --hidden-import webbrowser --hidden-import urllib.parse)
           if [ -f cloud_credentials.json ]; then ARGS+=(--add-data "cloud_credentials.json;."); fi
           pyinstaller "${ARGS[@]}" "$ENTRY_PATH"
 
@@ -101,7 +101,7 @@ jobs:
         shell: bash
         run: |
           echo "Building $APP_NAME from $ENTRY_PATH"
-          ARGS=(--onefile --name "$APP_NAME" --hidden-import http.server --hidden-import webbrowser --hidden-import urllib.parse)
+          ARGS=(--onefile --name "$APP_NAME" --collect-submodules app --hidden-import http.server --hidden-import webbrowser --hidden-import urllib.parse)
           if [ -f cloud_credentials.json ]; then ARGS+=(--add-data "cloud_credentials.json:."); fi
           pyinstaller "${ARGS[@]}" "$ENTRY_PATH"
 

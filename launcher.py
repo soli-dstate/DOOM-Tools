@@ -11,6 +11,7 @@ import sys
 import tempfile
 import threading
 import time
+import webbrowser
 import zipfile
 from datetime import datetime
 from pathlib import Path
@@ -33,9 +34,18 @@ except Exception:
 
 OWNER = "soli-dstate"
 REPO = "DOOM-Tools"
+DEFAULT_BRANCH = "master"
 GITHUB_API_RELEASE = f"https://api.github.com/repos/{OWNER}/{REPO}/releases/latest"
 GITHUB_API_RELEASES = f"https://api.github.com/repos/{OWNER}/{REPO}/releases"
-GITHUB_RAW_MAIN = f"https://raw.githubusercontent.com/{OWNER}/{REPO}/master/main.py"
+GITHUB_API_BRANCHES = f"https://api.github.com/repos/{OWNER}/{REPO}/branches?per_page=100"
+GITHUB_API_BRANCH = f"https://api.github.com/repos/{OWNER}/{REPO}/branches/{{branch}}"
+GITHUB_BRANCH_ZIP = f"https://api.github.com/repos/{OWNER}/{REPO}/zipball/{{ref}}"
+# Ref-aware raw file URL. `current_resource_links` moved from main.py into
+# app/foundation.py during the package overhaul, so resource resolution reads
+# foundation first and falls back to main.py for older refs.
+GITHUB_RAW_FILE = f"https://raw.githubusercontent.com/{OWNER}/{REPO}/{{ref}}/{{path}}"
+GITHUB_RAW_MAIN = GITHUB_RAW_FILE.format(ref=DEFAULT_BRANCH, path="main.py")
+RESOURCE_LINK_FILES = ("app/foundation.py", "main.py")
 
 APP_NAME = "DOOM-Tools Launcher"
 EXE_NAME = "DOOM-Tools.exe"
@@ -55,6 +65,12 @@ DEFAULT_LAUNCH_SETTINGS = {
     "dmmode": False,
     "keep_console_open": False,
     "use_prerelease": False,
+    # Empty string = stable release channel. A branch name (e.g. "overhaul")
+    # runs that branch's source directly and requires a local Python install.
+    "branch": "",
+    # When True, the "build from source?" prompt is skipped and the prebuilt
+    # binary is used. Set by ticking "Don't ask again" after declining a build.
+    "suppress_source_prompt": False,
 }
 
 SOURCE_COPY_DIRS = ("tables", "themes", "fonts")
@@ -403,24 +419,62 @@ def fetch_latest_release(include_prerelease: bool = False) -> dict:
     return {"tag": tag, "zipball_url": zipball_url, "assets": assets}
 
 
-def fetch_remote_resource_links() -> list[str]:
-    """Return the ordered list of resource part URLs declared in main.py.
-
-    Supports the current ``current_resource_links = [ ... ]`` list form and falls
-    back to the legacy single-string ``current_resource_link = "..."`` form.
-    """
-    with _request_with_retry(GITHUB_RAW_MAIN, timeout=20) as response:
-        text = response.text
-
+def _parse_resource_links(text: str) -> list[str]:
     list_match = re.search(r"current_resource_links\s*=\s*\[(.*?)\]", text, re.DOTALL)
     if list_match:
         urls = re.findall(r"[\"']([^\"']+)[\"']", list_match.group(1))
         return [u.strip() for u in urls if u.strip()]
-
     single = re.search(r"^current_resource_link\s*=\s*[\"\'](.*?)[\"\']\s*$", text, re.MULTILINE)
     if single and single.group(1).strip():
         return [single.group(1).strip()]
     return []
+
+
+def fetch_remote_resource_links(ref: str = DEFAULT_BRANCH) -> list[str]:
+    """Return the ordered resource part URLs declared for the given git ref.
+
+    ``current_resource_links`` lives in app/foundation.py after the package
+    overhaul; older refs declared it in main.py, so both files are tried.
+    Supports the list form and the legacy single-string ``current_resource_link``.
+    """
+    for path in RESOURCE_LINK_FILES:
+        url = GITHUB_RAW_FILE.format(ref=ref, path=path)
+        try:
+            with _request_with_retry(url, timeout=20) as response:
+                text = response.text
+        except Exception:
+            continue
+        links = _parse_resource_links(text)
+        if links:
+            return links
+    return []
+
+
+def fetch_branches() -> list[str]:
+    """Return repository branch names, default branch first."""
+    with _request_with_retry(
+        GITHUB_API_BRANCHES, timeout=20,
+        headers={"Accept": "application/vnd.github+json"},
+    ) as response:
+        data = response.json()
+    if not isinstance(data, list):
+        raise LauncherError("Branches response was not a list")
+    names = [str(b.get("name")) for b in data if isinstance(b, dict) and b.get("name")]
+    names.sort(key=lambda n: (n != DEFAULT_BRANCH, n.lower()))
+    return names
+
+
+def fetch_branch_head(branch: str) -> str:
+    """Return the HEAD commit sha of a branch (used for update detection)."""
+    with _request_with_retry(
+        GITHUB_API_BRANCH.format(branch=branch), timeout=20,
+        headers={"Accept": "application/vnd.github+json"},
+    ) as response:
+        data = response.json()
+    sha = str((((data or {}).get("commit") or {}).get("sha")) or "").strip()
+    if not sha:
+        raise LauncherError(f"Could not resolve HEAD commit for branch '{branch}'")
+    return sha
 
 
 def _format_size(value: float) -> str:
@@ -538,52 +592,108 @@ def ensure_venv(venv_dir: Path, logger, python_cmd: list[str]) -> Path:
     return python_path
 
 
-def detect_python_command() -> list[str] | None:
-    candidates: list[list[str]] = []
-    if os.name == "nt" and shutil.which("py"):
-        candidates.append(["py", "-3.13t"])
-        candidates.append(["py", "-3.13"])
-        candidates.append(["py", "-3"])
-    if shutil.which("python"):
-        candidates.append(["python"])
-    if shutil.which("python3"):
-        candidates.append(["python3"])
-
-    version_script = (
+def _python_version_script() -> str:
+    return (
         "import sys; "
         "print(f'{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}')"
     )
 
+
+def detect_python_command(logger=None) -> list[str] | None:
+    """Return a command for the exact required Python version, or None.
+
+    Free-threaded (no-GIL) builds are *preferred* (probed first) but NOT
+    required: the launcher sets PYTHON_GIL=0 at launch and DOOM-Tools runs with
+    or without the GIL, so a standard build of the required version is accepted.
+    Each candidate's result is logged to aid diagnosis.
+    """
+    def _log(msg: str) -> None:
+        if logger:
+            try:
+                logger(msg)
+            except Exception:
+                pass
+
+    candidates: list[list[str]] = []
+    if os.name == "nt" and shutil.which("py"):
+        candidates += [["py", "-3.13t"], ["py", "-3.13"], ["py", "-3"]]
+    for exe in ("python", "python3"):
+        if shutil.which(exe):
+            candidates.append([exe])
+
+    required_version = ".".join(str(part) for part in REQUIRED_PYTHON_VERSION)
+    version_script = _python_version_script()
+
+    for base in candidates:
+        label = " ".join(base)
+        try:
+            probe = subprocess.run(
+                base + ["-c", version_script],
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                timeout=10, check=False,
+            )
+        except Exception as exc:
+            _log(f"Python probe '{label}' failed: {exc}")
+            continue
+
+        version = probe.stdout.strip()
+        if probe.returncode != 0 or not version:
+            continue
+        if version != required_version:
+            _log(f"Found Python {version} via '{label}' (need {required_version}); skipping.")
+            continue
+
+        _log(f"Using Python {version} via '{label}'.")
+        return base
+
+    return None
+
+
+def detect_any_python(logger=None) -> tuple[list[str] | None, str | None]:
+    """Return (command, "X.Y.Z") for the first usable Python of ANY version.
+
+    Having *any* Python is the signal that a user might want to build from
+    source; the specific 3.13.11 requirement is checked separately and only
+    after the user opts in.
+    """
+    candidates: list[list[str]] = []
+    if os.name == "nt" and shutil.which("py"):
+        candidates += [["py", "-3"], ["py"]]
+    for exe in ("python", "python3"):
+        if shutil.which(exe):
+            candidates.append([exe])
+
+    version_script = _python_version_script()
     for base in candidates:
         try:
-            version_check = subprocess.run(
+            result = subprocess.run(
                 base + ["-c", version_script],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                timeout=10,
-                check=False,
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                timeout=10, check=False,
             )
-            required_version = ".".join(str(part) for part in REQUIRED_PYTHON_VERSION)
-            if version_check.returncode != 0 or version_check.stdout.strip() != required_version:
-                continue
-
-            gil_env = os.environ.copy()
-            gil_env["PYTHON_GIL"] = "0"
-            gil_probe = subprocess.run(
-                base + ["-c", "import sys; print(sys.version)"],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                timeout=10,
-                check=False,
-                env=gil_env,
-            )
-            if gil_probe.returncode == 0:
-                return base
+            version = result.stdout.strip()
+            if result.returncode == 0 and version:
+                if logger:
+                    try:
+                        logger(f"Detected Python {version} via '{' '.join(base)}'.")
+                    except Exception:
+                        pass
+                return base, version
         except Exception:
             continue
-    return None
+    return None, None
+
+
+def python_install_url() -> str:
+    """Direct python.org download URL for the required version + platform."""
+    version = ".".join(str(part) for part in REQUIRED_PYTHON_VERSION)
+    base = f"https://www.python.org/ftp/python/{version}"
+    if os.name == "nt":
+        return f"{base}/python-{version}-amd64.exe"
+    if sys.platform == "darwin":
+        return f"{base}/python-{version}-macos11.pkg"
+    # Linux/other: python.org ships source only — link the source tarball.
+    return f"{base}/Python-{version}.tgz"
 
 
 def find_windows_builder_asset(release: dict) -> dict:
@@ -799,6 +909,12 @@ def build_executable(venv_python: Path, source_root: Path, cache_dir: Path, logg
         "--onefile",
         "--name",
         "DOOM-Tools",
+        # The app is now an `app/` package imported by main.py; bundle every
+        # submodule and make the package importable from the source root.
+        "--collect-submodules",
+        "app",
+        "--paths",
+        str(source_root),
     ]
 
     if images_dir.exists():
@@ -954,6 +1070,8 @@ def prepare_or_update(
     progress=None,
     transfer=None,
     use_prerelease: bool = False,
+    branch: str = "",
+    runtime_chooser=None,
 ) -> tuple[list[str], Path, dict]:
     def report(step: int, status: str, detail: str = "") -> None:
         if progress:
@@ -964,44 +1082,65 @@ def prepare_or_update(
             transfer(label, downloaded, total, speed)
 
     state = load_json(state_path)
+    branch = (branch or "").strip()
+    branch_mode = bool(branch)
 
-    report(0, "Checking release", "Checking latest GitHub release metadata")
-    if use_prerelease:
-        logger("Checking latest GitHub release (pre-releases included)...")
-    else:
-        logger("Checking latest GitHub release...")
-    release = fetch_latest_release(include_prerelease=use_prerelease)
-    latest_tag = release["tag"]
-
-    source_root = cache_dir / SOURCE_DIR_NAME / latest_tag
     runtime_dir = cache_dir / RUNTIME_DIR_NAME
     runtime_exe = runtime_dir / EXE_NAME
+    release: dict | None = None
 
-    needs_release_update = (
-        state.get("release_tag") != latest_tag
-        or not source_root.exists()
-    )
-
-    if needs_release_update:
-        logger(f"Release update detected: {latest_tag}")
-        report(1, "Downloading source", f"Downloading release {latest_tag}")
-        tmp_zip = cache_dir / f"release_{latest_tag}.zip"
+    def _acquire_source(zip_url: str, dest: Path, label: str) -> None:
+        report(1, "Downloading source", f"Downloading {label}")
+        safe = label.replace("/", "-").replace(" ", "_")
+        tmp_zip = cache_dir / f"src_{safe}.zip"
         download_file(
-            release["zipball_url"],
-            tmp_zip,
+            zip_url, tmp_zip,
             on_progress=lambda d, t, s: report_transfer("Source download", d, t, s),
         )
-
-        extract_parent = cache_dir / SOURCE_DIR_NAME / f"_{latest_tag}_extract"
+        extract_parent = cache_dir / SOURCE_DIR_NAME / f"_{safe}_extract"
         extracted_root = extract_source_from_release(tmp_zip, extract_parent)
-        source_root.parent.mkdir(parents=True, exist_ok=True)
-
-        if source_root.exists():
-            shutil.rmtree(source_root, ignore_errors=True)
-        shutil.move(str(extracted_root), str(source_root))
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        if dest.exists():
+            shutil.rmtree(dest, ignore_errors=True)
+        shutil.move(str(extracted_root), str(dest))
         shutil.rmtree(extract_parent, ignore_errors=True)
         tmp_zip.unlink(missing_ok=True)
-        state["release_tag"] = latest_tag
+
+    if branch_mode:
+        report(0, "Checking release", f"Checking branch '{branch}'")
+        logger(f"Checking GitHub branch '{branch}'...")
+        head_sha = fetch_branch_head(branch)
+        ref_label = f"{branch}@{head_sha[:7]}"
+        resource_ref = branch
+        safe_branch = branch.replace("/", "-")
+        source_root = cache_dir / SOURCE_DIR_NAME / f"branch-{safe_branch}"
+        needs_release_update = (
+            state.get("branch_ref") != f"{branch}:{head_sha}" or not source_root.exists()
+        )
+        if needs_release_update:
+            logger(f"Branch update detected: {ref_label}")
+            _acquire_source(GITHUB_BRANCH_ZIP.format(ref=branch), source_root, f"branch {branch}")
+            state["branch_ref"] = f"{branch}:{head_sha}"
+            state["release_tag"] = ref_label
+    else:
+        report(0, "Checking release", "Checking latest GitHub release metadata")
+        if use_prerelease:
+            logger("Checking latest GitHub release (pre-releases included)...")
+        else:
+            logger("Checking latest GitHub release...")
+        release = fetch_latest_release(include_prerelease=use_prerelease)
+        latest_tag = release["tag"]
+        ref_label = latest_tag
+        resource_ref = DEFAULT_BRANCH
+        source_root = cache_dir / SOURCE_DIR_NAME / latest_tag
+        needs_release_update = (
+            state.get("release_tag") != latest_tag or not source_root.exists()
+        )
+        state.pop("branch_ref", None)
+        if needs_release_update:
+            logger(f"Release update detected: {latest_tag}")
+            _acquire_source(release["zipball_url"], source_root, f"release {latest_tag}")
+            state["release_tag"] = latest_tag
 
     if not source_root.exists():
         raise LauncherError("Local source cache is missing unexpectedly")
@@ -1010,14 +1149,48 @@ def prepare_or_update(
     launch_cwd: Path
     runtime_content_root: Path
 
-    python_cmd = detect_python_command()
-    if python_cmd:
-        logger("Python detected. Using source runtime with cached virtual environment")
+    required_version = ".".join(str(part) for part in REQUIRED_PYTHON_VERSION)
+    required_cmd = detect_python_command(logger=logger)   # exact required version
+    any_cmd, any_version = detect_any_python(logger=logger)  # ANY python, as a signal
+
+    report(2, "Preparing environment", "Selecting runtime")
+    ctx = {
+        "branch": branch,
+        "branch_mode": branch_mode,
+        "has_any_python": bool(any_cmd),
+        "any_python_version": any_version,
+        "has_required_python": bool(required_cmd),
+        "required_version": required_version,
+        "install_url": python_install_url(),
+        "requirements_path": source_root / "requirements.txt",
+    }
+
+    # The chooser (provided by the UI) runs the consent flow and returns the
+    # runtime decision. Without one, fall back to the old automatic behaviour.
+    if runtime_chooser is not None:
+        decision = runtime_chooser(ctx) or {}
+    else:
+        decision = {"mode": "source" if required_cmd else "prebuilt"}
+    mode = decision.get("mode", "prebuilt")
+
+    if branch_mode and mode != "source":
+        raise LauncherError(
+            f"Running branch '{branch}' requires building from source with "
+            f"Python {required_version}."
+        )
+
+    if mode == "source":
+        python_cmd = decision.get("python_cmd") or required_cmd
+        if not python_cmd:
+            raise LauncherError(
+                f"Source build was selected but Python {required_version} was not found."
+            )
+        logger("Building and running from source via cached virtual environment")
         report(2, "Preparing environment", "Creating/updating venv")
         venv_dir = cache_dir / VENV_DIR_NAME
         venv_python = ensure_venv(venv_dir, logger, python_cmd)
 
-        report(3, "Building executable", "Using source runtime (no build)")
+        report(3, "Building executable", "Installing requirements (running from source)")
         req_digest = requirements_digest(source_root)
         logger("Syncing Python requirements in cached venv...")
         install_dependencies(venv_python, source_root, logger)
@@ -1034,18 +1207,13 @@ def prepare_or_update(
         state["venv_ready"] = True
         state["requirements_digest"] = req_digest
     else:
-        required_version = ".".join(str(part) for part in REQUIRED_PYTHON_VERSION)
         if os.name != "nt":
             raise LauncherError(
-                "A compatible Python runtime was not found. "
-                f"DOOM-Tools requires Python {required_version} with GIL disabling support (PYTHON_GIL=0)."
+                "No prebuilt binary is available for this platform. Install "
+                f"Python {required_version} and build from source instead."
             )
-
-        logger(
-            "Compatible Python runtime not found for source mode; "
-            "falling back to prebuilt runtime"
-        )
-        report(2, "Preparing environment", "Using prebuilt runtime fallback")
+        logger("Using prebuilt runtime")
+        report(2, "Preparing environment", "Using prebuilt runtime")
         report(3, "Building executable", "Downloading prebuilt executable")
 
         def _download_prebuilt_binary() -> Path:
@@ -1098,7 +1266,7 @@ def prepare_or_update(
     report(5, "Checking resources", "Validating remote resource package link")
     logger("Checking remote resource link...")
     try:
-        remote_resource_links = fetch_remote_resource_links()
+        remote_resource_links = fetch_remote_resource_links(resource_ref)
     except Exception as link_exc:
         logger(f"Remote resource link check failed; keeping existing resources: {link_exc}")
         remote_resource_links = []
@@ -1131,7 +1299,8 @@ def prepare_or_update(
     else:
         logger("Resources are already up to date")
 
-    report(6, "Ready to launch", f"Release {state.get('release_tag', 'unknown')} is ready")
+    ready_label = f"Branch {ref_label}" if branch_mode else f"Release {ref_label}"
+    report(6, "Ready to launch", f"{ready_label} is ready")
     save_json(state_path, state)
     return launch_cmd, launch_cwd, state
 
@@ -1197,11 +1366,15 @@ class LauncherUI:
         self.style.configure("Small.TButton", font=("Segoe UI", 9), padding=(8, 4))
         self.style.configure("TCheckbutton", font=("Segoe UI", 10))
 
-    def _normalize_launch_settings(self, payload: dict[str, Any] | None) -> dict[str, bool]:
+    def _normalize_launch_settings(self, payload: dict[str, Any] | None) -> dict[str, Any]:
         raw = payload if isinstance(payload, dict) else {}
-        normalized: dict[str, bool] = {}
+        normalized: dict[str, Any] = {}
         for key, default in DEFAULT_LAUNCH_SETTINGS.items():
-            normalized[key] = bool(raw.get(key, default))
+            if isinstance(default, bool):
+                normalized[key] = bool(raw.get(key, default))
+            else:  # string settings (e.g. branch)
+                value = raw.get(key, default)
+                normalized[key] = str(value) if value is not None else default
         return normalized
 
     def _load_launch_settings(self) -> dict[str, bool]:
@@ -1209,6 +1382,245 @@ class LauncherUI:
 
     def _save_launch_settings(self) -> None:
         save_json(self.launch_settings_path, self.launch_settings)
+
+    # ── main-thread marshaling for worker-initiated dialogs ──────────────────
+    def _run_on_main(self, fn):
+        """Run fn on the Tk main thread and return its result (blocking)."""
+        if threading.current_thread() is threading.main_thread():
+            return fn()
+        holder: dict[str, Any] = {}
+        done = threading.Event()
+        self.queue.put(("ask", (fn, holder, done)))
+        done.wait()
+        if "error" in holder:
+            raise holder["error"]
+        return holder.get("result")
+
+    def _notify_if_unfocused(self, message: str) -> None:
+        """Desktop-notify + raise the window when a prompt needs attention."""
+        try:
+            focused = self.root.focus_displayof() is not None
+        except Exception:
+            focused = True
+        if not focused:
+            try:
+                self.root.bell()
+            except Exception:
+                pass
+            send_desktop_notification(APP_NAME, message, logger=self.logger)
+        for action in (self.root.deiconify, self.root.lift):
+            try:
+                action()
+            except Exception:
+                pass
+        try:
+            self.root.attributes("-topmost", True)
+            self.root.after(1500, lambda: self.root.attributes("-topmost", False))
+        except Exception:
+            pass
+
+    def _show_requirements_popup(self, req_path: Path) -> None:
+        try:
+            content = Path(req_path).read_text(encoding="utf-8")
+        except Exception as exc:
+            content = f"Could not read requirements.txt:\n{exc}"
+        win = tk.Toplevel(self.root)
+        win.title("requirements.txt")
+        win.transient(self.root)
+        win.geometry("520x440")
+        frame = ttk.Frame(win, padding=(12, 12, 12, 12))
+        frame.pack(fill="both", expand=True)
+        ttk.Label(frame, text="Packages to be installed via pip:", style="Header.TLabel").pack(anchor=W)
+        box = Text(frame, wrap="none", height=18)
+        box.pack(fill="both", expand=True, pady=(8, 8))
+        box.insert(END, content)
+        box.configure(state=DISABLED)
+        ttk.Button(frame, text="Close", command=win.destroy, width=12, style="Small.TButton").pack(anchor="e")
+        win.grab_set()
+        win.wait_visibility()
+        win.focus_set()
+        win.wait_window()
+
+    def _do_source_consent(self, ctx: dict) -> dict:
+        branch_mode = ctx["branch_mode"]
+        self._notify_if_unfocused("DOOM-Tools needs your input: build from source?")
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Build From Source?")
+        dialog.transient(self.root)
+        dialog.resizable(False, False)
+        frame = ttk.Frame(dialog, padding=(16, 14, 16, 14))
+        frame.pack(fill="both", expand=True)
+        ttk.Label(frame, text="Run DOOM-Tools from source?", style="Header.TLabel").pack(anchor=W)
+        ver = ctx.get("any_python_version") or "unknown"
+        if branch_mode:
+            msg = (f"Branch '{ctx['branch']}' has no prebuilt binary, so it must be built "
+                   f"from source. Detected Python {ver}. Proceed?")
+        else:
+            msg = (f"A Python {ver} installation was detected. DOOM-Tools can build and "
+                   "run from source (creates a virtual environment), or simply download "
+                   "the prebuilt binary instead.")
+        ttk.Label(frame, text=msg, style="Subtle.TLabel", wraplength=430, justify="left").pack(anchor=W, pady=(6, 10))
+
+        result = {"choice": "cancel", "suppress": False}
+        suppress_var = tk.BooleanVar(value=False)
+        if not branch_mode:
+            ttk.Checkbutton(
+                frame,
+                text="Don't ask again — always use the prebuilt binary",
+                variable=suppress_var,
+            ).pack(anchor=W, pady=(0, 10))
+
+        row = ttk.Frame(frame)
+        row.pack(fill="x", pady=(4, 0))
+
+        def _pick(choice: str) -> None:
+            result["choice"] = choice
+            result["suppress"] = bool(suppress_var.get())
+            dialog.destroy()
+
+        if branch_mode:
+            ttk.Button(row, text="Cancel", command=lambda: _pick("cancel"), width=14, style="Small.TButton").pack(side=RIGHT)
+            ttk.Button(row, text="Build from source", command=lambda: _pick("source"), width=18).pack(side=RIGHT, padx=(0, 8))
+        else:
+            ttk.Button(row, text="Use prebuilt binary", command=lambda: _pick("prebuilt"), width=18, style="Small.TButton").pack(side=RIGHT)
+            ttk.Button(row, text="Build from source", command=lambda: _pick("source"), width=18).pack(side=RIGHT, padx=(0, 8))
+
+        dialog.protocol("WM_DELETE_WINDOW", lambda: _pick("cancel"))
+        dialog.grab_set()
+        dialog.wait_visibility()
+        dialog.focus_set()
+        dialog.wait_window()
+        return result
+
+    def _do_python_missing(self, ctx: dict) -> str:
+        branch_mode = ctx["branch_mode"]
+        required = ctx["required_version"]
+        url = ctx["install_url"]
+        self._notify_if_unfocused(f"DOOM-Tools needs Python {required} to build from source.")
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Python Version Required")
+        dialog.transient(self.root)
+        dialog.resizable(False, False)
+        frame = ttk.Frame(dialog, padding=(16, 14, 16, 14))
+        frame.pack(fill="both", expand=True)
+        ttk.Label(frame, text=f"Python {required} is required", style="Header.TLabel").pack(anchor=W)
+        ttk.Label(
+            frame,
+            text=(f"Building from source needs Python {required}, which wasn't found on "
+                  "your PATH. Install it, then relaunch and choose 'Build from source' again."),
+            style="Subtle.TLabel", wraplength=450, justify="left",
+        ).pack(anchor=W, pady=(6, 8))
+
+        link = ttk.Label(frame, text=f"Download Python {required} for your platform (python.org)",
+                         foreground="#3b82f6", cursor="hand2")
+        link.pack(anchor=W, pady=(0, 2))
+        link.bind("<Button-1>", lambda _e: webbrowser.open(url))
+        ttk.Label(frame, text=url, style="Subtle.TLabel", wraplength=450, justify="left").pack(anchor=W, pady=(0, 12))
+
+        result = {"choice": "cancel"}
+        row = ttk.Frame(frame)
+        row.pack(fill="x")
+
+        def _pick(choice: str) -> None:
+            result["choice"] = choice
+            dialog.destroy()
+
+        if branch_mode:
+            ttk.Button(row, text="Close", command=lambda: _pick("cancel"), width=14).pack(side=RIGHT)
+        else:
+            ttk.Button(row, text="Use prebuilt binary", command=lambda: _pick("prebuilt"), width=18).pack(side=RIGHT, padx=(0, 8))
+            ttk.Button(row, text="Cancel", command=lambda: _pick("cancel"), width=12, style="Small.TButton").pack(side=RIGHT)
+
+        dialog.protocol("WM_DELETE_WINDOW", lambda: _pick("cancel"))
+        dialog.grab_set()
+        dialog.wait_visibility()
+        dialog.focus_set()
+        dialog.wait_window()
+        return result["choice"]
+
+    def _do_venv_consent(self, ctx: dict) -> bool:
+        required = ctx["required_version"]
+        req_path = ctx["requirements_path"]
+        self._notify_if_unfocused("DOOM-Tools needs your input: set up the source environment?")
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Create Virtual Environment?")
+        dialog.transient(self.root)
+        dialog.resizable(False, False)
+        frame = ttk.Frame(dialog, padding=(16, 14, 16, 14))
+        frame.pack(fill="both", expand=True)
+        ttk.Label(frame, text="Set up the source environment?", style="Header.TLabel").pack(anchor=W)
+        ttk.Label(
+            frame,
+            text=(f"Python {required} was found. DOOM-Tools will create a virtual "
+                  "environment (.venv) and install the packages listed in "
+                  "requirements.txt via pip, then run from source."),
+            style="Subtle.TLabel", wraplength=450, justify="left",
+        ).pack(anchor=W, pady=(6, 12))
+
+        result = {"ok": False}
+        row = ttk.Frame(frame)
+        row.pack(fill="x")
+
+        def _proceed() -> None:
+            result["ok"] = True
+            dialog.destroy()
+
+        ttk.Button(row, text="Cancel", command=dialog.destroy, width=12, style="Small.TButton").pack(side=RIGHT)
+        ttk.Button(row, text="Proceed", command=_proceed, width=14).pack(side=RIGHT, padx=(0, 8))
+        ttk.Button(row, text="Show requirements.txt",
+                   command=lambda: self._show_requirements_popup(req_path),
+                   width=20, style="Small.TButton").pack(side=LEFT)
+
+        dialog.protocol("WM_DELETE_WINDOW", dialog.destroy)
+        dialog.grab_set()
+        dialog.wait_visibility()
+        dialog.focus_set()
+        dialog.wait_window()
+        return result["ok"]
+
+    def runtime_chooser(self, ctx: dict) -> dict:
+        """Worker-thread callback that runs the consent flow and returns the
+        chosen runtime: {"mode": "source"|"prebuilt"}."""
+        branch_mode = ctx["branch_mode"]
+
+        if not ctx["has_any_python"]:
+            if branch_mode:
+                raise LauncherError(
+                    f"Running branch '{ctx['branch']}' needs Python {ctx['required_version']}, "
+                    "but no Python was found. Install it and relaunch."
+                )
+            self.log("No Python detected; using the prebuilt binary.")
+            return {"mode": "prebuilt"}
+
+        if not branch_mode and self.launch_settings.get("suppress_source_prompt", False):
+            self.log("Source-build prompt suppressed in settings; using the prebuilt binary.")
+            return {"mode": "prebuilt"}
+
+        consent = self._run_on_main(lambda: self._do_source_consent(ctx))
+        if consent["choice"] == "cancel":
+            raise LauncherError("Setup cancelled by user.")
+        if consent["choice"] == "prebuilt":
+            if consent.get("suppress"):
+                self.launch_settings["suppress_source_prompt"] = True
+                self._save_launch_settings()
+                self._run_on_main(self._refresh_launch_options_label)
+                self.log("Future source-build prompts suppressed (re-enable in Settings).")
+            return {"mode": "prebuilt"}
+
+        # User opted to build from source -> require the exact Python version.
+        if not ctx["has_required_python"]:
+            outcome = self._run_on_main(lambda: self._do_python_missing(ctx))
+            if outcome == "prebuilt":
+                return {"mode": "prebuilt"}
+            raise LauncherError(
+                f"Python {ctx['required_version']} is required to build from source."
+            )
+
+        if not self._run_on_main(lambda: self._do_venv_consent(ctx)):
+            if branch_mode:
+                raise LauncherError("Setup cancelled by user.")
+            return {"mode": "prebuilt"}
+        return {"mode": "source"}
 
     def _launch_flags_text(self) -> str:
         labels = []
@@ -1224,7 +1636,11 @@ class LauncherUI:
 
     def _refresh_launch_options_label(self) -> None:
         console_mode = "on" if self.launch_settings.get("keep_console_open", False) else "off"
-        channel = "pre-release" if self.launch_settings.get("use_prerelease", False) else "stable"
+        branch = str(self.launch_settings.get("branch", "") or "")
+        if branch:
+            channel = f"branch:{branch}"
+        else:
+            channel = "pre-release" if self.launch_settings.get("use_prerelease", False) else "stable"
         self.options_label.configure(
             text=f"Launch options: {self._launch_flags_text()} | console: {console_mode} | channel: {channel}"
         )
@@ -1276,6 +1692,53 @@ class LauncherUI:
             style="Subtle.TLabel",
         ).pack(anchor=W, pady=(4, 0))
 
+        # ── Branch / source channel ──
+        STABLE_LABEL = "(Stable releases)"
+        ttk.Label(updates_group, text="Source channel:").pack(anchor=W, pady=(10, 2))
+        current_branch = str(self.launch_settings.get("branch", "") or "")
+        branch_var = tk.StringVar(value=current_branch or STABLE_LABEL)
+        branch_combo = ttk.Combobox(
+            updates_group, textvariable=branch_var, values=[STABLE_LABEL], width=28,
+        )
+        branch_combo.pack(anchor=W)
+        ttk.Label(
+            updates_group,
+            text="Pick a git branch to run its source directly (requires Python), "
+                 "or stay on stable releases.",
+            style="Subtle.TLabel",
+        ).pack(anchor=W, pady=(4, 0))
+
+        def _populate_branches() -> None:
+            try:
+                names = fetch_branches()
+            except Exception:
+                return
+            def _apply() -> None:
+                vals = [STABLE_LABEL] + names
+                if current_branch and current_branch not in names:
+                    vals.append(current_branch)
+                branch_combo.configure(values=vals)
+            try:
+                branch_combo.after(0, _apply)
+            except Exception:
+                pass
+
+        threading.Thread(target=_populate_branches, daemon=True).start()
+
+        ask_source_var = tk.BooleanVar(
+            value=not self.launch_settings.get("suppress_source_prompt", False)
+        )
+        ttk.Checkbutton(
+            updates_group,
+            text="Ask whether to build from source on launch",
+            variable=ask_source_var,
+        ).pack(anchor=W, pady=(10, 0))
+        ttk.Label(
+            updates_group,
+            text="When off, the prebuilt binary is always used without prompting.",
+            style="Subtle.TLabel",
+        ).pack(anchor=W, pady=(2, 0))
+
         console_group = ttk.LabelFrame(frame, text="Console", padding=(10, 8, 10, 8))
         console_group.pack(fill="x", pady=(10, 0))
         ttk.Checkbutton(
@@ -1293,12 +1756,16 @@ class LauncherUI:
         button_row.pack(fill="x", pady=(12, 0))
 
         def _save_and_close() -> None:
+            chosen = branch_var.get().strip()
+            branch_val = "" if chosen in ("", STABLE_LABEL) else chosen
             self.launch_settings = {
                 "devmode": bool(devmode_var.get()),
                 "debug": bool(debug_var.get()),
                 "dmmode": bool(dmmode_var.get()),
                 "keep_console_open": bool(console_var.get()),
                 "use_prerelease": bool(prerelease_var.get()),
+                "branch": branch_val,
+                "suppress_source_prompt": not bool(ask_source_var.get()),
             }
             self._save_launch_settings()
             self._refresh_launch_options_label()
@@ -1460,6 +1927,8 @@ class LauncherUI:
                 progress=self.set_progress,
                 transfer=self.set_transfer,
                 use_prerelease=self.launch_settings.get("use_prerelease", False),
+                branch=str(self.launch_settings.get("branch", "") or ""),
+                runtime_chooser=self.runtime_chooser,
             )
             self.runtime_launch_cmd = launch_cmd
             self.runtime_cwd = launch_cwd
@@ -1529,6 +1998,16 @@ class LauncherUI:
                         self.transfer_label.configure(
                             text=f"{label}: {_format_size(downloaded_i)} downloaded at {_format_size(speed_f)}/s"
                         )
+            elif kind == "ask":
+                # A worker thread asked us to run something on the main thread
+                # (a consent dialog) and is blocked until we set the event.
+                fn, holder, done = payload
+                try:
+                    holder["result"] = fn()
+                except Exception as exc:  # surface to the worker
+                    holder["error"] = exc
+                finally:
+                    done.set()
             elif kind == "ready":
                 self.active_progress.stop()
                 self.active_progress_is_indeterminate = False
@@ -1575,11 +2054,15 @@ class LauncherUI:
 
         if os.name == "nt":
             if self.launch_settings.get("debug", False):
-                # In debug mode, keep failure output visible by pausing only when the app exits non-zero.
+                # In debug mode, ALWAYS keep the console open after the app exits
+                # (success or crash) so tracebacks / import errors stay readable.
+                # The exit code is captured immediately into a var because the
+                # following commands would otherwise reset %errorlevel%.
                 cmdline = subprocess.list2cmdline(launch_cmd)
                 guarded_cmd = (
-                    f"{cmdline} || (echo. & echo DOOM-Tools exited with error code !errorlevel!. "
-                    "Press any key to close... & pause >nul)"
+                    f'{cmdline} & set "DT_RC=!errorlevel!" '
+                    '& echo. & echo [DOOM-Tools debug] process exited with code !DT_RC!. '
+                    '& echo Press any key to close this console... & pause >nul'
                 )
                 subprocess.Popen(
                     ["cmd", "/v:on", "/c", guarded_cmd],
