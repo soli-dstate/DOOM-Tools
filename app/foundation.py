@@ -6,7 +6,7 @@ runs order-dependent setup that calls the helpers and shares one namespace.
 Split out of main.py by scripts/refactor_main.py.
 """
 
-version = "2.0.10"
+version = "2.0.11"
 current_resource_links = [
     "https://files.catbox.moe/gtbtty.001",
     "https://files.catbox.moe/r3ic2z.002",

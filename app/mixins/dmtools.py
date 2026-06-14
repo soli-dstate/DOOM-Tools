@@ -373,9 +373,12 @@ class DmtoolsMixin:
         if "default" not in forecast:
             forecast["default"] = {"weather": "clear", "wind_severity": 0, "temperature_f": 70}
 
-        VALID_WEATHER = ("clear", "rain", "thunderstorm", "snowstorm", "thundersnow")
-        RAIN_TYPES = ("rain", "thunderstorm")
+        VALID_WEATHER = ("clear", "sun_and_cloud", "cloudy", "rain", "hard_rain", "thunderstorm", "thunder_hard_rain", "thunder", "snowstorm", "thundersnow")
+        RAIN_TYPES = ("rain", "hard_rain", "thunderstorm", "thunder_hard_rain")
         SNOW_TYPES = ("snowstorm", "thundersnow")
+        # When a wet type lands at an inconsistent temperature, swap to its warm/cold counterpart
+        RAIN_TO_SNOW = {"rain": "snowstorm", "hard_rain": "snowstorm", "thunderstorm": "thundersnow", "thunder_hard_rain": "thundersnow"}
+        SNOW_TO_RAIN = {"snowstorm": "rain", "thundersnow": "thunderstorm"}
 
         use_metric = appearance_settings.get("units", "imperial") == "metric"
         temp_unit = "°C" if use_metric else "°F"
@@ -424,7 +427,7 @@ class DmtoolsMixin:
         df_row.pack(pady = 6, anchor = "center")
         customtkinter.CTkLabel(df_row, text = "Default", font = customtkinter.CTkFont(size = 14, weight = "bold"), width = 60).pack(side = "left", padx = (0, 8))
         customtkinter.CTkLabel(df_row, text = "Type:").pack(side = "left", padx = (0, 2))
-        customtkinter.CTkSegmentedButton(df_row, values = list(VALID_WEATHER), variable = default_weather_var, width = 360).pack(side = "left", padx = (0, 8))
+        customtkinter.CTkOptionMenu(df_row, values = list(VALID_WEATHER), variable = default_weather_var, width = 170).pack(side = "left", padx = (0, 8))
         customtkinter.CTkLabel(df_row, text = "Wind:").pack(side = "left", padx = (0, 2))
         customtkinter.CTkSegmentedButton(df_row, values = ["0", "1", "2", "3"], variable = default_wind_var, width = 120).pack(side = "left", padx = (0, 8))
         customtkinter.CTkLabel(df_row, text = f"Temp {temp_unit}:").pack(side = "left", padx = (0, 2))
@@ -557,7 +560,7 @@ class DmtoolsMixin:
         day_temp_var = customtkinter.StringVar(value = "70")
 
         customtkinter.CTkLabel(detail_row, text = "Type:").pack(side = "left", padx = (0, 2))
-        customtkinter.CTkSegmentedButton(detail_row, values = list(VALID_WEATHER), variable = day_weather_var, width = 360).pack(side = "left", padx = (0, 8))
+        customtkinter.CTkOptionMenu(detail_row, values = list(VALID_WEATHER), variable = day_weather_var, width = 170).pack(side = "left", padx = (0, 8))
         customtkinter.CTkLabel(detail_row, text = "Wind:").pack(side = "left", padx = (0, 2))
         customtkinter.CTkSegmentedButton(detail_row, values = ["0", "1", "2", "3"], variable = day_wind_var, width = 120).pack(side = "left", padx = (0, 8))
         customtkinter.CTkLabel(detail_row, text = f"Temp {temp_unit}:").pack(side = "left", padx = (0, 2))
@@ -787,48 +790,68 @@ class DmtoolsMixin:
             target_month = current_month[0]
             days_in_month = cal_module.monthrange(target_year, target_month)[1]
 
+            # Transition weights are normalised by rng.choices, so they need not sum to exactly 1.
+            # "sun_and_cloud" and "cloudy" act as dry buffer states that absorb most transitions out
+            # of fair weather, keeping precipitation comparatively infrequent and clustered into spells.
             season_params = {
                 "Winter": {
                     "temp_mid": 18.0, "temp_min": -15.0, "temp_max": 38.0,
                     "transitions": {
-                        "clear":        {"clear": 0.50, "snowstorm": 0.35, "thundersnow": 0.15},
-                        "snowstorm":    {"clear": 0.20, "snowstorm": 0.55, "thundersnow": 0.25},
-                        "thundersnow":  {"snowstorm": 0.50, "clear": 0.20, "thundersnow": 0.30},
-                        "rain":         {"clear": 0.55, "snowstorm": 0.35, "thunderstorm": 0.10},
-                        "thunderstorm": {"rain": 0.35, "clear": 0.40, "snowstorm": 0.25},
+                        "clear":             {"clear": 0.45, "sun_and_cloud": 0.22, "cloudy": 0.18, "snowstorm": 0.12, "thundersnow": 0.03},
+                        "sun_and_cloud":     {"clear": 0.32, "sun_and_cloud": 0.28, "cloudy": 0.22, "snowstorm": 0.15, "thundersnow": 0.03},
+                        "cloudy":            {"cloudy": 0.30, "sun_and_cloud": 0.22, "clear": 0.16, "snowstorm": 0.27, "thundersnow": 0.05},
+                        "snowstorm":         {"snowstorm": 0.40, "cloudy": 0.28, "clear": 0.17, "thundersnow": 0.15},
+                        "thundersnow":       {"snowstorm": 0.45, "thundersnow": 0.20, "cloudy": 0.20, "clear": 0.15},
+                        "rain":              {"snowstorm": 0.35, "cloudy": 0.30, "clear": 0.25, "rain": 0.10},
+                        "thunderstorm":      {"snowstorm": 0.35, "cloudy": 0.30, "clear": 0.25, "thundersnow": 0.10},
                     },
                     "wind_weights": [0.20, 0.30, 0.28, 0.22],
                 },
                 "Spring": {
                     "temp_mid": 52.0, "temp_min": 30.0, "temp_max": 72.0,
                     "transitions": {
-                        "clear":        {"clear": 0.50, "rain": 0.30, "thunderstorm": 0.10, "snowstorm": 0.08, "thundersnow": 0.02},
-                        "rain":         {"clear": 0.30, "rain": 0.45, "thunderstorm": 0.25},
-                        "thunderstorm": {"rain": 0.40, "thunderstorm": 0.35, "clear": 0.25},
-                        "snowstorm":    {"clear": 0.50, "rain": 0.30, "snowstorm": 0.20},
-                        "thundersnow":  {"snowstorm": 0.30, "rain": 0.40, "clear": 0.30},
+                        "clear":             {"clear": 0.42, "sun_and_cloud": 0.26, "cloudy": 0.16, "rain": 0.13, "thunderstorm": 0.03},
+                        "sun_and_cloud":     {"clear": 0.32, "sun_and_cloud": 0.28, "cloudy": 0.22, "rain": 0.14, "thunderstorm": 0.04},
+                        "cloudy":            {"cloudy": 0.28, "sun_and_cloud": 0.24, "clear": 0.16, "rain": 0.24, "thunderstorm": 0.08},
+                        "rain":              {"cloudy": 0.34, "rain": 0.28, "clear": 0.16, "hard_rain": 0.10, "thunderstorm": 0.12},
+                        "hard_rain":         {"rain": 0.40, "cloudy": 0.24, "thunderstorm": 0.16, "thunder_hard_rain": 0.08, "clear": 0.12},
+                        "thunderstorm":      {"rain": 0.34, "cloudy": 0.26, "thunderstorm": 0.18, "thunder_hard_rain": 0.07, "clear": 0.15},
+                        "thunder_hard_rain": {"thunderstorm": 0.32, "hard_rain": 0.24, "rain": 0.24, "cloudy": 0.20},
+                        "thunder":           {"cloudy": 0.38, "sun_and_cloud": 0.24, "thunderstorm": 0.16, "clear": 0.22},
+                        "snowstorm":         {"cloudy": 0.36, "clear": 0.28, "rain": 0.26, "snowstorm": 0.10},
+                        "thundersnow":       {"snowstorm": 0.34, "cloudy": 0.30, "rain": 0.22, "clear": 0.14},
                     },
                     "wind_weights": [0.40, 0.35, 0.15, 0.10],
                 },
                 "Summer": {
                     "temp_mid": 80.0, "temp_min": 60.0, "temp_max": 98.0,
                     "transitions": {
-                        "clear":        {"clear": 0.60, "rain": 0.25, "thunderstorm": 0.15},
-                        "rain":         {"clear": 0.35, "rain": 0.40, "thunderstorm": 0.25},
-                        "thunderstorm": {"rain": 0.45, "thunderstorm": 0.35, "clear": 0.20},
-                        "snowstorm":    {"clear": 1.0},
-                        "thundersnow":  {"clear": 1.0},
+                        "clear":             {"clear": 0.50, "sun_and_cloud": 0.24, "cloudy": 0.12, "rain": 0.09, "thunderstorm": 0.05},
+                        "sun_and_cloud":     {"clear": 0.38, "sun_and_cloud": 0.28, "cloudy": 0.16, "rain": 0.10, "thunderstorm": 0.08},
+                        "cloudy":            {"cloudy": 0.26, "sun_and_cloud": 0.24, "clear": 0.20, "rain": 0.18, "thunderstorm": 0.12},
+                        "rain":              {"cloudy": 0.34, "clear": 0.22, "rain": 0.24, "thunderstorm": 0.16, "hard_rain": 0.04},
+                        "hard_rain":         {"rain": 0.38, "thunderstorm": 0.22, "cloudy": 0.22, "thunder_hard_rain": 0.08, "clear": 0.10},
+                        "thunderstorm":      {"rain": 0.34, "cloudy": 0.24, "thunderstorm": 0.22, "thunder_hard_rain": 0.08, "clear": 0.12},
+                        "thunder_hard_rain": {"thunderstorm": 0.34, "hard_rain": 0.24, "rain": 0.22, "cloudy": 0.20},
+                        "thunder":           {"clear": 0.30, "sun_and_cloud": 0.28, "cloudy": 0.22, "thunderstorm": 0.20},
+                        "snowstorm":         {"clear": 0.60, "sun_and_cloud": 0.40},
+                        "thundersnow":       {"clear": 0.60, "sun_and_cloud": 0.40},
                     },
                     "wind_weights": [0.50, 0.30, 0.15, 0.05],
                 },
                 "Fall": {
                     "temp_mid": 48.0, "temp_min": 28.0, "temp_max": 68.0,
                     "transitions": {
-                        "clear":        {"clear": 0.55, "rain": 0.25, "thunderstorm": 0.08, "snowstorm": 0.10, "thundersnow": 0.02},
-                        "rain":         {"clear": 0.30, "rain": 0.42, "thunderstorm": 0.15, "snowstorm": 0.10, "thundersnow": 0.03},
-                        "thunderstorm": {"rain": 0.40, "thunderstorm": 0.30, "clear": 0.20, "snowstorm": 0.10},
-                        "snowstorm":    {"clear": 0.30, "snowstorm": 0.50, "thundersnow": 0.20},
-                        "thundersnow":  {"snowstorm": 0.40, "clear": 0.30, "thundersnow": 0.30},
+                        "clear":             {"clear": 0.48, "sun_and_cloud": 0.24, "cloudy": 0.16, "rain": 0.09, "thunderstorm": 0.03},
+                        "sun_and_cloud":     {"clear": 0.34, "sun_and_cloud": 0.28, "cloudy": 0.22, "rain": 0.12, "snowstorm": 0.04},
+                        "cloudy":            {"cloudy": 0.30, "sun_and_cloud": 0.22, "clear": 0.16, "rain": 0.20, "snowstorm": 0.08, "thunderstorm": 0.04},
+                        "rain":              {"cloudy": 0.34, "rain": 0.28, "clear": 0.16, "thunderstorm": 0.10, "snowstorm": 0.12},
+                        "hard_rain":         {"rain": 0.40, "cloudy": 0.24, "thunderstorm": 0.14, "snowstorm": 0.12, "clear": 0.10},
+                        "thunderstorm":      {"rain": 0.36, "cloudy": 0.26, "thunderstorm": 0.16, "snowstorm": 0.10, "clear": 0.12},
+                        "thunder_hard_rain": {"thunderstorm": 0.32, "hard_rain": 0.24, "rain": 0.24, "cloudy": 0.20},
+                        "thunder":           {"cloudy": 0.38, "sun_and_cloud": 0.24, "thunderstorm": 0.14, "clear": 0.24},
+                        "snowstorm":         {"snowstorm": 0.40, "cloudy": 0.26, "clear": 0.16, "rain": 0.10, "thundersnow": 0.08},
+                        "thundersnow":       {"snowstorm": 0.40, "cloudy": 0.28, "clear": 0.18, "thundersnow": 0.14},
                     },
                     "wind_weights": [0.35, 0.30, 0.20, 0.15],
                 },
@@ -901,9 +924,9 @@ class DmtoolsMixin:
 
                 # Validate weather/temp consistency
                 if today_weather in SNOW_TYPES and current_temp >= 32.0:
-                    today_weather = "thunderstorm" if today_weather == "thundersnow" else "rain"
+                    today_weather = SNOW_TO_RAIN.get(today_weather, "rain")
                 elif today_weather in RAIN_TYPES and current_temp <= 32.0:
-                    today_weather = "thundersnow" if today_weather == "thunderstorm" else "snowstorm"
+                    today_weather = RAIN_TO_SNOW.get(today_weather, "snowstorm")
 
                 current_weather = today_weather
                 day_wind = rng.choices([0, 1, 2, 3], weights = wind_weights, k = 1)[0]
@@ -923,9 +946,9 @@ class DmtoolsMixin:
                     hour_temp = current_temp + diurnal + rng.uniform(-1.5, 1.5)
 
                     if hour_weather in SNOW_TYPES and hour_temp >= 32.0:
-                        hour_weather = "thunderstorm" if hour_weather == "thundersnow" else "rain"
+                        hour_weather = SNOW_TO_RAIN.get(hour_weather, "rain")
                     elif hour_weather in RAIN_TYPES and hour_temp <= 32.0:
-                        hour_weather = "thundersnow" if hour_weather == "thunderstorm" else "snowstorm"
+                        hour_weather = RAIN_TO_SNOW.get(hour_weather, "snowstorm")
 
                     hour_wind = max(0, min(3, day_wind + rng.randint(-1, 1)))
                     hourly[f"{hour:02d}"] = {

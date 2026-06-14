@@ -2041,14 +2041,15 @@ class CombatMixin:
                 pass
 
             try:
-                w_weather = combat_state.get("weather", {})
-                w_type = w_weather.get("weather", "clear") if isinstance(w_weather, dict) else "clear"
-                weather_aim_map = {"rain": -1, "thunderstorm": -1, "snowstorm": -2, "thundersnow": -2}
-                if w_type in weather_aim_map:
-                    effective_aim += weather_aim_map[w_type]
-                w_sev = w_weather.get("wind_severity", 0) if isinstance(w_weather, dict) else 0
-                if w_sev > 0:
-                    effective_aim -= max(1, min(3, w_sev))
+                if not combat_state.get("indoors"):
+                    w_weather = combat_state.get("weather", {})
+                    w_type = w_weather.get("weather", "clear") if isinstance(w_weather, dict) else "clear"
+                    weather_aim_map = {"rain": -1, "hard_rain": -2, "thunderstorm": -1, "thunder_hard_rain": -2, "thunder": -1, "snowstorm": -2, "thundersnow": -2}
+                    if w_type in weather_aim_map:
+                        effective_aim += weather_aim_map[w_type]
+                    w_sev = w_weather.get("wind_severity", 0) if isinstance(w_weather, dict) else 0
+                    if w_sev > 0:
+                        effective_aim -= max(1, min(3, w_sev))
             except Exception:
                 pass
 

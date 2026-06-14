@@ -600,12 +600,12 @@ def _python_version_script() -> str:
 
 
 def detect_python_command(logger=None) -> list[str] | None:
-    """Return a command for the exact required Python version, or None.
+    """Return a command for the required free-threaded Python build, or None.
 
-    Free-threaded (no-GIL) builds are *preferred* (probed first) but NOT
-    required: the launcher sets PYTHON_GIL=0 at launch and DOOM-Tools runs with
-    or without the GIL, so a standard build of the required version is accepted.
-    Each candidate's result is logged to aid diagnosis.
+    DOOM-Tools requires the exact version AND a free-threaded (no-GIL) build:
+    the launcher sets PYTHON_GIL=0, which fatally errors on a standard build.
+    A standard build of the right version is therefore rejected (the user is
+    prompted to install the free-threaded build). Each candidate is logged.
     """
     def _log(msg: str) -> None:
         if logger:
@@ -642,8 +642,12 @@ def detect_python_command(logger=None) -> list[str] | None:
         if version != required_version:
             _log(f"Found Python {version} via '{label}' (need {required_version}); skipping.")
             continue
+        if not python_is_free_threaded(base):
+            _log(f"Found standard (with-GIL) Python {version} via '{label}'; the "
+                 "free-threaded (no-GIL) build is required. Skipping.")
+            continue
 
-        _log(f"Using Python {version} via '{label}'.")
+        _log(f"Using free-threaded Python {version} via '{label}'.")
         return base
 
     return None
@@ -694,6 +698,25 @@ def python_install_url() -> str:
         return f"{base}/python-{version}-macos11.pkg"
     # Linux/other: python.org ships source only — link the source tarball.
     return f"{base}/Python-{version}.tgz"
+
+
+def python_is_free_threaded(python) -> bool:
+    """True only if the interpreter is a free-threaded (no-GIL) build.
+
+    Standard builds FATAL at startup if PYTHON_GIL=0 is set
+    ("Disabling the GIL is not supported by this build"), so the launcher must
+    only force no-GIL for builds that actually support it.
+    """
+    cmd = list(python) if isinstance(python, (list, tuple)) else [str(python)]
+    try:
+        result = subprocess.run(
+            cmd + ["-c", "import sysconfig;print(1 if sysconfig.get_config_var('Py_GIL_DISABLED') else 0)"],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+            timeout=10, check=False,
+        )
+        return result.returncode == 0 and result.stdout.strip() == "1"
+    except Exception:
+        return False
 
 
 def find_windows_builder_asset(release: dict) -> dict:
@@ -1496,26 +1519,41 @@ class LauncherUI:
         branch_mode = ctx["branch_mode"]
         required = ctx["required_version"]
         url = ctx["install_url"]
-        self._notify_if_unfocused(f"DOOM-Tools needs Python {required} to build from source.")
+        self._notify_if_unfocused(f"DOOM-Tools needs the free-threaded Python {required} build.")
         dialog = tk.Toplevel(self.root)
-        dialog.title("Python Version Required")
+        dialog.title("Free-Threaded Python Required")
         dialog.transient(self.root)
         dialog.resizable(False, False)
         frame = ttk.Frame(dialog, padding=(16, 14, 16, 14))
         frame.pack(fill="both", expand=True)
-        ttk.Label(frame, text=f"Python {required} is required", style="Header.TLabel").pack(anchor=W)
+        ttk.Label(frame, text=f"Free-threaded Python {required} is required", style="Header.TLabel").pack(anchor=W)
         ttk.Label(
             frame,
-            text=(f"Building from source needs Python {required}, which wasn't found on "
-                  "your PATH. Install it, then relaunch and choose 'Build from source' again."),
-            style="Subtle.TLabel", wraplength=450, justify="left",
+            text=(f"DOOM-Tools runs without the GIL and needs the free-threaded (no-GIL) "
+                  f"build of Python {required}. A standard build won't work (it crashes "
+                  "with 'Disabling the GIL is not supported by this build'). Install the "
+                  "free-threaded build, then relaunch and choose 'Build from source' again."),
+            style="Subtle.TLabel", wraplength=460, justify="left",
         ).pack(anchor=W, pady=(6, 8))
 
-        link = ttk.Label(frame, text=f"Download Python {required} for your platform (python.org)",
+        if os.name == "nt":
+            hint = ("In the installer pick 'Customize installation' -> 'Advanced Options' and "
+                    "tick 'Download free-threaded binaries (experimental)'. That installs "
+                    "python3.13t, runnable via 'py -3.13t'.")
+        elif sys.platform == "darwin":
+            hint = ("Install the python.org build and ensure the free-threaded interpreter "
+                    "(python3.13t) is on your PATH.")
+        else:
+            hint = ("Install or build the free-threaded interpreter — e.g. a "
+                    "python3.13-freethreading/nogil package, or build CPython with "
+                    "'--disable-gil'.")
+        ttk.Label(frame, text=hint, style="Subtle.TLabel", wraplength=460, justify="left").pack(anchor=W, pady=(0, 8))
+
+        link = ttk.Label(frame, text=f"Download Python {required} (python.org)",
                          foreground="#3b82f6", cursor="hand2")
         link.pack(anchor=W, pady=(0, 2))
         link.bind("<Button-1>", lambda _e: webbrowser.open(url))
-        ttk.Label(frame, text=url, style="Subtle.TLabel", wraplength=450, justify="left").pack(anchor=W, pady=(0, 12))
+        ttk.Label(frame, text=url, style="Subtle.TLabel", wraplength=460, justify="left").pack(anchor=W, pady=(0, 12))
 
         result = {"choice": "cancel"}
         row = ttk.Frame(frame)
@@ -2049,6 +2087,8 @@ class LauncherUI:
         self.settings_button.configure(state=DISABLED)
 
         launch_env = os.environ.copy()
+        # DOOM-Tools requires a free-threaded (no-GIL) build, so always disable
+        # the GIL. The runtime selection guarantees a free-threaded interpreter.
         launch_env["PYTHON_GIL"] = "0"
         self.logger.info("Launching DOOM-Tools with flags: %s", self._launch_flags_text())
 
