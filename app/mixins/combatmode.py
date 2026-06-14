@@ -86,7 +86,7 @@ class CombatmodeMixin:
                 try:
                     _ws = combat_state.get("weather", {})
                     _wt = _ws.get("weather", "clear") if isinstance(_ws, dict) else "clear"
-                    if _wt in ("rain", "thunderstorm", "snowstorm", "thundersnow"):
+                    if _wt in ("rain", "hard_rain", "thunderstorm", "thunder_hard_rain", "snowstorm", "thundersnow") and not combat_state.get("indoors"):
                         k *= 1.5
                 except Exception:
                     pass
@@ -267,7 +267,7 @@ class CombatmodeMixin:
                 w_temp = day_weather.get("temperature_f")
                 if w_temp is not None:
                     combat_state["ambient_temperature"] = float(w_temp)
-                valid_weather = ("clear", "rain", "thunderstorm", "snowstorm", "thundersnow")
+                valid_weather = ("clear", "sun_and_cloud", "cloudy", "rain", "hard_rain", "thunderstorm", "thunder_hard_rain", "thunder", "snowstorm", "thundersnow")
                 if w_type not in valid_weather:
                     w_type = "clear"
                 if w_type in ("snowstorm", "thundersnow") and combat_state.get("ambient_temperature", 70) >= 30:
@@ -280,6 +280,7 @@ class CombatmodeMixin:
             logging.exception("Failed to load weather data")
 
         combat_state["weather"] = weather_state
+        combat_state.setdefault("indoors", False)
 
         weather_sound_state = {"channel": None, "sound": None, "thunder_after_id": None}
 
@@ -289,7 +290,9 @@ class CombatmodeMixin:
             w = weather_state.get("weather", "clear")
             loop_map = {
                 "rain": "rain_loop.ogg",
+                "hard_rain": "rain_loop.ogg",
                 "thunderstorm": "rain_loop.ogg",
+                "thunder_hard_rain": "rain_loop.ogg",
                 "snowstorm": "snowstorm_loop.ogg",
                 "thundersnow": "snowstorm_loop.ogg"
             }
@@ -323,7 +326,7 @@ class CombatmodeMixin:
             if not appearance_settings.get("weather_audio_effects", True):
                 return
             w = weather_state.get("weather", "clear")
-            if w not in ("thunderstorm", "thundersnow"):
+            if w not in ("thunderstorm", "thunder_hard_rain", "thundersnow", "thunder"):
                 return
 
             def _play_thunder():
@@ -654,22 +657,29 @@ class CombatmodeMixin:
                 try:
                     w_weather = combat_state.get("weather", {})
                     w_type = w_weather.get("weather", "clear") if isinstance(w_weather, dict) else "clear"
+                    indoors = bool(combat_state.get("indoors"))
                     parts.append("")
                     parts.append("Weather modifiers:")
-                    if w_type == "clear":
+                    weather_names = {"sun_and_cloud": "Partly Cloudy", "cloudy": "Cloudy", "rain": "Rain", "hard_rain": "Hard Rain", "thunderstorm": "Thunderstorm", "thunder_hard_rain": "Severe Thunderstorm", "thunder": "Thunder", "snowstorm": "Snowstorm", "thundersnow": "Thundersnow"}
+                    w_sev = w_weather.get("wind_severity", 0) if isinstance(w_weather, dict) else 0
+                    if indoors:
+                        weather_label = "Clear" if w_type == "clear" else weather_names.get(w_type, w_type.title())
+                        parts.append(f"  Indoors — sheltered ({weather_label} outside, no weather/wind effects)")
+                    elif w_type == "clear":
                         parts.append("  (none — clear weather)")
+                        if w_sev > 0:
+                            aim_mod = -max(1, min(3, w_sev))
+                            parts.append(f"  Wind: severity {w_sev}, Aim: {aim_mod}")
                     else:
-                        weather_names = {"rain": "Rain", "thunderstorm": "Thunderstorm", "snowstorm": "Snowstorm", "thundersnow": "Thundersnow"}
                         parts.append(f"  Weather: {weather_names.get(w_type, w_type.title())}")
-                        weather_aim_map = {"rain": -1, "thunderstorm": -1, "snowstorm": -2, "thundersnow": -2}
+                        weather_aim_map = {"rain": -1, "hard_rain": -2, "thunderstorm": -1, "thunder_hard_rain": -2, "thunder": -1, "snowstorm": -2, "thundersnow": -2}
                         if w_type in weather_aim_map:
                             parts.append(f"  Aim: {weather_aim_map[w_type]}")
-                        if w_type in ("rain", "thunderstorm", "snowstorm", "thundersnow"):
+                        if w_type in ("rain", "hard_rain", "thunderstorm", "thunder_hard_rain", "snowstorm", "thundersnow"):
                             parts.append("  Barrel cooling: 1.5x")
-                    w_sev = w_weather.get("wind_severity", 0) if isinstance(w_weather, dict) else 0
-                    if w_sev > 0:
-                        aim_mod = -max(1, min(3, w_sev))
-                        parts.append(f"  Wind: severity {w_sev}, Aim: {aim_mod}")
+                        if w_sev > 0:
+                            aim_mod = -max(1, min(3, w_sev))
+                            parts.append(f"  Wind: severity {w_sev}, Aim: {aim_mod}")
                 except Exception:
                     pass
 
@@ -1814,6 +1824,17 @@ class CombatmodeMixin:
                         nvg_btn.configure(fg_color = "#444444", hover_color = "#666666")
                 except Exception:
                     pass
+            except Exception:
+                pass
+
+        def _update_indoor_button():
+            try:
+                if indoor_btn is None:
+                    return
+                if combat_state.get("indoors"):
+                    indoor_btn.configure(text = "Indoors", fg_color = "#228B22", hover_color = "#2E8B57")
+                else:
+                    indoor_btn.configure(text = "Outdoors", fg_color = "#444444", hover_color = "#666666")
             except Exception:
                 pass
 
@@ -3355,6 +3376,24 @@ class CombatmodeMixin:
             _update_nvg_button()
         except Exception:
             pass
+
+        def _toggle_indoors():
+            try:
+                combat_state["indoors"] = not bool(combat_state.get("indoors"))
+                try:
+                    self._safe_sound_play("misc/nvg", "on" if combat_state["indoors"] else "off")
+                except Exception:
+                    pass
+                _update_indoor_button()
+            except Exception:
+                logging.exception("Indoor toggle failed")
+
+        try:
+            indoor_btn = self._create_sound_button(actions_frame, "Outdoors", _toggle_indoors, width = 150, height = 50, font = customtkinter.CTkFont(size = 14))
+            indoor_btn.pack(side = "left", padx = 10, pady = 10)
+            _update_indoor_button()
+        except Exception:
+            logging.exception("Failed to create indoor/outdoor button")
 
         def _toggle_electronics():
             try:
@@ -13196,7 +13235,7 @@ class CombatmodeMixin:
                         try:
                             _ws = combat_state.get("weather", {})
                             _wt = _ws.get("weather", "clear") if isinstance(_ws, dict) else "clear"
-                            if _wt in ("rain", "thunderstorm", "snowstorm", "thundersnow"):
+                            if _wt in ("rain", "hard_rain", "thunderstorm", "thunder_hard_rain", "snowstorm", "thundersnow") and not combat_state.get("indoors"):
                                 k *= 1.5
                         except Exception:
                             pass
