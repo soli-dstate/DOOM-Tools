@@ -1,5 +1,6 @@
 """Composes the App class from its feature mixins."""
 from app.foundation import *
+from app.mixins.bugreport import BugreportMixin
 from app.mixins.casino import CasinoMixin
 from app.mixins.characters import CharactersMixin
 from app.mixins.cloud import CloudMixin
@@ -24,13 +25,21 @@ from app.mixins.updates import UpdatesMixin
 from app.mixins.weapons import WeaponsMixin
 
 
-class App(CasinoMixin, CharactersMixin, CloudMixin, CombatMixin, CombatmodeMixin, DevMixin, DmtoolsMixin, GameplayMixin, InspectMixin, InventoryMixin, ItemsMixin, LootMixin, MarkingMixin, PopupsMixin, ReportsMixin, SavesMixin, SettingsMixin, SoundMixin, StoreMixin, UiMixin, UpdatesMixin, WeaponsMixin):
+class App(BugreportMixin, CasinoMixin, CharactersMixin, CloudMixin, CombatMixin, CombatmodeMixin, DevMixin, DmtoolsMixin, GameplayMixin, InspectMixin, InventoryMixin, ItemsMixin, LootMixin, MarkingMixin, PopupsMixin, ReportsMixin, SavesMixin, SettingsMixin, SoundMixin, StoreMixin, UiMixin, UpdatesMixin, WeaponsMixin):
 
     PLATFORM_DEFAULTS = {
     "M203":{"ammo_type":"40mm_grenade", "capacity":1, "reload_sound_folder":"m203"}
     }
     currentsave = None
     def __init__(self):
+        # Register this instance in the foundation module's globals so module-level
+        # helpers (e.g. the dev console command loop) can reach the live App.
+        try:
+            import app.foundation as _foundation_mod
+            _foundation_mod.app = self
+        except Exception:
+            logging.exception("Failed to register App instance on foundation module")
+
         # Diagnostic: record cloud-saves config so release-vs-local issues are
         # visible in the log (frozen builds set sys._MEIPASS; source mode does not).
         try:

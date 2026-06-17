@@ -1,0 +1,10 @@
+name = "doomtools-bugreport"
+main = "worker.js"
+compatibility_date = "2024-11-01"
+
+# The repository issues are filed against. Not a secret.
+[vars]
+GITHUB_REPO = "soli-dstate/DOOM-Tools"
+
+# GITHUB_TOKEN is a SECRET — do NOT put it here. Set it with:
+#   wrangler secret put GITHUB_TOKEN

@@ -384,6 +384,14 @@ class UiMixin:
         self.root.grid_columnconfigure(0, weight = 1)
         main_frame = customtkinter.CTkFrame(self.root)
         main_frame.grid(row = 0, column = 0, sticky = "nsew")
+        try:
+            bug_report_button = self._create_sound_button(
+                main_frame, "Report a Bug", self._open_bug_report,
+                width = 130, height = 32, font = customtkinter.CTkFont(size = 13),
+                state = "normal" if bugreport_is_configured() else "disabled")
+            bug_report_button.place(x = 12, y = 12)
+        except Exception:
+            logging.exception("Failed to create bug report button")
         title_label = customtkinter.CTkLabel(main_frame, text = "DOOM Tools", font = customtkinter.CTkFont(size = 24, weight = "bold"))
         title_label.pack(pady = 20)
         try:

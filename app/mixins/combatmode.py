@@ -1829,12 +1829,17 @@ class CombatmodeMixin:
 
         def _update_indoor_button():
             try:
-                if indoor_btn is None:
+                if indoor_switch is None:
                     return
-                if combat_state.get("indoors"):
-                    indoor_btn.configure(text = "Indoors", fg_color = "#228B22", hover_color = "#2E8B57")
+                indoors = bool(combat_state.get("indoors"))
+                if indoors:
+                    indoor_switch.configure(text = "Indoors", text_color = "#7CFC7C")
+                    if indoor_switch.get() != 1:
+                        indoor_switch.select()
                 else:
-                    indoor_btn.configure(text = "Outdoors", fg_color = "#444444", hover_color = "#666666")
+                    indoor_switch.configure(text = "Outdoors", text_color = "#dddddd")
+                    if indoor_switch.get() != 0:
+                        indoor_switch.deselect()
             except Exception:
                 pass
 
@@ -3379,7 +3384,7 @@ class CombatmodeMixin:
 
         def _toggle_indoors():
             try:
-                combat_state["indoors"] = not bool(combat_state.get("indoors"))
+                combat_state["indoors"] = bool(indoor_switch.get()) if indoor_switch is not None else not bool(combat_state.get("indoors"))
                 try:
                     self._safe_sound_play("misc/nvg", "on" if combat_state["indoors"] else "off")
                 except Exception:
@@ -3389,11 +3394,23 @@ class CombatmodeMixin:
                 logging.exception("Indoor toggle failed")
 
         try:
-            indoor_btn = self._create_sound_button(actions_frame, "Outdoors", _toggle_indoors, width = 150, height = 50, font = customtkinter.CTkFont(size = 14))
-            indoor_btn.pack(side = "left", padx = 10, pady = 10)
+            indoor_frame = customtkinter.CTkFrame(actions_frame, fg_color = "#2b2b2b", corner_radius = 8)
+            indoor_frame.pack(side = "left", padx = 10, pady = 10)
+            customtkinter.CTkLabel(indoor_frame, text = "Location", font = customtkinter.CTkFont(size = 11, weight = "bold"), text_color = "#999999").pack(padx = 14, pady = (8, 2))
+            indoor_switch = customtkinter.CTkSwitch(
+                indoor_frame,
+                text = "Outdoors",
+                command = _toggle_indoors,
+                font = customtkinter.CTkFont(size = 14, weight = "bold"),
+                progress_color = "#228B22",
+                width = 120,
+            )
+            indoor_switch.pack(padx = 14, pady = (0, 10))
+            if bool(combat_state.get("indoors")):
+                indoor_switch.select()
             _update_indoor_button()
         except Exception:
-            logging.exception("Failed to create indoor/outdoor button")
+            logging.exception("Failed to create indoor/outdoor switch")
 
         def _toggle_electronics():
             try:
@@ -6087,8 +6104,8 @@ class CombatmodeMixin:
                                 def _pop_step(s):
                                     if s >= steps:
                                         ul_canvas.delete('popanim')
-                                        _remove_round_at(idx)
                                         uls['animating'] = False
+                                        _remove_round_at(idx)
                                         return
                                     frac = (s + 1) / steps
                                     ease = frac * frac

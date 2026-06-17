@@ -339,6 +339,72 @@ CLOUD_ARCHIVE_NAME = "doomtools-cloud-saves.zip"
 CLOUD_SYNC_EXCLUDE = {"dm_settings.sldsv"}
 
 
+# ============================================================
+# Bug reports -> GitHub issues (via a server-side relay)
+# ------------------------------------------------------------
+# The app NEVER holds a GitHub token. In-app bug reports are POSTed to a small
+# relay (e.g. a Cloudflare Worker — see tools/bugreport-relay/) that holds a
+# fine-grained PAT (issues + gist write) server-side and creates the issue (and
+# a secret Gist for the attached log) on this repo's behalf. Only the public
+# relay URL ships with the app; the URL is NOT a secret, so the token never
+# reaches the user's machine.
+#
+# Configure the relay URL via (checked in order):
+#   1. env var DOOMTOOLS_BUGREPORT_URL
+#   2. a bugreport_endpoint.txt next to main.py / the exe / app data dir / cwd
+#   3. the BUGREPORT_ENDPOINT_DEFAULT constant below (baked into the build)
+# While none are set, the bug-report button stays disabled.
+# ============================================================
+BUGREPORT_ENDPOINT_DEFAULT = ""  # e.g. "https://doomtools-bugreport.example.workers.dev"
+
+
+def _bugreport_endpoint_file_candidates():
+    candidates = []
+    meipass = getattr(sys, "_MEIPASS", None)
+    if meipass:
+        candidates.append(os.path.join(meipass, "bugreport_endpoint.txt"))
+    try:
+        candidates.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "bugreport_endpoint.txt"))
+    except Exception:
+        pass
+    try:
+        candidates.append(os.path.join(os.path.dirname(os.path.abspath(sys.executable)), "bugreport_endpoint.txt"))
+    except Exception:
+        pass
+    try:
+        candidates.append(os.path.join(_get_shared_key_dir(), "bugreport_endpoint.txt"))
+    except Exception:
+        pass
+    candidates.append(os.path.join(os.getcwd(), "bugreport_endpoint.txt"))
+    return candidates
+
+
+def bugreport_endpoint():
+    """Resolve the bug-report relay URL (never returns a secret)."""
+    url = os.getenv("DOOMTOOLS_BUGREPORT_URL", "").strip()
+    if url:
+        return url
+    seen = set()
+    for path in _bugreport_endpoint_file_candidates():
+        ap = os.path.abspath(path)
+        if ap in seen:
+            continue
+        seen.add(ap)
+        try:
+            if os.path.exists(path):
+                with open(path, "r", encoding="utf-8") as f:
+                    val = f.read().strip()
+                if val:
+                    return val
+        except Exception:
+            pass
+    return BUGREPORT_ENDPOINT_DEFAULT.strip()
+
+
+def bugreport_is_configured():
+    return bool(bugreport_endpoint())
+
+
 def cloud_is_configured():
     return bool(GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET)
 
@@ -3318,7 +3384,8 @@ persistentdata = {
 "last_loaded_save":None,
 "save_uuids":{},
 "lootcrate_uuids":{},
-"transfer_uuids":{}
+"transfer_uuids":{},
+"reporter_name":None
 }
 
 ATTACHMENTS_VERSION = 0
@@ -3437,7 +3504,7 @@ for user in dm_users:
 
                     lower = cmd.lower()
                     if lower in('help', '?'):
-                        out = "Commands: help, print dm users, print globals, print global <key>, gil, exit, pause <secs>, eval <expr>"
+                        out = "Commands: help, print dm users, print globals, print global <key>, print inventory value, gil, exit, pause <secs>, eval <expr>"
                         log_console_colored(logging.getLogger(), logging.INFO, out, 'green')
                         continue
 
@@ -3487,6 +3554,157 @@ for user in dm_users:
                             log_console_colored(logging.getLogger(), logging.INFO, f"global {key}: {val}", 'cyan')
                         except Exception:
                             logging.exception('Failed to print global %s', key)
+                        continue
+
+                    if lower in('print inventory value', 'print inv value', 'inventory value', 'inv value'):
+                        try:
+                            app_obj = globals().get('app')
+                            if not app_obj or not getattr(app_obj, 'currentsave', None):
+                                log_console_colored(logging.getLogger(), logging.WARNING, "No character/save is currently loaded.", 'yellow')
+                                continue
+                            save_data = app_obj._load_file((app_obj.currentsave or "")+".sldsv")
+                            if not isinstance(save_data, dict):
+                                log_console_colored(logging.getLogger(), logging.WARNING, "Failed to load the current save data.", 'yellow')
+                                continue
+
+                            seen_nodes = set()
+
+                            def _sum_item_value(node):
+                                # Recursively sum base value * quantity for an item and
+                                # everything installed/stored inside it (items, subslots,
+                                # accessories, parts), counting each node only once.
+                                if not isinstance(node, dict):
+                                    return 0.0
+                                nid = id(node)
+                                if nid in seen_nodes:
+                                    return 0.0
+                                seen_nodes.add(nid)
+                                try:
+                                    qty = max(1, int(node.get("quantity", 1) or 1))
+                                except Exception:
+                                    qty = 1
+                                try:
+                                    base = float(node.get("value", 0) or 0)
+                                except Exception:
+                                    base = 0.0
+                                total = base * qty
+                                for child in node.get("items", []) or []:
+                                    total += _sum_item_value(child)
+                                for field in("subslots", "accessories", "parts"):
+                                    for entry in node.get(field, []) or []:
+                                        if isinstance(entry, dict):
+                                            total += _sum_item_value(entry.get("current"))
+                                return total
+
+                            carried_value = 0.0
+                            hands = save_data.get("hands", {})
+                            if isinstance(hands, dict):
+                                for it in hands.get("items", []) or []:
+                                    carried_value += _sum_item_value(it)
+                            for _slot, eq_item in(save_data.get("equipment", {}) or {}).items():
+                                if isinstance(eq_item, dict):
+                                    carried_value += _sum_item_value(eq_item)
+                                elif isinstance(eq_item, list):
+                                    for it in eq_item:
+                                        carried_value += _sum_item_value(it)
+
+                            storage_value = 0.0
+                            for st_item in save_data.get("storage", []) or []:
+                                storage_value += _sum_item_value(st_item)
+
+                            try:
+                                money = float(save_data.get("money", 0) or 0)
+                            except Exception:
+                                money = 0.0
+
+                            # Best-store depreciated sale value: what the player would
+                            # actually receive selling their sellable items to whichever
+                            # regular store buys at the highest rate, after wear/rarity
+                            # depreciation and live market demand.
+                            table_data_obj = globals().get('table_data') or {}
+                            best_buy_mult = 0.0
+                            best_store_name = None
+                            try:
+                                for store in((table_data_obj.get("tables", {}) or {}).get("stores", []) or []):
+                                    if not isinstance(store, dict):
+                                        continue
+                                    if store.get("type") != "store" or not store.get("display_in_program", True):
+                                        continue
+                                    try:
+                                        bm = float((store.get("prices", {}) or {}).get("buy", 1.0) or 0.0)
+                                    except Exception:
+                                        bm = 0.0
+                                    if bm > best_buy_mult:
+                                        best_buy_mult = bm
+                                        best_store_name = store.get("name", "Unknown Store")
+                            except Exception:
+                                logging.exception('Failed to resolve best buying store')
+
+                            sale_value = 0.0
+                            if best_buy_mult > 0:
+                                try:
+                                    market_demand = _get_market_demand()
+                                except Exception:
+                                    market_demand = {}
+
+                                def _iter_sellable(sd):
+                                    # Mirror the store sell tab's get_all_player_items: only
+                                    # the top-level items inside containers are sellable; their
+                                    # installed components are folded into each item's value.
+                                    out = []
+                                    h = sd.get("hands", {})
+                                    if isinstance(h, dict):
+                                        for it in h.get("items", []) or []:
+                                            if isinstance(it, dict):
+                                                out.append(it)
+                                    for _sn, eq in(sd.get("equipment", {}) or {}).items():
+                                        slot_items = eq if isinstance(eq, list) else [eq]
+                                        for slot_item in slot_items:
+                                            if not isinstance(slot_item, dict):
+                                                continue
+                                            if "items" in slot_item and "capacity" in slot_item:
+                                                for it in slot_item.get("items", []) or []:
+                                                    if isinstance(it, dict):
+                                                        out.append(it)
+                                            for sub in slot_item.get("subslots", []) or []:
+                                                sub_cur = sub.get("current") if isinstance(sub, dict) else None
+                                                if isinstance(sub_cur, dict) and "items" in sub_cur:
+                                                    for it in sub_cur.get("items", []) or []:
+                                                        if isinstance(it, dict):
+                                                            out.append(it)
+                                    return out
+
+                                for item in _iter_sellable(save_data):
+                                    if item.get("_from_armory"):
+                                        continue
+                                    try:
+                                        base_value = app_obj._compute_item_value_with_installed_components(item)
+                                        effective_value = _apply_sale_modifiers(base_value, item, table_data_obj)
+                                        price = effective_value * best_buy_mult * _get_item_market_multiplier(item, market_demand)
+                                        if item.get("firearm") and float(item.get("rounds_fired", 0) or 0) > 0:
+                                            price = max(100, price)
+                                        sale_value += price
+                                    except Exception:
+                                        continue
+
+                            grand_total = carried_value + storage_value + money
+                            item_count = len(seen_nodes)
+                            if best_buy_mult > 0:
+                                sale_repr = f"{format_price(round(sale_value, 2))} (sold to '{best_store_name}' @ {best_buy_mult}x)"
+                            else:
+                                sale_repr = "n/a (no buying store in table)"
+                            log_console_colored(
+                                logging.getLogger(), logging.INFO,
+                                f"Inventory value for '{app_obj.currentsave}' ({item_count} item(s)): "
+                                f"carried {format_price(round(carried_value, 2))} | "
+                                f"storage {format_price(round(storage_value, 2))} | "
+                                f"money {format_price(round(money, 2))} | "
+                                f"total {format_price(round(grand_total, 2))} | "
+                                f"best sale value {sale_repr}",
+                                'green'
+                            )
+                        except Exception:
+                            logging.exception('Failed to compute inventory value')
                         continue
 
                     if lower in('exit', 'quit'):

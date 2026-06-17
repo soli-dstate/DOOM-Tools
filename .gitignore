@@ -36,6 +36,9 @@ saves/.save_key
 # Google Drive OAuth credentials for cloud
 cloud_credentials.json
 
+# Bug-report relay endpoint URL (per-deployment)
+bugreport_endpoint.txt
+
 # PyInstaller
 *.manifest
 *.spec
