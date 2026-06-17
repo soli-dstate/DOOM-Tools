@@ -5,6 +5,12 @@ from app.foundation import *
 class SettingsMixin:
 
     def _safe_exit(self):
+        # Clean shutdown: clear the crash sentinel so this run isn't reported as
+        # a hard crash on next launch. (os._exit below means atexit won't fire.)
+        try:
+            self._clear_crash_sentinel()
+        except Exception:
+            pass
         try:
             autosaved = False
             if self.currentsave is not None:

@@ -214,6 +214,21 @@ class App(BugreportMixin, CasinoMixin, CharactersMixin, CloudMixin, CombatMixin,
         except Exception:
             pass
 
+        # Auto-report uncaught tkinter errors, and detect a hard crash from the
+        # previous session (then arm the sentinel for this one).
+        try:
+            self._install_exception_reporting()
+        except Exception:
+            logging.exception("Failed to install exception reporting")
+        try:
+            self._crash_check_and_arm()
+        except Exception:
+            logging.exception("Crash sentinel init failed")
+        try:
+            self.root.after(800, self._maybe_prompt_reporter_name)
+        except Exception:
+            pass
+
         try:
             if global_variables.get("devmode", {}).get("value"):
                 try:

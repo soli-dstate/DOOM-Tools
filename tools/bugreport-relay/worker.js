@@ -1,4 +1,6 @@
-const GIST_MAX_BYTES = 9 * 1024 * 1024;
+const ASSIGNEE = "soli-dstate";
+// GitHub issue bodies cap at 65536 chars; leave margin for header + markdown.
+const ISSUE_BODY_LIMIT = 65000;
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -54,33 +56,6 @@ export default {
       "Content-Type": "application/json",
     };
 
-    let gistUrl = "";
-    if (log.trim()) {
-      if (log.length > GIST_MAX_BYTES) {
-        log = "[... earlier log lines truncated by relay ...]\n" +
-          log.slice(log.length - GIST_MAX_BYTES);
-      }
-      try {
-        const gistResp = await fetch("https://api.github.com/gists", {
-          method: "POST",
-          headers: ghHeaders,
-          body: JSON.stringify({
-            description: `DOOM-Tools log from ${name} (v${appVersion})`,
-            public: false,
-            files: { [logName]: { content: log || "(empty)" } },
-          }),
-        });
-        if (gistResp.ok) {
-          const gist = await gistResp.json();
-          gistUrl = gist.html_url || "";
-        } else {
-          console.log("Gist creation failed:", gistResp.status, await gistResp.text());
-        }
-      } catch (e) {
-        console.log("Gist creation threw:", e);
-      }
-    }
-
     const firstLine = description.split("\n")[0].slice(0, 80).trim();
     const title = `[Bug] ${firstLine || "In-app bug report"}`;
     let issueBody =
@@ -88,14 +63,25 @@ export default {
       `**App version:** ${appVersion}\n` +
       `**Platform:** ${platformInfo}\n\n` +
       `## Description\n\n${description}\n`;
-    if (gistUrl) {
-      issueBody += `\n## Log\n\n[Full session log (private Gist)](${gistUrl})\n`;
+
+    // Embed the log inline. If it would blow the body limit, keep the TAIL
+    // (most recent lines, the important ones) and drop the oldest.
+    if (log.trim()) {
+      const open = `\n## Log (${logName})\n\n<details><summary>Session log (most recent lines)</summary>\n\n\`\`\`\n`;
+      const close = "\n```\n</details>\n";
+      const note = "[... earlier lines truncated; showing most recent ...]\n";
+      let body = log.replace(/```/g, "`​``"); // neutralize code fences
+      const budget = ISSUE_BODY_LIMIT - issueBody.length - open.length - close.length;
+      if (body.length > budget) {
+        body = note + body.slice(body.length - Math.max(budget - note.length, 0));
+      }
+      issueBody += open + body + close;
     }
 
     const labels = ["bug", "in-app-report"];
 
     async function createIssue(withLabels) {
-      const payload = { title, body: issueBody };
+      const payload = { title, body: issueBody, assignees: [ASSIGNEE] };
       if (withLabels) payload.labels = labels;
       return fetch(`https://api.github.com/repos/${env.GITHUB_REPO}/issues`, {
         method: "POST",
@@ -116,6 +102,6 @@ export default {
     }
 
     const issue = await issueResp.json();
-    return json({ ok: true, issue_url: issue.html_url, gist_url: gistUrl });
+    return json({ ok: true, issue_url: issue.html_url });
   },
 };

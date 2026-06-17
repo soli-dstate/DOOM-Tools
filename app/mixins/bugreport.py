@@ -2,8 +2,8 @@
 
 The report (name, description and optionally the current session log) is POSTed
 to a server-side relay (see tools/bugreport-relay/). The relay holds the GitHub
-token and creates the issue + a Gist for the log, so no token ever lives on the
-user's machine. The reporter name defaults to the Windows username and, once
+token and creates the issue (with the log embedded in the body), so no token
+ever lives on the user's machine. The reporter name defaults to the Windows username and, once
 changed, persists in persistent_data.sldsv.
 """
 from app.foundation import *
@@ -30,10 +30,9 @@ class BugreportMixin:
         except Exception:
             return ""
 
-    def _read_current_log_text(self):
-        """Read the current session log, tail-capped to the payload limit."""
+    def _read_log_text(self, path):
+        """Read a log file, tail-capped to the payload limit."""
         try:
-            path = globals().get("log_filename")
             if not path or not os.path.exists(path):
                 return ""
             # Flush handlers so the freshest lines are on disk before we read.
@@ -52,8 +51,11 @@ class BugreportMixin:
                     return "[... earlier log lines truncated ...]\n" + text
                 return f.read()
         except Exception:
-            logging.exception("Failed to read current log for bug report")
+            logging.exception("Failed to read log for bug report")
             return ""
+
+    def _read_current_log_text(self):
+        return self._read_log_text(globals().get("log_filename"))
 
     def _open_bug_report(self):
         if not bugreport_is_configured():
@@ -110,7 +112,7 @@ class BugreportMixin:
             variable=include_log_var).pack(anchor="w", pady=(0, 4))
         customtkinter.CTkLabel(
             body,
-            text="The log helps diagnose the problem and is uploaded as a private Gist.",
+            text="The log helps diagnose the problem and is attached to the report.",
             font=customtkinter.CTkFont(size=11), text_color="gray",
             wraplength=460, justify="left").pack(anchor="w", pady=(0, 8))
 
@@ -159,31 +161,38 @@ class BugreportMixin:
         except Exception:
             pass
 
-    def _submit_bug_report(self, name, description, log_text, log_name):
-        endpoint = bugreport_endpoint()
+    def _build_report_payload(self, name, description, log_text=None, log_name=None):
         payload = {
-            "name": name,
+            "name": name or "Anonymous",
             "description": description,
             "app_version": globals().get("version", "unknown"),
             "platform": f"{platform.system()} {platform.release()}",
         }
         if log_text:
             payload["log"] = log_text
-            payload["log_filename"] = log_name
+            payload["log_filename"] = log_name or "session.log"
+        return payload
+
+    def _post_report(self, payload, timeout=60):
+        """POST a report to the relay; raise on non-2xx. Returns parsed JSON."""
+        resp = requests.post(bugreport_endpoint(), json=payload, timeout=timeout)
+        if resp.status_code not in (200, 201):
+            detail = ""
+            try:
+                detail = resp.json().get("error") or resp.text
+            except Exception:
+                detail = resp.text
+            raise RuntimeError(f"Relay returned HTTP {resp.status_code}: {detail[:300]}")
+        try:
+            return resp.json()
+        except Exception:
+            return {}
+
+    def _submit_bug_report(self, name, description, log_text, log_name):
+        payload = self._build_report_payload(name, description, log_text, log_name)
 
         def work():
-            resp = requests.post(endpoint, json=payload, timeout=60)
-            if resp.status_code not in (200, 201):
-                detail = ""
-                try:
-                    detail = resp.json().get("error") or resp.text
-                except Exception:
-                    detail = resp.text
-                raise RuntimeError(f"Relay returned HTTP {resp.status_code}: {detail[:300]}")
-            try:
-                return resp.json()
-            except Exception:
-                return {}
+            return self._post_report(payload)
 
         def done(result, error):
             if error:
@@ -211,3 +220,189 @@ class BugreportMixin:
 
         self._cloud_run_async(
             "Report a Bug", "Submitting your report...", work, done)
+
+    # ----- Automatic crash / exception reporting -----
+
+    def _auto_report(self, description, log_text=None, log_name=None, signature=None, block=False):
+        """File a report without UI. Deduped per session; never raises."""
+        if not bugreport_is_configured() or getattr(self, "_auto_reporting", False):
+            return
+        sig = signature or description[:200]
+        seen = getattr(self, "_auto_reported_signatures", None)
+        if seen is None:
+            seen = set()
+            self._auto_reported_signatures = seen
+        if sig in seen:
+            return
+        seen.add(sig)
+
+        payload = self._build_report_payload(
+            self._default_reporter_name(), description, log_text, log_name)
+
+        def work():
+            self._auto_reporting = True
+            try:
+                result = self._post_report(payload, timeout=15)
+                logging.info(f"Auto report submitted: {(result or {}).get('issue_url', '(no url)')}")
+            except Exception as e:
+                logging.error(f"Auto report failed: {e}")
+            finally:
+                self._auto_reporting = False
+
+        if block:
+            work()
+        else:
+            threading.Thread(target=work, daemon=True).start()
+
+    def _report_exception(self, exc_type, exc_value, exc_tb, source="runtime"):
+        try:
+            import traceback
+            tb_text = "".join(traceback.format_exception(exc_type, exc_value, exc_tb))
+            try:
+                summary = f"{getattr(exc_type, '__name__', exc_type)}: {exc_value}".strip()
+            except Exception:
+                summary = "Unhandled exception"
+            description = (f"[auto] {summary}\n\n"
+                           f"Automatic error report ({source}).\n\n{tb_text}")
+            self._auto_report(
+                description,
+                log_text=self._read_current_log_text(),
+                log_name=os.path.basename(globals().get("log_filename") or "session.log"),
+                signature=f"exc:{summary}",
+                block=(source == "excepthook"))
+        except Exception:
+            logging.exception("Failed to build auto exception report")
+        # A fatal (excepthook) crash is already reported; don't re-report it as an
+        # unclean shutdown on the next launch.
+        if source == "excepthook":
+            self._clear_crash_sentinel()
+
+    def _install_exception_reporting(self):
+        """Wrap the Tk callback-exception handler to auto-report real errors."""
+        try:
+            prev = self.root.report_callback_exception
+        except Exception:
+            prev = None
+
+        def _reporting(exc_type, exc_value, exc_tb):
+            try:
+                msg = str(exc_value)
+                # Skip Tk teardown noise ("invalid command name ...after").
+                if "invalid command name" not in msg and "after" not in msg:
+                    self._report_exception(exc_type, exc_value, exc_tb, source="tkinter")
+            except Exception:
+                pass
+            if prev:
+                try:
+                    return prev(exc_type, exc_value, exc_tb)
+                except Exception:
+                    pass
+
+        try:
+            self.root.report_callback_exception = _reporting
+        except Exception:
+            logging.exception("Failed to install exception reporting")
+
+    # ----- Hard-crash detection via a session sentinel -----
+
+    def _crash_sentinel_path(self):
+        return os.path.join("logs", ".session_active")
+
+    def _crash_check_and_arm(self):
+        """Report an unclean previous shutdown, then arm the sentinel for this run."""
+        path = self._crash_sentinel_path()
+        prev_log = None
+        try:
+            if os.path.exists(path):
+                with open(path, "r", encoding="utf-8") as f:
+                    prev_log = f.read().strip()
+        except Exception:
+            prev_log = None
+
+        if prev_log is not None:
+            logging.warning("Detected unclean shutdown from a previous session; filing crash report.")
+            log_text = self._read_log_text(prev_log) if prev_log else ""
+            log_name = os.path.basename(prev_log) if prev_log else "previous.log"
+            self._auto_report(
+                "[auto] Hard crash — previous session closed unexpectedly.\n\n"
+                "The app terminated without a clean shutdown (force-close, native "
+                "crash, or power loss). The previous session log is attached.",
+                log_text=log_text, log_name=log_name,
+                signature=f"crash:{log_name}")
+
+        try:
+            os.makedirs("logs", exist_ok=True)
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(str(globals().get("log_filename") or ""))
+        except Exception:
+            logging.exception("Failed to arm crash sentinel")
+
+    def _clear_crash_sentinel(self):
+        try:
+            p = self._crash_sentinel_path()
+            if os.path.exists(p):
+                os.remove(p)
+        except Exception:
+            pass
+
+    # ----- First-run reporter name prompt -----
+
+    def _maybe_prompt_reporter_name(self):
+        if not bugreport_is_configured():
+            return
+        try:
+            if persistentdata.get("reporter_name"):
+                return
+        except Exception:
+            return
+
+        self._play_ui_sound("popup")
+        popup = customtkinter.CTkToplevel(self.root)
+        popup.title("Bug Reporting")
+        popup.geometry("440x230")
+        popup.transient(self.root)
+
+        customtkinter.CTkLabel(
+            popup, text="Set your bug-reporting name",
+            font=customtkinter.CTkFont(size=16, weight="bold")).pack(pady=(20, 6))
+        customtkinter.CTkLabel(
+            popup,
+            text="This name is attached to any bug reports you send.\n"
+                 "You can change it later from the Report a Bug screen.",
+            font=customtkinter.CTkFont(size=12), text_color="gray",
+            wraplength=400, justify="center").pack(pady=(0, 10))
+
+        name_var = customtkinter.StringVar(value=self._default_reporter_name())
+        entry = customtkinter.CTkEntry(popup, textvariable=name_var, width=300)
+        entry.pack(pady=(0, 14))
+
+        def save(name):
+            try:
+                persistentdata["reporter_name"] = name or self._default_reporter_name() or None
+                self._save_persistent_data()
+            except Exception:
+                logging.exception("Failed to persist reporter name")
+            try:
+                popup.destroy()
+            except Exception:
+                pass
+
+        button_frame = customtkinter.CTkFrame(popup, fg_color="transparent")
+        button_frame.pack(pady=(0, 16))
+        self._create_sound_button(
+            button_frame, "Save", lambda: save(name_var.get().strip()),
+            width=140, height=36).pack(side="left", padx=8)
+        # Skip still persists a name (the OS username) so we don't nag every launch.
+        self._create_sound_button(
+            button_frame, "Skip", lambda: save(""),
+            width=140, height=36, fg_color="#444444").pack(side="left", padx=8)
+
+        entry.bind("<Return>", lambda e: save(name_var.get().strip()))
+        self._center_popup_on_window(popup, 440, 230)
+        popup.deiconify()
+        popup.lift()
+        try:
+            popup.grab_set()
+            self._safe_focus(entry)
+        except Exception:
+            pass

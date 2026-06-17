@@ -1,12 +1,4 @@
-"""Foundation layer: the original module preamble of main.py, verbatim.
-
-Imports, module globals, small helper classes, the free helper functions, and
-the import-time initialisation sequence — kept together because that sequence
-runs order-dependent setup that calls the helpers and shares one namespace.
-Split out of main.py by scripts/refactor_main.py.
-"""
-
-version = "2.0.11"
+version = "2.0.12"
 current_resource_links = [
     "https://files.catbox.moe/gtbtty.001",
     "https://files.catbox.moe/r3ic2z.002",
@@ -355,7 +347,7 @@ CLOUD_SYNC_EXCLUDE = {"dm_settings.sldsv"}
 #   3. the BUGREPORT_ENDPOINT_DEFAULT constant below (baked into the build)
 # While none are set, the bug-report button stays disabled.
 # ============================================================
-BUGREPORT_ENDPOINT_DEFAULT = ""  # e.g. "https://doomtools-bugreport.example.workers.dev"
+BUGREPORT_ENDPOINT_DEFAULT = "https://doomtools-bugreport.doom-tools.workers.dev/"  # e.g. "https://doomtools-bugreport.example.workers.dev"
 
 
 def _bugreport_endpoint_file_candidates():
@@ -962,6 +954,14 @@ level = logging.INFO,
 handlers =[file_handler, console_handler]
 )
 
+# Dump native (C-level) crash tracebacks into the session log so hard crashes
+# leave a clue in the log that gets attached to the auto-filed bug report.
+try:
+    import faulthandler
+    faulthandler.enable(file = file_handler.stream)
+except Exception:
+    pass
+
 dev_log_counters = {
 'DEBUG':0,
 'INFO':0,
@@ -1102,6 +1102,12 @@ def handle_exception(exc_type, exc_value, exc_traceback):
     "Uncaught exception",
     exc_info =(exc_type, exc_value, exc_traceback)
     )
+    try:
+        _app = globals().get("app")
+        if _app is not None and hasattr(_app, "_report_exception"):
+            _app._report_exception(exc_type, exc_value, exc_traceback, source="excepthook")
+    except Exception:
+        pass
 import sys
 
 sys.excepthook = handle_exception

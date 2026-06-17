@@ -77,6 +77,11 @@ env/
 .DS_Store
 Thumbs.db
 
+# Downloaded tools (ffmpeg, etc.)
+/scripts/tools/
+/scripts/ffmpeg_bin/
+/node_modules/
+
 # automatically added by program
 
 /logs/
@@ -87,8 +92,4 @@ Thumbs.db
 /lootcrates/
 /enemyloot/
 /themes/
-
-# Downloaded tools (ffmpeg, etc.)
-/scripts/tools/
-/scripts/ffmpeg_bin/
 /combatreports/
