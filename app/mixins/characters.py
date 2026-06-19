@@ -602,7 +602,7 @@ class CharactersMixin:
                 persistentdata["last_loaded_save"]= char_uuid
 
                 try:
-                    self.currentsave = save_basename
+                    self._set_current_save(save_basename, new_save)
                 except Exception:
                     pass
                 self._save_persistent_data()
@@ -1839,11 +1839,8 @@ class CharactersMixin:
                                     cur = ss.get("current")
                                     if not isinstance(cur, dict):
                                         return
-                                    val = cur.get("_cc_price", _cc_item_price(cur))
-                                    remaining_budget[0] += val
                                     ss["current"] = None
                                     new_save.setdefault("hands", {}).setdefault("items", []).append(cur)
-                                    refresh_budget_label()
                                     refresh_slots_display()
                                     refresh_inventory_display()
                                 return _do
@@ -1889,11 +1886,8 @@ class CharactersMixin:
 
                     def _make_unequip(sn, it):
                         def _do():
-                            val = it.get("_cc_price", _cc_item_price(it))
-                            remaining_budget[0] += val
                             new_save["equipment"][sn] = None
                             new_save.setdefault("hands", {}).setdefault("items", []).append(it)
-                            refresh_budget_label()
                             refresh_slots_display()
                             refresh_inventory_display()
                         return _do
@@ -2336,12 +2330,10 @@ class CharactersMixin:
                     if isinstance(ss, dict):
                         existing = ss.get("current")
                         ss["current"] = it
-                refund = existing.get("_cc_price", _cc_item_price(existing)) if existing and isinstance(existing, dict) else 0
                 if existing and isinstance(existing, dict):
                     new_save.setdefault("hands", {}).setdefault("items", []).append(existing)
                 charge = it.get("_cc_price", item_val)
                 remaining_budget[0] -= charge
-                remaining_budget[0] += refund
                 refresh_budget_label()
                 refresh_slots_display()
                 refresh_inventory_display()
@@ -2735,9 +2727,8 @@ class CharactersMixin:
                 self._write_save_to_path(save_path, final_save)
                 persistentdata["save_uuids"][char_uuid] = char_name
                 persistentdata["last_loaded_save"] = char_uuid
-                self.currentsave = save_basename
+                self._set_current_save(save_basename, final_save)
                 self._save_persistent_data()
-                self._load_file(save_basename + ".sldsv")
 
                 surplus_msg = f"\n\nSurplus budget of {format_price(surplus)} added to character funds." if surplus > 0 else ""
                 logging.info("Character '%s' created via equipment editor, budget remaining: %s", char_name, remaining_budget[0])
@@ -2842,7 +2833,9 @@ class CharactersMixin:
 
         def load_character(save_info):
             try:
-                self.currentsave = save_info["filename"].replace(".sldsv", "")
+                basename = save_info["filename"].replace(".sldsv", "")
+                loaded_data = self._load_file(save_info["filename"])
+                self._set_current_save(basename, loaded_data)
                 persistentdata["save_uuids"].setdefault(save_info["uuid"], save_info["character_name"])
                 persistentdata["last_loaded_save"]= save_info["uuid"]
                 self._save_persistent_data()
@@ -3110,7 +3103,7 @@ class CharactersMixin:
 
                         self._write_save_to_path(save_path, backup_data)
 
-                        self.currentsave = save_filename
+                        self._set_current_save(save_filename, backup_data)
                         persistentdata["save_uuids"].setdefault(uuid_val, char_name)
                         persistentdata["last_loaded_save"]= uuid_val
                         self._save_persistent_data()

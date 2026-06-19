@@ -19,6 +19,40 @@ function sanitizeFilename(name) {
   return cleaned.slice(0, 100) || "session.log";
 }
 
+// Best-effort AI title. Returns null on any failure so the caller falls
+// back to the plain first-line title.
+async function generateTitleWithAI(description, env) {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20000);
+    const resp = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${env.OPENROUTER_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "nvidia/nemotron-3-super-120b-a12b:free",
+        messages: [{
+          role: "user",
+          content:
+            "Write a short, specific GitHub issue title (under 80 characters) for this bug report. " +
+            "Reply with only the title, no quotes, no prefix, nothing else.\n\n" +
+            `Bug report:\n${description.slice(0, 4000)}`,
+        }],
+      }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    const text = (data?.choices?.[0]?.message?.content || "").trim();
+    return text ? text.replace(/^["']|["']$/g, "").slice(0, 100) : null;
+  } catch {
+    return null;
+  }
+}
+
 export default {
   async fetch(request, env) {
     if (request.method === "OPTIONS") {
@@ -47,6 +81,7 @@ export default {
     const platformInfo = String(body.platform || "unknown").slice(0, 200);
     let log = typeof body.log === "string" ? body.log : "";
     const logName = sanitizeFilename(body.log_filename);
+    const stepsToReproduce = typeof body.steps_to_reproduce === "string" ? body.steps_to_reproduce.trim() : "";
 
     const ghHeaders = {
       "Authorization": `Bearer ${env.GITHUB_TOKEN}`,
@@ -56,13 +91,19 @@ export default {
       "Content-Type": "application/json",
     };
 
+    const aiTitle = env.OPENROUTER_API_KEY ? await generateTitleWithAI(description, env) : null;
+
     const firstLine = description.split("\n")[0].slice(0, 80).trim();
-    const title = `[Bug] ${firstLine || "In-app bug report"}`;
+    const title = `[Bug] ${aiTitle || firstLine || "In-app bug report"}`;
     let issueBody =
       `**Reported by:** ${name}\n` +
       `**App version:** ${appVersion}\n` +
       `**Platform:** ${platformInfo}\n\n` +
       `## Description\n\n${description}\n`;
+
+    if (stepsToReproduce) {
+      issueBody += `\n## Steps to Reproduce\n\n${stepsToReproduce}\n`;
+    }
 
     // Embed the log inline. If it would blow the body limit, keep the TAIL
     // (most recent lines, the important ones) and drop the oldest.
@@ -79,6 +120,7 @@ export default {
     }
 
     const labels = ["bug", "in-app-report"];
+    if (body.automatic) labels.push("automatic report");
 
     async function createIssue(withLabels) {
       const payload = { title, body: issueBody, assignees: [ASSIGNEE] };

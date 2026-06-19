@@ -79,7 +79,7 @@ class BugreportMixin:
         else:
             popup = customtkinter.CTkToplevel(self.root)
         popup.title("Report a Bug")
-        popup.geometry("520x560")
+        popup.geometry("520x680")
         popup.transient(self.root)
 
         customtkinter.CTkLabel(
@@ -90,7 +90,9 @@ class BugreportMixin:
             text="This opens an issue on the DOOM-Tools GitHub repository.",
             font=customtkinter.CTkFont(size=12), text_color="gray").pack(pady=(0, 10))
 
-        body = customtkinter.CTkFrame(popup, fg_color="transparent")
+        # Scrollable so the Submit/Cancel row at the bottom of the popup never
+        # gets pushed off-screen by the variable-height steps list above it.
+        body = customtkinter.CTkScrollableFrame(popup, fg_color="transparent")
         body.pack(fill="both", expand=True, padx=20)
 
         customtkinter.CTkLabel(
@@ -103,8 +105,50 @@ class BugreportMixin:
         customtkinter.CTkLabel(
             body, text="What went wrong?",
             font=customtkinter.CTkFont(size=13, weight="bold")).pack(anchor="w")
-        desc_box = customtkinter.CTkTextbox(body, height=200, wrap="word")
+        desc_box = customtkinter.CTkTextbox(body, height=140, wrap="word")
         desc_box.pack(fill="both", expand=True, pady=(2, 12))
+
+        customtkinter.CTkLabel(
+            body, text="Steps to Reproduce (optional)",
+            font=customtkinter.CTkFont(size=13, weight="bold")).pack(anchor="w")
+        steps_scroll = customtkinter.CTkScrollableFrame(body, height=110)
+        steps_scroll.pack(fill="x", pady=(2, 4))
+
+        step_rows = []
+
+        def renumber_steps():
+            for i, rd in enumerate(step_rows):
+                rd["label"].configure(text=f"{i + 1}.")
+                rd["entry"].configure(placeholder_text=f"Step {i + 1}")
+
+        def remove_step(rd):
+            try:
+                rd["frame"].destroy()
+            except Exception:
+                pass
+            if rd in step_rows:
+                step_rows.remove(rd)
+            renumber_steps()
+
+        def add_step():
+            step_num = len(step_rows) + 1
+            row = customtkinter.CTkFrame(steps_scroll, fg_color="transparent")
+            row.pack(fill="x", pady=2)
+            num_label = customtkinter.CTkLabel(row, text=f"{step_num}.", width=20, anchor="w")
+            num_label.pack(side="left")
+            entry = customtkinter.CTkEntry(row, placeholder_text=f"Step {step_num}")
+            entry.pack(side="left", fill="x", expand=True, padx=(4, 4))
+            rd = {"frame": row, "label": num_label, "entry": entry}
+            self._create_sound_button(
+                row, "✕", lambda: remove_step(rd), width=26, height=26,
+                font=customtkinter.CTkFont(size=12), fg_color="#444444").pack(side="left")
+            step_rows.append(rd)
+
+        add_step()
+
+        self._create_sound_button(
+            body, "+ Add Step", add_step, width=120, height=26,
+            font=customtkinter.CTkFont(size=12)).pack(anchor="w", pady=(0, 12))
 
         include_log_var = customtkinter.BooleanVar(value=True)
         customtkinter.CTkCheckBox(
@@ -139,12 +183,15 @@ class BugreportMixin:
             log_text = self._read_current_log_text() if include_log else ""
             log_name = os.path.basename(globals().get("log_filename") or "session.log")
 
+            steps = [rd["entry"].get().strip() for rd in step_rows if rd["entry"].get().strip()]
+            steps_markdown = "\n".join(f"{i + 1}. {s}" for i, s in enumerate(steps))
+
             try:
                 popup.destroy()
             except Exception:
                 pass
 
-            self._submit_bug_report(name or "Anonymous", description, log_text, log_name)
+            self._submit_bug_report(name or "Anonymous", description, log_text, log_name, steps_markdown)
 
         self._create_sound_button(
             button_frame, "Submit", do_submit, width=160, height=38).pack(side="left", padx=8)
@@ -152,7 +199,7 @@ class BugreportMixin:
             button_frame, "Cancel", lambda: popup.destroy(),
             width=160, height=38, fg_color="#444444").pack(side="left", padx=8)
 
-        self._center_popup_on_window(popup, 520, 560)
+        self._center_popup_on_window(popup, 520, 680)
         popup.deiconify()
         popup.lift()
         try:
@@ -161,7 +208,7 @@ class BugreportMixin:
         except Exception:
             pass
 
-    def _build_report_payload(self, name, description, log_text=None, log_name=None):
+    def _build_report_payload(self, name, description, log_text=None, log_name=None, steps_markdown=None):
         payload = {
             "name": name or "Anonymous",
             "description": description,
@@ -171,6 +218,8 @@ class BugreportMixin:
         if log_text:
             payload["log"] = log_text
             payload["log_filename"] = log_name or "session.log"
+        if steps_markdown:
+            payload["steps_to_reproduce"] = steps_markdown
         return payload
 
     def _post_report(self, payload, timeout=60):
@@ -188,8 +237,8 @@ class BugreportMixin:
         except Exception:
             return {}
 
-    def _submit_bug_report(self, name, description, log_text, log_name):
-        payload = self._build_report_payload(name, description, log_text, log_name)
+    def _submit_bug_report(self, name, description, log_text, log_name, steps_markdown=None):
+        payload = self._build_report_payload(name, description, log_text, log_name, steps_markdown)
 
         def work():
             return self._post_report(payload)
@@ -238,6 +287,7 @@ class BugreportMixin:
 
         payload = self._build_report_payload(
             self._default_reporter_name(), description, log_text, log_name)
+        payload["automatic"] = True
 
         def work():
             self._auto_reporting = True

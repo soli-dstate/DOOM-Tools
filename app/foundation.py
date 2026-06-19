@@ -1,4 +1,4 @@
-version = "2.0.12"
+version = "2.0.13"
 current_resource_links = [
     "https://files.catbox.moe/gtbtty.001",
     "https://files.catbox.moe/r3ic2z.002",
@@ -3510,9 +3510,13 @@ for user in dm_users:
 
                     lower = cmd.lower()
                     if lower in('help', '?'):
-                        out = "Commands: help, print dm users, print globals, print global <key>, print inventory value, gil, exit, pause <secs>, eval <expr>"
+                        out = "Commands: help, print dm users, print globals, print global <key>, print inventory value, gil, exit, pause <secs>, eval <expr>, crash"
                         log_console_colored(logging.getLogger(), logging.INFO, out, 'green')
                         continue
+
+                    if lower in('crash', 'force crash', 'test crash'):
+                        log_console_colored(logging.getLogger(), logging.WARNING, "Forcing a hard crash now(skipping clean shutdown) to test crash reporting...", 'red')
+                        os._exit(1)
 
                     if lower in('print dm users', 'print dm_users', 'print dmusers'):
                         try:

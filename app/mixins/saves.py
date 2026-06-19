@@ -95,6 +95,17 @@ class SavesMixin:
             return None
         except Exception as e:
             logging.error(f"Failed to read save from {path}: {e}")
+
+    def _set_current_save(self, basename, data):
+        # Switching the active character must update currentsave AND the
+        # in-memory mirrors together — leaving them out of sync is how a
+        # later autosave/combat action ends up writing the previous
+        # character's data into the newly selected save file.
+        self.currentsave = basename
+        if isinstance(data, dict):
+            globals()['save_data'] = data
+            self._current_save_data = data
+
     def _save_file(self, data):
         if self.currentsave is None:
             logging.error("No current save file to save data to.")

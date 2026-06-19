@@ -395,7 +395,7 @@ class UiMixin:
         title_label = customtkinter.CTkLabel(main_frame, text = "DOOM Tools", font = customtkinter.CTkFont(size = 24, weight = "bold"))
         title_label.pack(pady = 20)
         try:
-            title_label.bind("<Button-1>", lambda e:self._start_title_easter_egg(title_label))
+            title_label.bind("<Button-1>", lambda e=None:self._start_title_easter_egg(title_label))
         except Exception:
             pass
         version_label = customtkinter.CTkLabel(main_frame, text = f"Version: {version}", font = customtkinter.CTkFont(size = 16))
