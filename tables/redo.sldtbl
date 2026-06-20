@@ -56447,7 +56447,7 @@
                     "part_repair": 100,
                     "whole_gun_repair": 350
                 },
-                "display_in_program": true
+                "display_in_program": false
             },
             {
                 "name": "Weapons Merchant",
@@ -56475,7 +56475,7 @@
                 "can_order_ammo": true,
                 "restock_time_minutes": 30,
                 "accepts_trades": true,
-                "display_in_program": false
+                "display_in_program": true
             },
             {
                 "name": "Medical Merchant",
@@ -56493,7 +56493,7 @@
                 },
                 "restock_time_minutes": 30,
                 "accepts_trades": true,
-                "display_in_program": false
+                "display_in_program": true
             },
             {
                 "name": "General Trader",
@@ -56512,7 +56512,7 @@
                 },
                 "restock_time_minutes": 30,
                 "accepts_trades": true,
-                "display_in_program": false
+                "display_in_program": true
             },
             {
                 "name": "Casino",
@@ -56529,7 +56529,7 @@
                     "high-low": 2.8,
                     "roulette": 5.26
                 },
-                "display_in_program": false
+                "display_in_program": true
             }
         ],
         "lootcrates": [
