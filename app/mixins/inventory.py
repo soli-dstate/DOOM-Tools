@@ -1,5 +1,6 @@
 """InventoryMixin — App methods for the "inventory" feature area."""
 from app.foundation import *
+import logging
 
 
 class InventoryMixin:
@@ -87,7 +88,7 @@ class InventoryMixin:
                 try:
                     widget.configure(fg_color =("gray86", "gray17"))
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
             if on_update_cb:
                 on_update_cb()
             self._play_ui_sound("click")
@@ -382,7 +383,7 @@ class InventoryMixin:
                                         if it is target_item:
                                             return items_list, idx
                         except(ValueError, IndexError):
-                            pass
+                            logging.exception("Suppressed exception")
                     else:
 
                         items_list = eq.get("items", [])
@@ -598,7 +599,7 @@ class InventoryMixin:
                 try:
                     state["music_channel"].stop()
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
         def display_round(round_idx):
 
@@ -865,7 +866,7 @@ class InventoryMixin:
                     if isinstance(sc, (int, float)):
                         stat_clamp = int(sc)
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
         stat_min = -20
         stat_max = stat_clamp
@@ -911,12 +912,12 @@ class InventoryMixin:
                 exts = [".sldtrf"],
             )
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
         try:
             self.root.after(50, self._setup_drag_drop)
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
         main_frame = customtkinter.CTkFrame(self.root)
         main_frame.pack(fill = "both", expand = True, padx = 20, pady = 20)
@@ -1229,7 +1230,7 @@ class InventoryMixin:
                                     if slot_name_l in targets_l:
                                         return True
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
 
                             for acc in oi.get('accessories', []) or []:
                                 try:
@@ -1246,9 +1247,9 @@ class InventoryMixin:
                                             if slot_name_l in targets_l:
                                                 return True
                                         except Exception:
-                                            pass
+                                            logging.exception("Suppressed exception")
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
 
                             try:
                                 item_conflicts = oi.get('conflicts_with')
@@ -1257,7 +1258,7 @@ class InventoryMixin:
                                     if slot_name_l in targets_l:
                                         return True
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                     return False
                 except Exception:
                     return False
@@ -1526,19 +1527,19 @@ class InventoryMixin:
                                                             if isinstance(n_current, dict):
                                                                 _render_nested_subslots(n_current, n_frame, parent_slot, n_sub)
                                                         except Exception:
-                                                            pass
+                                                            logging.exception("Suppressed exception")
                                                     else:
                                                         empty_n = customtkinter.CTkLabel(n_frame, text = f"(empty - accepts: {n_slot})", anchor = 'w', text_color = 'gray', font = customtkinter.CTkFont(size = 9))
                                                         empty_n.pack(side = 'top', anchor = 'w', padx = 10, pady =(0, 4))
                                                 except Exception:
-                                                    pass
+                                                    logging.exception("Suppressed exception")
                                         except Exception:
-                                            pass
+                                            logging.exception("Suppressed exception")
 
                                     if isinstance(current_item, dict)and current_item.get('subslots'):
                                         _render_nested_subslots(current_item, subslot_frame, slot, subslot_data)
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                             else:
                                 try:
                                     conflicts = subslot_data.get('conflicts_with')
@@ -1595,9 +1596,9 @@ class InventoryMixin:
                                                 empty_n = customtkinter.CTkLabel(n_frame, text = f"(empty - accepts: {n_slot})", anchor = 'w', text_color = 'gray', font = customtkinter.CTkFont(size = 9))
                                                 empty_n.pack(side = 'top', anchor = 'w', padx = 10, pady =(0, 4))
                                             except Exception:
-                                                pass
+                                                logging.exception("Suppressed exception")
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                 else:
 
                     try:
@@ -1756,14 +1757,14 @@ class InventoryMixin:
                                 if isinstance(subcur, dict):
                                     _collect_from_obj(f"{loc_prefix}.subslot.{ss_idx}", subcur)
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
 
                         for list_idx, lst_item in enumerate(obj.get("items")or[]):
                             try:
                                 if isinstance(lst_item, dict):
                                     _collect_from_obj(f"{loc_prefix}.list.{list_idx}", lst_item)
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
 
                     elif isinstance(obj, list):
                         for idx, sub in enumerate(obj):
@@ -1771,9 +1772,9 @@ class InventoryMixin:
                                 if isinstance(sub, dict):
                                     _collect_from_obj(f"{loc_prefix}.list.{idx}", sub)
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
             for eq_slot, eq_item in equipment.items():
                 try:
@@ -1781,7 +1782,7 @@ class InventoryMixin:
                         continue
                     _collect_from_obj(f"equipment.{eq_slot}", eq_item)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
             for location, idx, item in all_items:
                 item_frame = customtkinter.CTkFrame(items_scroll)
@@ -1880,7 +1881,7 @@ class InventoryMixin:
                                             if str(conflict_slot).lower() == slot_name_l:
                                                 return True
                                     except Exception:
-                                        pass
+                                        logging.exception("Suppressed exception")
 
                                 for acc in other_item.get('accessories', []) or []:
                                     try:
@@ -1898,9 +1899,9 @@ class InventoryMixin:
                                                     if str(conflict_slot).lower() == slot_name_l:
                                                         return True
                                             except Exception:
-                                                pass
+                                                logging.exception("Suppressed exception")
                                     except Exception:
-                                        pass
+                                        logging.exception("Suppressed exception")
 
                                 try:
                                     item_conflicts = other_item.get('conflicts_with')
@@ -1910,7 +1911,7 @@ class InventoryMixin:
                                             if str(conflict_slot).lower() == slot_name_l:
                                                 return True
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                             return False
                         except Exception:
                             return False
@@ -1978,7 +1979,7 @@ class InventoryMixin:
                                             if str(conflict_slot).lower() == slot_name_l:
                                                 return True
                                     except Exception:
-                                        pass
+                                        logging.exception("Suppressed exception")
                                 for acc in other_item.get('accessories', []) or []:
                                     try:
                                         curacc = acc.get('current')
@@ -1995,9 +1996,9 @@ class InventoryMixin:
                                                     if str(conflict_slot).lower() == slot_name_l:
                                                         return True
                                             except Exception:
-                                                pass
+                                                logging.exception("Suppressed exception")
                                     except Exception:
-                                        pass
+                                        logging.exception("Suppressed exception")
 
                                 try:
                                     item_conflicts = other_item.get('conflicts_with')
@@ -2007,7 +2008,7 @@ class InventoryMixin:
                                             if str(conflict_slot).lower() == slot_name_l:
                                                 return True
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                             return False
                         except Exception:
                             return False
@@ -2072,7 +2073,7 @@ class InventoryMixin:
                                                 lbl = f"{lbl}(x{count})"
                                             add_choice(lbl, slot = slot)
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
 
                     def _recurse_find_subslots(root_slot, container, label_prefix = None):
                         try:
@@ -2101,9 +2102,9 @@ class InventoryMixin:
                                     if isinstance(cur, dict):
                                         _recurse_find_subslots(root_slot, cur, label_prefix = label)
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
 
                     for parent_slot, equipped_item in equipment.items():
                         if isinstance(equipped_item, dict):
@@ -2120,7 +2121,7 @@ class InventoryMixin:
 
                             _recurse_find_subslots(root_slot, cur, label_prefix = label_prefix or f"{root_slot.title()} - {accessory.get('name', 'Accessory')}")
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
 
                     for parent_slot, equipped_item in equipment.items():
                         if isinstance(equipped_item, dict)and isinstance(equipped_item.get('accessories'), list):
@@ -2128,7 +2129,7 @@ class InventoryMixin:
                                 try:
                                     _recurse_accessory_subslots(parent_slot, acc)
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
 
                     if not choices:
                         self._popup_show_info("Error", f"No available slots for this item.Valid slots: {', '.join(valid_slots)}", sound = "error")
@@ -2150,7 +2151,7 @@ class InventoryMixin:
                                     try:
                                         it['quantity']= int(qty)-1
                                     except Exception:
-                                        pass
+                                        logging.exception("Suppressed exception")
                                     single = _copy.deepcopy(it)
                                     single['quantity']= 1
                                     return single
@@ -2277,7 +2278,7 @@ class InventoryMixin:
                     try:
                         globals()['ATTACHMENTS_VERSION']= globals().get('ATTACHMENTS_VERSION', 0)+1
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                     refresh_display()
 
                     try:
@@ -2310,7 +2311,7 @@ class InventoryMixin:
                         try:
                             self._play_ui_sound("success")
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
 
                     try:
                         logging.debug("apply_choice: about to play per-item equip sound for %s", removed_item.get("name"))
@@ -2359,9 +2360,9 @@ class InventoryMixin:
                             try:
                                 self._play_ui_sound("hover")
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
                 try:
 
@@ -2370,7 +2371,7 @@ class InventoryMixin:
                     try:
                         selection.trace("w", lambda *a:_on_equip_selection_change())
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
                 button_frame = customtkinter.CTkFrame(popup, fg_color = "transparent")
                 button_frame.pack(pady = 15)
@@ -2513,6 +2514,7 @@ class InventoryMixin:
                                 with open(tf, 'r', encoding = 'utf-8')as f:
                                     td = json.load(f)
                             except Exception:
+                                logging.exception("Suppressed exception")
                                 continue
                             for arr in td.get('tables', {}).values():
                                 if isinstance(arr, list):
@@ -2525,7 +2527,7 @@ class InventoryMixin:
                             if isinstance(current_item, dict):
                                 break
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 save_data["hands"]["items"].append(current_item)
                 try:
@@ -2537,7 +2539,7 @@ class InventoryMixin:
                     try:
                         subslot_data["current"]= None
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
                 self._save_file(save_data)
 

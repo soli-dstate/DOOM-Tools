@@ -1,5 +1,6 @@
 """LootMixin — App methods for the "loot" feature area."""
 from app.foundation import *
+import logging
 
 
 class LootMixin:
@@ -16,12 +17,12 @@ class LootMixin:
                 ],
             )
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
         try:
             self.root.after(50, self._setup_drag_drop)
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
         self.root.grid_rowconfigure(0, weight = 1)
         self.root.grid_columnconfigure(0, weight = 1)
@@ -198,7 +199,7 @@ class LootMixin:
                             ch.play(snd, loops = -1)  # loop until stopped
                             _lp_state["pick_playing"] = True
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
                 def _pick_sound_stop():
                     """Stop pick.wav without affecting other channels."""
@@ -209,7 +210,7 @@ class LootMixin:
                         if ch:
                             ch.stop()
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                     _lp_state["pick_playing"] = False
 
                 def _lp_sound(name):
@@ -221,7 +222,7 @@ class LootMixin:
                             if ch:
                                 ch.play(snd)
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
 
                 # ── geometry helpers ───────────────────────────────────────────
                 def _deg_to_rad(d):
@@ -479,7 +480,7 @@ class LootMixin:
                         try:
                             win.after_cancel(_tension_job[0])
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                         _tension_job[0] = None
                     _draw()
 
@@ -545,7 +546,7 @@ class LootMixin:
                                     updated["locked"] = False
                                     _signed_json_write(crate_file_path, updated, portable = True)
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                             loot_crate(crate, crate_file_path)
                         _open_lockpick_minigame(crate, crate_file_path, _on_unlock_success)
                         return
@@ -2112,7 +2113,7 @@ class LootMixin:
                                             "location":f"equipment.{slot}.list.{idx}.subslot.{subslot_idx}"
                                             })
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
 
             return containers
 
@@ -2429,7 +2430,7 @@ class LootMixin:
                     try:
                         self._play_weapon_action_sound(gun, action)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                 _thr_insp.Thread(target = _do, daemon = True).start()
 
             def _build_mag_view():
@@ -2498,7 +2499,7 @@ class LootMixin:
                                         vtips_ins[_atn] = _att
                                 break
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
                     vset = {(r.get("variant") or r.get("name") or "Unknown")
                             for r in existing if isinstance(r, dict)}
@@ -2642,7 +2643,7 @@ class LootMixin:
                                 if ch:
                                     ch.play(snd)
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
 
                     def _eject_round(idx):
                         if idx < 0 or idx >= len(existing) or _mag_state['animating']:
@@ -2652,7 +2653,7 @@ class LootMixin:
                             save_data.setdefault('hands', {}).setdefault('items', [])
                             self._add_rounds_to_container(save_data['hands']['items'], [removed])
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                         _play_eject_sound()
                         _draw_mag_canvas()
                         _cnt_lbl.configure(text = f"{len(existing)}/{cap} rounds")
@@ -2990,7 +2991,7 @@ class LootMixin:
                         try:
                             new_installed[k]= v
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                     acc['current']= new_installed
                     if sub_attachment:
                         sub_target = id_to_item.get(sub_attachment)
@@ -3003,18 +3004,18 @@ class LootMixin:
                                         placed = True
                                         break
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                             if not placed:
                                 try:
                                     new_installed['subslots'][0]['current']= _copy.deepcopy(sub_target)
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                     try:
                         _resolve_current(new_installed)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
             for s in(obj.get('subslots')or[]):
                 try:
                     cur = s.get('current')
@@ -3026,11 +3027,11 @@ class LootMixin:
                         try:
                             s['current']= tmp['accessories'][0].get('current')
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                     elif isinstance(cur, dict):
                         _resolve_current(cur)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
             for p in(obj.get('parts')or[]):
                 try:
                     if not isinstance(p, dict):
@@ -3057,10 +3058,10 @@ class LootMixin:
                         try:
                             new_part[k]= v
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                     p['current']= new_part
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
         for subtable_items in tables.values():
             if not isinstance(subtable_items, list):
@@ -3069,7 +3070,7 @@ class LootMixin:
                 try:
                     _resolve_current(item)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
         return table_data
 
@@ -3955,7 +3956,7 @@ class LootMixin:
             try:
                 scroll_frame._parent_canvas.yview_moveto(0)
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         def update_pagination_controls(current, total):
             for widget in pagination_frame.winfo_children():
@@ -4032,7 +4033,7 @@ class LootMixin:
                 try:
                     self.root.after_cancel(search_timer[0])
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
             search_timer[0]= self.root.after(200, filter_items)# type: ignore
 
         search_entry.bind("<KeyRelease>", on_search_change)

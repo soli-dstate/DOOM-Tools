@@ -1,5 +1,6 @@
 """DevMixin — App methods for the "dev" feature area."""
 from app.foundation import *
+import logging
 
 
 class DevMixin:
@@ -14,14 +15,14 @@ class DevMixin:
                 try:
                     top._is_dev_toolbar = True
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
                 top.title("devtools")
                 top.resizable(True, True)
 
                 try:
                     top.configure(fg_color = "#1f1f1f")
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 font_large = customtkinter.CTkFont(size = 16)
                 content = customtkinter.CTkFrame(top, fg_color = "#1f1f1f")
@@ -86,7 +87,7 @@ class DevMixin:
                     inspect_btn = customtkinter.CTkButton(content, text = "Inspect Tables/Strings", command = self._open_dev_data_viewer, width = 240, height = 36, fg_color = "#2f2f2f")
                     inspect_btn.pack(anchor = "w", pady =(8, 0))
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 try:
                     self._dev_logs_summary = customtkinter.CTkLabel(content, text = "", font = small_font, anchor = "w")
@@ -112,9 +113,9 @@ class DevMixin:
                         top.minsize(req_w, req_h)
                         top.geometry(f"{req_w}x{req_h}")
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 self._dev_toolbar_frame = top
 
@@ -145,31 +146,31 @@ class DevMixin:
                         try:
                             self._dev_worker_running = False
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                         try:
                             if getattr(top, 'destroy', None):
                                 top.destroy()
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                         try:
                             self._dev_toolbar_frame = None
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                     top.protocol("WM_DELETE_WINDOW", _on_dev_close)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 try:
                     if getattr(self, '_dev_worker_thread', None)is None:
                         self._dev_worker_thread = threading.Thread(target = self._dev_toolbar_worker, name = 'DevToolbarWorker', daemon = True)
                         self._dev_worker_thread.start()
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 try:
                     self._update_dev_toolbar()
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
         except Exception:
             logging.exception("Failed to create dev toolbar")
 
@@ -182,7 +183,7 @@ class DevMixin:
             try:
                 top.configure(fg_color = "#1f1f1f")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
             left = customtkinter.CTkFrame(top, width = 300)
             left.pack(side = "left", fill = "y", padx = 6, pady = 6)
@@ -207,13 +208,13 @@ class DevMixin:
                     lb.insert(_tk.END, "global_table_data")
                     tbl_map.append(("global_table_data", globals().get('table_data')))
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
             try:
                 if globals().get('all_table_items')is not None:
                     lb.insert(_tk.END, "all_table_items")
                     tbl_map.append(("all_table_items", globals().get('all_table_items')))
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
             try:
                 extras =[
@@ -230,9 +231,9 @@ class DevMixin:
                             lb.insert(_tk.END, name)
                             tbl_map.append((name, val))
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
             try:
                 cur = global_variables.get('current_table')
                 if cur:
@@ -240,7 +241,7 @@ class DevMixin:
 
                     tbl_map.append((f"current_table: {cur}", globals().get('table_data')))
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
             top_row = customtkinter.CTkFrame(right, fg_color = "transparent")
             top_row.pack(fill = "x")
@@ -325,7 +326,7 @@ class DevMixin:
                                 for v in o:
                                     _collect(v)
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
 
                     for name, obj in tbl_map:
                         _collect(obj)
@@ -365,7 +366,7 @@ class DevMixin:
                             txtw.delete('1.0', _tk.END)
                             txtw.insert(_tk.END, s)
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
 
                     lbox.bind('<<ListboxSelect>>', _on_string_select)
                 except Exception:
@@ -416,7 +417,7 @@ class DevMixin:
                     _populate_submenu()
                     _show_content_from_selection()
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         except Exception:
             logging.exception('Failed opening Dev Data Explorer')
@@ -483,7 +484,7 @@ class DevMixin:
                                     util, used, total = parts[0], parts[1], parts[2]
                                     gpu_str = f"GPU 0: {util}% {used}/{total}MB"
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                     snap['gpu_str']= gpu_str
                 except Exception:
                     snap['gpu_str']= 'N/A'
@@ -515,6 +516,7 @@ class DevMixin:
                                             iid = it.get('id')
                                             id_map[iid]= id_map.get(iid, 0)+1
                         except Exception:
+                            logging.exception("Suppressed exception")
                             continue
                     snap['total_items']= total_items
                     snap['duplicate_ids']= sum(1 for k, v in id_map.items()if v >1)
@@ -542,6 +544,7 @@ class DevMixin:
                                 elif inspect.isclass(o):
                                     defs_list.append(f"class: {n}")
                             except Exception:
+                                logging.exception("Suppressed exception")
                                 continue
                     for mname, mod in list(sys.modules.items()):
                         try:
@@ -558,8 +561,10 @@ class DevMixin:
                                     elif inspect.isclass(o):
                                         defs_list.append(f"{mname}.class:{n}")
                                 except Exception:
+                                    logging.exception("Suppressed exception")
                                     continue
                         except Exception:
+                            logging.exception("Suppressed exception")
                             continue
                     defs_list = sorted(set(defs_list))[:400]
                     snap['defs_text']= "\n".join(defs_list)if defs_list else '(no definitions found)'
@@ -578,9 +583,9 @@ class DevMixin:
                                     break
                             q.put_nowait(snap)
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 try:
                     # Use Event.wait() not time.sleep(): Python 3.13 free-threaded
@@ -589,7 +594,7 @@ class DevMixin:
                 except BaseException:
                     break
         except BaseException:
-            pass
+            logging.exception("Suppressed exception")
 
     def _update_dev_toolbar(self):
         try:
@@ -599,16 +604,16 @@ class DevMixin:
                     try:
                         self._create_dev_toolbar()
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                 elif getattr(self, "_dev_toolbar_frame", None):
                     try:
                         if not getattr(self._dev_toolbar_frame, 'winfo_exists', lambda:True)():
 
                             self._create_dev_toolbar()
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
             snap = None
             try:
@@ -702,7 +707,7 @@ class DevMixin:
                                     gpu_str = f"GPU 0: {util}% {used}/{total}MB"
                                     got = True
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                 except Exception:
                     gpu_str = "N/A"
                 try:
@@ -731,6 +736,7 @@ class DevMixin:
                                             iid = it.get('id')
                                             id_map[iid]= id_map.get(iid, 0)+1
                         except Exception:
+                            logging.exception("Suppressed exception")
                             continue
                     duplicate_ids = sum(1 for k, v in id_map.items()if v >1)
                     total_ids = len(id_map)
@@ -753,6 +759,7 @@ class DevMixin:
                                 elif inspect.isclass(o):
                                     defs_list.append(f"class: {n}")
                             except Exception:
+                                logging.exception("Suppressed exception")
                                 continue
                     defs_list = sorted(set(defs_list))[:400]
                     defs_text = "\n".join(defs_list)if defs_list else "(no definitions found)"
@@ -783,19 +790,19 @@ class DevMixin:
 
                     self._dev_cpu_value.configure(text = f"SYS CPU: {int(sys_cpu)}% APP CPU: {int(app_cpu)}% SYS MEM: {sys_mem_repr} APP MEM: {app_mem_repr}")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
             try:
 
                 if getattr(self, "_dev_gpu_value", None):
                     self._dev_gpu_value.configure(text = f"{gpu_str}")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
             try:
 
                 if getattr(self, "_dev_thread_lbl", None):
                     self._dev_thread_lbl.configure(text = f"Threads: {threads} Names: {', '.join(thread_names)if thread_names else 'N/A'}")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
             try:
 
                 if getattr(self, "_dev_log_info_lbl", None):
@@ -813,9 +820,9 @@ class DevMixin:
                     try:
                         self._dev_logs_summary.configure(text = f"INFO:{info_ct} WARN:{warn_ct} ERR:{err_ct} DBG:{dbg_ct} CRIT:{crt_ct}")
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
             try:
 
                 if getattr(self, "_dev_tables_lbl", None):
@@ -831,9 +838,9 @@ class DevMixin:
                     try:
                         self._dev_defs_lbl.configure(text = defs_text)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
         except Exception:
             logging.exception("Failed to update dev toolbar stats")
         finally:
@@ -847,14 +854,14 @@ class DevMixin:
                         try:
                             self.root.after(1000, self._update_dev_toolbar)
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                 else:
                     try:
                         self.root.after(1000, self._update_dev_toolbar)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
     def _open_dev_tools(self):
         logging.info("Developer Tools definition called")
         self._clear_window()

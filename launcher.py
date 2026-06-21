@@ -272,7 +272,7 @@ def configure_launcher_logger(
         try:
             handler.close()
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
     file_handler = logging.FileHandler(log_path, encoding="utf-8")
     file_handler.setFormatter(StripAnsiFormatter(message_format))
@@ -302,7 +302,7 @@ def hide_console_window() -> None:
         if hwnd:
             ctypes.windll.user32.ShowWindow(hwnd, 0)
     except Exception:
-        pass
+        logging.exception("Suppressed exception")
 
 
 def acquire_single_instance_lock() -> int | None:
@@ -443,6 +443,7 @@ def fetch_remote_resource_links(ref: str = DEFAULT_BRANCH) -> list[str]:
             with _request_with_retry(url, timeout=20) as response:
                 text = response.text
         except Exception:
+            logging.exception("Suppressed exception")
             continue
         links = _parse_resource_links(text)
         if links:
@@ -501,7 +502,7 @@ def download_file(
             try:
                 temp_path.unlink()
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         try:
             with _request_with_retry(url, timeout=120, stream=True, attempts=1) as response:
@@ -612,7 +613,7 @@ def detect_python_command(logger=None) -> list[str] | None:
             try:
                 logger(msg)
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
     candidates: list[list[str]] = []
     if os.name == "nt" and shutil.which("py"):
@@ -681,9 +682,10 @@ def detect_any_python(logger=None) -> tuple[list[str] | None, str | None]:
                     try:
                         logger(f"Detected Python {version} via '{' '.join(base)}'.")
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                 return base, version
         except Exception:
+            logging.exception("Suppressed exception")
             continue
     return None, None
 
@@ -1429,18 +1431,18 @@ class LauncherUI:
             try:
                 self.root.bell()
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
             send_desktop_notification(APP_NAME, message, logger=self.logger)
         for action in (self.root.deiconify, self.root.lift):
             try:
                 action()
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
         try:
             self.root.attributes("-topmost", True)
             self.root.after(1500, lambda: self.root.attributes("-topmost", False))
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
     def _show_requirements_popup(self, req_path: Path) -> None:
         try:
@@ -1759,7 +1761,7 @@ class LauncherUI:
             try:
                 branch_combo.after(0, _apply)
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         threading.Thread(target=_populate_branches, daemon=True).start()
 

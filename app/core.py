@@ -23,6 +23,7 @@ from app.mixins.store import StoreMixin
 from app.mixins.ui import UiMixin
 from app.mixins.updates import UpdatesMixin
 from app.mixins.weapons import WeaponsMixin
+import logging
 
 
 class App(BugreportMixin, CasinoMixin, CharactersMixin, CloudMixin, CombatMixin, CombatmodeMixin, DevMixin, DmtoolsMixin, GameplayMixin, InspectMixin, InventoryMixin, ItemsMixin, LootMixin, MarkingMixin, PopupsMixin, ReportsMixin, SavesMixin, SettingsMixin, SoundMixin, StoreMixin, UiMixin, UpdatesMixin, WeaponsMixin):
@@ -84,15 +85,15 @@ class App(BugreportMixin, CasinoMixin, CharactersMixin, CloudMixin, CombatMixin,
                     if "invalid command name"in msg and("after"in msg or re.search(r'\d{6,}', msg)):
                         return
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
                 if _orig_tk_report:
                     try:
                         return _orig_tk_report(self, exc_type, exc_value, exc_tb)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
             _tk.Tk.report_callback_exception = _tk_suppress
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
         try:
             import re as _re_stderr
@@ -108,7 +109,7 @@ class App(BugreportMixin, CasinoMixin, CharactersMixin, CloudMixin, CombatMixin,
                     return getattr(_real_stderr, name)
             sys.stderr = _TclAfterFilter()
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
         self.root = customtkinter.CTk()
         self.root.title("DOOM Tools")
@@ -130,7 +131,7 @@ class App(BugreportMixin, CasinoMixin, CharactersMixin, CloudMixin, CombatMixin,
                     try:
                         tl_self.after(0, lambda: _app_ref._reposition_popup_win32(tl_self))
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
                 customtkinter.CTkToplevel.__init__ = _doomtools_toplevel_init
                 customtkinter.CTkToplevel._doomtools_monitor_patch = True
@@ -146,14 +147,14 @@ class App(BugreportMixin, CasinoMixin, CharactersMixin, CloudMixin, CombatMixin,
                     if re.search(r'"\d+(?:check_dpi_scaling|_click_animation|update)"', msg)or "after"in msg:
                         return
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
             _original_report(exc_type, exc_value, exc_tb)
         self.root.report_callback_exception = _suppress_after_errors
 
         try:
             self.root.protocol("WM_DELETE_WINDOW", self._on_window_close)
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
         self.root.attributes('-fullscreen', appearance_settings.get("fullscreen", False))
 
@@ -161,7 +162,7 @@ class App(BugreportMixin, CasinoMixin, CharactersMixin, CloudMixin, CombatMixin,
             if appearance_settings.get("borderless")and not appearance_settings.get("fullscreen"):
                 self.root.overrideredirect(True)
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
         self._sound_cache = {}
 
@@ -198,11 +199,11 @@ class App(BugreportMixin, CasinoMixin, CharactersMixin, CloudMixin, CombatMixin,
                         try:
                             globals()['save_data']= loaded_data
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                         try:
                             self._current_save_data = loaded_data
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                         self.currentsave = save_filename.replace(".sldsv", "")
                         logging.info(f"Automatically loaded last save: {save_filename}")
                 else:
@@ -212,7 +213,7 @@ class App(BugreportMixin, CasinoMixin, CharactersMixin, CloudMixin, CombatMixin,
         try:
             self.root.after(600, self._maybe_prompt_cloud_restore)
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
         # Auto-report uncaught tkinter errors, and detect a hard crash from the
         # previous session (then arm the sentinel for this one).
@@ -227,7 +228,7 @@ class App(BugreportMixin, CasinoMixin, CharactersMixin, CloudMixin, CombatMixin,
         try:
             self.root.after(800, self._maybe_prompt_reporter_name)
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
         try:
             if global_variables.get("devmode", {}).get("value"):
@@ -236,7 +237,7 @@ class App(BugreportMixin, CasinoMixin, CharactersMixin, CloudMixin, CombatMixin,
                 except Exception:
                     logging.exception("Failed to initialize dev toolbar")
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
         try:
             self._bg_pay_stop = threading.Event()
             _bg_stop = self._bg_pay_stop
@@ -266,7 +267,7 @@ class App(BugreportMixin, CasinoMixin, CharactersMixin, CloudMixin, CombatMixin,
                         # GC stop-the-world crashes time.sleep() via PyEval_RestoreThread.
                         _bg_stop.wait(60)
                 except BaseException:
-                    pass
+                    logging.exception("Suppressed exception")
             threading.Thread(target = _bg_pay_worker, daemon = True).start()
         except Exception:
             logging.exception('Failed to start background paycheck worker')
@@ -279,4 +280,4 @@ class App(BugreportMixin, CasinoMixin, CharactersMixin, CloudMixin, CombatMixin,
         try:
             os._exit(0)
         except Exception:
-            pass
+            logging.exception("Suppressed exception")

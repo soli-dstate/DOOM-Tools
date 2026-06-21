@@ -1,5 +1,6 @@
 """CasinoMixin — App methods for the "casino" feature area."""
 from app.foundation import *
+import logging
 
 
 class CasinoMixin:
@@ -166,9 +167,9 @@ class CasinoMixin:
                         artist = _get_tag(["artist", "ARTIST", "TPE1", "IART"])
                         title = _get_tag(["title", "TITLE", "TIT2", "INAM"])
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
             if not title:
                 try:
                     title = os.path.basename(track_path or "")
@@ -182,14 +183,14 @@ class CasinoMixin:
                     try:
                         self.root.after_cancel(marquee_job[0])# type: ignore[arg-type]
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                     marquee_job[0]= None
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
             try:
                 self._stop_business_music(music_channel)
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         if music_channel and music_channel.get("track"):
             try:
@@ -208,9 +209,9 @@ class CasinoMixin:
                     try:
                         marquee_frame.pack_propagate(False)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
                 try:
 
                     label_font = None
@@ -223,7 +224,7 @@ class CasinoMixin:
                                 FR_PRIVATE = 0x10
                                 ctypes.windll.gdi32.AddFontResourceExW(fp, FR_PRIVATE, 0)
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
 
                             try:
                                 self.root.update_idletasks()
@@ -233,9 +234,9 @@ class CasinoMixin:
                                         label_font = customtkinter.CTkFont(size = 12, family = f)
                                         break
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                     if not label_font:
                         label_font = customtkinter.CTkFont(size = 12)
                 except Exception:
@@ -254,9 +255,9 @@ class CasinoMixin:
                         try:
                             marquee_frame.configure(height = lh)
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 pos =[0]
                 prev_track =[music_channel.get('track')if(music_channel and music_channel.get('track'))else None]
@@ -293,10 +294,10 @@ class CasinoMixin:
                                     if tt:
                                         dbg +=f" title={tt[:30]}"
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                                 marquee_debug_label.configure(text = dbg)
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
 
                         if meta_info:
                             base_artist = meta_info.get("artist")or ""
@@ -324,23 +325,23 @@ class CasinoMixin:
                                                                 try:
                                                                     self.root.after(0, _update_marquee)
                                                                 except Exception:
-                                                                    pass
+                                                                    logging.exception("Suppressed exception")
                                                     except Exception:
-                                                        pass
+                                                        logging.exception("Suppressed exception")
                                                 except Exception:
-                                                    pass
+                                                    logging.exception("Suppressed exception")
                                             self.root.after(0, _apply)
                                         except Exception:
-                                            pass
+                                            logging.exception("Suppressed exception")
                                         finally:
                                             try:
                                                 current.pop("_meta_loading", None)
                                             except Exception:
-                                                pass
+                                                logging.exception("Suppressed exception")
                                     import threading
                                     threading.Thread(target = _bg_load, daemon = True).start()
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
 
                         started =(current or {}).get("started_at")or time.time()
                         start_offset =(current or {}).get("start_pos")or 0.0
@@ -379,7 +380,7 @@ class CasinoMixin:
                         try:
                             marquee_label.configure(text = os.path.basename((getattr(self, "_current_business_music", music_channel)or {}).get("track")or ""))
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
 
                 try:
                     import threading
@@ -394,21 +395,21 @@ class CasinoMixin:
 
                                     cur.update({"_meta":info})
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                             self.root.after(0, _apply)
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                     try:
                         import threading
                         threading.Thread(target = _load_meta, daemon = True).start()
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 _update_marquee()
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         save_path = os.path.join(saves_folder or "", (self.currentsave or "")+".sldsv")
         save_data = self._load_file((self.currentsave or "")+".sldsv")
@@ -417,7 +418,7 @@ class CasinoMixin:
             try:
                 stop_ui_music()
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
             return
 
         player_money =[save_data.get("money", 0)]
@@ -471,7 +472,7 @@ class CasinoMixin:
             try:
                 self._write_save_to_path(save_path, save_data)
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
             self._popup_show_info(
                 "Casino Ban",
                 f"You have reached this casino's profit limit and are banned until {active_ban_until.strftime('%Y-%m-%d %I:%M %p')}.",
@@ -480,7 +481,7 @@ class CasinoMixin:
             try:
                 stop_ui_music()
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
             self._clear_window()
             self._open_business_tool()
             return
@@ -516,7 +517,7 @@ class CasinoMixin:
                 else:
                     stats_label.configure(text = f"Lifetime: {s['wins']}W / {s['losses']}L({s['games_played']} games) | Net: {nd}")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         min_bet = store.get("min_bet", 10)
         max_bet = store.get("max_bet", 1000)
@@ -525,7 +526,7 @@ class CasinoMixin:
             try:
                 money_label.configure(text = f"Your Money: {format_price(player_money[0])}")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         def save_money():
             try:
@@ -563,7 +564,7 @@ class CasinoMixin:
                             )
                         )
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
             update_stats_display()
 
@@ -626,7 +627,7 @@ class CasinoMixin:
             try:
                 stop_ui_music()
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
             save_money()
             self._clear_window()
             self._open_business_tool()
@@ -855,12 +856,12 @@ class CasinoMixin:
                 try:
                     item_wager_label.configure(text = "Items Wagered: None")
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 update_display(reveal_dealer = True)
                 update_buttons()
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         def dealer_turn():
             if not game_state.get("ui_active", False):
@@ -1717,7 +1718,7 @@ class CasinoMixin:
                 try:
                     item_wager_label.configure(text = "Items Wagered: None", text_color = "gray")
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
             save_money_cb()
 
@@ -1782,7 +1783,7 @@ class CasinoMixin:
             try:
                 item_wager_label.configure(text = "Items Wagered: None", text_color = "gray")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
             save_money_cb()
             game_state["phase"]= "complete"
@@ -1818,7 +1819,7 @@ class CasinoMixin:
                         show_btn.configure(state = "disabled")
                     fold_btn.configure(state = "disabled")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         def show_hand_rankings():
             popup = customtkinter.CTkToplevel(self.root)
@@ -2069,7 +2070,7 @@ class CasinoMixin:
                 winnings_label.configure(text = f"Current Winnings: {format_price(game_state['winnings'])}")
                 update_money_cb()
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         def start_game():
             bet_str = bet_entry.get()
@@ -2170,7 +2171,7 @@ class CasinoMixin:
             try:
                 item_wager_label.configure(text = "Items Wagered: None", text_color = "gray")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
             update_display()
             update_buttons()
 
@@ -2192,7 +2193,7 @@ class CasinoMixin:
                 try:
                     item_wager_label.configure(text = "Items Wagered: None", text_color = "gray")
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
             save_money_cb()
 
@@ -2218,7 +2219,7 @@ class CasinoMixin:
                     low_btn.configure(state = "disabled")
                     cashout_btn.configure(state = "disabled")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         controls_frame = customtkinter.CTkFrame(main_frame, fg_color = "transparent")
         controls_frame.grid(row = 2, column = 0, sticky = "ew", padx = 20, pady = 10)
@@ -2338,7 +2339,7 @@ class CasinoMixin:
             elif isinstance(_fg, str) and _fg and _fg.lower() != "transparent":
                 wheel_bg = _fg
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
         wheel_container = customtkinter.CTkFrame(game_frame, fg_color = wheel_bg)
         wheel_container.pack(pady = 10)
@@ -2413,7 +2414,7 @@ class CasinoMixin:
                     width = 1
                 )
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         draw_roulette_wheel(0)
 
@@ -2494,7 +2495,7 @@ class CasinoMixin:
                     sound.set_volume(0.5)
                     sound.play()
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         def spin_wheel():
             if game_state["spinning"]:
@@ -2646,7 +2647,7 @@ class CasinoMixin:
             try:
                 item_wager_label.configure(text = "Items Wagered: None", text_color = "gray")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
             save_money_cb()
             money_label.configure(text = f"Your Money: {format_price(player_money[0])}")

@@ -106,7 +106,7 @@ def download_ffmpeg(log) -> str:
             pct = min(100, count * block_size * 100 // total_size)
             log(f"  Download progress: {pct}%", replace_last=True)
 
-    urllib.request.urlretrieve(url, archive_path, reporthook)
+    urllib.request.urlretrieve(url, archive_path, reporthook)  # nosec B310 - url is from the hardcoded FFMPEG_URLS map, not user input
     log("  Download complete.")
     log("Extracting binaries…")
 

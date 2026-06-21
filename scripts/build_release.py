@@ -8,7 +8,7 @@ import re
 from datetime import datetime
 import logging
 from pathlib import Path
-os.system('cls'if os.name =='nt'else 'clear')
+os.system('cls'if os.name =='nt'else 'clear')  # nosec B605 - hardcoded literal, no shell injection possible
 class ColoredFormatter(logging.Formatter):
     COLORS = {
     'DEBUG':'\033[36m',
@@ -161,7 +161,7 @@ def make_release_zip(exe_path: Path, out_dir: Path, version: str = '0.0.0', incl
         try:
             shutil.rmtree(tmpdir)
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 def send_windows_notification(title: str, message: str):
     if os.name != 'nt':
         return

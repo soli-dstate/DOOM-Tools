@@ -9,6 +9,7 @@ from datetime import datetime
 from pathlib import Path
 
 import requests
+import logging
 
 
 CATBOX_API_URL = "https://catbox.moe/user/api.php"
@@ -182,7 +183,7 @@ def upload_parts(parts: list[Path], userhash: str | None, timeout: int) -> list[
     try:
         sys.stdout.reconfigure(encoding="utf-8")
     except Exception:
-        pass
+        logging.exception("Suppressed exception")
 
     for index, part_path in enumerate(parts, start=1):
         prefix = f"[resource-pack] part {index}/{total}"

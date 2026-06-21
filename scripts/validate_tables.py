@@ -11,6 +11,7 @@ import os
 import sys
 import argparse
 import customtkinter
+import logging
 
 
 # ─── Core ─────────────────────────────────────────────────────────────────────
@@ -68,7 +69,7 @@ def _platforms_compatible(fplat, tplat, secondary=None):
             if lf in PLATFORM_EQUIVALENTS.get(lt, set()):
                 return True
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
         return False
     except Exception:
@@ -142,7 +143,7 @@ def _resolve_current_item(cur, id_map, source=None):
             if ("caliber" in target) and (not target.get("type") and not target.get("slot")):
                 return None
     except Exception:
-        pass
+        logging.exception("Suppressed exception")
 
     return effective
 
@@ -506,7 +507,7 @@ def validate_tables(tables_dir=None, secondary_platform=None):
                 musket_cal = item.get("musket_caliber")
                 ammo_calibers_present |= _token_set(musket_cal)
     except Exception:
-        pass
+        logging.exception("Suppressed exception")
 
     try:
         for item, tf, sub in all_table_items:
@@ -829,7 +830,7 @@ def validate_tables(tables_dir=None, secondary_platform=None):
                     item_name_sc = item_sc.get("name") or f"ID {item_sc.get('id', '?')}"
                     warnings.append(("Store Categories", f"Table '{display_sc}': Item '{item_name_sc}' in subtable '{sub_name}' is referenced by a store but missing 'shop_category' field."))
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
     # ── 9. Missing armory/shop category ──────────────────────────────────
     skip_subtables = {"stores", "armories", "businesses", "settings", "additional_settings"}

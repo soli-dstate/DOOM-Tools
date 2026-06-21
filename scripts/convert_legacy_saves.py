@@ -36,6 +36,7 @@ import shutil
 import sys
 from datetime import datetime
 from pathlib import Path
+import logging
 
 
 def _get_save_key() -> bytes:
@@ -82,7 +83,7 @@ def _try_decode_signed_b85(payload: str) -> dict | None:
         if isinstance(parsed, dict) and "_sig" in parsed and "_data" in parsed:
             return parsed
     except Exception:
-        pass
+        logging.exception("Suppressed exception")
     return None
 
 
@@ -110,7 +111,7 @@ def try_decode_legacy(raw: bytes | str) -> dict | list | None:
         return None
 
     try:
-        obj = pickle.loads(decoded)  # noqa: S301  — intentional for migration only
+        obj = pickle.loads(decoded)  # nosec B301 - intentional for migration only
         return obj
     except Exception:
         return None

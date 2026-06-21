@@ -1,5 +1,6 @@
 """SavesMixin — App methods for the "saves" feature area."""
 from app.foundation import *
+import logging
 
 
 class SavesMixin:
@@ -127,7 +128,7 @@ class SavesMixin:
                     if tbl:
                         data.setdefault('_table', tbl)
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
             if os.path.isabs(self.currentsave):
                 save_path = self.currentsave
@@ -151,11 +152,11 @@ class SavesMixin:
                         else:
                             globals()['save_data']= data
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
                 try:
                     setattr(self, '_current_save_data', data)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 try:
                     if isinstance(data, dict):
@@ -249,6 +250,7 @@ class SavesMixin:
                                 found = fpath
                                 break
                         except Exception:
+                            logging.exception("Suppressed exception")
                             continue
                     if not found:
                         logging.error(f"Save '{save_path}' requires table '{table_from_save}' which is not present locally.Load aborted.")
@@ -266,12 +268,12 @@ class SavesMixin:
                                     with open(tfiles[0], 'r', encoding = 'utf-8')as tf:
                                         globals()['table_data']= json.load(tf)
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
 
                         if isinstance(data, dict)and cur_tbl:
                             data.setdefault('_table', cur_tbl)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
             except Exception:
                 logging.debug('Table metadata handling failed during load, continuing')
             if save_path.endswith('.sldsv'):
@@ -312,9 +314,9 @@ class SavesMixin:
                 try:
                     self._award_paychecks_for_save(data, save_path)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
             return data
         except Exception as e:
             logging.error(f"Failed to load data from '{save_path}': {e}")
@@ -451,6 +453,7 @@ class SavesMixin:
                             table_path = fpath
                             break
                     except Exception:
+                        logging.exception("Suppressed exception")
                         continue
             table_data = None
             if table_path and os.path.exists(table_path):
@@ -518,7 +521,7 @@ class SavesMixin:
                         if self.currentsave and os.path.basename(save_path).startswith(self.currentsave):
                             self._save_file(save_data)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                 try:
                     title = "Paycheck Received"
                     charname = save_data.get('charactername')or save_data.get('character_name')or 'Character'
@@ -526,13 +529,13 @@ class SavesMixin:
                     try:
                         self._popup_show_info(title, message, sound = 'success')
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                     try:
                         send_windows_notification(title, message)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
             if last_paid is None:
 
@@ -626,7 +629,7 @@ class SavesMixin:
                 try:
                     self._save_persistent_data()
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
         except Exception:
             logging.exception('Paycheck processing failed')
 
@@ -780,7 +783,7 @@ class SavesMixin:
                         try:
                             new_installed[k]= v
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                     acc['current']= new_installed
                     fixed_count[0]+=1
                     if sub_attachment:
@@ -794,18 +797,18 @@ class SavesMixin:
                                         placed = True
                                         break
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                             if not placed:
                                 try:
                                     new_installed['subslots'][0]['current']= _copy.deepcopy(sub_target)
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                     try:
                         _resolve_current(new_installed)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
             for s in(obj.get('subslots')or[]):
                 try:
                     cur = s.get('current')
@@ -817,11 +820,11 @@ class SavesMixin:
                         try:
                             s['current']= tmp['accessories'][0].get('current')
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                     elif isinstance(cur, dict):
                         _resolve_current(cur)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
             for p in(obj.get('parts')or[]):
                 try:
                     if not isinstance(p, dict):
@@ -849,11 +852,11 @@ class SavesMixin:
                             try:
                                 new_part[k]= v
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                         p['current']= new_part
                         fixed_count[0]+=1
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
         def _process_item(item):
             if not isinstance(item, dict):

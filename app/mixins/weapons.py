@@ -1,5 +1,6 @@
 """WeaponsMixin — App methods for the "weapons" feature area."""
 from app.foundation import *
+import logging
 
 
 class WeaponsMixin:
@@ -12,7 +13,7 @@ class WeaponsMixin:
                     table_data = json.load(f)
                 return table_data.get("tables", {}).get("ammunition", [])
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
         return[]
 
     def _ensure_round_variant(self, round_data, ammo_table = None):
@@ -77,7 +78,7 @@ class WeaponsMixin:
                             if isinstance(it, dict)and it.get("id")==tid:
                                 return copy.deepcopy(it)
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
             return None
 
         for slot_name, item in save_data.get("equipment", {}).items():
@@ -133,7 +134,7 @@ class WeaponsMixin:
                             "underbarrel_platform":resolved.get("underbarrel_platform")or resolved.get("platform")
                             })
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         return weapons
 
@@ -148,7 +149,7 @@ class WeaponsMixin:
             try:
                 logging.info("_apply_item_overrides: restoring previous applied overrides keys=%s for weapon id=%s", list(applied.keys()), weapon.get('id'))
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
         for k, orig in list(applied.items()):
             try:
                 if orig is MISSING:
@@ -158,7 +159,7 @@ class WeaponsMixin:
                     weapon[k]= orig
             except Exception:
 
-                pass
+                logging.exception("Suppressed exception")
 
         weapon["_applied_overrides"]= {}
 
@@ -184,7 +185,7 @@ class WeaponsMixin:
                                 if isinstance(it, dict)and it.get('id')==tid:
                                     return it
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
             try:
                 import json, os, glob
@@ -194,6 +195,7 @@ class WeaponsMixin:
                         with open(tf, 'r', encoding = 'utf-8')as fh:
                             td = json.load(fh)
                     except Exception:
+                        logging.exception("Suppressed exception")
                         continue
                     for arr in td.get('tables', {}).values():
                         if isinstance(arr, list):
@@ -201,7 +203,7 @@ class WeaponsMixin:
                                 if isinstance(it, dict)and it.get('id')==tid:
                                     return it
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
             return None
 
@@ -213,7 +215,7 @@ class WeaponsMixin:
                 try:
                     logging.debug("_apply_item_overrides: found accessory for overrides: id=%s name=%s on weapon id=%s", cur.get('id'), cur.get('name'), weapon.get('id'))
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
                 overrides = cur.get("overrides")or {}
                 if isinstance(overrides, dict):
                     for k, v in overrides.items():
@@ -224,7 +226,7 @@ class WeaponsMixin:
                             try:
                                 logging.debug("_apply_item_overrides: recording original value for key=%s orig=%s", k, orig)
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
 
                         try:
                             weapon[k]= copy.deepcopy(v)
@@ -233,7 +235,7 @@ class WeaponsMixin:
                         try:
                             logging.debug("_apply_item_overrides: applied override key=%s value=%s from accessory id=%s", k, v, cur.get('id'))
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
 
         try:
             agg = {"stats":{}}
@@ -274,7 +276,7 @@ class WeaponsMixin:
                                         try:
                                             agg["stats"][sname]= agg["stats"].get(sname, 0)+(int(sval)if isinstance(sval, (int, float))else 0)
                                         except Exception:
-                                            pass
+                                            logging.exception("Suppressed exception")
 
                     try:
                         modes = cur.get("modes")or[]
@@ -300,7 +302,7 @@ class WeaponsMixin:
                                                         try:
                                                             agg["stats"][sname]= agg["stats"].get(sname, 0)+(int(sval)if isinstance(sval, (int, float))else 0)
                                                         except Exception:
-                                                            pass
+                                                            logging.exception("Suppressed exception")
 
                                 try:
                                     mode_overrides = mode.get("overrides")if isinstance(mode, dict)else None
@@ -312,7 +314,7 @@ class WeaponsMixin:
                                                 try:
                                                     logging.debug("_apply_item_overrides: recording original value for key=%s orig=%s(mode override)", k, orig)
                                                 except Exception:
-                                                    pass
+                                                    logging.exception("Suppressed exception")
                                             try:
                                                 weapon[k]= copy.deepcopy(v)
                                             except Exception:
@@ -320,19 +322,19 @@ class WeaponsMixin:
                                             try:
                                                 logging.debug("_apply_item_overrides: applied mode override key=%s value=%s from accessory id=%s", k, v, cur.get('id'))
                                             except Exception:
-                                                pass
+                                                logging.exception("Suppressed exception")
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                     except Exception:
 
-                        pass
+                        logging.exception("Suppressed exception")
             weapon["_active_modifiers"]= agg
         except Exception:
 
             try:
                 weapon["_active_modifiers"]= {"stats":{}}
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         try:
             wid = str(weapon.get("id"))
@@ -344,10 +346,10 @@ class WeaponsMixin:
                     if cur and isinstance(cur, dict):
                         acc_names.append(cur.get("name")or str(cur.get("id")or "?"))
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
             logging.debug("_apply_item_overrides: weapon id=%s action=%s installed_attachments=%s", wid, act, acc_names)
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
     def _display_weapon_details(self, parent, weapon, combat_state, save_data, table_data, current_weapon_state = None):
 
@@ -409,7 +411,7 @@ class WeaponsMixin:
                                     if isinstance(it, dict)and it.get("id")==tid:
                                         return it
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
                 return None
 
             active = combat_state.get("active_underbarrel")
@@ -447,14 +449,14 @@ class WeaponsMixin:
                                                     resolved_acc_for_display = it ;break
                                             if resolved_acc_for_display:break
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
 
                 if not resolved_acc_for_display:
                     for sub in parent_item.get("subslots", [])or[]:
                         try:
                             logging.info("Checking parent subslot '%s' for active accessory", sub.get("name"))
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                         sub_cur = sub.get("current")if isinstance(sub, dict)else None
                         if not sub_cur or not isinstance(sub_cur, dict):
                             continue
@@ -476,18 +478,18 @@ class WeaponsMixin:
                                                         resolved_acc_for_display = it ;break
                                                 if resolved_acc_for_display:break
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                 if resolved_acc_for_display and isinstance(resolved_acc_for_display, dict):
                     try:
                         logging.info("Resolved active accessory for display: id=%s name=%s", resolved_acc_for_display.get("id"), resolved_acc_for_display.get("name"))
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                     is_displaying_ub = True
 
             try:
                 logging.info("Underbarrel display decision: is_displaying_ub=%s resolved=%s active=%s", is_displaying_ub, getattr(resolved_acc_for_display, 'get', lambda k:None)('name')if isinstance(resolved_acc_for_display, dict)else resolved_acc_for_display, active)
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
             if is_displaying_ub:
                 def _switch_to_parent():
@@ -505,17 +507,17 @@ class WeaponsMixin:
                         try:
                             logging.info("Cleared active_underbarrel for parent_index=%s", combat_state.get("current_weapon_index"))
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                         try:
                             self._save_combat_state(save_data)
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                         try:
                             self._open_combat_mode_tool()
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
                 customtkinter.CTkButton(detail_frame, text = "Switch to Parent", command = _switch_to_parent, width = 160).pack(pady = 6)
             else:
@@ -524,7 +526,7 @@ class WeaponsMixin:
                 try:
                     logging.debug("Underbarrel detection: weapon_id=%s accessories=%s", weapon.get("id"), weapon.get("accessories"))
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
                 for acc in weapon.get("accessories", [])or[]:
                     cur = acc.get("current")
                     resolved = _resolve_current(cur)
@@ -552,7 +554,7 @@ class WeaponsMixin:
                                 try:
                                     self._play_firearm_sound(ub_found, "equip")
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
 
                             combat_state["active_underbarrel"]= {
                             "parent_index":combat_state.get("current_weapon_index"),
@@ -562,21 +564,21 @@ class WeaponsMixin:
                             try:
                                 logging.debug("Set active_underbarrel: parent_index=%s accessory_id=%s accessory_name=%s", combat_state.get("current_weapon_index"), ub_found.get("id"), ub_found.get("name"))
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                             try:
                                 self._save_combat_state(save_data)
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                             try:
                                 self._open_combat_mode_tool()
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
 
                     customtkinter.CTkButton(detail_frame, text = "Switch to Underbarrel", command = _switch_to_underbarrel, width = 160).pack(pady = 6)
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
         weapon_id = weapon.get("id")
         temperature = combat_state.get("barrel_temperatures", {}).get(str(weapon_id), combat_state["ambient_temperature"])
@@ -598,7 +600,7 @@ class WeaponsMixin:
                             if sub and isinstance(sub, dict)and sub.get("id")==target_id:
                                 return True
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
 
                     for subslot in(item.get("subslots")or[]):
                         try:
@@ -611,9 +613,9 @@ class WeaponsMixin:
                                         if s and isinstance(s, dict)and s.get("id")==target_id:
                                             return True
                                     except Exception:
-                                        pass
+                                        logging.exception("Suppressed exception")
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
             except Exception:
                 return False
             return False
@@ -632,7 +634,7 @@ class WeaponsMixin:
                         gunlink_on_weapon = True
                         break
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 try:
                     if isinstance(cur, dict):
@@ -642,7 +644,7 @@ class WeaponsMixin:
                             gunlink_on_weapon = True
                             break
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
         except Exception:
             gunlink_on_weapon = False
 
@@ -685,7 +687,7 @@ class WeaponsMixin:
                             if acc_stats.get("clean_exact"):
                                 clean_exact = True
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
         if appearance_settings["units"]=="metric":
             display_temp =(temperature -32)*5 /9
@@ -813,7 +815,7 @@ class WeaponsMixin:
                 if _total_rds <= 5:
                     _ammo_color = "#FF0000"
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         _ammo_label_kwargs = {"text": ammo_text, "font": customtkinter.CTkFont(size = 14)}
         if _ammo_color:
@@ -833,7 +835,7 @@ class WeaponsMixin:
             if isinstance(loaded_marking_mag, dict) and loaded_marking_mag.get("marking_text"):
                 self._render_magazine_marking_widget(detail_frame, loaded_marking_mag, weapon)
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
         if weapon.get("accessories"):
             customtkinter.CTkLabel(
@@ -942,7 +944,7 @@ class WeaponsMixin:
                                     _fl.configure(text_color="#ff0000" if _on else "#661111")
                             _frame.after(500, lambda: _flash_incompatible_parts(_labels, _frame, not _on))
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                     _parts_frame.after(500, lambda: _flash_incompatible_parts())
 
                 _parts_frame_spacer = customtkinter.CTkLabel(_parts_frame, text = "", height = 2)
@@ -987,9 +989,9 @@ class WeaponsMixin:
                                 if isinstance(cand, dict)and cand.get('id')==iid:
                                     return cand
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
             try:
                 iid_local = iid if 'iid'in locals()else None
@@ -1002,20 +1004,20 @@ class WeaponsMixin:
                                 return None
                             seen.add(oid)
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                         if isinstance(obj, dict):
                             try:
                                 if obj.get('id')==iid_local:
                                     return obj
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                             for v in obj.values():
                                 try:
                                     res = _search(v)
                                     if res:
                                         return res
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                         elif isinstance(obj, list):
                             for it in obj:
                                 try:
@@ -1023,7 +1025,7 @@ class WeaponsMixin:
                                     if res:
                                         return res
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                         return None
 
                     sd = globals().get('save_data')or getattr(self, '_current_save_data', None)
@@ -1037,14 +1039,14 @@ class WeaponsMixin:
                                     if found:
                                         return found
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
 
                     if isinstance(sd, dict):
                         found = _search(sd)
                         if found:
                             return found
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
             return None
 
@@ -1065,7 +1067,7 @@ class WeaponsMixin:
         try:
             logging.debug("_get_ammo_display: loaded_mag_raw=%s loaded_mag_resolved=%s chambered_resolved=%s mag_windowed=%s has_hud=%s", repr(loaded_mag), repr(loaded_mag_obj), repr(chambered_obj), mag_windowed, has_hud)
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
         effective_has_hud = bool(has_hud)or bool(mag_windowed)
 

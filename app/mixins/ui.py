@@ -1,5 +1,6 @@
 """UiMixin — App methods for the "ui" feature area."""
 from app.foundation import *
+import logging
 
 
 class UiMixin:
@@ -28,9 +29,9 @@ class UiMixin:
                     try:
                         widget.focus_set()
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
     def _setup_drag_drop(self):
         """Register the root window to accept file drops.
 
@@ -79,7 +80,7 @@ class UiMixin:
                         continue
                     seen.add(wid)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 try:
                     if hasattr(w, 'drop_target_register') and hasattr(w, 'dnd_bind') and w.winfo_exists():
@@ -87,13 +88,13 @@ class UiMixin:
                         w.dnd_bind('<<Drop>>', self._tkdnd_drop_handler)
                         bound_widgets.append(w)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 try:
                     for _child in w.winfo_children():
                         queue.append(_child)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
             if not bound_widgets:
                 raise RuntimeError("tkinterdnd2 loaded but no compatible Tk widget found for DnD binding")
@@ -110,7 +111,7 @@ class UiMixin:
                 logging.error("Drag-and-drop disabled: ctypes WM_DROPFILES fallback is unsafe on free-threaded Python; install/use tkinterdnd2 path.")
                 return
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
         # ── Fallback: ctypes WM_DROPFILES window-procedure subclassing ────────
         # NOTE: This path crashes on Python 3.13 free-threaded builds because
@@ -161,7 +162,7 @@ class UiMixin:
                 user32.ChangeWindowMessageFilterEx(hwnd, WM_DROPFILES, MSGFLT_ALLOW, None)
                 user32.ChangeWindowMessageFilterEx(hwnd, 0x0049, MSGFLT_ALLOW, None)
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
             _old_proc = user32.GetWindowLongPtrW(hwnd, GWL_WNDPROC)
             _active = [True]
@@ -174,7 +175,7 @@ class UiMixin:
                 try:
                     user32.SetWindowLongPtrW(hwnd, GWL_WNDPROC, _old_proc)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
             def _wndproc(hwnd_inner, msg, wparam, lparam):
                 try:
@@ -354,7 +355,7 @@ class UiMixin:
                 if vw > 0 and vh > 0:
                     return (vx, vy, vw, vh)
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         try:
             return (0, 0, self.root.winfo_screenwidth(), self.root.winfo_screenheight())
@@ -369,17 +370,17 @@ class UiMixin:
                 if getattr(widget, "_is_persistent_window", False):
                     continue
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
             try:
                 widget.destroy()
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
         logging.debug("Cleared window called")
     def _build_main_menu(self):
         try:
             self._set_dnd_refresh_handler(None, [])
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
         self.root.grid_rowconfigure(0, weight = 1)
         self.root.grid_columnconfigure(0, weight = 1)
         main_frame = customtkinter.CTkFrame(self.root)
@@ -397,7 +398,7 @@ class UiMixin:
         try:
             title_label.bind("<Button-1>", lambda e=None:self._start_title_easter_egg(title_label))
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
         version_label = customtkinter.CTkLabel(main_frame, text = f"Version: {version}", font = customtkinter.CTkFont(size = 16))
         version_label.pack()
         try:
@@ -410,18 +411,18 @@ class UiMixin:
                     try:
                         self._version_flash_active = False
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                     webbrowser.open('https://github.com/soli-dstate/DOOM-Tools/releases')
                 except Exception:
                     logging.exception('Failed to open releases')
 
             version_label.bind("<Button-1>", _open_releases)
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
         try:
             threading.Thread(target = lambda:self._check_remote_version(version_label), daemon = True).start()
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
         current_character = customtkinter.CTkLabel(main_frame, text = f"Current Character: {self.currentsave if self.currentsave else 'None'}", font = customtkinter.CTkFont(size = 14))
         current_character.pack(pady = 10)
         current_table = customtkinter.CTkLabel(main_frame, text = f"Current Data Table: {global_variables.get('current_table', 'Default')}", font = customtkinter.CTkFont(size = 14))
@@ -519,13 +520,13 @@ class UiMixin:
             try:
                 self.root.unbind("<Key>", _konami_bind_id)
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
         main_frame.bind("<Destroy>", _konami_cleanup, add = "+") # type: ignore
 
         try:
             self.root.after(50, self._setup_drag_drop)
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
     def _copy_to_clipboard(self, text):
         if getattr(self, "_suppress_clipboard_copy", False):

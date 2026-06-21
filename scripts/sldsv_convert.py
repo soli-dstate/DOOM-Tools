@@ -1,35 +1,36 @@
 #!/usr/bin/env python3
 """sldsv_convert.py
 
-Convert .sldsv (binary/pickled/base85) <-> .sldsvraw (human-readable) files.
+Convert .sldsv (binary/JSON/base85) <-> .sldsvraw (human-readable) files.
 
 Usage:
   python scripts/sldsv_convert.py file.sldsv         # produces file.sldsvraw
   python scripts/sldsv_convert.py file.sldsvraw      # restores file.sldsv
 
 Behavior:
-- When converting from .sldsv to .sldsvraw the script attempts to
-  unpickle the file, decode any base85 payloads and produce a
-  pretty-printed, human-readable text file. The raw (base85-encoded)
-  original binary payload is stored after a separator so conversion
-  back to the original binary is lossless.
+- When converting from .sldsv to .sldsvraw the script decodes any
+  base85/JSON payloads and produces a pretty-printed, human-readable
+  text file. The raw (base85-encoded) original binary payload is
+  stored after a separator so conversion back to the original binary
+  is lossless.
 - When converting from .sldsvraw to .sldsv the script looks for the
   stored base85 block and writes it back as binary. If no block is
-  found the script will pickle the textual content and write that.
+  found the text content is written back verbatim.
 """
 
 from __future__ import annotations
 
 import argparse
 import base64
+import json
 import os
-import pickle
 import pprint
 import zlib
 from pathlib import Path
 import sys
 import re
 from typing import Any
+import logging
 
 BASE85_MARKER = "---BASE85---"
 
@@ -38,11 +39,11 @@ def read_binary(path: Path) -> bytes:
     return path.read_bytes()
 
 
-def try_unpickle(data: bytes):
+def try_parse_json(text: str) -> Any:
     try:
-        return pickle.loads(data)
+        return json.loads(text)
     except Exception:
-        return None
+        return text
 
 
 def try_zlib_decompress(data: bytes) -> bytes | None:
@@ -55,13 +56,13 @@ def try_zlib_decompress(data: bytes) -> bytes | None:
 def try_decode_blob(data: bytes) -> Any:
     """Try multiple strategies to decode a binary blob.
 
-    Returns either a text string, a Python object (from pickle), or None.
+    Returns a JSON value, a plain text string, or None.
     """
-    # direct utf-8
+    # direct utf-8, optionally JSON
     try:
-        return data.decode("utf-8")
+        return try_parse_json(data.decode("utf-8"))
     except Exception:
-        pass
+        logging.exception("Suppressed exception")
 
     # base85 (b85 then a85)
     for fn in (base64.b85decode, base64.a85decode):
@@ -71,39 +72,26 @@ def try_decode_blob(data: bytes) -> Any:
             dec = None
         if dec is None:
             continue
-        # try to load as pickle
-        obj = try_unpickle(dec)
-        if obj is not None:
-            return obj
-        # try utf-8
+        # try utf-8, optionally JSON
         try:
-            return dec.decode("utf-8")
+            return try_parse_json(dec.decode("utf-8"))
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
         # try zlib then utf-8
         dec2 = try_zlib_decompress(dec)
         if dec2 is not None:
             try:
-                return dec2.decode("utf-8")
+                return try_parse_json(dec2.decode("utf-8"))
             except Exception:
-                obj2 = try_unpickle(dec2)
-                if obj2 is not None:
-                    return obj2
+                logging.exception("Suppressed exception")
 
     # try zlib on original
     dec = try_zlib_decompress(data)
     if dec is not None:
         try:
-            return dec.decode("utf-8")
+            return try_parse_json(dec.decode("utf-8"))
         except Exception:
-            obj = try_unpickle(dec)
-            if obj is not None:
-                return obj
-
-    # try unpickle original
-    obj = try_unpickle(data)
-    if obj is not None:
-        return obj
+            logging.exception("Suppressed exception")
 
     return None
 
@@ -123,6 +111,7 @@ def decode_base85_try(s: bytes) -> bytes | None:
         try:
             return fn(s)
         except Exception:
+            logging.exception("Suppressed exception")
             continue
     return None
 
@@ -149,21 +138,12 @@ def sldsv_to_raw(in_path: Path, out_path: Path) -> None:
     if top is None:
         pretty = "<binary content could not be decoded to text>"
     else:
-        # If we got a python object, pretty-print recursively decoded structure
+        # Recursively decode any nested base85 strings inside the structure
         def traverse(o):
             if isinstance(o, (list, tuple, set)):
                 return type(o)(traverse(x) for x in o)
             if isinstance(o, dict):
                 return {k: traverse(v) for k, v in o.items()}
-            if isinstance(o, (bytes, bytearray)):
-                dec = try_decode_blob(bytes(o))
-                if dec is None:
-                    # show repr to avoid binary in text
-                    try:
-                        return repr(bytes(o))
-                    except Exception:
-                        return str(o)
-                return traverse(dec)
             if isinstance(o, str):
                 # maybe it's base85 text
                 if is_likely_base85_text(o):
@@ -178,12 +158,7 @@ def sldsv_to_raw(in_path: Path, out_path: Path) -> None:
                 return o
             return o
 
-        if isinstance(top, (bytes, bytearray)):
-            # try to get text
-            txt = try_decode_blob(bytes(top))
-            pretty = pretty_for_obj(txt if txt is not None else top)
-        else:
-            pretty = pretty_for_obj(traverse(top))
+        pretty = pretty_for_obj(traverse(top))
 
     parts = []
     parts.append(f"# Converted from: {in_path.name}")
@@ -207,14 +182,10 @@ def raw_to_sldsv(in_path: Path, out_path: Path) -> None:
             out_path.write_bytes(binary)
             return
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
-    # No base85 block found: as fallback, pickle the text and write
-    try:
-        blob = pickle.dumps(txt)
-        out_path.write_bytes(blob)
-    except Exception as e:
-        print(f"Failed to write .sldsv: {e}")
+    # No base85 block found: write the text content back verbatim
+    out_path.write_bytes(txt.encode("utf-8"))
 
 
 def main(argv: list[str] | None = None) -> int:

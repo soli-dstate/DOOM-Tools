@@ -7,6 +7,7 @@ ever lives on the user's machine. The reporter name defaults to the Windows user
 changed, persists in persistent_data.sldsv.
 """
 from app.foundation import *
+import logging
 
 
 # Cap the log payload so a giant session log can't produce an oversized request
@@ -23,7 +24,7 @@ class BugreportMixin:
             if saved and str(saved).strip():
                 return str(saved).strip()
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
         try:
             import getpass
             return getpass.getuser() or ""
@@ -41,7 +42,7 @@ class BugreportMixin:
                     if isinstance(h, logging.FileHandler):
                         h.flush()
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
             size = os.path.getsize(path)
             with open(path, "r", encoding="utf-8", errors="replace") as f:
                 if size > _BUGREPORT_LOG_MAX_BYTES:
@@ -125,7 +126,7 @@ class BugreportMixin:
             try:
                 rd["frame"].destroy()
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
             if rd in step_rows:
                 step_rows.remove(rd)
             renumber_steps()
@@ -189,7 +190,7 @@ class BugreportMixin:
             try:
                 popup.destroy()
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
             self._submit_bug_report(name or "Anonymous", description, log_text, log_name, steps_markdown)
 
@@ -206,7 +207,7 @@ class BugreportMixin:
             popup.grab_set()
             self._safe_focus(desc_box)
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
     def _build_report_payload(self, name, description, log_text=None, log_name=None, steps_markdown=None):
         payload = {
@@ -256,7 +257,7 @@ class BugreportMixin:
                 try:
                     self._copy_to_clipboard(issue_url)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
                 self._popup_show_info(
                     "Report a Bug",
                     "Thanks! Your report was submitted.\n\n"
@@ -341,12 +342,12 @@ class BugreportMixin:
                 if "invalid command name" not in msg and "after" not in msg:
                     self._report_exception(exc_type, exc_value, exc_tb, source="tkinter")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
             if prev:
                 try:
                     return prev(exc_type, exc_value, exc_tb)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
         try:
             self.root.report_callback_exception = _reporting
@@ -393,7 +394,7 @@ class BugreportMixin:
             if os.path.exists(p):
                 os.remove(p)
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
     # ----- First-run reporter name prompt -----
 
@@ -435,7 +436,7 @@ class BugreportMixin:
             try:
                 popup.destroy()
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         button_frame = customtkinter.CTkFrame(popup, fg_color="transparent")
         button_frame.pack(pady=(0, 16))
@@ -455,4 +456,4 @@ class BugreportMixin:
             popup.grab_set()
             self._safe_focus(entry)
         except Exception:
-            pass
+            logging.exception("Suppressed exception")

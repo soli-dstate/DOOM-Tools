@@ -1,5 +1,6 @@
 """GameplayMixin — App methods for the "gameplay" feature area."""
 from app.foundation import *
+import logging
 
 
 class GameplayMixin:
@@ -23,6 +24,7 @@ class GameplayMixin:
             try:
                 expires_at = float(expires_at)
             except (TypeError, ValueError):
+                logging.exception("Suppressed exception")
                 continue
             if expires_at > now_ts:
                 active_effects.append(effect)
@@ -45,7 +47,7 @@ class GameplayMixin:
                 if isinstance(stats, dict):
                     total_aim += float(stats.get('aim', 0) or 0)
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
         return total_aim
 
     def _format_temporary_effect_remaining(self, effect, now_ts = None):

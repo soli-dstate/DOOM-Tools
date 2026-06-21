@@ -7,7 +7,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-os.system("cls" if os.name == "nt" else "clear")
+os.system("cls" if os.name == "nt" else "clear")  # nosec B605 - hardcoded literal, no shell injection possible
 
 
 class ColoredFormatter(logging.Formatter):

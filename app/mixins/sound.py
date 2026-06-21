@@ -1,5 +1,6 @@
 """SoundMixin — App methods for the "sound" feature area."""
 from app.foundation import *
+import logging
 
 
 class SoundMixin:
@@ -135,7 +136,7 @@ class SoundMixin:
                                                     try:
                                                         proc = _np.convolve(proc, ir, mode = 'same')
                                                     except Exception:
-                                                        pass
+                                                        logging.exception("Suppressed exception")
                                                 processed.append(proc)
 
                                             if channels ==1:
@@ -154,14 +155,14 @@ class SoundMixin:
                                                 try:
                                                     proc_arr = proc_arr.astype(orig_dtype)
                                                 except Exception:
-                                                    pass
+                                                    logging.exception("Suppressed exception")
 
                                             try:
                                                 muffled_sound = pygame.sndarray.make_sound(proc_arr)
                                                 try:
                                                     self._muffled_sound_cache[sound_path]= muffled_sound
                                                 except Exception:
-                                                    pass
+                                                    logging.exception("Suppressed exception")
                                                 muffled = muffled_sound
                                             except Exception:
                                                 muffled = None
@@ -185,7 +186,7 @@ class SoundMixin:
                         logging.debug('_safe_sound_play: failed to set volume on sound object')
                     logging.debug(f"_safe_sound_play: final volume set to {final_vol} for '{sound_path}'(flashbang_mute={getattr(self, '_flashbang_mute', False)}, bang_muffle={getattr(self, '_bang_muffle', False)})")
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 try:
                     weather_ch = getattr(self, '_weather_ambient_channel', None)
@@ -201,6 +202,7 @@ class SoundMixin:
                                         ch = alt
                                         break
                                 except Exception:
+                                    logging.exception("Suppressed exception")
                                     continue
                             if ch is None:
                                 for i in range(pygame.mixer.get_num_channels() - 2, -1, -1):
@@ -210,6 +212,7 @@ class SoundMixin:
                                             ch = alt
                                             break
                                     except Exception:
+                                        logging.exception("Suppressed exception")
                                         continue
                         if ch:
                             ch.play(sound)
@@ -242,7 +245,7 @@ class SoundMixin:
                                     while ch.get_busy():
                                         time.sleep(0.01)
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                 except Exception as e:
                     logging.warning(f"Failed to play sound '{sound_path}': {e}")
             except Exception as e:
@@ -258,7 +261,7 @@ class SoundMixin:
             try:
                 base_sound.set_volume(max(0.0, min(1.0, float(volume))))
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
             play_sound = base_sound
             try:
@@ -291,7 +294,7 @@ class SoundMixin:
                     try:
                         play_sound.set_volume(max(0.0, min(1.0, float(volume))))
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                 except Exception:
                     play_sound = base_sound
 
@@ -316,7 +319,7 @@ class SoundMixin:
                     if sf:
                         return sf
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
         caliber = weapon.get("caliber", [])[0]if weapon.get("caliber")else None
 
@@ -391,7 +394,7 @@ class SoundMixin:
                     if match and ammo_entry.get('sounds'):
                         return str(ammo_entry.get('sounds'))
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
         caliber_map = {
         "5.56x45mm NATO":"556",
@@ -470,7 +473,7 @@ class SoundMixin:
                             weapon.setdefault("sound_folder", "40mm_grenade")
                             weapon.setdefault("sounds", "40mm_grenade")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
             if sound_type =="equip"and weapon.get("custom_equip_sound"):
                 sound_path = weapon["custom_equip_sound"]
@@ -506,7 +509,7 @@ class SoundMixin:
                             self._safe_sound_play("", random.choice(candidates), block =(sound_type in("reload", "unselect", "holster")))
                             return
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
             if not sound_folder:
 
@@ -695,9 +698,9 @@ class SoundMixin:
                                         self._safe_sound_play('', sel)
                                         return
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
             try:
                 if weapon.get("has_ammo_in_pool")is False:
@@ -717,7 +720,7 @@ class SoundMixin:
                             self._safe_sound_play("", sel)
                             return
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
             if base_path:
                 sel = _select_from_folder(base_path)
@@ -798,7 +801,7 @@ class SoundMixin:
                         logging.debug("Skipping ejection sound for caseless weapon: %s", weapon.get("name"))
                         return
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
             try:
                 reload_actions =("reload", "magin", "magout", "magdrop", "pouchout", "pouchin", "boxin", "boxout", "coveropen", "coverclose")
@@ -845,7 +848,7 @@ class SoundMixin:
                                 try:
                                     self._safe_sound_play("", sound_file, block = should_block)
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
 
                             try:
                                 if should_block:
@@ -853,7 +856,7 @@ class SoundMixin:
                                 else:
                                     time.sleep(random.uniform(0.05, 0.12))
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                         else:
                             self._safe_sound_play("", sound_file, block = should_block)
                         return
@@ -873,7 +876,7 @@ class SoundMixin:
                             self._safe_sound_play("", sound_file, block = should_block)
                             return
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
             if platform_folder:
                 wf = os.path.join("sounds", "firearms", "weaponsounds", platform_folder)
@@ -1037,14 +1040,14 @@ class SoundMixin:
                                 try:
                                     self._safe_sound_play("", sound_path, block = should_block)
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                             try:
                                 if should_block:
                                     time.sleep(random.uniform(0.15, 0.35))
                                 else:
                                     time.sleep(random.uniform(0.05, 0.12))
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                         else:
                             self._safe_sound_play("", sound_path, block = should_block)
                         break

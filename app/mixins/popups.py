@@ -1,5 +1,6 @@
 """PopupsMixin — App methods for the "popups" feature area."""
 from app.foundation import *
+import logging
 
 
 class PopupsMixin:
@@ -40,13 +41,13 @@ class PopupsMixin:
             try:
                 popup.after(0, lambda p = popup: self._reposition_popup_win32(p))
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
         except Exception:
 
             try:
                 popup.geometry("+100+100")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
     def _reposition_popup_win32(self, popup):
         """Center `popup` on the main window's monitor using raw Win32 calls.
@@ -70,7 +71,7 @@ class PopupsMixin:
             if bool(popup.overrideredirect()):
                 return False
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
         try:
             user32 = ctypes.windll.user32
@@ -200,7 +201,7 @@ class PopupsMixin:
             try:
                 popup.geometry("+100+100")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         popup.deiconify()
         popup.grab_set()
@@ -237,17 +238,17 @@ class PopupsMixin:
                 label.configure(text = text)
                 popup.update_idletasks()
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         def close():
             try:
                 self._play_ui_sound("click")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
             try:
                 popup.destroy()
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         self._center_popup_on_window(popup, 450, 120)
         popup.deiconify()
@@ -312,7 +313,7 @@ class PopupsMixin:
                 if _mg_os.path.exists(bp):
                     _button_sounds.append(bp)
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
         mg_header = customtkinter.CTkLabel(
             popup, text = "Press the keys in order to skip waiting:",
@@ -349,7 +350,7 @@ class PopupsMixin:
                     else:
                         self._play_ui_sound("click")
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
                 current_index[0] += 1
                 idx = current_index[0]
                 if idx >= len(keys):
@@ -359,7 +360,7 @@ class PopupsMixin:
                         progress_label.configure(text = " ".join("\u2713" for _ in keys))
                         progress_bar.set(1.0)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                 else:
                     try:
                         key_display.configure(text = f"[ {keys[idx]} ]")
@@ -368,7 +369,7 @@ class PopupsMixin:
                             parts.append("\u2713" if i < idx else f"[{k}]")
                         progress_label.configure(text = " ".join(parts))
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
         popup.bind("<Key>", _on_minigame_key)
 
@@ -378,30 +379,30 @@ class PopupsMixin:
         try:
             popup.focus_force()
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
         def update(text):
             try:
                 status_label.configure(text = text)
                 popup.update_idletasks()
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         def close():
             try:
                 self._play_ui_sound("click")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
             try:
                 popup.destroy()
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         def set_progress(value):
             try:
                 progress_bar.set(max(0.0, min(1.0, value)))
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         return {"update": update, "close": close, "popup": popup, "completed": completed, "set_progress": set_progress}
 
@@ -415,7 +416,7 @@ class PopupsMixin:
                     try:
                         self.root.after(0, lambda: progress_callback(1.0))
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                 return True
             if progress_callback:
                 elapsed = time.time() - start_time
@@ -423,13 +424,13 @@ class PopupsMixin:
                 try:
                     self.root.after(0, lambda f = frac: progress_callback(f))
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
             time.sleep(0.05)
         if progress_callback:
             try:
                 self.root.after(0, lambda: progress_callback(1.0))
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
         return False
 
     def _popup_confirm(self, title, message, on_confirm):
@@ -461,7 +462,7 @@ class PopupsMixin:
             try:
                 on_confirm(False)
             except TypeError:
-                pass
+                logging.exception("Suppressed exception")
 
         yes_button = customtkinter.CTkButton(button_frame, text = "Yes", command = confirm, width = 120, height = 35)
         yes_button.pack(side = "left", padx = 10)
@@ -474,15 +475,15 @@ class PopupsMixin:
         try:
             self._safe_focus(popup)
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
         try:
             popup.grab_set()
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
         try:
             popup.wait_window()
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
     def _popup_ask_integer(self, title, prompt, initial_value = 1, min_value = 1, max_value = 100, on_result = None):
 
@@ -534,7 +535,7 @@ class PopupsMixin:
                 try:
                     value_var.set(str(int(round(float(val)))))
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
                 _syncing[0] = False
             slider.configure(command = _on_slider_change)
 
@@ -550,7 +551,7 @@ class PopupsMixin:
                         v = max_value
                     slider.set(v)
                 except (ValueError, TypeError):
-                    pass
+                    logging.exception("Suppressed exception")
                 _syncing[0] = False
             value_var.trace_add("write", _on_entry_change)
 
@@ -625,7 +626,7 @@ class PopupsMixin:
             try:
                 self._play_ui_sound("click")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
             result["value"]= sel_var.get()# type: ignore
             popup.destroy()
 
@@ -633,7 +634,7 @@ class PopupsMixin:
             try:
                 self._play_ui_sound("click")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
             result["value"]= None
             popup.destroy()
 

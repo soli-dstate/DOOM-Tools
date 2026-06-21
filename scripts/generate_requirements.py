@@ -49,7 +49,7 @@ def generate_requirements(ide_mode: bool = False) -> None:
             with open('requirements.txt', 'r') as f:
                 existing_packages = set(line.strip() for line in f if line.strip())
         except FileNotFoundError:
-            pass
+            logging.exception("Suppressed exception")
 
         all_packages = existing_packages | current_packages
         all_packages.discard('')

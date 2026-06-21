@@ -1,5 +1,6 @@
 """MarkingMixin — App methods for the "marking" feature area."""
 from app.foundation import *
+import logging
 
 
 class MarkingMixin:
@@ -112,13 +113,13 @@ class MarkingMixin:
             try:
                 self._save_combat_state(save_data)
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
             dialog.destroy()
             if update_callback:
                 try:
                     update_callback()
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
         def clear_marking():
             magazine.pop("marking_text", None)
@@ -126,13 +127,13 @@ class MarkingMixin:
             try:
                 self._save_combat_state(save_data)
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
             dialog.destroy()
             if update_callback:
                 try:
                     update_callback()
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
         btn_frame = customtkinter.CTkFrame(dialog, fg_color="transparent")
         btn_frame.pack(pady=10)
@@ -145,7 +146,7 @@ class MarkingMixin:
             dialog.lift()
             self._safe_focus(dialog)
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
     def _render_magazine_marking_widget(self, parent, magazine, weapon=None):
         if not magazine or not isinstance(magazine, dict):

@@ -95,7 +95,7 @@ def _get_save_key():
                         f.write(legacy_key)
                     return legacy_key
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
     key = secrets.token_bytes(32)
     with open(key_path, 'wb') as f:
         f.write(key)
@@ -110,7 +110,7 @@ def _candidate_save_keys():
     try:
         keys.append(_get_save_key())
     except Exception:
-        pass
+        logging.exception("Suppressed exception")
     for legacy_path in _legacy_save_key_paths():
         try:
             if os.path.exists(legacy_path):
@@ -119,7 +119,7 @@ def _candidate_save_keys():
                 if len(legacy_key) >= 32 and legacy_key not in keys:
                     keys.append(legacy_key)
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
     # Signing key imported from cloud restore, so saves created on another
     # machine still verify here.
     try:
@@ -130,7 +130,7 @@ def _candidate_save_keys():
             if len(cloud_key) >= 32 and cloud_key not in keys:
                 keys.append(cloud_key)
     except Exception:
-        pass
+        logging.exception("Suppressed exception")
     return keys
 
 def _sign_data(payload_str, *, portable = False):
@@ -196,7 +196,7 @@ def _signed_json_read(filepath, *, allow_unsigned = False, portable = False):
         decoded_bytes = base64.b85decode(payload.encode('ascii'))
         decoded_json = decoded_bytes.decode('utf-8')
     except Exception:
-        pass
+        logging.exception("Suppressed exception")
 
     # If base85 decode failed, treat raw payload as JSON (legacy unsigned)
     if decoded_json is None:
@@ -258,15 +258,15 @@ def _cloud_credential_file_candidates():
     try:
         candidates.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "cloud_credentials.json"))
     except Exception:
-        pass
+        logging.exception("Suppressed exception")
     try:
         candidates.append(os.path.join(os.path.dirname(os.path.abspath(sys.executable)), "cloud_credentials.json"))
     except Exception:
-        pass
+        logging.exception("Suppressed exception")
     try:
         candidates.append(os.path.join(_get_shared_key_dir(), "cloud_credentials.json"))
     except Exception:
-        pass
+        logging.exception("Suppressed exception")
     candidates.append(os.path.join(os.getcwd(), "cloud_credentials.json"))
     return candidates
 
@@ -287,7 +287,7 @@ def _cloud_credentials_source():
                 if str(data.get("client_id", "")).strip() and str(data.get("client_secret", "")).strip():
                     return f"file: {path}"
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
     return None
 
 
@@ -358,15 +358,15 @@ def _bugreport_endpoint_file_candidates():
     try:
         candidates.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "bugreport_endpoint.txt"))
     except Exception:
-        pass
+        logging.exception("Suppressed exception")
     try:
         candidates.append(os.path.join(os.path.dirname(os.path.abspath(sys.executable)), "bugreport_endpoint.txt"))
     except Exception:
-        pass
+        logging.exception("Suppressed exception")
     try:
         candidates.append(os.path.join(_get_shared_key_dir(), "bugreport_endpoint.txt"))
     except Exception:
-        pass
+        logging.exception("Suppressed exception")
     candidates.append(os.path.join(os.getcwd(), "bugreport_endpoint.txt"))
     return candidates
 
@@ -389,7 +389,7 @@ def bugreport_endpoint():
                 if val:
                     return val
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
     return BUGREPORT_ENDPOINT_DEFAULT.strip()
 
 
@@ -419,7 +419,7 @@ def _cloud_load_json(path):
             with open(path, "r", encoding="utf-8") as f:
                 return json.load(f)
     except Exception:
-        pass
+        logging.exception("Suppressed exception")
     return {}
 
 
@@ -444,7 +444,7 @@ def cloud_sign_out():
         if os.path.exists(token_path):
             os.remove(token_path)
     except Exception:
-        pass
+        logging.exception("Suppressed exception")
 
 
 def cloud_oauth_login(timeout=180):
@@ -494,7 +494,7 @@ def cloud_oauth_login(timeout=180):
     try:
         webbrowser.open(auth_url)
     except Exception:
-        pass
+        logging.exception("Suppressed exception")
 
     deadline = time.time() + timeout
     while auth_result["code"] is None and auth_result["error"] is None and time.time() < deadline:
@@ -502,7 +502,7 @@ def cloud_oauth_login(timeout=180):
     try:
         server.server_close()
     except Exception:
-        pass
+        logging.exception("Suppressed exception")
 
     if auth_result["error"]:
         raise RuntimeError(f"OAuth error: {auth_result['error']}")
@@ -568,7 +568,7 @@ def _cloud_raise(resp):
         elif isinstance(err, str):
             detail = payload.get("error_description") or err
     except Exception:
-        pass
+        logging.exception("Suppressed exception")
     raise RuntimeError(f"{resp.status_code} {resp.reason}: {str(detail).strip()[:400]}")
 
 
@@ -710,9 +710,9 @@ try:
                     for _child in w.winfo_children():
                         queue.append(_child)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
         return None
 
     def _ctk_scrollableframe_init_wrapper(self, *a, **k):
@@ -746,7 +746,7 @@ try:
                     if lines:
                         c.yview_scroll(lines, "units")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         try:
 
@@ -777,7 +777,7 @@ try:
                 try:
                     self._mouse_wheel_all(e)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
             def _bt5(ev):
                 try:
@@ -805,17 +805,17 @@ try:
                 try:
                     self._mouse_wheel_all(e)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
             self.bind_all("<Button-4>", _bt4, add = "+")
             self.bind_all("<Button-5>", _bt5, add = "+")
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
     try:
         customtkinter.CTkScrollableFrame.__init__ = _ctk_scrollableframe_init_wrapper
     except Exception:
-        pass
+        logging.exception("Suppressed exception")
 except Exception as e:
     if global_variables["devmode"]["value"]:
         logging.exception("An error occurred: %s", e)
@@ -833,7 +833,7 @@ try:
                 if _orig_focus:
                     return _orig_focus(self, *a, **k)
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
     def _wrapped_focus_set(self, *a, **k):
         try:
@@ -858,7 +858,7 @@ try:
                     if _orig_focus_set:
                         return _orig_focus_set(self, *a, **k)
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
     def _wrapped_focus_force(self, *a, **k):
         try:
@@ -866,23 +866,23 @@ try:
                 if _orig_focus_force:
                     return _orig_focus_force(self, *a, **k)
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
     try:
         if _orig_focus is not None:
             _tk.Misc.focus = _wrapped_focus
     except Exception:
-        pass
+        logging.exception("Suppressed exception")
     try:
         if _orig_focus_set is not None:
             _tk.Misc.focus_set = _wrapped_focus_set
     except Exception:
-        pass
+        logging.exception("Suppressed exception")
     try:
         if _orig_focus_force is not None:
             _tk.Misc.focus_force = _wrapped_focus_force
     except Exception:
-        pass
+        logging.exception("Suppressed exception")
 except Exception as e:
     if global_variables["devmode"]["value"]:
         logging.exception("An error occurred: %s", e)
@@ -960,7 +960,7 @@ try:
     import faulthandler
     faulthandler.enable(file = file_handler.stream)
 except Exception:
-    pass
+    logging.exception("Suppressed exception")
 
 dev_log_counters = {
 'DEBUG':0,
@@ -978,7 +978,7 @@ class DevLogCounter(logging.Handler):
             if lvl in dev_log_counters:
                 dev_log_counters[lvl]+=1
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
 try:
     logging.getLogger().addHandler(DevLogCounter())
@@ -1025,7 +1025,7 @@ def log_console_colored(logger:logging.Logger, level:int, msg:str, color:str |No
                     try:
                         h.emit(rec)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
             elif isinstance(h, logging.StreamHandler):
                 rec = logging.LogRecord(logger.name, level, pathname = '', lineno = 0, msg = plain, args =(), exc_info = None)
@@ -1037,13 +1037,13 @@ def log_console_colored(logger:logging.Logger, level:int, msg:str, color:str |No
                     try:
                         formatted = formatted.replace(plain, color_text(plain, color), 1)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                 try:
                     stream = h.stream
                     stream.write(formatted +getattr(h, 'terminator', '\n'))
                     stream.flush()
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
             else:
 
                 rec = logging.LogRecord(logger.name, level, pathname = '', lineno = 0, msg = plain, args =(), exc_info = None)
@@ -1053,9 +1053,9 @@ def log_console_colored(logger:logging.Logger, level:int, msg:str, color:str |No
                     try:
                         h.emit(rec)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
 def log_with_colored_substring(logger:logging.Logger, level:int, plain_msg:str, substring:str, color:str):
 
@@ -1075,9 +1075,9 @@ def log_with_colored_substring(logger:logging.Logger, level:int, plain_msg:str, 
                     stream.write(formatted +(getattr(h, 'terminator', '\n')))
                     stream.flush()
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
 class ConsoleFilter(logging.Filter):
 
@@ -1107,7 +1107,7 @@ def handle_exception(exc_type, exc_value, exc_traceback):
         if _app is not None and hasattr(_app, "_report_exception"):
             _app._report_exception(exc_type, exc_value, exc_traceback, source="excepthook")
     except Exception:
-        pass
+        logging.exception("Suppressed exception")
 import sys
 
 sys.excepthook = handle_exception
@@ -1117,20 +1117,20 @@ def _thread_exception_handler(args):
         if issubclass(args.exc_type, KeyboardInterrupt):
             return
     except Exception:
-        pass
+        logging.exception("Suppressed exception")
     logging.critical("Uncaught thread exception", exc_info =(args.exc_type, args.exc_value, args.exc_traceback))
 
 try:
     threading.excepthook = _thread_exception_handler
 except Exception:
 
-    pass
+    logging.exception("Suppressed exception")
 
-os.system('cls'if os.name =='nt'else 'clear')
+os.system('cls'if os.name =='nt'else 'clear')  # nosec B605 - hardcoded literal, no shell injection possible
 
 logging.info(f"DOOM Tools, version {version}")
 try:
-    response = requests.get("https://uselessfacts.jsph.pl/random.json?language=en")
+    response = requests.get("https://uselessfacts.jsph.pl/random.json?language=en", timeout=5)
     response.raise_for_status()
     fact = response.json().get("text", "No fact retrieved")
     logging.info(f"{fact}")
@@ -1266,7 +1266,7 @@ def _get_table_currency():
                     _table_currency_cache["currency"] = cur
                 return cur
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         tbl = globals().get('table_data')
         if isinstance(tbl, dict):
@@ -1274,7 +1274,7 @@ def _get_table_currency():
             if cur:
                 return cur
     except Exception:
-        pass
+        logging.exception("Suppressed exception")
     return 'USD'
 
 def _get_selected_display_currency():
@@ -1326,7 +1326,7 @@ def parse_display_price_to_usd(value, default = None, round_to_int = False):
     try:
         cleaned = cleaned.replace(currency, "").replace(currency.lower(), "")
     except Exception:
-        pass
+        logging.exception("Suppressed exception")
     for sym in sorted(set(_currency_symbols.values()), key = len, reverse = True):
         if sym:
             cleaned = cleaned.replace(sym, "")
@@ -1373,7 +1373,7 @@ try:
         logging.info(f"Loaded global table_data from {os.path.basename(tfiles[0])}")
 except Exception:
 
-    pass
+    logging.exception("Suppressed exception")
 
 def show_error_dialog(title, message):
 
@@ -1384,9 +1384,9 @@ def show_error_dialog(title, message):
                 return
             except Exception:
 
-                pass
+                logging.exception("Suppressed exception")
     except Exception:
-        pass
+        logging.exception("Suppressed exception")
 
     try:
         if shutil.which('zenity'):
@@ -1399,7 +1399,7 @@ def show_error_dialog(title, message):
             subprocess.run(['notify-send', str(title), str(message)])
             return
     except Exception:
-        pass
+        logging.exception("Suppressed exception")
 
     try:
         import tkinter as _tk
@@ -1410,7 +1410,7 @@ def show_error_dialog(title, message):
         try:
             _root.destroy()
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
         return
     except Exception:
         logging.error("Unable to display GUI error dialog: %s - %s", title, message)
@@ -1443,7 +1443,7 @@ def show_table_selection_dialog():
         try:
             root.attributes('-topmost', True)
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
         title = customtkinter.CTkLabel(root, text = "Select Data Table", font = customtkinter.CTkFont(size = 20, weight = "bold"))
         title.pack(pady = 20)
@@ -1670,7 +1670,7 @@ if any(indicator in os.environ for indicator in ide_indicators):
             except Exception:
                 logging.exception('Failed to refresh requirements.txt in IDE mode')
     except Exception:
-        pass
+        logging.exception("Suppressed exception")
     for folder_entry in folders:
         folder = folder_entry["name"]
         ignore_gitignore = folder_entry.get("ignore_gitignore", False)
@@ -1688,7 +1688,7 @@ if any(indicator in os.environ for indicator in ide_indicators):
                 with open('.gitignore', 'r')as read_gitignore:
                     existing_gitignore = set(line.strip()for line in read_gitignore)
             except FileNotFoundError:
-                pass
+                logging.exception("Suppressed exception")
             entry = f'/{folder}/'
             if entry not in existing_gitignore:
                 gitignore.write(f'{entry}\n')
@@ -1923,7 +1923,7 @@ def _platforms_compatible(fplat, tplat, secondary=None):
             if lf in PLATFORM_EQUIVALENTS.get(lt, set()):
                 return True
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
         return False
     except Exception:
         return False
@@ -1972,7 +1972,7 @@ def validate_table_ids(secondary_platform=None):
             try:
                 table_pretty_names[table_file]= table_name
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
             tables = table_data.get("tables", {})
 
             try:
@@ -2124,7 +2124,7 @@ def validate_table_ids(secondary_platform=None):
                                 try:
                                     magazine_errors_details.append({'table':table_name, 'weapon':item_check, 'reason':'missing_magazinesystem', 'message':msg})
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                                 continue
 
                             needed =[f_ms]if not isinstance(f_ms, list)else f_ms
@@ -2138,7 +2138,7 @@ def validate_table_ids(secondary_platform=None):
                                 try:
                                     magazine_errors_details.append({'table':table_name, 'weapon':item_check, 'reason':'no_compatible_magazines', 'message':msg})
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
 
                         if item_check.get("firearm")and item_check.get("dualfeed")and item_check.get("submagazinesystem"):
                             sub_ms = item_check.get("submagazinesystem")
@@ -2154,7 +2154,7 @@ def validate_table_ids(secondary_platform=None):
                                 try:
                                     magazine_errors_details.append({'table':table_name, 'weapon':item_check, 'reason':'no_compatible_submagazines', 'message':msg})
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
             except Exception as e:
                 logging.warning(f"Failed to perform magazine compatibility check for '{table_file}': {e}")
 
@@ -2184,9 +2184,9 @@ def validate_table_ids(secondary_platform=None):
                                                 try:
                                                     referenced_slots_by_table.setdefault(table_file, set()).add(slot_name)
                                                 except Exception:
-                                                    pass
+                                                    logging.exception("Suppressed exception")
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
 
                         try:
                             subs = item.get('subslots')or[]
@@ -2198,9 +2198,9 @@ def validate_table_ids(secondary_platform=None):
                                         try:
                                             referenced_slots_by_table.setdefault(table_file, set()).add(slot_name)
                                         except Exception:
-                                            pass
+                                            logging.exception("Suppressed exception")
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
 
             if not file_ids:
                 logging.info(f"Table '{table_name}': No items with IDs found.")
@@ -2279,9 +2279,10 @@ def validate_table_ids(secondary_platform=None):
                         elif calib_src is not None and str(calib_src).strip():
                             ammo_calibers_present.add(str(calib_src).strip().lower())
             except Exception:
+                logging.exception("Suppressed exception")
                 continue
     except Exception:
-        pass
+        logging.exception("Suppressed exception")
 
     hardcore_errors =[]
     hardcore_errors_details =[]
@@ -2297,7 +2298,7 @@ def validate_table_ids(secondary_platform=None):
                         id_to_item_by_table[tf]= {}
                     id_to_item_by_table[tf][it['id']]= it
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         try:
             for item, tf, sub in all_table_items:
@@ -2333,7 +2334,7 @@ def validate_table_ids(secondary_platform=None):
                                 try:
                                     hardcore_errors_details.append({'table':tf, 'weapon':item, 'part':p, 'reason':'invalid_part_current_id', 'id':target_id})
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                                 continue
 
                             table_id_map = id_to_item_by_table.get(tf, {})
@@ -2344,7 +2345,7 @@ def validate_table_ids(secondary_platform=None):
                                 try:
                                     hardcore_errors_details.append({'table':tf, 'weapon':item, 'part':p, 'reason':'missing_referenced_part', 'id':target_id})
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                                 continue
 
                             target = table_id_map.get(target_id)or {}
@@ -2360,15 +2361,15 @@ def validate_table_ids(secondary_platform=None):
                                     try:
                                         hardcore_errors_details.append({'table':tf, 'weapon':item, 'part':p, 'reason':'platform_mismatch', 'weapon_platform':fplat, 'part_platform':tplat, 'id':target_id})
                                     except Exception:
-                                        pass
+                                        logging.exception("Suppressed exception")
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
         def _resolve_current(obj, id_map):
             if not isinstance(obj, dict):
@@ -2413,7 +2414,7 @@ def validate_table_ids(secondary_platform=None):
                             if isinstance(target, dict) and 'caliber' in target and not target.get('type') and not target.get('slot'):
                                 continue
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
 
                         new_installed = _copy.deepcopy(target)
 
@@ -2421,7 +2422,7 @@ def validate_table_ids(secondary_platform=None):
                             try:
                                 new_installed[k]= v
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
 
                         acc['current']= new_installed
 
@@ -2432,7 +2433,7 @@ def validate_table_ids(secondary_platform=None):
                                 if isinstance(sub_target, dict) and 'caliber' in sub_target and not sub_target.get('type') and not sub_target.get('slot'):
                                     sub_target = None
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                             if sub_target and isinstance(new_installed.get('subslots'), list):
                                 placed = False
                                 for ss in new_installed['subslots']:
@@ -2443,19 +2444,19 @@ def validate_table_ids(secondary_platform=None):
                                             placed = True
                                             break
                                     except Exception:
-                                        pass
+                                        logging.exception("Suppressed exception")
                                 if not placed:
                                     try:
                                         new_installed['subslots'][0]['current']= _copy.deepcopy(sub_target)
                                     except Exception:
-                                        pass
+                                        logging.exception("Suppressed exception")
 
                         try:
                             _resolve_current(new_installed, id_map)
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
             subs = obj.get('subslots')or[]
             if isinstance(subs, list):
@@ -2472,11 +2473,11 @@ def validate_table_ids(secondary_platform=None):
                             try:
                                 s['current']= tmp['accessories'][0].get('current')
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                         elif isinstance(cur, dict):
                             _resolve_current(cur, id_map)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
             parts_list = obj.get('parts')or[]
             if isinstance(parts_list, list):
@@ -2506,7 +2507,7 @@ def validate_table_ids(secondary_platform=None):
                             if isinstance(target, dict) and 'caliber' in target and not target.get('type') and not target.get('slot'):
                                 continue
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
 
                         import copy as _copy_p
                         new_part = _copy_p.deepcopy(target)
@@ -2514,18 +2515,18 @@ def validate_table_ids(secondary_platform=None):
                             try:
                                 new_part[k]= v
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                         p['current']= new_part
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
         for item, tf, sub in all_table_items:
             try:
                 _resolve_current(item, id_to_item_by_table.get(tf, {}))
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
     except Exception:
-        pass
+        logging.exception("Suppressed exception")
 
     try:
         for item, tf, sub in all_table_items:
@@ -2546,7 +2547,7 @@ def validate_table_ids(secondary_platform=None):
                             try:
                                 ammo_errors_details.append({'table':tf, 'weapon':item, 'reason':'missing_ammo_caliber', 'caliber':missing})
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
 
                     ammo_type = item.get('ammo_type')or item.get('ammunition')
                     if ammo_type:
@@ -2557,11 +2558,12 @@ def validate_table_ids(secondary_platform=None):
                             try:
                                 ammo_errors_details.append({'table':tf, 'weapon':item, 'reason':'missing_ammo_name', 'ammo':ammo_type})
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
             except Exception:
+                logging.exception("Suppressed exception")
                 continue
     except Exception:
-        pass
+        logging.exception("Suppressed exception")
 
     duplicates = {}
     for item_id, locations in global_id_map.items():
@@ -2618,9 +2620,9 @@ def validate_table_ids(secondary_platform=None):
                         logging.warning(msg)
                         sound_warnings.append(msg)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
         def item_matches_slot(item, slot_name):
             try:
@@ -2638,12 +2640,13 @@ def validate_table_ids(secondary_platform=None):
                                 if isinstance(e, str)and e.strip().lower()==slot_name.lower():
                                     return True
                             except Exception:
+                                logging.exception("Suppressed exception")
                                 continue
 
                 if isinstance(item.get('slot'), str)and item.get('slot').strip().lower()==slot_name.lower():
                     return True
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
             return False
 
         for table_file, slots in referenced_slots_by_table.items():
@@ -2662,7 +2665,7 @@ def validate_table_ids(secondary_platform=None):
                         if isinstance(slot, str)and slot.strip().lower()=='weapon_slot':
                             continue
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
                     found = any(item_matches_slot(it, slot)for it, tf, sub in all_table_items if tf ==table_file)
                     if not found:
@@ -2670,9 +2673,9 @@ def validate_table_ids(secondary_platform=None):
                         display_table = table_pretty_names.get(table_file, table_file)
                         logging.warning(f"Table '{display_table}' references slot '{slot}' but no items are available in that table to populate it.")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
     except Exception:
-        pass
+        logging.exception("Suppressed exception")
 
     try:
         for table_file in sorted(table_files):
@@ -2713,9 +2716,9 @@ def validate_table_ids(secondary_platform=None):
                             item_name_sc = item_sc.get("name") or f"ID {item_sc.get('id', '?')}"
                             logging.warning(f"Table '{display_table_sc}': Item '{item_name_sc}' in subtable '{sub_name}' is referenced by a store but missing 'shop_category' field.")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
     except Exception:
-        pass
+        logging.exception("Suppressed exception")
 
     try:
         skip_subtables = {
@@ -2735,9 +2738,9 @@ def validate_table_ids(secondary_platform=None):
                     display_table_cat = table_pretty_names.get(tf_cat, tf_cat)
                     logging.warning(f"Table '{display_table_cat}': Item '{item_name_cat}' in subtable '{sub_cat}' is missing both 'armory_category' and 'shop_category' fields.")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
     except Exception:
-        pass
+        logging.exception("Suppressed exception")
 
     all_errors_with_source = (
         [(e, f) for e, f in zip(duplicate_errors, duplicate_errors_files)] +
@@ -2781,7 +2784,7 @@ def validate_table_ids(secondary_platform=None):
                 preview +="\n\nSuggested duplicate ID fixes:\n"
                 preview +="\n".join([f" {s}"for s in duplicate_suggestions])
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
         try:
             if table_sequence_details:
                 preview +="\n\nID sequence issues detected in tables:\n"
@@ -2800,7 +2803,7 @@ def validate_table_ids(secondary_platform=None):
                 if len(table_sequence_details)>8:
                     preview +=f"...and {len(table_sequence_details)-8} more table sequence issues\n"
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
         title = f"Table Validation Errors({len(all_errors)})"
         full_msg = f"Errors detected during table validation:\n\n{preview}\n\nSee logs for full details."
@@ -2915,7 +2918,7 @@ def populate_equipment_with_subslots(save_data, secondary_platform=None):
                                 if isinstance(cur, dict):
                                     add_subslots_to_item(cur)
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
 
                         try:
                             for sub in eq.get("subslots", []) or []:
@@ -2930,7 +2933,7 @@ def populate_equipment_with_subslots(save_data, secondary_platform=None):
                                                     try:
                                                         nested.append({'name': ss.get('name'), 'slot': ss.get('slot'), 'current': None})
                                                     except Exception:
-                                                        pass
+                                                        logging.exception("Suppressed exception")
                                                 if nested:
                                                     sub.setdefault('subslots', nested)
                                                     logging.debug(f"Added {len(nested)} nested subslots to subslot '{sub.get('name')}' on item ID {item_id}")
@@ -2941,14 +2944,14 @@ def populate_equipment_with_subslots(save_data, secondary_platform=None):
                                                             if isinstance(cur2, dict):
                                                                 add_subslots_to_item(cur2)
                                                         except Exception:
-                                                            pass
+                                                            logging.exception("Suppressed exception")
                                                 break
                                         except Exception:
-                                            pass
+                                            logging.exception("Suppressed exception")
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
 
                         for acc in eq.get("accessories", []) or []:
                             try:
@@ -2956,7 +2959,7 @@ def populate_equipment_with_subslots(save_data, secondary_platform=None):
                                 if isinstance(cur, dict):
                                     add_subslots_to_item(cur)
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
 
                         try:
                             eq.setdefault('accessories', [])
@@ -2971,18 +2974,18 @@ def populate_equipment_with_subslots(save_data, secondary_platform=None):
                                                 exists = True
                                                 break
                                         except Exception:
-                                            pass
+                                            logging.exception("Suppressed exception")
                                     if not exists:
                                         try:
                                             eq['accessories'].append({'name': s_name, 'slot': s_slot, 'current': sub.get('current'), 'attachment': True})
                                         except Exception:
-                                            pass
+                                            logging.exception("Suppressed exception")
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
         for item in save_data.get("storage", []):
             if isinstance(item, dict):
@@ -2993,7 +2996,7 @@ def populate_equipment_with_subslots(save_data, secondary_platform=None):
                         if isinstance(cur, dict):
                             _add_attachment_subslots_to_weapon(item, acc, cur)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
         if "hands"in save_data and "items"in save_data["hands"]:
             for item in save_data["hands"]["items"]:
@@ -3005,7 +3008,7 @@ def populate_equipment_with_subslots(save_data, secondary_platform=None):
                             if isinstance(cur, dict):
                                 _add_attachment_subslots_to_weapon(item, acc, cur)
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
 
         for slot_name, equipped_item in save_data.get("equipment", {}).items():
             if equipped_item and isinstance(equipped_item, dict):
@@ -3016,7 +3019,7 @@ def populate_equipment_with_subslots(save_data, secondary_platform=None):
                             add_subslots_to_item(cur)
                             _add_attachment_subslots_to_weapon(equipped_item, acc, cur)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
         for slot_name, equipped_item in save_data.get("equipment", {}).items():
             if equipped_item and isinstance(equipped_item, dict)and "items"in equipped_item:
@@ -3029,7 +3032,7 @@ def populate_equipment_with_subslots(save_data, secondary_platform=None):
                                 if isinstance(cur, dict):
                                     _add_attachment_subslots_to_weapon(item, acc, cur)
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
 
     except Exception as e:
         logging.warning(f"Failed to populate equipment subslots: {e}")
@@ -3088,7 +3091,7 @@ def _add_attachment_subslots_to_weapon(weapon, parent_accessory, attachment):
                 'current':None
                 })
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
         if not attachment_subslots:
             return
@@ -3109,7 +3112,7 @@ def _add_attachment_subslots_to_weapon(weapon, parent_accessory, attachment):
                                 a['name']= display_name
                                 break
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
                 if not exists:
                     weapon['accessories'].append({
@@ -3122,9 +3125,9 @@ def _add_attachment_subslots_to_weapon(weapon, parent_accessory, attachment):
                     '_is_attachment_subslot':True
                     })
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
     except Exception:
-        pass
+        logging.exception("Suppressed exception")
 
 def add_subslots_to_item(item):
 
@@ -3159,6 +3162,7 @@ def _add_subslots_to_item_recursive(item, seen = None):
                             with open(tf, 'r', encoding = 'utf-8')as f:
                                 table_data = json.load(f)
                         except Exception:
+                            logging.exception("Suppressed exception")
                             continue
                         tables = table_data.get("tables", {})
                         for tbl_items in tables.values():
@@ -3183,6 +3187,7 @@ def _add_subslots_to_item_recursive(item, seen = None):
                                                                 with open(_tf, 'r', encoding = 'utf-8')as _f:
                                                                     _td = json.load(_f)
                                                             except Exception:
+                                                                logging.exception("Suppressed exception")
                                                                 continue
                                                             for arr in _td.get('tables', {}).values():
                                                                 if isinstance(arr, list):
@@ -3219,28 +3224,29 @@ def _add_subslots_to_item_recursive(item, seen = None):
                                                                         found = True
                                                                         break
                                                                 except Exception:
-                                                                    pass
+                                                                    logging.exception("Suppressed exception")
                                                             if not found:
                                                                 try:
                                                                     item['accessories'].append({'name':s_name, 'slot':s_slot, 'current':None, 'attachment':True})
                                                                 except Exception:
-                                                                    pass
+                                                                    logging.exception("Suppressed exception")
                                                         except Exception:
-                                                            pass
+                                                            logging.exception("Suppressed exception")
                                             except Exception:
-                                                pass
+                                                logging.exception("Suppressed exception")
                                             item["subslots"]= resolved_subslots
                                             logging.debug(f"Added {len(item['subslots'])} subslots to item ID {item_id}({item.get('name')})")
                                         found = True
                                         break
                                 except Exception:
+                                    logging.exception("Suppressed exception")
                                     continue
                             if found:
                                 break
                         if found:
                             break
     except Exception:
-        pass
+        logging.exception("Suppressed exception")
 
     try:
 
@@ -3249,7 +3255,7 @@ def _add_subslots_to_item_recursive(item, seen = None):
                 if isinstance(sub, dict):
                     _add_subslots_to_item_recursive(sub, seen)
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         for subslot in item.get("subslots", [])or[]:
             try:
@@ -3257,7 +3263,7 @@ def _add_subslots_to_item_recursive(item, seen = None):
                 if isinstance(cur, dict):
                     _add_subslots_to_item_recursive(cur, seen)
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         for acc in item.get("accessories", [])or[]:
             try:
@@ -3265,9 +3271,9 @@ def _add_subslots_to_item_recursive(item, seen = None):
                 if isinstance(cur, dict):
                     _add_subslots_to_item_recursive(cur, seen)
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
     except Exception:
-        pass
+        logging.exception("Suppressed exception")
 
     return item
 
@@ -3415,7 +3421,7 @@ for user in dm_users:
             try:
                 log_console_colored(logging.getLogger(), logging.INFO, "Console command thread started.Type 'help' for commands.", 'cyan')
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
             import ast
             import copy
@@ -3482,7 +3488,7 @@ for user in dm_users:
                 env = {}
                 env.update(ALLOWED_FUNCS)
                 env.update(ALLOWED_NAMES)
-                return eval(compile(parsed, '<safe_eval>', 'eval'), {'__builtins__':{}}, env)
+                return eval(compile(parsed, '<safe_eval>', 'eval'), {'__builtins__':{}}, env)  # nosec B307 - AST-validated above against an allowlist, not raw eval
 
             while True:
                 try:
@@ -3695,6 +3701,7 @@ for user in dm_users:
                                             price = max(100, price)
                                         sale_value += price
                                     except Exception:
+                                        logging.exception("Suppressed exception")
                                         continue
 
                             grand_total = carried_value + storage_value + money
@@ -3721,7 +3728,7 @@ for user in dm_users:
                         try:
                             log_console_colored(logging.getLogger(), logging.INFO, 'Exit requested from console — attempting graceful shutdown', 'green')
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                         try:
 
                             app_obj = globals().get('app')
@@ -3789,7 +3796,7 @@ for user in dm_users:
                         log_console_colored(logging.getLogger(), logging.INFO, f"=> {repr(res)}", 'cyan')
                         continue
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
                     log_console_colored(logging.getLogger(), logging.WARNING, f"Unknown or disallowed command: {cmd}", 'yellow')
 
@@ -3797,7 +3804,7 @@ for user in dm_users:
                     try:
                         logging.exception('Console command loop error')
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
         try:
             t = threading.Thread(target = _console_command_loop, daemon = True)
@@ -3843,7 +3850,7 @@ def send_windows_notification(title:str, message:str):
             '''
             subprocess.run(['powershell', '-Command', ps_script], capture_output = True)
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
 def _resolve_effective_cyclic(weapon, combat_state=None, default=600):
     raw = weapon.get("cyclic", default) if weapon else default
@@ -3923,7 +3930,7 @@ def _get_caliber_mismatched_parts(weapon):
             if isinstance(_add, dict) and _add.get("hardcore_require_same_parts_for_caliber") is False:
                 return set()
     except Exception:
-        pass
+        logging.exception("Suppressed exception")
 
     mismatched = set()
     weapon_calibers = weapon.get("caliber") or []
@@ -3986,6 +3993,7 @@ def _apply_part_wear(weapon, shots_fired=1, wrong_ammo=False):
         try:
             dur = float(dur)
         except (ValueError, TypeError):
+            logging.exception("Suppressed exception")
             continue
         if dur <= 0:
             continue
@@ -4822,7 +4830,7 @@ def _set_armory_used_good_weapon_condition(item):
                     base = float(dur)
                     part["current_durability"] = round(random.uniform(base * 0.9, base), 2)
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
         cur = part.get("current")
         if isinstance(cur, dict):
             _apply_used_good_to_part(cur)
@@ -4841,7 +4849,7 @@ def _set_armory_used_good_weapon_condition(item):
                 spring_base = float(spring_dur)
                 item["spring_durability"] = round(random.uniform(spring_base * 0.9, spring_base), 2)
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
     # Ensure any still-unset part durability does not render as N/A in UI.
     _repair_item_parts_durability_recursive(item, fallback_value = PART_DURABILITY_MAX * 0.9)
@@ -4932,7 +4940,7 @@ def _get_weapon_cleanliness(combat_state, weapon, default = 100.0, cache_to_stat
             try:
                 return float(mapped)
             except (TypeError, ValueError):
-                pass
+                logging.exception("Suppressed exception")
 
     item_clean = weapon.get("barrel_cleanliness")
     if item_clean is not None:
@@ -4942,7 +4950,7 @@ def _get_weapon_cleanliness(combat_state, weapon, default = 100.0, cache_to_stat
                 map_obj[weapon_id] = clean_val
             return clean_val
         except (TypeError, ValueError):
-            pass
+            logging.exception("Suppressed exception")
 
     clean_val = float(default)
     if weapon.get("firearm"):
@@ -5031,7 +5039,7 @@ def _get_weapon_condition_label(item):
             try:
                 durabilities.append(max(0.0, min(float(PART_DURABILITY_MAX), float(dur))))
             except (ValueError, TypeError):
-                pass
+                logging.exception("Suppressed exception")
         if durabilities:
             avg_pct = (sum(durabilities) / (len(durabilities) * PART_DURABILITY_MAX)) * 100
             if avg_pct <= 0:
@@ -5172,6 +5180,7 @@ def _get_weapon_part_jam_data(weapon):
         try:
             dur_num = float(dur_val)
         except (ValueError, TypeError):
+            logging.exception("Suppressed exception")
             continue
 
         pct = max(0.0, min(1.0, dur_num / float(PART_DURABILITY_MAX)))

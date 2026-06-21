@@ -1,5 +1,6 @@
 """StoreMixin — App methods for the "store" feature area."""
 from app.foundation import *
+import logging
 
 
 class StoreMixin:
@@ -232,14 +233,14 @@ class StoreMixin:
                     try:
                         self.root.after_cancel(marquee_job[0])# type: ignore[arg-type]
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                     marquee_job[0] = None
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
             try:
                 self._stop_business_music(music_channel)
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         def _leave_gunsmith():
             stop_ui_music()
@@ -324,9 +325,9 @@ class StoreMixin:
                                 artist = _get_tag(["artist", "ARTIST", "TPE1", "IART"])
                                 title = _get_tag(["title", "TITLE", "TIT2", "INAM"])
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                     if not title:
                         try:
                             title = os.path.basename(track_path or "")
@@ -340,7 +341,7 @@ class StoreMixin:
                     marquee_frame.configure(width = 500)
                     marquee_frame.pack_propagate(False)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 label_font = customtkinter.CTkFont(size = 12)
                 try:
@@ -352,7 +353,7 @@ class StoreMixin:
                             FR_PRIVATE = 0x10
                             ctypes.windll.gdi32.AddFontResourceExW(fp, FR_PRIVATE, 0)
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                         try:
                             self.root.update_idletasks()
                             for family_name in list(tkfont.families()):
@@ -360,9 +361,9 @@ class StoreMixin:
                                     label_font = customtkinter.CTkFont(size = 12, family = family_name)
                                     break
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 marquee_label = customtkinter.CTkLabel(
                     marquee_frame,
@@ -381,7 +382,7 @@ class StoreMixin:
                     if label_h:
                         marquee_frame.configure(height = label_h)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 pos = [0]
                 prev_track = [music_channel.get("track") if music_channel else None]
@@ -415,19 +416,19 @@ class StoreMixin:
                                                     if target is not None:
                                                         target.update({"_meta": info})
                                                 except Exception:
-                                                    pass
+                                                    logging.exception("Suppressed exception")
                                             self.root.after(0, _apply)
                                         except Exception:
-                                            pass
+                                            logging.exception("Suppressed exception")
                                         finally:
                                             try:
                                                 current.pop("_meta_loading", None)
                                             except Exception:
-                                                pass
+                                                logging.exception("Suppressed exception")
                                     import threading
                                     threading.Thread(target = _bg_load, daemon = True).start()
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
 
                         meta_info = (current or {}).get("_meta") or {}
                         base_artist = meta_info.get("artist") or ""
@@ -459,11 +460,11 @@ class StoreMixin:
                         try:
                             marquee_label.configure(text = os.path.basename((getattr(self, "_current_business_music", music_channel) or {}).get("track") or ""))
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
 
                 _update_marquee()
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         content_scroll = customtkinter.CTkScrollableFrame(main_frame)
         content_scroll.grid(row = 1, column = 0, sticky = "nsew", padx = 20, pady = (0, 10))
@@ -890,7 +891,7 @@ class StoreMixin:
             cache[track_path]= track_length
             self._business_music_track_length_cache = cache
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
         return track_length
 
     def _pick_business_music_track_and_position(self, playlists, all_tracks, first_play = False):
@@ -1032,7 +1033,7 @@ class StoreMixin:
                 try:
                     self._last_business_music_track = track
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 try:
                     track_length = self._get_business_music_track_length(track)
@@ -1074,11 +1075,11 @@ class StoreMixin:
                 try:
                     self._current_business_music = music_info
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
                 try:
                     logging.debug(f"_start_business_music set _current_business_music -> {os.path.basename(track)} start={random_start:.1f}")
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 try:
                     existing = getattr(self, "_music_poll_job", None)
@@ -1086,10 +1087,10 @@ class StoreMixin:
                         try:
                             self.root.after_cancel(existing)
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                         self._music_poll_job = None
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 def _poll_music():
                     try:
@@ -1100,12 +1101,12 @@ class StoreMixin:
                                 logging.debug("business music finished, starting next track")
                                 self._start_business_music(playlists, first_play = False)
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                         else:
 
                             self._music_poll_job = self.root.after(1000, _poll_music)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
                 try:
                     self._music_poll_job = self.root.after(1000, _poll_music)
@@ -1126,7 +1127,7 @@ class StoreMixin:
             vol = max(0.0, min(1.0, vol))
             pygame.mixer.music.set_volume(vol)
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
     def _stop_business_music(self, music_info):
 
@@ -1138,24 +1139,24 @@ class StoreMixin:
                     try:
                         self.root.after_cancel(job)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                     self._music_poll_job = None
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
             pygame.mixer.music.stop()
             try:
                 pygame.mixer.music.unload()
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
             try:
 
                 if hasattr(self, "_current_business_music"):
                     self._current_business_music = None
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
     def _open_armory_interface(self, store, table_data):
 
@@ -1213,7 +1214,7 @@ class StoreMixin:
                                 show_category_items(selected_category[0])
                                 return
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                         return
 
                     matches =[]
@@ -1235,11 +1236,11 @@ class StoreMixin:
                             search_entry.configure(text_color = "#7CFC00")
                             self.root.after(800, lambda:search_entry.configure(text_color = "#000000"))
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
             search_btn = self._create_sound_button(search_frame, "Search", _perform_armory_search, width = 80, height = 28, font = customtkinter.CTkFont(size = 11))
             search_btn.pack(side = "left")
@@ -1249,22 +1250,22 @@ class StoreMixin:
                     try:
                         categories.pop("Search Results", None)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                     try:
                         if selected_category and selected_category[0]:
                             show_category_items(selected_category[0])
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
             clear_btn = self._create_sound_button(search_frame, "Clear", _clear_search, width = 60, height = 28, font = customtkinter.CTkFont(size = 11))
             clear_btn.pack(side = "left", padx =(6, 0))
             try:
                 search_entry.bind("<Return>", _perform_armory_search)
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
         marquee_label = None
         marquee_job:list[object]=[None]
@@ -1276,7 +1277,7 @@ class StoreMixin:
             try:
                 logging.debug(f"_get_track_info called for: {os.path.basename(track_path or '')}")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
             try:
 
                 try:
@@ -1305,10 +1306,10 @@ class StoreMixin:
                         artist = _get_tag(["artist", "ARTIST", "TPE1", "IART"])
                         title = _get_tag(["title", "TITLE", "TIT2", "INAM"])
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
             if not title:
                 try:
@@ -1324,14 +1325,14 @@ class StoreMixin:
                     try:
                         self.root.after_cancel(marquee_job[0])# type: ignore[arg-type]
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                     marquee_job[0]= None
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
             try:
                 self._stop_business_music(music_channel)
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         if music_channel and music_channel.get("track"):
             try:
@@ -1350,9 +1351,9 @@ class StoreMixin:
                     try:
                         marquee_frame.pack_propagate(False)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
                 try:
 
                     label_font = None
@@ -1365,7 +1366,7 @@ class StoreMixin:
                                 FR_PRIVATE = 0x10
                                 ctypes.windll.gdi32.AddFontResourceExW(fp, FR_PRIVATE, 0)
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
 
                             try:
                                 self.root.update_idletasks()
@@ -1375,9 +1376,9 @@ class StoreMixin:
                                         label_font = customtkinter.CTkFont(size = 12, family = f)
                                         break
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                     if not label_font:
                         label_font = customtkinter.CTkFont(size = 12)
                 except Exception:
@@ -1396,9 +1397,9 @@ class StoreMixin:
                         try:
                             marquee_frame.configure(height = lh)
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 pos =[0]
                 prev_track =[music_channel.get('track')if(music_channel and music_channel.get('track'))else None]
@@ -1428,7 +1429,7 @@ class StoreMixin:
                         try:
                             logging.debug(f"store marquee update: track={os.path.basename((current or {}).get('track')or '')} meta={bool(meta_info)} pos={pos[0]} ids: current={id(current)} music_channel={id(music_channel)} self_cur={id(getattr(self, '_current_business_music', None))}")
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                         try:
                             if marquee_debug_label is not None:
                                 dbg = f"meta={bool(meta_info)} id={id(current)}"
@@ -1438,10 +1439,10 @@ class StoreMixin:
                                     if tt:
                                         dbg +=f" title={tt[:30]}"
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                                 marquee_debug_label.configure(text = dbg)
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
 
                         if meta_info:
                             base_artist = meta_info.get("artist")or ""
@@ -1463,7 +1464,7 @@ class StoreMixin:
                                                     try:
                                                         logging.debug(f"applying _meta(bg_load current): {os.path.basename((current or {}).get('track')or '')} -> title={info.get('title')} artist={info.get('artist')}")
                                                     except Exception:
-                                                        pass
+                                                        logging.exception("Suppressed exception")
                                                     try:
                                                         target = getattr(self, "_current_business_music", None)
                                                         if target is None:
@@ -1473,42 +1474,42 @@ class StoreMixin:
                                                                 try:
                                                                     logging.debug(f"triggering marquee refresh after applying meta for {os.path.basename((target or {}).get('track')or '')}(current)")
                                                                 except Exception:
-                                                                    pass
+                                                                    logging.exception("Suppressed exception")
                                                                 try:
 
                                                                     self.root.after(0, _update_marquee)
                                                                 except Exception:
-                                                                    pass
+                                                                    logging.exception("Suppressed exception")
                                                     except Exception:
                                                         try:
                                                             logging.exception("failed to apply _meta in bg_load(current) for store marquee")
                                                         except Exception:
-                                                            pass
+                                                            logging.exception("Suppressed exception")
                                                 except Exception:
                                                     try:
                                                         logging.exception("unexpected error in _apply for bg_load(current)")
                                                     except Exception:
-                                                        pass
+                                                        logging.exception("Suppressed exception")
                                             try:
                                                 logging.debug(f"scheduling _apply(current) via root.after for track {os.path.basename((getattr(self, '_current_business_music', current)or {}).get('track')or '')}")
                                             except Exception:
-                                                pass
+                                                logging.exception("Suppressed exception")
                                             self.root.after(0, _apply)
                                         except Exception:
-                                            pass
+                                            logging.exception("Suppressed exception")
                                         finally:
                                             try:
                                                 current.pop("_meta_loading", None)
                                             except Exception:
-                                                pass
+                                                logging.exception("Suppressed exception")
                                     import threading
                                     try:
                                         logging.debug("starting background _bg_load thread for store marquee(in _update_marquee)")
                                     except Exception:
-                                        pass
+                                        logging.exception("Suppressed exception")
                                     threading.Thread(target = _bg_load, daemon = True).start()
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
 
                         started = current.get("started_at")or time.time()
                         start_offset = current.get("start_pos")or 0.0
@@ -1547,7 +1548,7 @@ class StoreMixin:
                         try:
                             marquee_label.configure(text = os.path.basename((getattr(self, "_current_business_music", music_channel)or {}).get("track")or ""))
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
 
                 try:
                     import threading
@@ -1562,25 +1563,25 @@ class StoreMixin:
 
                                     cur.update({"_meta":info})
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                             self.root.after(0, _apply)
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                     try:
                         import threading
                         try:
                             logging.debug("starting initial background _load_meta thread for store marquee")
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                         threading.Thread(target = _load_meta, daemon = True).start()
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 _update_marquee()
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         save_path = os.path.join(saves_folder or "", (self.currentsave or "")+".sldsv")
         save_data = self._load_file((self.currentsave or "")+".sldsv")
@@ -1589,7 +1590,7 @@ class StoreMixin:
             try:
                 self._stop_business_music(music_channel)
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
             return
 
         equipped_weapons = self._get_equipped_weapons(save_data, table_data)
@@ -1634,7 +1635,7 @@ class StoreMixin:
                     if slot:
                         equipped_attachment_slots.add(slot)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
         armory_items =[]
         tables = table_data.get("tables", {})
@@ -1693,27 +1694,27 @@ class StoreMixin:
                     try:
                         subcat_scroll.grid_forget()
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                     try:
                         subcat_scroll.destroy()
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                     subcat_scroll = None
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
             try:
                 if items_scroll is not None:
                     try:
                         items_scroll.pack_forget()
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                     try:
                         items_scroll.destroy()
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                     items_scroll = None
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
             try:
 
                 for widget in items_frame.winfo_children():
@@ -1723,9 +1724,9 @@ class StoreMixin:
                         try:
                             widget.grid_forget()
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
             try:
                 selected_category[0]= category_name
@@ -1736,9 +1737,9 @@ class StoreMixin:
                         else:
                             btn.configure(border_width = 0)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
             cat_items = categories.get(category_name, [])
 
@@ -1752,11 +1753,11 @@ class StoreMixin:
                     try:
                         subcat_scroll.grid_forget()
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                     try:
                         subcat_scroll.destroy()
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                     subcat_scroll = None
 
                 try:
@@ -1765,17 +1766,17 @@ class StoreMixin:
                         try:
                             items_scroll.pack_forget()
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                         try:
                             items_scroll.destroy()
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                         items_scroll = None
                     items_frame.grid(row = 0, column = 1, sticky = "nsew")
                     content_frame.grid_columnconfigure(1, weight = 1)
                     content_frame.grid_columnconfigure(2, weight = 0)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
             subcat_buttons_frame = None
             selected_subcat =[None]
@@ -1826,7 +1827,7 @@ class StoreMixin:
                                         is_highlighted = True
                                         break
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
 
                     if is_highlighted:
                         item_frame.configure(fg_color = "#2a4a2a")
@@ -2087,7 +2088,7 @@ class StoreMixin:
                                                 if ch:
                                                     ch.play(sound)
                                         except Exception:
-                                            pass
+                                            logging.exception("Suppressed exception")
 
                                     def _do_insert_data(vname):
                                         if len(existing) >= cap:
@@ -2217,7 +2218,7 @@ class StoreMixin:
                                             try:
                                                 _shop_reloader['ch'].stop()
                                             except Exception:
-                                                pass
+                                                logging.exception("Suppressed exception")
                                             _shop_reloader['ch'] = None
 
                                     def _start_shop_reloader_loop():
@@ -2230,7 +2231,7 @@ class StoreMixin:
                                                     ch.play(snd, loops = -1)
                                                     _shop_reloader['ch'] = ch
                                         except Exception:
-                                            pass
+                                            logging.exception("Suppressed exception")
 
                                     def _play_shop_reloader_insert():
                                         dur = 200
@@ -2243,7 +2244,7 @@ class StoreMixin:
                                                 if ch:
                                                     ch.play(snd)
                                         except Exception:
-                                            pass
+                                            logging.exception("Suppressed exception")
                                         return dur
 
                                     def _shop_reloader_auto_fill(vname):
@@ -2255,7 +2256,7 @@ class StoreMixin:
                                             try:
                                                 _shop_reloader['btn'].configure(state = 'disabled')
                                             except Exception:
-                                                pass
+                                                logging.exception("Suppressed exception")
                                         insert_dur = _play_shop_reloader_insert()
                                         def _start_loop_and_fill():
                                             _start_shop_reloader_loop()
@@ -2272,7 +2273,7 @@ class StoreMixin:
                                                 try:
                                                     _shop_reloader['unhook_btn'].configure(state = 'normal')
                                                 except Exception:
-                                                    pass
+                                                    logging.exception("Suppressed exception")
                                             return
                                         r = _make_round(vname)
                                         existing.insert(0, r)
@@ -2290,12 +2291,12 @@ class StoreMixin:
                                             try:
                                                 _shop_reloader['btn'].configure(state = 'normal')
                                             except Exception:
-                                                pass
+                                                logging.exception("Suppressed exception")
                                         if _shop_reloader.get('unhook_btn'):
                                             try:
                                                 _shop_reloader['unhook_btn'].configure(state = 'disabled')
                                             except Exception:
-                                                pass
+                                                logging.exception("Suppressed exception")
                                         _play_shop_reloader_insert()
 
                                     def _use_shop_reloader():
@@ -2498,7 +2499,7 @@ class StoreMixin:
                     items_frame.grid_rowconfigure(0, weight = 1)
                     items_frame.grid_columnconfigure(0, weight = 1)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 subcat_scroll = customtkinter.CTkScrollableFrame(content_frame, width = 180)
                 subcat_scroll.grid(row = 0, column = 1, sticky = "ns", padx =(10, 6), pady =(0, 6))
@@ -2508,7 +2509,7 @@ class StoreMixin:
                     content_frame.grid_columnconfigure(1, weight = 0)
                     content_frame.grid_columnconfigure(2, weight = 1)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 content_right = customtkinter.CTkFrame(items_frame)
                 content_right.grid(row = 0, column = 0, sticky = "nsew")
@@ -2526,7 +2527,7 @@ class StoreMixin:
                         try:
                             _w.destroy()
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
 
                     sub2cats = {}
                     for it2 in sub_items:
@@ -2586,7 +2587,7 @@ class StoreMixin:
                                         else:
                                             b2.configure(border_width = 0)
                                     except Exception:
-                                        pass
+                                        logging.exception("Suppressed exception")
                             return on_click
 
                         for s2name in sorted(sub2cats.keys()):
@@ -2631,7 +2632,7 @@ class StoreMixin:
                                 else:
                                     b2.configure(border_width = 0)
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
 
                 def make_subcat_btn(name):
                     def on_click():
@@ -2655,7 +2656,7 @@ class StoreMixin:
                                 else:
                                     b.configure(border_width = 0)
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                     return on_click
 
                 for sname in sorted(subcats.keys()):
@@ -2700,7 +2701,7 @@ class StoreMixin:
                         else:
                             b.configure(border_width = 0)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
                 try:
                     if subcat_scroll is not None and len(subcat_scroll.winfo_children())==0:
@@ -2710,7 +2711,7 @@ class StoreMixin:
                         content_frame.grid_columnconfigure(1, weight = 1)
                         content_frame.grid_columnconfigure(2, weight = 0)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
             else:
 
                 try:
@@ -2799,7 +2800,7 @@ class StoreMixin:
                     else:
                         btn.configure(border_width = 0)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
             show_category_items(sorted_categories[0])
 
         button_frame = customtkinter.CTkFrame(main_frame, fg_color = "transparent")
@@ -2859,7 +2860,7 @@ class StoreMixin:
                 try:
                     cart_popup.grab_set()
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
         def checkout():
             if not cart:
@@ -2887,7 +2888,7 @@ class StoreMixin:
                     try:
                         item_copy["_from_armory"]= store.get("name", "Unknown")
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                     self._add_item_to_container(hands_items, item_copy)
 
                 save_data["hands"]["items"]= hands_items
@@ -2920,7 +2921,7 @@ class StoreMixin:
                     try:
                         self._stop_business_music(music_channel)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                 self._open_business_tool()
 
             try:
@@ -2929,7 +2930,7 @@ class StoreMixin:
                     self._popup_confirm("Leave Armory", msg, _do_leave)
                     return
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
             _do_leave()
 
@@ -3098,12 +3099,12 @@ class StoreMixin:
             try:
                 on_test_started()
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
         if callable(on_test_purchase):
             try:
                 on_test_purchase(save_data_local["money"])
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         self._open_firearm_test_mode(firearm_item, table_data, test_cost = test_cost)
 
@@ -3362,7 +3363,7 @@ class StoreMixin:
                 try:
                     _b.configure(state = "disabled")
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
             result_label.configure(text = "Firing...")
             prev_clipboard_state = bool(getattr(self, "_suppress_clipboard_copy", False))
             self._suppress_clipboard_copy = True
@@ -3381,12 +3382,12 @@ class StoreMixin:
                         try:
                             _b.configure(state = "normal")
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                     popup._firing = False
                 try:
                     popup.after(0, _after)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
             import threading as _test_threading
             _test_threading.Thread(target = _do_fire, daemon = True).start()
 
@@ -3470,7 +3471,7 @@ class StoreMixin:
             try:
                 self._stop_business_music(music_channel)
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
             return
 
         equipped_weapons = self._get_equipped_weapons(save_data, table_data)
@@ -3590,9 +3591,9 @@ class StoreMixin:
                         artist = _get_tag(["artist", "ARTIST", "TPE1", "IART"])
                         title = _get_tag(["title", "TITLE", "TIT2", "INAM"])
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
             if not title:
                 try:
                     title = os.path.basename(track_path or "")
@@ -3601,7 +3602,7 @@ class StoreMixin:
             try:
                 logging.debug(f"_get_track_info result: title={title} artist={artist} length={length}")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
             return {"artist":artist, "title":title, "length":length}
 
         def stop_ui_music():
@@ -3610,14 +3611,14 @@ class StoreMixin:
                     try:
                         self.root.after_cancel(marquee_job[0])# type: ignore[arg-type]
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                     marquee_job[0]= None
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
             try:
                 self._stop_business_music(music_channel)
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         if music_channel and music_channel.get("track"):
             try:
@@ -3636,9 +3637,9 @@ class StoreMixin:
                     try:
                         marquee_frame.pack_propagate(False)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
                 try:
 
                     label_font = None
@@ -3651,7 +3652,7 @@ class StoreMixin:
                                 FR_PRIVATE = 0x10
                                 ctypes.windll.gdi32.AddFontResourceExW(fp, FR_PRIVATE, 0)
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
 
                             try:
                                 self.root.update_idletasks()
@@ -3661,9 +3662,9 @@ class StoreMixin:
                                         label_font = customtkinter.CTkFont(size = 12, family = f)
                                         break
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                     if not label_font:
                         label_font = customtkinter.CTkFont(size = 12)
                 except Exception:
@@ -3682,9 +3683,9 @@ class StoreMixin:
                         try:
                             marquee_frame.configure(height = lh)
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 pos =[0]
 
@@ -3713,7 +3714,7 @@ class StoreMixin:
                         try:
                             logging.debug(f"store marquee update: track={os.path.basename((current or {}).get('track')or '')} meta={bool(meta_info)} pos={pos[0]} ids: current={id(current)} music_channel={id(music_channel)} self_cur={id(getattr(self, '_current_business_music', None))}")
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                         try:
                             if marquee_debug_label is not None:
                                 dbg = f"meta={bool(meta_info)} id={id(current)}"
@@ -3723,10 +3724,10 @@ class StoreMixin:
                                     if tt:
                                         dbg +=f" title={tt[:30]}"
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                                 marquee_debug_label.configure(text = dbg)
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
 
                         if meta_info:
                             base_artist = meta_info.get("artist")or ""
@@ -3748,7 +3749,7 @@ class StoreMixin:
                                                     try:
                                                         logging.debug(f"applying _meta(bg_load current): {os.path.basename((current or {}).get('track')or '')} -> title={info.get('title')} artist={info.get('artist')}")
                                                     except Exception:
-                                                        pass
+                                                        logging.exception("Suppressed exception")
                                                     try:
                                                         target = getattr(self, "_current_business_music", None)
                                                         if target is None:
@@ -3758,37 +3759,37 @@ class StoreMixin:
                                                                 try:
                                                                     logging.debug(f"triggering marquee refresh after applying meta for {os.path.basename((target or {}).get('track')or '')}(current)")
                                                                 except Exception:
-                                                                    pass
+                                                                    logging.exception("Suppressed exception")
                                                                 try:
                                                                     self.root.after(0, _update_marquee)
                                                                 except Exception:
-                                                                    pass
+                                                                    logging.exception("Suppressed exception")
                                                     except Exception:
                                                         try:
                                                             logging.exception("failed to apply _meta in bg_load(current) for store marquee")
                                                         except Exception:
-                                                            pass
+                                                            logging.exception("Suppressed exception")
                                                 except Exception:
                                                     try:
                                                         logging.exception("unexpected error in _apply for bg_load(current)")
                                                     except Exception:
-                                                        pass
+                                                        logging.exception("Suppressed exception")
                                             try:
                                                 logging.debug(f"scheduling _apply(current) via root.after for track {os.path.basename((getattr(self, '_current_business_music', current)or {}).get('track')or '')}")
                                             except Exception:
-                                                pass
+                                                logging.exception("Suppressed exception")
                                             self.root.after(0, _apply)
                                         except Exception:
-                                            pass
+                                            logging.exception("Suppressed exception")
                                         finally:
                                             try:
                                                 current.pop("_meta_loading", None)
                                             except Exception:
-                                                pass
+                                                logging.exception("Suppressed exception")
                                     import threading
                                     threading.Thread(target = _bg_load, daemon = True).start()
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
 
                         started =(current or {}).get("started_at")or time.time()
                         start_offset =(current or {}).get("start_pos")or 0.0
@@ -3826,14 +3827,14 @@ class StoreMixin:
                         try:
                             marquee_label.configure(text = os.path.basename((getattr(self, "_current_business_music", music_channel)or {}).get("track")or ""))
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
 
                 try:
                     import threading
                     try:
                         logging.debug("starting initial background _load_meta thread for store marquee")
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                     def _load_meta():
                         try:
                             cur = getattr(self, "_current_business_music", music_channel)
@@ -3843,13 +3844,13 @@ class StoreMixin:
                             try:
                                 logging.debug(f"_load_meta fetched info: title={info.get('title')} artist={info.get('artist')}")
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                             def _apply():
                                 try:
                                     try:
                                         logging.debug(f"applying initial _meta(from _load_meta): {os.path.basename((cur or {}).get('track')or '')} -> title={info.get('title')} artist={info.get('artist')}")
                                     except Exception:
-                                        pass
+                                        logging.exception("Suppressed exception")
                                     try:
 
                                         target = getattr(self, "_current_business_music", None)
@@ -3860,38 +3861,38 @@ class StoreMixin:
                                             try:
                                                 logging.debug(f"triggering marquee refresh after initial apply for {os.path.basename((target or {}).get('track')or '')}")
                                             except Exception:
-                                                pass
+                                                logging.exception("Suppressed exception")
                                             try:
                                                 self.root.after(0, _update_marquee)
                                             except Exception:
-                                                pass
+                                                logging.exception("Suppressed exception")
                                     except Exception:
                                         try:
                                             logging.exception("failed to apply initial _meta in _load_meta for store marquee")
                                         except Exception:
-                                            pass
+                                            logging.exception("Suppressed exception")
                                 except Exception:
                                     try:
                                         logging.exception("unexpected error in initial _apply for store marquee")
                                     except Exception:
-                                        pass
+                                        logging.exception("Suppressed exception")
                             try:
                                 logging.debug(f"scheduling initial _apply via root.after for store marquee: {os.path.basename((cur or {}).get('track')or '')}")
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                             try:
                                 self.root.after(0, _apply)
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                     threading.Thread(target = _load_meta, daemon = True).start()
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 _update_marquee()
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         def get_all_player_items():
 
@@ -4217,7 +4218,7 @@ class StoreMixin:
             try:
                 buy_total[0] -= float(removed.get("line_total", removed.get("price", 0.0)))
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
             buy_total[0] = max(0.0, buy_total[0])
             update_buy_display()
 
@@ -4246,7 +4247,7 @@ class StoreMixin:
                     try:
                         w.destroy()
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
                 for idx, entry in enumerate(buy_cart):
                     item = entry.get("item", {})
@@ -4451,22 +4452,22 @@ class StoreMixin:
                         try:
                             shop_items_scroll[0].pack_forget()
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                         try:
                             shop_items_scroll[0].destroy()
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                         shop_items_scroll[0] = None
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
                 try:
                     for widget in shop_items_frame.winfo_children():
                         try:
                             widget.destroy()
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 try:
                     shop_selected_cat[0] = category_name
@@ -4477,9 +4478,9 @@ class StoreMixin:
                             else:
                                 btn.configure(border_width = 0)
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 cat_items = shop_categories.get(category_name, [])
 
@@ -4526,7 +4527,7 @@ class StoreMixin:
                             try:
                                 _w.destroy()
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
 
                         sub2cats = {}
                         for it2 in sub_items:
@@ -4586,7 +4587,7 @@ class StoreMixin:
                                             else:
                                                 b2.configure(border_width = 0)
                                         except Exception:
-                                            pass
+                                            logging.exception("Suppressed exception")
                                 return on_click
 
                             for s2name in sorted(sub2cats.keys()):
@@ -4611,7 +4612,7 @@ class StoreMixin:
                                     else:
                                         b2.configure(border_width = 0)
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
 
                     def make_subcat_btn(sname):
                         def on_click():
@@ -4625,7 +4626,7 @@ class StoreMixin:
                                     else:
                                         b.configure(border_width = 0)
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                         return on_click
 
                     for sname in sorted(subcats.keys()):
@@ -4648,7 +4649,7 @@ class StoreMixin:
                             else:
                                 b.configure(border_width = 0)
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
 
             sorted_shop_cats = sorted(shop_categories.keys())
 
@@ -4671,7 +4672,7 @@ class StoreMixin:
                         else:
                             btn.configure(border_width = 0)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                 show_shop_category(sorted_shop_cats[0])
 
         sell_scroll = customtkinter.CTkScrollableFrame(sell_tab)
@@ -4957,7 +4958,7 @@ class StoreMixin:
                     try:
                         self._stop_business_music(music_channel)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                 self._open_business_tool()
 
             except Exception as e:
@@ -5000,7 +5001,7 @@ class StoreMixin:
                     try:
                         self._stop_business_music(music_channel)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                 self._open_business_tool()
 
             except Exception as e:
@@ -5017,7 +5018,7 @@ class StoreMixin:
                     try:
                         self._stop_business_music(music_channel)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                 self._open_business_tool()
 
             try:
@@ -5034,7 +5035,7 @@ class StoreMixin:
                     self._popup_confirm("Leave Store", msg, _do_leave)
                     return
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
             _do_leave()
 
@@ -5468,7 +5469,7 @@ class StoreMixin:
                 try:
                     self._stop_business_music(music_channel)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
             return
 
         player_money = [save_data.get("money", 0)]
@@ -5522,9 +5523,9 @@ class StoreMixin:
                         artist = _get_tag(["artist", "ARTIST", "TPE1", "IART"])
                         title = _get_tag(["title", "TITLE", "TIT2", "INAM"])
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
             if not title:
                 try:
                     title = os.path.basename(track_path or "")
@@ -5538,14 +5539,14 @@ class StoreMixin:
                     try:
                         self.root.after_cancel(marquee_job[0])  # type: ignore[arg-type]
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                     marquee_job[0] = None
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
             try:
                 self._stop_business_music(music_channel)
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         if music_channel and music_channel.get("track"):
             try:
@@ -5561,7 +5562,7 @@ class StoreMixin:
                 try:
                     marquee_frame.pack_propagate(False)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 label_font = None
                 try:
@@ -5573,7 +5574,7 @@ class StoreMixin:
                             FR_PRIVATE = 0x10
                             ctypes.windll.gdi32.AddFontResourceExW(fp, FR_PRIVATE, 0)
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                         try:
                             self.root.update_idletasks()
                             fams = list(tkfont.families())
@@ -5582,9 +5583,9 @@ class StoreMixin:
                                     label_font = customtkinter.CTkFont(size=12, family=f)
                                     break
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
                 if not label_font:
                     label_font = customtkinter.CTkFont(size=12)
 
@@ -5616,7 +5617,7 @@ class StoreMixin:
                                 prev_track[0] = tp
                                 pos[0] = 0
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                         if meta_info:
                             base_artist = meta_info.get("artist") or ""
                             base_title = meta_info.get("title") or os.path.basename((current or {}).get('track') or "")
@@ -5639,21 +5640,21 @@ class StoreMixin:
                                                         try:
                                                             self.root.after(0, _update_marquee)
                                                         except Exception:
-                                                            pass
+                                                            logging.exception("Suppressed exception")
                                                 except Exception:
-                                                    pass
+                                                    logging.exception("Suppressed exception")
                                             self.root.after(0, _apply)
                                         except Exception:
-                                            pass
+                                            logging.exception("Suppressed exception")
                                         finally:
                                             try:
                                                 current.pop("_meta_loading", None)
                                             except Exception:
-                                                pass
+                                                logging.exception("Suppressed exception")
                                     import threading as _thr
                                     _thr.Thread(target=_bg_load, daemon=True).start()
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
 
                         started = (current or {}).get("started_at") or time.time()
                         start_offset = (current or {}).get("start_pos") or 0.0
@@ -5682,7 +5683,7 @@ class StoreMixin:
                             marquee_label.configure(text=os.path.basename(
                                 (getattr(self, "_current_business_music", music_channel) or {}).get("track") or ""))
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
 
                 try:
                     import threading as _thr2
@@ -5700,19 +5701,19 @@ class StoreMixin:
                                         try:
                                             self.root.after(0, _update_marquee)
                                         except Exception:
-                                            pass
+                                            logging.exception("Suppressed exception")
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                             self.root.after(0, _apply2)
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                     _thr2.Thread(target=_load_meta, daemon=True).start()
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 _update_marquee()
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         market_demand = _get_market_demand()
 
@@ -5891,7 +5892,7 @@ class StoreMixin:
                     try:
                         w.destroy()
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                 for idx, entry in enumerate(buy_cart):
                     item = entry.get("item", {})
                     qty = max(1, int(entry.get("quantity", 1)))
@@ -5981,7 +5982,7 @@ class StoreMixin:
                 try:
                     items_scroll_holder[0].destroy()
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
                 items_scroll_holder[0] = None
 
             # ── Order Caliber pane ──────────────────────────────────────────
@@ -6091,7 +6092,7 @@ class StoreMixin:
                                 text=f"Cost: {format_price(total)}  ({format_price(up)}/ea × {qty})",
                                 text_color="orange")
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
                 o_qty_var.trace_add("write", _o_update_price)
                 _o_update_price()

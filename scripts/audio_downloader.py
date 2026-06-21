@@ -42,6 +42,15 @@ FFMPEG_URLS = {
     "Darwin":  "https://github.com/yt-dlp/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-macos64-gpl.zip",
 }
 
+def _safe_extractall(zf, dest):
+    # ponytail: zipfile has no built-in path-traversal filter (unlike tarfile's filter="data")
+    dest = os.path.realpath(dest)
+    for name in zf.namelist():
+        target = os.path.realpath(os.path.join(dest, name))
+        if target != dest and not target.startswith(dest + os.sep):
+            raise RuntimeError(f"Unsafe path in archive: {name}")
+    zf.extractall(dest)
+
 def ffmpeg_exe():
     name = "ffmpeg.exe" if platform.system() == "Windows" else "ffmpeg"
     local = os.path.join(FFMPEG_DIR, name)
@@ -60,7 +69,7 @@ def download_ffmpeg(progress_cb=None):
     archive = os.path.join(FFMPEG_DIR, url.split("/")[-1])
     if progress_cb:
         progress_cb("Downloading ffmpeg ...")
-    with urllib.request.urlopen(url) as resp, open(archive, "wb") as f:
+    with urllib.request.urlopen(url) as resp, open(archive, "wb") as f:  # nosec B310 - url is from the hardcoded FFMPEG_URLS map, not user input
         total = int(resp.headers.get("Content-Length", 0))
         downloaded = 0
         while True:
@@ -75,10 +84,10 @@ def download_ffmpeg(progress_cb=None):
         progress_cb("Extracting ffmpeg ...")
     if archive.endswith(".zip"):
         with zipfile.ZipFile(archive) as z:
-            z.extractall(FFMPEG_DIR)
+            _safe_extractall(z, FFMPEG_DIR)
     else:
         with tarfile.open(archive) as t:
-            t.extractall(FFMPEG_DIR)
+            t.extractall(FFMPEG_DIR, filter="data")
     exe_name = "ffmpeg.exe" if system == "Windows" else "ffmpeg"
     found = None
     for root, _, files in os.walk(FFMPEG_DIR):

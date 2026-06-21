@@ -25,6 +25,7 @@ import subprocess
 import sys
 
 import customtkinter
+import logging
 
 try:
     from ddgs import DDGS as _DDGS
@@ -73,7 +74,7 @@ def save_table(path: str, data: dict) -> None:
                     else:
                         subprocess.run(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         threading.Thread(target=_run_formatter, args=(path,), daemon=True).start()
 
@@ -201,7 +202,7 @@ def _default_log_fn(msg: str):
         with open(AI_INTERACTIONS_LOGFILE, "a", encoding="utf-8") as f:
             f.write(msg + "\n")
     except Exception:
-        pass
+        logging.exception("Suppressed exception")
 
 # Run autoformat_table.py after saving tables
 AUTOFORMAT_ON_SAVE = True
@@ -229,7 +230,7 @@ def _call_model(prompt: str, log_fn=None) -> str:
             log_fn(f"--- AI REQUEST {ts} ---")
             log_fn(prompt)
     except Exception:
-        pass
+        logging.exception("Suppressed exception")
 
     resp = client.chat.completions.create(
         model=MODEL,
@@ -253,7 +254,7 @@ def _call_model(prompt: str, log_fn=None) -> str:
         if AI_PRINT_INTERACTIONS:
             print(f"[AI {ts}] {raw}")
     except Exception:
-        pass
+        logging.exception("Suppressed exception")
 
     return raw
 
@@ -728,7 +729,7 @@ class CategoryTreeSidebar(customtkinter.CTkFrame):
                             )
                         )
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
     def _ensure_active_visible(self):
         # Expand any collapsed ancestors of active nodes
@@ -1003,7 +1004,7 @@ class CategoryManagerTab(customtkinter.CTkFrame):
             try:
                 self._field_widgets[key]["entry"].configure(fg_color=bg)
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         self._ai_status.configure(text="")
         self._update_sidebar_highlight()
@@ -1073,7 +1074,7 @@ class CategoryManagerTab(customtkinter.CTkFrame):
                         try:
                             self._field_widgets[key]["entry"].configure(fg_color=PREFILLED_BG)
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                 self._ai_status.configure(
                     text="AI suggestions applied — review and click Next ▶",
                     text_color=OK_COLOR)

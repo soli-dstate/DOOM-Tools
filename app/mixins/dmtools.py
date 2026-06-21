@@ -1,5 +1,6 @@
 """DmtoolsMixin — App methods for the "dmtools" feature area."""
 from app.foundation import *
+import logging
 
 
 class DmtoolsMixin:
@@ -192,7 +193,7 @@ class DmtoolsMixin:
             try:
                 scroll_frame._parent_canvas.yview_moveto(0)
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         def update_pagination_controls(current, total):
 
@@ -268,7 +269,7 @@ class DmtoolsMixin:
                 try:
                     self.root.after_cancel(search_timer[0])
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
             search_timer[0]= self.root.after(200, lambda:filter_items(search_entry.get()))# type: ignore
 
@@ -651,12 +652,12 @@ class DmtoolsMixin:
                     try:
                         entry["wind_severity"] = int(wnd_val)
                     except ValueError:
-                        pass
+                        logging.exception("Suppressed exception")
                 if tmp:
                     try:
                         entry["temperature_f"] = _display_to_f(float(tmp))
                     except ValueError:
-                        pass
+                        logging.exception("Suppressed exception")
                 if entry:
                     hourly[h_key] = entry
             return hourly if hourly else None
@@ -996,9 +997,9 @@ class DmtoolsMixin:
                     try:
                         self._popup_show_info("Dungeon Generator", "Dungeon Generator is already open.")
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
                 return
 
             try:
@@ -1015,7 +1016,7 @@ class DmtoolsMixin:
             try:
                 dg._is_persistent_window = True
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
             dg.title("Dungeon Generator")
             dg.transient(self.root)
@@ -1031,10 +1032,10 @@ class DmtoolsMixin:
                         try:
                             dg.after_cancel(background_combat_timer[0])
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                         background_combat_timer[0]= None
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
                 try:
 
                     continuous_gen_active[0]= False
@@ -1042,21 +1043,21 @@ class DmtoolsMixin:
                         try:
                             dg.after_cancel(continuous_gen_timer[0])
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                         continuous_gen_timer[0]= None
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
                 try:
 
                     if self._dg_map_window and self._dg_map_window.winfo_exists():
                         self._dg_map_window.destroy()
                     self._dg_map_window = None
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
                 try:
                     dg.destroy()
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
                 try:
                     self._dg_window = None
                 except Exception:
@@ -1112,7 +1113,7 @@ class DmtoolsMixin:
                         lbl_levels.configure(text = f"Levels: {iv}")
                         _rebuild_floors()
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
                 lbl_levels = customtkinter.CTkLabel(controls, text = f"Levels: {self._dg_state['levels'].get()}")
                 lbl_levels.pack(anchor = "w", pady = 4)
@@ -1131,14 +1132,14 @@ class DmtoolsMixin:
                             try:
                                 w.destroy()
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                         self._dg_state['floors']=[]
                         levels = max(1, min(3, int(self._dg_state['levels'].get())))
                         if levels !=3:
                             try:
                                 entrance_frame.pack_forget()
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                         for i in range(levels):
                             ffrm = customtkinter.CTkFrame(floors_container)
                             ffrm.pack(fill = 'x', pady = 4, padx = 8)
@@ -1216,13 +1217,13 @@ class DmtoolsMixin:
                                 try:
                                     w.destroy()
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                             if levels ==3:
 
                                 try:
                                     entrance_frame.pack(fill = 'x', pady = 4)
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                                 self._dg_state.setdefault('transport_mode', _tk.StringVar(value = 'Multiple'))
                                 lbl_em = customtkinter.CTkLabel(entrance_frame, text = 'Transport Mode:')
                                 lbl_em.pack(side = 'left', padx = 6)
@@ -1230,11 +1231,11 @@ class DmtoolsMixin:
                                     try:
                                         self._dg_state['transport_mode'].set(v)
                                     except Exception:
-                                        pass
+                                        logging.exception("Suppressed exception")
                                     try:
                                         _rebuild_floors()
                                     except Exception:
-                                        pass
+                                        logging.exception("Suppressed exception")
                                 opt_em = customtkinter.CTkOptionMenu(entrance_frame, values =['Multiple', 'Single'], command = _set_transport_mode)
                                 opt_em.set(self._dg_state.get('transport_mode', _tk.StringVar(value = 'Multiple')).get())
                                 opt_em.pack(side = 'left', padx = 6)
@@ -1270,7 +1271,7 @@ class DmtoolsMixin:
                         self._dg_map_window.lift()
                         return
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 try:
                     theme = customtkinter.ThemeManager.theme
@@ -1307,7 +1308,7 @@ class DmtoolsMixin:
                         map_win.destroy()
                         self._dg_map_window = None
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
                 map_win.protocol("WM_DELETE_WINDOW", _on_map_close)
                 self._dg_map_window = map_win
@@ -1395,7 +1396,7 @@ class DmtoolsMixin:
                                 tooltip_label[0].configure(text = "Empty")
                                 tooltip_label[0].pack(anchor = 'w', pady = 2)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
                 def _on_tile_leave(event):
 
@@ -1403,7 +1404,7 @@ class DmtoolsMixin:
                         if tooltip_label[0]:
                             tooltip_label[0].pack_forget()
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
                 def _on_tile_click(event):
 
@@ -1430,7 +1431,7 @@ class DmtoolsMixin:
                                 return
 
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
                 canvas.bind("<Motion>", _on_tile_hover)
                 canvas.bind("<Leave>", _on_tile_leave)
@@ -1477,11 +1478,11 @@ class DmtoolsMixin:
                             if grid_canvas[0]and grid_canvas[0].winfo_exists()and(rx, ry)in grid_tiles:
                                 grid_canvas[0].itemconfigure(grid_tiles[(rx, ry)], fill = original_color)
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
 
                     dg.after(80, restore)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
             def _schedule_muzzle_flashes(rx, ry, shots, cyclic_delay, start_delay):
 
@@ -1666,7 +1667,7 @@ class DmtoolsMixin:
                         combat_log_text.delete("1.0", f"{len(lines)-50}.0")
                     combat_log_text.configure(state = "disabled")
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
             background_combat_timer =[None]
             continuous_gen_active =[False]
@@ -1681,7 +1682,7 @@ class DmtoolsMixin:
                         map_editor_window[0].lift()
                         return
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 try:
                     theme = customtkinter.ThemeManager.theme
@@ -1712,7 +1713,7 @@ class DmtoolsMixin:
                         map_editor_window[0]= None
                         editor_win.destroy()
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
                 editor_win.protocol("WM_DELETE_WINDOW", _on_editor_close)
 
@@ -1753,7 +1754,7 @@ class DmtoolsMixin:
                         editor_state['grid_size_y']= int(y_size_entry.get())
                         _redraw_editor_grid()
                     except ValueError:
-                        pass
+                        logging.exception("Suppressed exception")
 
                 customtkinter.CTkLabel(size_frame, text = "X:").pack(side = "left")
                 x_size_entry = customtkinter.CTkEntry(size_frame, width = 40)
@@ -2318,7 +2319,7 @@ class DmtoolsMixin:
                             sound_path = random.choice(resolved_sounds)
                             _play_distant_combat_sound(sound_path, volume = resolved_volume)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
                 for i in range(shots):
                     shot_delay = start_delay +(i *cyclic_delay)
@@ -2580,7 +2581,7 @@ class DmtoolsMixin:
                             next_delay = max(3000, current_delay +2000)if combat_occurred else random.randint(3000, 5000)
                             background_combat_timer[0]= dg.after(next_delay, _process_background_combat)# type: ignore
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
             def _calculate_distance(pos1, pos2):
 
@@ -2805,7 +2806,7 @@ class DmtoolsMixin:
                         try:
                             send_windows_notification(title, message)
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
 
                         _add_combat_log(f"⚔ BACKUP: {', '.join(names)} arrived!")
 
@@ -2821,7 +2822,7 @@ class DmtoolsMixin:
                         try:
                             send_windows_notification(title, message)
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
 
                         _add_combat_log(f"⚠ ENEMIES: {', '.join(names)} arrived!")
 
@@ -2836,7 +2837,7 @@ class DmtoolsMixin:
                         if dg.winfo_exists():
                             npc_movement_timer[0]= dg.after(10000, _move_npcs_support)# type: ignore
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
             def _move_npcs_once():
 
@@ -3813,7 +3814,7 @@ class DmtoolsMixin:
                         try:
                             dg.after_cancel(background_combat_timer[0])
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
 
                     background_combat_timer[0]= dg.after(3000, _process_background_combat)# type: ignore
 
@@ -3821,7 +3822,7 @@ class DmtoolsMixin:
                         try:
                             dg.after_cancel(npc_movement_timer[0])
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                     npc_movement_timer[0]= dg.after(10000, _move_npcs_support)# type: ignore
 
                 except Exception as e:
@@ -4307,7 +4308,7 @@ class DmtoolsMixin:
                         try:
                             dg.after_cancel(continuous_gen_timer[0])
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                         continuous_gen_timer[0]= None
                     continuous_gen_btn.configure(text = "Start Continuous Gen", fg_color =("gray70", "gray30"))
                     logging.info("Continuous dungeon generation stopped")
@@ -4334,7 +4335,7 @@ class DmtoolsMixin:
                     try:
                         continuous_gen_btn.configure(text = "Start Continuous Gen", fg_color =("gray70", "gray30"))
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
             if global_variables.get("devmode", {}).get("value", False):
                 continuous_gen_btn = customtkinter.CTkButton(
@@ -4356,7 +4357,7 @@ class DmtoolsMixin:
                 dg.focus_force()
                 dg.lift()
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
         except Exception:
             logging.exception("Failed to open Dungeon Generator window")
 
@@ -4831,7 +4832,7 @@ class DmtoolsMixin:
             try:
                 scroll_frame._parent_canvas.yview_moveto(0)
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         def update_pagination_controls(current, total):
             for widget in pagination_frame.winfo_children():
@@ -4904,7 +4905,7 @@ class DmtoolsMixin:
                 try:
                     self.root.after_cancel(search_timer[0])
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
             search_timer[0]= self.root.after(200, lambda:filter_items(search_entry.get()))# type: ignore
 
@@ -5095,7 +5096,7 @@ class DmtoolsMixin:
             try:
                 scroll_frame._parent_canvas.yview_moveto(0)
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         def update_pagination_controls(current, total):
             for widget in pagination_frame.winfo_children():
@@ -5147,7 +5148,7 @@ class DmtoolsMixin:
                 try:
                     self.root.after_cancel(search_timer[0])
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
             search_timer[0]= self.root.after(200, lambda:filter_magazines(search_entry.get()))# type: ignore
 
         search_entry.bind("<KeyRelease>", on_search_change)

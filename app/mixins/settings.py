@@ -1,5 +1,6 @@
 """SettingsMixin — App methods for the "settings" feature area."""
 from app.foundation import *
+import logging
 
 
 class SettingsMixin:
@@ -10,7 +11,7 @@ class SettingsMixin:
         try:
             self._clear_crash_sentinel()
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
         try:
             autosaved = False
             if self.currentsave is not None:
@@ -25,7 +26,7 @@ class SettingsMixin:
                         except Exception as e:
                             logging.error(f"Autosave failed for globals()['save_data']: {e}")
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 if not autosaved and hasattr(self, '_current_save_data')and isinstance(getattr(self, '_current_save_data'), dict):
                     try:
@@ -53,6 +54,7 @@ class SettingsMixin:
                                         logging.error(f"Autosave failed using attribute '{name}': {e}")
                                     break
                         except Exception:
+                            logging.exception("Suppressed exception")
                             continue
 
                 if not autosaved:
@@ -77,12 +79,12 @@ class SettingsMixin:
         try:
             getattr(self, '_bg_pay_stop', threading.Event()).set()
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
         try:
             getattr(self, '_dev_worker_stop', threading.Event()).set()
             self._dev_worker_running = False
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
         try:
 
             try:
@@ -92,9 +94,9 @@ class SettingsMixin:
                         if getattr(w, 'grab_release', None):
                             w.grab_release()
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
             try:
                 def _cancel_all_after(widget):
@@ -103,46 +105,46 @@ class SettingsMixin:
                             try:
                                 widget.after_cancel(after_id)
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                 _cancel_all_after(self.root)
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
             self.root.quit()
             try:
 
                 self.root.update()
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
             try:
 
                 for w in list(self.root.winfo_children()):
                     try:
                         w.destroy()
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
             try:
                 self.root.destroy()
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
         except Exception:
             try:
                 self.root.destroy()
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         try:
             pygame.mixer.quit()
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
         try:
             pygame.quit()
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
         # In free-threaded Python 3.13 (no-GIL build), any daemon thread blocked
         # in a C call (time.sleep, input, network IO) will crash the interpreter
@@ -153,7 +155,7 @@ class SettingsMixin:
         try:
             os._exit(0)
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
         try:
 
@@ -164,9 +166,9 @@ class SettingsMixin:
                         if getattr(w, 'grab_release', None):
                             w.grab_release()
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
             try:
                 def _cancel_all_after(widget):
@@ -175,43 +177,43 @@ class SettingsMixin:
                             try:
                                 widget.after_cancel(after_id)
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                 _cancel_all_after(self.root)
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
             self.root.quit()
             try:
 
                 self.root.update()
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
             try:
 
                 for w in list(self.root.winfo_children()):
                     try:
                         w.destroy()
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
             try:
                 self.root.destroy()
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
         except Exception:
             try:
                 self.root.destroy()
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         try:
             import os as _os, sys as _sys
             _os._exit(0)
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
     def _on_window_close(self):
 

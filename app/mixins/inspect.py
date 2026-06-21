@@ -1,5 +1,6 @@
 """InspectMixin — App methods for the "inspect" feature area."""
 from app.foundation import *
+import logging
 
 
 class InspectMixin:
@@ -54,7 +55,7 @@ class InspectMixin:
                             cheaper_stores.append((other_store.get("name", "Unknown"), other_price))
                         break  # one match per store is enough
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
         cheaper_stores.sort(key=lambda x: x[1])
 
         popup_height = 420 + (len(cheaper_stores) > 0) * 60 + len(cheaper_stores) * 26
@@ -174,7 +175,7 @@ class InspectMixin:
                     try:
                         ref[0].configure(state = "disabled", text = "Already Tested")
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
             _t_btn = self._create_sound_button(
                 btn_row,
                 "Testing Disabled" if _t_historical_blocked else ("Already Tested" if _t_already_used else f"Test Firearm ({format_price(_t_cost)})"),

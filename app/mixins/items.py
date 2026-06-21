@@ -1,5 +1,6 @@
 """ItemsMixin — App methods for the "items" feature area."""
 from app.foundation import *
+import logging
 
 
 class ItemsMixin:
@@ -249,7 +250,7 @@ class ItemsMixin:
                                     if slot_name_l in targets_l:
                                         return True
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
 
                             for acc in oi.get('accessories', []) or []:
                                 try:
@@ -266,9 +267,9 @@ class ItemsMixin:
                                             if slot_name_l in targets_l:
                                                 return True
                                         except Exception:
-                                            pass
+                                            logging.exception("Suppressed exception")
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
 
                             try:
                                 item_conflicts = oi.get('conflicts_with')
@@ -277,7 +278,7 @@ class ItemsMixin:
                                     if slot_name_l in targets_l:
                                         return True
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                     return False
                 except Exception:
                     return False
@@ -308,7 +309,7 @@ class ItemsMixin:
                                         subname = subslot_data.get('name') or subslot_data.get('slot') or 'subslot'
                                         sources.append(f"{other_slot}.{subname}")
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
 
                             for acc in oi.get('accessories', []) or []:
                                 try:
@@ -324,9 +325,9 @@ class ItemsMixin:
                                                 subname = subslot_data.get('name') or subslot_data.get('slot') or 'subslot'
                                                 sources.append(f"{other_slot}.{subname}")
                                         except Exception:
-                                            pass
+                                            logging.exception("Suppressed exception")
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
 
                             try:
                                 item_conflicts = oi.get('conflicts_with')
@@ -335,9 +336,9 @@ class ItemsMixin:
                                     if slot_name_l in targets_l:
                                         sources.append(f"{other_slot}")
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 seen = set()
                 out = []
@@ -383,7 +384,7 @@ class ItemsMixin:
                                         if nm:
                                             names.append(str(nm))
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
 
                             for acc in oi.get('accessories', []) or []:
                                 try:
@@ -424,9 +425,9 @@ class ItemsMixin:
                                                 if nm:
                                                     names.append(str(nm))
                                         except Exception:
-                                            pass
+                                            logging.exception("Suppressed exception")
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
 
                             try:
                                 item_conflicts = oi.get('conflicts_with')
@@ -437,9 +438,9 @@ class ItemsMixin:
                                         if nm:
                                             names.append(str(nm))
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 seen = set(); out = []
                 for n in names:
@@ -462,7 +463,7 @@ class ItemsMixin:
                                 if any(slot_name_l == t for t in targets_l):
                                     return it.get('name') or it.get('id')
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
 
                         for acc in it.get('accessories', []) or []:
                             try:
@@ -478,9 +479,9 @@ class ItemsMixin:
 
                                                 return(src.get('name') or src.get('id') or it.get('name') or it.get('id'))
                                         except Exception:
-                                            pass
+                                            logging.exception("Suppressed exception")
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                         try:
                             item_conflicts = it.get('conflicts_with')
                             if item_conflicts:
@@ -488,7 +489,7 @@ class ItemsMixin:
                                 if any(slot_name_l == t for t in targets_l):
                                     return it.get('name') or it.get('id')
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                         return None
 
                     for s, it in equipment.items():
@@ -513,7 +514,7 @@ class ItemsMixin:
                             return str(nm)
 
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
                 return None
 
             containers.append({"name":"Hands", "location":"hands"})
@@ -559,7 +560,7 @@ class ItemsMixin:
                                             "location":f"equipment.{slot}.list.{idx}.subslot.{subslot_idx}"
                                             })
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
 
             return containers
 
@@ -1020,7 +1021,7 @@ class ItemsMixin:
             try:
                 view_scroll._parent_canvas.yview_moveto(0)
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         def update_view_pagination(current, total):
             for widget in view_pagination_frame.winfo_children():
@@ -1070,7 +1071,7 @@ class ItemsMixin:
                 try:
                     self.root.after_cancel(view_search_timer[0])
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
             view_search_timer[0]= self.root.after(200, lambda:filter_view_items(view_search_entry.get()))# type: ignore
 
         view_search_entry.bind("<KeyRelease>", on_view_search_change)
@@ -1296,7 +1297,7 @@ class ItemsMixin:
                 try:
                     self.root.after_cancel(source_search_timer[0])
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
             source_search_timer[0]= self.root.after(200, lambda:filter_source_items(source_search_entry.get()))# type: ignore
 
         def on_dest_search_change(*args):
@@ -1304,7 +1305,7 @@ class ItemsMixin:
                 try:
                     self.root.after_cancel(dest_search_timer[0])
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
             dest_search_timer[0]= self.root.after(200, lambda:filter_dest_items(dest_search_entry.get()))# type: ignore
 
         source_search_entry.bind("<KeyRelease>", on_source_search_change)

@@ -1,5 +1,6 @@
 """ReportsMixin — App methods for the "reports" feature area."""
 from app.foundation import *
+import logging
 
 
 class ReportsMixin:
@@ -59,7 +60,7 @@ class ReportsMixin:
                                         if is_lead_free:
                                             break
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
             if is_lead_free:
                 ts['_session_leadfree_rounds']= int(ts.get('_session_leadfree_rounds', 0))+int(rounds_fired)
@@ -333,7 +334,7 @@ class ReportsMixin:
                     for snd in printer_sounds.values():
                         snd.stop()
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
             def _sound_ms(name, fallback = 50):
 
@@ -356,12 +357,12 @@ class ReportsMixin:
                 try:
                     overlay.destroy()
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
                 if on_dismiss:
                     try:
                         on_dismiss()
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
             def _skip():
 
@@ -375,7 +376,7 @@ class ReportsMixin:
                     dismiss_btn.pack(side = 'bottom', pady =(0, 8))
                     saved_label.pack(side = 'bottom', pady =(0, 2))
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
             dismiss_btn.configure(command = _dismiss)
 
@@ -455,7 +456,7 @@ class ReportsMixin:
                                 if lc:
                                     lc.stop()
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
 
                         end_pos = words[word_idx]
                         char_pos = anim_state['char_pos']
@@ -471,7 +472,7 @@ class ReportsMixin:
                                             ch.play(loop_snd, loops = -1)
                                             anim_state['loop_channel']= ch
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
 
                             next_pos = char_pos +1
                             lbl.configure(text = full_text[:next_pos])
@@ -484,7 +485,7 @@ class ReportsMixin:
                                 if lc:
                                     lc.stop()
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                             _play_printer_sound('character')
                             anim_state['word_index']= word_idx +1
 
@@ -544,7 +545,7 @@ class ReportsMixin:
                                 dismiss_btn.pack(side = 'bottom', pady =(0, 8))
                                 saved_label.pack(side = 'bottom', pady =(0, 2))
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                             return
                         self.root.after(10, _animate)
 
@@ -559,7 +560,7 @@ class ReportsMixin:
                         dismiss_btn.pack(side = 'bottom', pady =(0, 8))
                         saved_label.pack(side = 'bottom', pady =(0, 2))
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
             self.root.after(100, _animate)
 
@@ -569,7 +570,7 @@ class ReportsMixin:
                 try:
                     on_dismiss()
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
     def _reprint_combat_report(self, filepath):
 
@@ -709,7 +710,7 @@ class ReportsMixin:
                     for snd in printer_sounds.values():
                         snd.stop()
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
             def _sound_ms(name, fallback = 50):
 
@@ -732,12 +733,12 @@ class ReportsMixin:
                 try:
                     overlay.destroy()
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
                 if on_dismiss:
                     try:
                         on_dismiss()
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
             def _skip():
 
@@ -750,7 +751,7 @@ class ReportsMixin:
                     skip_btn.place_forget()
                     dismiss_btn.pack(side = 'bottom', pady =(0, 8))
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
             dismiss_btn.configure(command = _dismiss)
 
@@ -829,7 +830,7 @@ class ReportsMixin:
                                 if lc:
                                     lc.stop()
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
 
                         end_pos = words[word_idx]
                         char_pos = anim_state['char_pos']
@@ -844,7 +845,7 @@ class ReportsMixin:
                                             ch.play(loop_snd, loops = -1)
                                             anim_state['loop_channel']= ch
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
 
                             next_pos = char_pos +1
                             lbl.configure(text = full_text[:next_pos])
@@ -856,7 +857,7 @@ class ReportsMixin:
                                 if lc:
                                     lc.stop()
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                             _play_printer_sound('character')
                             anim_state['word_index']= word_idx +1
                             self.root.after(_sound_ms('character', 30)+40, _animate)
@@ -911,7 +912,7 @@ class ReportsMixin:
                             try:
                                 dismiss_btn.pack(side = 'bottom', pady =(0, 8))
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                             return
                         self.root.after(10, _animate)
 
@@ -924,7 +925,7 @@ class ReportsMixin:
                         skip_btn.place_forget()
                         dismiss_btn.pack(side = 'bottom', pady =(0, 8))
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
             self.root.after(100, _animate)
 

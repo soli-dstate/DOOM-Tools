@@ -4,6 +4,7 @@ This file is intentionally thin; see app/foundation.py and app/mixins/.
 """
 from app.foundation import *
 from app.core import App
+import logging
 
 
 if __name__ =="__main__":
@@ -21,9 +22,9 @@ if __name__ =="__main__":
                 try:
                     print('Warning: running with GIL enabled.Running with GIL disabled may improve performance.')
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
     except Exception:
-        pass
+        logging.exception("Suppressed exception")
 
     try:
         show_table_selection_dialog()

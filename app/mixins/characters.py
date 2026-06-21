@@ -1,5 +1,6 @@
 """CharactersMixin — App methods for the "characters" feature area."""
 from app.foundation import *
+import logging
 
 
 class CharactersMixin:
@@ -254,7 +255,7 @@ class CharactersMixin:
                     stat_clamp = table_data.get("additional_settings", {}).get("stat_clamp", 20)
                     slot_disable_points = table_data.get("additional_settings", {}).get("slot_disable_points", 1)
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
         self.root.grid_rowconfigure(0, weight = 1)
         self.root.grid_columnconfigure(0, weight = 1)
@@ -604,7 +605,7 @@ class CharactersMixin:
                 try:
                     self._set_current_save(save_basename, new_save)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
                 self._save_persistent_data()
                 logging.info(f"Character '{char_name}' created successfully with UUID: {char_uuid}")
                 self._popup_show_info("Success", f"Character '{char_name}' created successfully!", sound = "success")
@@ -884,7 +885,7 @@ class CharactersMixin:
                                 if str(conflict_slot).lower() == slot_name_l:
                                     return True
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
 
                     for acc in other_item.get("accessories", []) or []:
                         try:
@@ -901,9 +902,9 @@ class CharactersMixin:
                                         if str(conflict_slot).lower() == slot_name_l:
                                             return True
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
 
                     try:
                         item_conflicts = other_item.get("conflicts_with")
@@ -912,7 +913,7 @@ class CharactersMixin:
                                 if str(conflict_slot).lower() == slot_name_l:
                                     return True
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                 return False
             except Exception:
                 return False
@@ -984,9 +985,9 @@ class CharactersMixin:
                                 if isinstance(cur, dict):
                                     _recurse_find_subslots(root_slot, cur, label_prefix=label)
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
                 for parent_slot, equipped_item in equipment.items():
                     if isinstance(equipped_item, dict):
@@ -1043,7 +1044,7 @@ class CharactersMixin:
             try:
                 self._safe_focus(popup)
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         def _ammo_unit_price(ammo_def):
             base = _cc_item_price(ammo_def)
@@ -1278,7 +1279,7 @@ class CharactersMixin:
                             if ch:
                                 ch.play(sound)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
                 def _unit_cost_for_variant(vname):
                     ammo_def, _var = variant_map.get(vname, (None, None))
@@ -1521,7 +1522,7 @@ class CharactersMixin:
             try:
                 popup.grab_set()
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         def _is_attachment_catalog_item(item_obj):
             if not isinstance(item_obj, dict):
@@ -1722,7 +1723,7 @@ class CharactersMixin:
             try:
                 popup.grab_set()
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         ITEMS_PER_PAGE = 20
         cat_page = [0]
@@ -1802,7 +1803,7 @@ class CharactersMixin:
                         if any(_slot_match_for_choice(c, target_slot) for c in choices):
                             return True
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
                 return False
 
             def _render_subslots(parent_slot, parent_item, parent_frame, indent = 20):
@@ -1860,7 +1861,7 @@ class CharactersMixin:
                                 anchor = "w",
                             ).pack(side = "top", anchor = "w", padx = 20)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
             for slot_name, equipped_item in equipment.items():
                 slot_f = customtkinter.CTkFrame(slots_scroll)
@@ -2235,7 +2236,7 @@ class CharactersMixin:
                         rounds_slider_var.set(v)
                         update_preview(v)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                     _syncing[0] = False
 
                 rf_slider.configure(command = _s_to_e)
@@ -2280,11 +2281,11 @@ class CharactersMixin:
             try:
                 self._safe_focus(popup)
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
             try:
                 popup.grab_set()
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         # ── Add item to character ─────────────────────────────────────────────
         def add_item_to_char(item):
@@ -2483,7 +2484,7 @@ class CharactersMixin:
             try:
                 popup.grab_set()
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         # ── Catalog widget ────────────────────────────────────────────────────
         def create_catalog_widget(item):
@@ -2588,7 +2589,7 @@ class CharactersMixin:
             try:
                 catalog_scroll._parent_canvas.yview_moveto(0)
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         def filter_catalog(term):
             sl = term.lower().strip()
@@ -2627,7 +2628,7 @@ class CharactersMixin:
                 try:
                     self.root.after_cancel(search_timer[0])
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
             search_timer[0] = self.root.after(250, lambda: filter_catalog(search_entry.get()))
 
         search_entry.bind("<KeyRelease>", on_search)
@@ -2712,7 +2713,7 @@ class CharactersMixin:
             try:
                 popup.grab_set()
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         def _do_finalize_character():
             try:

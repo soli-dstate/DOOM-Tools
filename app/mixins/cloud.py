@@ -1,5 +1,6 @@
 """CloudMixin — App methods for the "cloud" feature area."""
 from app.foundation import *
+import logging
 
 
 class CloudMixin:
@@ -21,7 +22,7 @@ class CloudMixin:
                 if os.path.isfile(full) and fname.lower().endswith(".sldsv") and fname not in CLOUD_SYNC_EXCLUDE:
                     pairs.append((full, fname))
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
         backups_root = os.path.join(folder, "backups")
         if os.path.isdir(backups_root):
@@ -49,7 +50,7 @@ class CloudMixin:
                 if fname.lower().endswith(".sldsv") and fname not in reserved:
                     return True
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
         return False
 
     def _cloud_upload_all(self, logger=None, on_chunk=None, on_total=None, on_compress=None):
@@ -72,7 +73,7 @@ class CloudMixin:
             try:
                 on_compress(0, compress_total)
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         tmp_zip = os.path.join(tempfile.gettempdir(), f"doomtools-cloud-up-{os.getpid()}.zip")
         added = 0
@@ -91,7 +92,7 @@ class CloudMixin:
                                     try:
                                         on_compress(compressed, compress_total)
                                     except Exception:
-                                        pass
+                                        logging.exception("Suppressed exception")
                         added += 1
                     except Exception as e:
                         log(f"Cloud zip add failed for {arcname}: {e}")
@@ -99,7 +100,7 @@ class CloudMixin:
                 try:
                     on_total(os.path.getsize(tmp_zip))
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
             folder_id = _cloud_get_folder_id(create=True)
             existing = {f["name"]: f["id"] for f in _cloud_list_folder(folder_id)}
@@ -110,7 +111,7 @@ class CloudMixin:
             try:
                 os.remove(tmp_zip)
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
         return added
 
     def _cloud_apply_key_bytes(self, raw):
@@ -126,7 +127,7 @@ class CloudMixin:
                 os.makedirs(os.path.dirname(primary), exist_ok=True)
                 shutil.copy2(_cloud_imported_key_path(), primary)
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
     def _cloud_restore_all(self, logger=None):
         import tempfile
@@ -167,7 +168,7 @@ class CloudMixin:
                 try:
                     os.remove(tmp_zip)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
             return count
 
         # Back-compat: clouds created before zip bundling stored individual files.
@@ -205,13 +206,13 @@ class CloudMixin:
                 try:
                     prog["close"]()
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
                 on_done(result.get("value"), result.get("error"))
 
             try:
                 self.root.after(0, finish)
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         threading.Thread(target=runner, daemon=True).start()
 
@@ -272,7 +273,7 @@ class CloudMixin:
                 status.configure(text=text)
                 popup.update()
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         def on_compress(done, total):
             _render("Compressing", done, total)
@@ -299,7 +300,7 @@ class CloudMixin:
                 try:
                     popup.destroy()
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
     def _cloud_begin_restore_flow(self):
         def work():
@@ -319,7 +320,7 @@ class CloudMixin:
                 self._clear_window()
                 self._build_main_menu()
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         self._cloud_run_async("Cloud Saves", "Connecting to Google Drive...", work, done)
 
@@ -423,12 +424,12 @@ class CloudMixin:
                     try:
                         storage_label.configure(text=text)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
                 try:
                     self.root.after(0, apply)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
             threading.Thread(target=_load_storage, daemon=True).start()
 

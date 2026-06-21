@@ -1,5 +1,6 @@
 """CombatmodeMixin — App methods for the "combatmode" feature area."""
 from app.foundation import *
+import logging
 
 
 class CombatmodeMixin:
@@ -89,7 +90,7 @@ class CombatmodeMixin:
                     if _wt in ("rain", "hard_rain", "thunderstorm", "thunder_hard_rain", "snowstorm", "thundersnow") and not combat_state.get("indoors"):
                         k *= 1.5
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
                 new_temp = ambient +(current_temp -ambient)*math.exp(-k *elapsed)
 
                 low = min(ambient, current_temp)
@@ -119,7 +120,7 @@ class CombatmodeMixin:
             _update_all_weapon_batteries(equipped_weapons, now_ts)
             self._save_combat_state(save_data)
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
         def _get_equipped_watches(save_data, table_data):
 
@@ -137,7 +138,7 @@ class CombatmodeMixin:
                                 if isinstance(it, dict) and it.get("id") == tid:
                                     return copy.deepcopy(it)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
                 return None
 
             def _add_watch(item, slot_name):
@@ -155,7 +156,7 @@ class CombatmodeMixin:
                         "display_name": item.get("name", "Unknown Watch"),
                     })
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
             try:
                 for slot_name, item in (save_data.get("equipment", {}) or {}).items():
@@ -179,7 +180,7 @@ class CombatmodeMixin:
                         if resolved:
                             _add_watch(resolved, f"{slot_name} -> {subslot.get('name', 'Subslot')}")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
             return watches
 
@@ -366,18 +367,18 @@ class CombatmodeMixin:
                 try:
                     ov.attributes('-topmost', True)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
                 try:
                     ov.attributes('-alpha', 0.0)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
                 try:
                     ov.configure(fg_color = 'white')
                 except Exception:
                     try:
                         ov.configure(bg = 'white')
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
                 flicker_count = random.randint(2, 4)
                 flicker_seq = []
@@ -398,7 +399,7 @@ class CombatmodeMixin:
                         try:
                             ov.attributes('-alpha', bright)
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                         def _after_hold():
                             try:
                                 if not getattr(ov, 'winfo_exists', lambda: False)():
@@ -406,19 +407,19 @@ class CombatmodeMixin:
                                 try:
                                     ov.attributes('-alpha', 0.0)
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                                 ov.after(gap, lambda: _run_flicker(idx + 1))
                             except Exception:
                                 try:
                                     ov.destroy()
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                         ov.after(hold, _after_hold)
                     except Exception:
                         try:
                             ov.destroy()
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
 
                 def _final_fade(step = 0, total_steps = 50):
                     try:
@@ -430,19 +431,19 @@ class CombatmodeMixin:
                         try:
                             ov.attributes('-alpha', max(0.0, alpha))
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                         if step < total_steps:
                             ov.after(8, lambda: _final_fade(step + 1, total_steps))
                         else:
                             try:
                                 ov.destroy()
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                     except Exception:
                         try:
                             ov.destroy()
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
 
                 ov.after(10, lambda: _run_flicker(0))
             except Exception:
@@ -456,7 +457,7 @@ class CombatmodeMixin:
             self.root.grid_rowconfigure(0, weight = 1)
             self.root.grid_columnconfigure(0, weight = 1)
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
         main_frame.grid(row = 0, column = 0, sticky = "nsew", padx = 20, pady = 20)
 
         def _show_combat_stats():
@@ -489,7 +490,7 @@ class CombatmodeMixin:
                             try:
                                 agg[sk]= agg.get(sk, 0)+(int(sv)if isinstance(sv, (int, float))else 0)
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                     else:
                         parts.append("(no modifiers)")
 
@@ -505,7 +506,7 @@ class CombatmodeMixin:
                                 td = json.load(tf)
                                 stat_clamp = td.get("additional_settings", {}).get("stat_clamp", stat_clamp)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                 except Exception:
                     stat_clamp = 20
 
@@ -543,14 +544,14 @@ class CombatmodeMixin:
                                         try:
                                             equip_agg[sk]= equip_agg.get(sk, 0)+(int(sv)if isinstance(sv, (int, float))else 0)
                                         except Exception:
-                                            pass
+                                            logging.exception("Suppressed exception")
                             istats = equipped_item.get("stats")or {}
                             if isinstance(istats, dict):
                                 for sk, sv in istats.items():
                                     try:
                                         equip_agg[sk]= equip_agg.get(sk, 0)+(int(sv)if isinstance(sv, (int, float))else 0)
                                     except Exception:
-                                        pass
+                                        logging.exception("Suppressed exception")
 
                         for slot_name, equipped_item in equipment.items():
                             try:
@@ -600,12 +601,12 @@ class CombatmodeMixin:
                                         try:
                                             equip_agg[sk]= equip_agg.get(sk, 0)+(int(sv)if isinstance(sv, (int, float))else 0)
                                         except Exception:
-                                            pass
+                                            logging.exception("Suppressed exception")
                                 applied_set_keys.add(req_key)
                                 set_name = sb.get("name")or equipped_item.get("name")or "Set Bonus"
                                 active_sets.append({"name":set_name, "members":member_names, "stats":sstats})
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
 
                     parts.append("")
                     parts.append("Equipment modifiers / Set bonuses:")
@@ -633,7 +634,7 @@ class CombatmodeMixin:
                                     cnum = int(float(clamp_val))
                                     num = min(num, cnum)
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                             parts.append(f" {k}: {num}")
                     else:
                         parts.append("(none)")
@@ -650,7 +651,7 @@ class CombatmodeMixin:
                                 members_text = ", ".join(s.get('members', [])or[])
                                 parts.append(f" {s.get('name')}: {'; '.join(stats_text)}({members_text})")
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                 except Exception as e:
                     logging.debug("Failed aggregating equipment modifiers for combat stats: %s", e)
 
@@ -681,7 +682,7 @@ class CombatmodeMixin:
                             aim_mod = -max(1, min(3, w_sev))
                             parts.append(f"  Wind: severity {w_sev}, Aim: {aim_mod}")
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 def _build_popup_text():
                     live_parts = list(parts)
@@ -692,7 +693,7 @@ class CombatmodeMixin:
                             live_parts.append("Temporary effects:")
                             live_parts.extend(temp_lines)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                     return "\n".join(live_parts)
 
                 popup_text = _build_popup_text()
@@ -742,11 +743,11 @@ class CombatmodeMixin:
                         try:
                             popup.after_cancel(job)
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                     try:
                         popup.destroy()
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
                 close_btn.configure(command = _close_stats_popup)
                 popup.protocol('WM_DELETE_WINDOW', _close_stats_popup)
@@ -776,7 +777,7 @@ class CombatmodeMixin:
             try:
                 _update_nvg_button()
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
             self._open_combat_mode_tool()
 
         def _container_type_from_entry(entry):
@@ -831,7 +832,7 @@ class CombatmodeMixin:
                 try:
                     combat_state.pop("active_underbarrel", None)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
                 cur_idx = combat_state.get("current_weapon_index", 0)
 
                 new_idx =(combat_state["current_weapon_index"]-1)%len(equipped_weapons)
@@ -839,7 +840,7 @@ class CombatmodeMixin:
                 try:
                     combat_state.pop("active_underbarrel", None)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 old_entry = equipped_weapons[cur_idx]if 0 <=cur_idx <len(equipped_weapons)else None
                 new_entry = equipped_weapons[new_idx]
@@ -862,9 +863,9 @@ class CombatmodeMixin:
                 try:
                     self._play_firearm_sound(new_entry["item"], "equip")
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
             refresh_weapon_display()
 
         def select_next():
@@ -901,9 +902,9 @@ class CombatmodeMixin:
                     new_weapon = new_entry["item"]
                     self._play_firearm_sound(new_weapon, "equip")
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
             refresh_weapon_display()
 
         def _barrel_swap_current():
@@ -922,14 +923,14 @@ class CombatmodeMixin:
                     try:
                         self._popup_show_info('Barrel Swap', 'No weapon selected.', sound = 'error')
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                     return
 
                 if not bool(wpn.get('barrel_swap', False)):
                     try:
                         self._popup_show_info('Barrel Swap', 'Selected weapon does not support barrel swapping.')
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                     return
 
                 wid = str(wpn.get('id'))
@@ -942,17 +943,17 @@ class CombatmodeMixin:
                 try:
                     self._save_combat_state(save_data)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
                 try:
                     self._popup_show_info('Barrel Swap', f"Swapped barrel on {wpn.get('name', 'weapon')}.Temperature reset to {ambient_local}{temp_unit}")
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
             except Exception as e:
                 logging.exception('Barrel swap failed: %s', e)
                 try:
                     self._popup_show_info('Error', f'Barrel swap failed: {e}', sound = 'error')
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
         def on_left_arrow(event):
             logging.debug("Left arrow pressed - switching weapon")
@@ -970,21 +971,21 @@ class CombatmodeMixin:
                 logging.debug("'b' pressed - barrel swap requested")
                 _barrel_swap_current()
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         def on_n_key(event):
             try:
                 logging.debug("'n' pressed - NVG toggle requested")
                 _toggle_nvg()
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         def on_a_key(event):
             try:
                 logging.debug("'a' pressed - accessories menu requested")
                 manage_attachments()
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         def on_p_key(event):
             try:
@@ -994,7 +995,7 @@ class CombatmodeMixin:
                 logging.debug("'p' pressed - parts menu requested")
                 _view_parts()
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         try:
             self.root.bind("b", on_b_key)
@@ -1006,7 +1007,7 @@ class CombatmodeMixin:
             self.root.bind("p", on_p_key)
             self.root.bind("P", on_p_key)
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
         self._create_sound_button(
         weapon_switch_frame,
@@ -1028,7 +1029,7 @@ class CombatmodeMixin:
                     logging.info("Resolving active underbarrel: parent_index=%s accessory_id=%s accessory_name=%s current_weapon_index=%s equipped_count=%s",
                     parent_index, aid, aname, combat_state.get("current_weapon_index"), len(equipped_weapons))
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
                 if parent_index is None:
                     return None
                 if parent_index <0 or parent_index >=len(equipped_weapons):
@@ -1037,7 +1038,7 @@ class CombatmodeMixin:
                 try:
                     logging.info("Resolved parent_slot from equipped_weapons[%s]-> %s", parent_index, parent_slot)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 if "->"in parent_slot:
                     parent_slot = parent_slot.split("->")[0].strip()
@@ -1045,12 +1046,12 @@ class CombatmodeMixin:
                 try:
                     logging.info("Parent item found: %s", bool(parent_item))
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
                 if not parent_item or not isinstance(parent_item, dict):
                     try:
                         logging.info("No parent_item present for slot '%s'", parent_slot)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                     return None
 
                 for acc in parent_item.get("accessories", [])or[]:
@@ -1058,19 +1059,19 @@ class CombatmodeMixin:
                     try:
                         logging.info("Checking parent accessory entry current=%s", repr(cur))
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                     if isinstance(cur, dict):
                         if aid is not None and cur.get("id")==aid:
                             try:
                                 logging.info("Resolver matched accessory by id: %s", cur.get("id"))
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                             return cur
                         if aname and cur.get("name")==aname:
                             try:
                                 logging.info("Resolver matched accessory by name: %s", cur.get("name"))
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                             return cur
                     else:
 
@@ -1084,13 +1085,13 @@ class CombatmodeMixin:
                                             if isinstance(it, dict)and it.get("id")==int(cur):
                                                 return it
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
 
                 for sub in parent_item.get("subslots", [])or[]:
                     try:
                         logging.info("Checking parent subslot '%s' for accessories", sub.get("name"))
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                     sub_cur = sub.get("current")if isinstance(sub, dict)else None
                     if not sub_cur or not isinstance(sub_cur, dict):
                         continue
@@ -1099,19 +1100,19 @@ class CombatmodeMixin:
                         try:
                             logging.info("Checking subslot accessory entry current=%s", repr(cur))
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                         if isinstance(cur, dict):
                             if aid is not None and cur.get("id")==aid:
                                 try:
                                     logging.info("Resolver matched accessory in subslot by id: %s", cur.get("id"))
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                                 return cur
                             if aname and cur.get("name")==aname:
                                 try:
                                     logging.info("Resolver matched accessory in subslot by name: %s", cur.get("name"))
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                                 return cur
                         else:
                             try:
@@ -1123,7 +1124,7 @@ class CombatmodeMixin:
                                                 if isinstance(it, dict)and it.get("id")==int(cur):
                                                     return it
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                 return None
             except Exception:
                 return None
@@ -1131,7 +1132,7 @@ class CombatmodeMixin:
         try:
             logging.info("Active underbarrel raw state: %s", repr(active_ub))
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
         resolved_active_acc = _resolve_active_underbarrel_obj(active_ub)
         try:
             if resolved_active_acc is not None and hasattr(resolved_active_acc, 'get')and callable(getattr(resolved_active_acc, 'get')):
@@ -1143,7 +1144,7 @@ class CombatmodeMixin:
             try:
                 logging.info("Resolved active accessory: %s", str(resolved_active_acc))
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
         if active_ub and isinstance(active_ub, dict)and active_ub.get("parent_index")==combat_state.get("current_weapon_index")and resolved_active_acc:
 
             current_weapon = resolved_active_acc
@@ -1185,7 +1186,7 @@ class CombatmodeMixin:
         try:
             self._apply_item_overrides(current_weapon)
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
         self._display_weapon_details(details_frame, current_weapon, combat_state, save_data, table_data, current_weapon_state)
 
         watch_rows = []
@@ -1249,7 +1250,7 @@ class CombatmodeMixin:
                 try:
                     update_watch_display()
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
             toggle_btn = self._create_sound_button(
                 title_row,
@@ -1310,7 +1311,7 @@ class CombatmodeMixin:
                             combat_state["watch_hourly_beep_muted"] = watch_beep_mute_map
                             update_watch_display()
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
 
                     info_row = customtkinter.CTkFrame(row, fg_color = "#313B21")
                     info_row.pack(anchor = "w", padx = _s(8), pady =(0, _s(6)))
@@ -1440,7 +1441,7 @@ class CombatmodeMixin:
             try:
                 self._apply_item_overrides(wpn)
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
             self._display_weapon_details(details_frame, wpn, combat_state, sd, table_data, current_weapon_state)
             watch_rows = _build_watch_panel(details_frame)
 
@@ -1450,9 +1451,9 @@ class CombatmodeMixin:
                     new_max = _compute_rounds_max_for_weapon(wpn, current_weapon_state)
                     _apply_rounds_max(new_max)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
             try:
                 dev_menu = current_weapon_state.get("dev_variant_menu_ref")
@@ -1489,7 +1490,7 @@ class CombatmodeMixin:
                                         for var in ammo.get("variants", [])or[]:
                                             new_choices.append(var.get("name", "Unknown"))
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                         if not new_choices:
                             new_choices =["Ball"]
 
@@ -1504,7 +1505,7 @@ class CombatmodeMixin:
                                 if dev_var.get()not in new_choices:
                                     dev_var.set(new_choices[0])
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
 
                         try:
                             if dev_cal_menu is not None and dev_cal_var is not None:
@@ -1521,29 +1522,29 @@ class CombatmodeMixin:
                                         try:
                                             dev_cal_var.set(calib_vals[0])
                                         except Exception:
-                                            pass
+                                            logging.exception("Suppressed exception")
 
                                     if len(calib_vals)<=1:
                                         try:
                                             dev_cal_menu.configure(state = "disabled")
                                         except Exception:
-                                            pass
+                                            logging.exception("Suppressed exception")
                                     else:
                                         try:
                                             dev_cal_menu.configure(state = "normal")
                                         except Exception:
-                                            pass
+                                            logging.exception("Suppressed exception")
                                 except Exception:
                                     try:
                                         dev_cal_menu.set_values(calib_vals)
                                     except Exception:
-                                        pass
+                                        logging.exception("Suppressed exception")
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
             sd2 = globals().get('save_data')if 'save_data'in globals()else save_data
             self._save_combat_state(sd2)
 
@@ -1619,7 +1620,7 @@ class CombatmodeMixin:
                                     if check_item(itm):
                                         return True
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                             for slot_name, eq_item in save_data.get('equipment', {}).items():
                                 try:
                                     if not eq_item or not isinstance(eq_item, dict):
@@ -1629,7 +1630,7 @@ class CombatmodeMixin:
                                             if check_item(itm):
                                                 return True
                                         except Exception:
-                                            pass
+                                            logging.exception("Suppressed exception")
                                     for sub in eq_item.get('subslots', [])or[]:
                                         try:
                                             curr = sub.get('current')
@@ -1639,11 +1640,11 @@ class CombatmodeMixin:
                                                         if check_item(itm):
                                                             return True
                                                     except Exception:
-                                                        pass
+                                                        logging.exception("Suppressed exception")
                                         except Exception:
-                                            pass
+                                            logging.exception("Suppressed exception")
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                             return False
                         except Exception:
                             return False
@@ -1677,9 +1678,9 @@ class CombatmodeMixin:
                                                     if check_mag(itm):
                                                         return True
                                         except Exception:
-                                            pass
+                                            logging.exception("Suppressed exception")
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
 
                             wpn = current_weapon_state.get('weapon')or {}
                             loaded_mag = wpn.get('loaded')
@@ -1701,9 +1702,9 @@ class CombatmodeMixin:
                             else:
                                 rb.configure(state = 'normal')
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         nvg_btn = None
 
@@ -1722,7 +1723,7 @@ class CombatmodeMixin:
                     if isinstance(name, str)and "night"in name.lower()and "vision"in name.lower():
                         return True
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
                 return False
 
             try:
@@ -1732,7 +1733,7 @@ class CombatmodeMixin:
                         if _is_nvg(itm):
                             return itm
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
                 for slot_name, eq in save_data.get("equipment", {}).items():
                     try:
@@ -1744,7 +1745,7 @@ class CombatmodeMixin:
                                     if _is_nvg(itm):
                                         return itm
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
 
                         if "subslots"in eq:
                             for sub in eq.get("subslots", []):
@@ -1755,7 +1756,7 @@ class CombatmodeMixin:
                                         if _is_nvg(curr):
                                             return curr
                                     except Exception:
-                                        pass
+                                        logging.exception("Suppressed exception")
 
                                     if curr and "items"in curr and isinstance(curr["items"], list):
                                         for itm in curr["items"]:
@@ -1763,7 +1764,7 @@ class CombatmodeMixin:
                                                 if _is_nvg(itm):
                                                     return itm
                                             except Exception:
-                                                pass
+                                                logging.exception("Suppressed exception")
 
                                     try:
                                         nested = curr
@@ -1774,11 +1775,11 @@ class CombatmodeMixin:
                                                 return nested
                                             depth +=1
                                     except Exception:
-                                        pass
+                                        logging.exception("Suppressed exception")
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
                 try:
                     for acc in current_weapon.get("accessories", [])or[]:
@@ -1793,13 +1794,13 @@ class CombatmodeMixin:
                                         if _is_nvg(itm):
                                             return itm
                                     except Exception:
-                                        pass
+                                        logging.exception("Suppressed exception")
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
             return None
 
         def _update_nvg_button():
@@ -1823,9 +1824,9 @@ class CombatmodeMixin:
                     else:
                         nvg_btn.configure(fg_color = "#444444", hover_color = "#666666")
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         def _update_indoor_button():
             try:
@@ -1841,7 +1842,7 @@ class CombatmodeMixin:
                     if indoor_switch.get() != 0:
                         indoor_switch.deselect()
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         actions_outer_frame = customtkinter.CTkFrame(main_frame)
         actions_outer_frame.pack(fill = "x", pady =(0, 20))
@@ -1881,7 +1882,7 @@ class CombatmodeMixin:
                 rounds_slider.set(iv)
                 rounds_var.set(iv)
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         def _compute_rounds_max_for_weapon(wpn, wpn_state = None):
             max_val = 10
@@ -1899,13 +1900,13 @@ class CombatmodeMixin:
                     if wpn.get("chambered"):
                         total +=1
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
                 try:
                     internal_rounds = wpn.get("rounds")or[]
                     if isinstance(internal_rounds, list):
                         total +=len(internal_rounds)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
                 try:
                     loaded = wpn.get("loaded")
                     if isinstance(loaded, dict):
@@ -1918,13 +1919,13 @@ class CombatmodeMixin:
                                 try:
                                     total +=int(cap)
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
                 if total >0:
                     max_val = max(max_val, total)
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
             return max_val
 
         def _apply_rounds_max(max_slider_local):
@@ -1934,7 +1935,7 @@ class CombatmodeMixin:
                 try:
                     rounds_slider.config(to = max_slider_local)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
             try:
                 cur = int(rounds_var.get()or 1)
                 if cur >max_slider_local:
@@ -1942,7 +1943,7 @@ class CombatmodeMixin:
                     rounds_slider.set(max_slider_local)
                     rounds_value_label.configure(text = str(max_slider_local))
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         max_slider = _compute_rounds_max_for_weapon(current_weapon, current_weapon_state)
 
@@ -1974,7 +1975,7 @@ class CombatmodeMixin:
                 else:
                     supported_modes.append(str(m))
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
         if not supported_modes:
             supported_modes =["Semi"]
 
@@ -2191,12 +2192,12 @@ class CombatmodeMixin:
                     try:
                         attach_mode_frame.mode_option.configure(values = new_names)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                 if 'attach_select'in locals()or 'attach_select'in globals():
                     try:
                         attach_select.configure(values = new_names)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
             except Exception:
                 logging.exception("Failed to refresh attachment option menu values")
 
@@ -2270,9 +2271,9 @@ class CombatmodeMixin:
                         try:
                             attach_state["current_angle"]= float(pos_deg)
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 _refresh_mode_controls()
             draw_attach_dial()
@@ -2339,7 +2340,7 @@ class CombatmodeMixin:
                             attach_mode_frame.mode_option.configure(values = mode_names)
                             attach_mode_frame.mode_option.pack(side = "top", padx = 5, pady =(2, 4))
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                     else:
                         attach_mode_frame.mode_option = customtkinter.CTkOptionMenu(attach_mode_frame, values = mode_names, variable = attach_mode_var, command = lambda v:_set_mode_by_name(v))
                         attach_mode_frame.mode_option.pack(side = "top", padx = 5, pady =(2, 4))
@@ -2349,7 +2350,7 @@ class CombatmodeMixin:
                         try:
                             attach_mode_frame.mode_option.pack_forget()
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
             except Exception:
                 logging.exception("Failed to refresh mode option menu")
 
@@ -2362,7 +2363,7 @@ class CombatmodeMixin:
                             attach_mode_frame.mode_slider.configure(from_ = 0, to = max(0, len(visible_modes)-1), number_of_steps = max(1, len(visible_modes)-1))
                             attach_mode_frame.mode_slider.pack(side = "top", padx = 5, pady =(2, 6), fill = "x")
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                     else:
                         attach_mode_frame.mode_slider = customtkinter.CTkSlider(attach_mode_frame, from_ = 0, to = max(0, len(visible_modes)-1), number_of_steps = max(1, len(visible_modes)-1), command = lambda v:_set_mode_by_index(round(float(v))))
                         attach_mode_frame.mode_slider.pack(side = "top", padx = 5, pady =(2, 6), fill = "x")
@@ -2372,7 +2373,7 @@ class CombatmodeMixin:
                         try:
                             attach_mode_frame.mode_slider.pack_forget()
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
             except Exception:
                 logging.exception("Failed to refresh mode slider")
 
@@ -2390,7 +2391,7 @@ class CombatmodeMixin:
                 try:
                     attach_mode_frame.mode_slider.set(vis_index)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
             attach_mode_frame._visible_modes = visible_modes
             attach_mode_frame._mode_index_map = mode_index_map
@@ -2416,30 +2417,30 @@ class CombatmodeMixin:
                     try:
                         ml.configure(text = current_mode_name)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                     try:
                         if mode_method in("slider", "option"):
                             ml.pack(side = "top", padx = 5, pady =(0, 6))
                         else:
                             ml.pack_forget()
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
             try:
                 if mode_method =="dial":
                     try:
                         attach_canvas.pack(side = "top", padx = 5, pady = 5)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
                     attach_canvas.configure(state = "normal")
                 else:
                     try:
                         attach_canvas.pack_forget()
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
             except Exception:
                 logging.exception("Failed to adjust attach canvas visibility")
 
@@ -2518,14 +2519,14 @@ class CombatmodeMixin:
                                 _cur_att.pop("power_on_timestamp", None)
                                 acc_with_modes["_mode_index"] = 0
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
             try:
                 new_index = acc_with_modes.get("_mode_index")
                 if new_index !=old_index:
                     self._safe_sound_play("firearms/universal", "fireselector")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
             try:
                 self._apply_item_overrides(current_weapon)
             except Exception:
@@ -2538,7 +2539,7 @@ class CombatmodeMixin:
                 pos_deg = acc_modes[mi].get("position")if isinstance(acc_modes[mi], dict)and acc_modes[mi].get("position")is not None else(mi *(360.0 /max(1, len(acc_modes))))
                 attach_state["current_angle"]= float(pos_deg)# type: ignore
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
             try:
                 ml = getattr(attach_mode_frame, 'mode_label', None)
@@ -2551,9 +2552,9 @@ class CombatmodeMixin:
                     try:
                         ml.configure(text = mname)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
             draw_attach_dial()
 
         attach_state = {"current_angle":90, "dragging":False}
@@ -2642,7 +2643,7 @@ class CombatmodeMixin:
                         best_diff = diff
                         best_idx = mi
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
             chosen_angle = acc_modes[best_idx].get("position")if isinstance(acc_modes[best_idx], dict)and acc_modes[best_idx].get("position")is not None else(best_idx *(360.0 /max(1, len(acc_modes))))
             return best_idx, float(chosen_angle)# type: ignore
 
@@ -2715,14 +2716,14 @@ class CombatmodeMixin:
                                 _cur_att_d.pop("power_on_timestamp", None)
                                 acc_with_modes["_mode_index"] = 0
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
             try:
                 new_index = acc_with_modes.get("_mode_index")
                 if new_index !=old_index:
                     self._safe_sound_play("firearms/universal", "fireselector")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
             try:
                 self._apply_item_overrides(current_weapon)
             except Exception:
@@ -2739,9 +2740,9 @@ class CombatmodeMixin:
                     try:
                         ml.configure(text = mname)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
             draw_attach_dial()
 
         attach_canvas.bind("<Button-1>", attach_on_mouse_down)
@@ -2773,10 +2774,10 @@ class CombatmodeMixin:
                         try:
                             self._popup_show_info("Overheated", "Weapon is overheated and cannot fire.Wait for cooling.")
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                         return
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
             rounds_to_fire = rounds_var.get()
             logging.info(
             "Fire button pressed: weapon=%s, rounds=%s, mode=%s",
@@ -2794,13 +2795,13 @@ class CombatmodeMixin:
                         self.root.after(0, lambda:self._popup_show_info("Fire Result", res))
                         self.root.after(0, update_weapon_view)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                 except Exception as e:
                     logging.exception("Fire action failed(background): %s", e)
                     try:
                         self.root.after(0, lambda:self._popup_show_info("Fire Error", str(e)))
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                 finally:
                     try:
                         fb = current_weapon_state.get('fire_button_ref')
@@ -2809,9 +2810,9 @@ class CombatmodeMixin:
                                 self.root.after(0, lambda:(fb.configure(state = 'normal')))
                                 self.root.after(0, lambda:fb.configure(text =(current_weapon_state.get('fire_button_orig_text')or "Fire")))
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
             try:
                 fb = current_weapon_state.get('fire_button_ref')
@@ -2820,9 +2821,9 @@ class CombatmodeMixin:
                         fb.configure(state = 'disabled')
                         fb.configure(text = "Firing...")
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
             try:
                 t = threading.Thread(target = _do_fire, name = "CombatFireThread", daemon = True)
@@ -3124,7 +3125,7 @@ class CombatmodeMixin:
                     wpn.get("submagazinesystem"),
                     is_belt)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 handled_belt = False
 
@@ -3133,7 +3134,7 @@ class CombatmodeMixin:
                     try:
                         self._play_weapon_action_sound(wpn, "magout")
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
                     time.sleep(random.uniform(0.5, 1.0))
 
@@ -3141,13 +3142,13 @@ class CombatmodeMixin:
                         magdrop_sound = f"magdrop{random.randint(0, 1)}"
                         self._safe_sound_play("", f"sounds/firearms/universal/{magdrop_sound}.ogg")
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                     time.sleep(random.uniform(0.5, 1.0))
 
                     try:
                         self._safe_sound_play("", "sounds/firearms/universal/pouchout.ogg")
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                     time.sleep(random.uniform(0.25, 0.5))
 
                     mag_type = wpn.get("magazinetype", "").lower()
@@ -3156,7 +3157,7 @@ class CombatmodeMixin:
                         try:
                             self._play_weapon_action_sound(wpn, "magin")
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                     time.sleep(random.uniform(0.25, 0.5))
 
                 elif is_belt:
@@ -3165,12 +3166,12 @@ class CombatmodeMixin:
                         try:
                             self._perform_dualfeed_belt_reload_sequence(wpn, quick=True)
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                     else:
                         try:
                             self._show_belt_variant_selection(wpn, quick=True)
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                     handled_belt = True
 
                 else:
@@ -3178,7 +3179,7 @@ class CombatmodeMixin:
                     try:
                         self._safe_sound_play("", "sounds/firearms/universal/pouchout.ogg")
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                     time.sleep(0.8)
 
                 if not handled_belt and is_gun_empty:
@@ -3197,26 +3198,26 @@ class CombatmodeMixin:
                         try:
                             self._play_weapon_action_sound(wpn, "pumpback", block = True)
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                         try:
                             self._play_weapon_action_sound(wpn, "pumpforward")
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                     elif not wpn.get("bolt_catch"):
                         try:
                             self._play_weapon_action_sound(wpn, "boltback", block = True)
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
 
                         try:
                             self._play_weapon_action_sound(wpn, "boltforward")
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                     else:
                         try:
                             self._play_weapon_action_sound(wpn, "boltforward")
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
 
                 try:
                     mag_type =(wpn.get("magazinetype")or "").lower()
@@ -3253,9 +3254,9 @@ class CombatmodeMixin:
                             _sd_val = max(0.0, _sd_val - random.uniform(0.3, 0.8))
                             mag_item["spring_durability"] = round(_sd_val, 2)
                         except (ValueError, TypeError):
-                            pass
+                            logging.exception("Suppressed exception")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
             if is_gun_empty and mag_item.get("rounds", []):
 
@@ -3275,7 +3276,7 @@ class CombatmodeMixin:
                 try:
                     self._play_weapon_action_sound(wpn, "pouchout")
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
                 for slot_name, eq_item in save_data.get("equipment", {}).items():
                     if eq_item:
                         if "items"in eq_item and isinstance(eq_item["items"], list):
@@ -3309,7 +3310,7 @@ class CombatmodeMixin:
             current_weapon_state['fire_button_ref']= fire_btn
             current_weapon_state['fire_button_orig_text']= "Fire(Press SPACE)"
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
         self._create_sound_button(
         actions_frame,
@@ -3346,7 +3347,7 @@ class CombatmodeMixin:
                     try:
                         nvg_btn.configure(state = "disabled")
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                     return
                 active = bool(combat_state.get("nvg_active"))
 
@@ -3363,12 +3364,12 @@ class CombatmodeMixin:
                     else:
                         self._safe_sound_play("misc/nvg", "off")
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 try:
                     _update_nvg_button()
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
             except Exception:
                 logging.exception("NVG toggle failed")
 
@@ -3380,7 +3381,7 @@ class CombatmodeMixin:
         try:
             _update_nvg_button()
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
         def _toggle_indoors():
             try:
@@ -3388,7 +3389,7 @@ class CombatmodeMixin:
                 try:
                     self._safe_sound_play("misc/nvg", "on" if combat_state["indoors"] else "off")
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
                 _update_indoor_button()
             except Exception:
                 logging.exception("Indoor toggle failed")
@@ -3437,7 +3438,7 @@ class CombatmodeMixin:
                     try:
                         self._save_combat_state(save_data)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                     update_weapon_view()
                     return
 
@@ -3464,11 +3465,11 @@ class CombatmodeMixin:
                             try:
                                 self._save_combat_state(save_data)
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                             try:
                                 elec_popup.destroy()
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                             update_weapon_view()
                         return _do
 
@@ -3479,7 +3480,7 @@ class CombatmodeMixin:
                     elec_popup.grab_set()
                     elec_popup.lift()
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
             except Exception:
                 logging.exception("Electronics toggle failed")
 
@@ -3487,7 +3488,7 @@ class CombatmodeMixin:
             elec_btn = self._create_sound_button(actions_frame, "Electronics", _toggle_electronics, width=150, height=50, font=customtkinter.CTkFont(size=14))
             elec_btn.pack(side="left", padx=10, pady=10)
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
         def cooling_tick():
             try:
@@ -3504,7 +3505,7 @@ class CombatmodeMixin:
                             t = max(ambient_temp, t -drop)
                             temps[mid]= t
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
                 try:
                     w = current_weapon_state.get("weapon")
@@ -3526,27 +3527,27 @@ class CombatmodeMixin:
                                     fb.configure(state = "disabled")
                                     fb.configure(text =(current_weapon_state.get('fire_button_orig_text')or "Fire")+"(Overheated)")
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                             else:
                                 try:
                                     fb.configure(state = "normal")
                                     fb.configure(text = current_weapon_state.get('fire_button_orig_text')or "Fire")
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
             except Exception:
                 logging.exception("cooling_tick failed")
             finally:
                 try:
                     self.root.after(1000, cooling_tick)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
         try:
             self.root.after(1000, cooling_tick)
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
         def manage_attachments():
             wpn = current_weapon_state["weapon"]
@@ -3636,7 +3637,7 @@ class CombatmodeMixin:
                                     found = True
                                     break
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                         if not found:
 
                             try:
@@ -3655,7 +3656,7 @@ class CombatmodeMixin:
                     try:
                         option.configure(state = "disabled")
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
                 def _open_mode_dial_for(acc_ref):
                     try:
@@ -3753,7 +3754,7 @@ class CombatmodeMixin:
                                                 _cur_p.pop("power_on_timestamp", None)
                                                 acc_set["_mode_index"] = 0
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                             try:
 
                                 self._apply_item_overrides(wpn)
@@ -3762,7 +3763,7 @@ class CombatmodeMixin:
                             try:
                                 dial_win.destroy()
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
 
                     except Exception:
                         logging.exception("open_mode_dial failed")
@@ -3788,7 +3789,7 @@ class CombatmodeMixin:
                                             if slot_field ==slot_req or(isinstance(slot_field, (list, tuple))and slot_req in slot_field):
                                                 matched = True
                                         except Exception:
-                                            pass
+                                            logging.exception("Suppressed exception")
                                         try:
                                             accs = it.get('accessories')or[]
                                             if isinstance(accs, list):
@@ -3798,7 +3799,7 @@ class CombatmodeMixin:
                                                             matched = True
                                                             break
                                         except Exception:
-                                            pass
+                                            logging.exception("Suppressed exception")
 
                                         if matched:
 
@@ -3806,12 +3807,13 @@ class CombatmodeMixin:
                                                 if it.get('firearm'):
                                                     continue
                                             except Exception:
-                                                pass
+                                                logging.exception("Suppressed exception")
                                             candidates.append((it, tf, subname))
                             except Exception:
+                                logging.exception("Suppressed exception")
                                 continue
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                     return candidates
 
                 def _open_add_from_table(acc_ref):
@@ -3841,7 +3843,7 @@ class CombatmodeMixin:
                                             if slot_field ==slot_req or(isinstance(slot_field, (list, tuple))and slot_req in slot_field):
                                                 matched = True
                                         except Exception:
-                                            pass
+                                            logging.exception("Suppressed exception")
                                         try:
                                             accs = it.get('accessories')or[]
                                             if isinstance(accs, list):
@@ -3851,7 +3853,7 @@ class CombatmodeMixin:
                                                             matched = True
                                                             break
                                         except Exception:
-                                            pass
+                                            logging.exception("Suppressed exception")
                                         try:
                                             subs = it.get('subslots')or[]
                                             if isinstance(subs, list):
@@ -3861,7 +3863,7 @@ class CombatmodeMixin:
                                                             matched = True
                                                             break
                                         except Exception:
-                                            pass
+                                            logging.exception("Suppressed exception")
 
                                         if matched:
 
@@ -3869,9 +3871,10 @@ class CombatmodeMixin:
                                                 if it.get('firearm'):
                                                     continue
                                             except Exception:
-                                                pass
+                                                logging.exception("Suppressed exception")
                                             candidates.append((it, tf, subname))
                             except Exception:
+                                logging.exception("Suppressed exception")
                                 continue
 
                         if not candidates:
@@ -3915,7 +3918,7 @@ class CombatmodeMixin:
                                 try:
                                     popup.destroy()
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                             except Exception as e:
                                 logging.exception("Failed to add item from table: %s", e)
 
@@ -3945,7 +3948,7 @@ class CombatmodeMixin:
                     try:
                         add_table_btn.configure(state = "disabled")
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                 add_table_btn.pack(anchor = "w", pady = 2)
 
                 rows.append((acc, opts, current_choice, None))
@@ -3975,9 +3978,9 @@ class CombatmodeMixin:
                                             sub['current']= new_value
                                         return
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
                 # ── Conflict validation ──────────────────────────────────
                 try:
@@ -4053,20 +4056,20 @@ class CombatmodeMixin:
                                         elif isinstance(el, dict)and item_id is not None and el.get("id")==item_id:
                                             to_remove.append(el)
                                     except Exception:
-                                        pass
+                                        logging.exception("Suppressed exception")
                                 for r in to_remove:
                                     try:
                                         while r in obj:
                                             obj.remove(r)
                                     except Exception:
-                                        pass
+                                        logging.exception("Suppressed exception")
                                 for el in obj:
                                     _scan(el)
 
                         try:
                             _scan(save_data)
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
 
                     if subslot_ref is not None:
 
@@ -4074,7 +4077,7 @@ class CombatmodeMixin:
                             try:
                                 _remove_all_references(subslot_ref.get("current"))
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                             save_data.get("hands", {}).get("items", []).append(subslot_ref.get("current"))
 
                         if chosen_item is None:
@@ -4083,13 +4086,13 @@ class CombatmodeMixin:
                             try:
                                 _remove_all_references(chosen_item)
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                             hands_items = save_data.get("hands", {}).get("items", [])
                             try:
                                 if chosen_item in hands_items:
                                     hands_items.remove(chosen_item)
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                             try:
                                 for slot_name, eq_item in save_data.get("equipment", {}).items():
                                     if eq_item and "items"in eq_item and isinstance(eq_item["items"], list):
@@ -4097,7 +4100,7 @@ class CombatmodeMixin:
                                             while chosen_item in eq_item["items"]:
                                                 eq_item["items"].remove(chosen_item)
                                         except Exception:
-                                            pass
+                                            logging.exception("Suppressed exception")
 
                                     if eq_item and "subslots"in eq_item:
                                         for sub in eq_item.get("subslots", []):
@@ -4106,9 +4109,9 @@ class CombatmodeMixin:
                                                     while chosen_item in sub["current"]["items"]:
                                                         sub["current"]["items"].remove(chosen_item)
                                                 except Exception:
-                                                    pass
+                                                    logging.exception("Suppressed exception")
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
 
                             try:
                                 import copy as _copy
@@ -4153,9 +4156,9 @@ class CombatmodeMixin:
                                                                         sub['current']= installed_obj
                                                                     return True
                                                             except Exception:
-                                                                pass
+                                                                logging.exception("Suppressed exception")
                                                 except Exception:
-                                                    pass
+                                                    logging.exception("Suppressed exception")
                                         return False
                                     except Exception:
                                         return False
@@ -4163,9 +4166,9 @@ class CombatmodeMixin:
                                 try:
                                     _sync_subslot_to_save(acc, subslot_ref, new_installed)
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
 
                     else:
 
@@ -4173,7 +4176,7 @@ class CombatmodeMixin:
                             try:
                                 _remove_all_references(acc["current"])
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                             save_data.get("hands", {}).get("items", []).append(acc["current"])
 
                         if chosen_item is None:
@@ -4182,19 +4185,19 @@ class CombatmodeMixin:
                                 try:
                                     _sync_attachment_subslot(wpn, acc, None)
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                         else:
                             try:
                                 _remove_all_references(chosen_item)
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
 
                             hands_items = save_data.get("hands", {}).get("items", [])
                             try:
                                 if chosen_item in hands_items:
                                     hands_items.remove(chosen_item)
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
 
                             try:
                                 for slot_name, eq_item in save_data.get("equipment", {}).items():
@@ -4203,7 +4206,7 @@ class CombatmodeMixin:
                                             while chosen_item in eq_item["items"]:
                                                 eq_item["items"].remove(chosen_item)
                                         except Exception:
-                                            pass
+                                            logging.exception("Suppressed exception")
 
                                     if eq_item and "subslots"in eq_item:
                                         for sub in eq_item.get("subslots", []):
@@ -4212,9 +4215,9 @@ class CombatmodeMixin:
                                                     while chosen_item in sub["current"]["items"]:
                                                         sub["current"]["items"].remove(chosen_item)
                                                 except Exception:
-                                                    pass
+                                                    logging.exception("Suppressed exception")
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
 
                             try:
                                 import copy as _copy
@@ -4228,13 +4231,13 @@ class CombatmodeMixin:
                                 try:
                                     _sync_attachment_subslot(wpn, acc, new_installed)
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
 
                             try:
                                 if isinstance(acc.get("current"), dict):
                                     add_subslots_to_item(acc.get("current"))
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
 
                             try:
                                 modes = acc.get("current", {}).get("modes")or[]
@@ -4242,7 +4245,7 @@ class CombatmodeMixin:
                                     if acc.get("_mode_index")is None and acc.get("mode_index")is None:
                                         acc["_mode_index"]= 0
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
 
                 for acc, opts, var, subslot_ref in rows:
                     if acc.get('_is_attachment_subslot'):
@@ -4257,15 +4260,15 @@ class CombatmodeMixin:
                             try:
                                 wpn['accessories'].remove(r)
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
 
                         if acc.get('current')and isinstance(acc.get('current'), dict):
                             try:
                                 _add_attachment_subslots_to_weapon(wpn, acc, acc.get('current'))
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
                 try:
                     self._apply_item_overrides(wpn)
@@ -4300,7 +4303,7 @@ class CombatmodeMixin:
                 try:
                     self._center_popup_on_window(popup, 420, 400)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
         def check_magazine():
             import time
@@ -4339,7 +4342,7 @@ class CombatmodeMixin:
                                             break
                                     break
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
             is_belt =("belt"in(wpn.get("magazinetype", "")or ""))or("belt"in(wpn.get("platform", "")or ""))or("m249"in(wpn.get("platform", "")or ""))
             try:
@@ -4353,7 +4356,7 @@ class CombatmodeMixin:
                     try:
                         self._play_weapon_action_sound(wpn, "magout")
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
             ammo_label_ref = current_weapon_state.get("ammo_label_ref")
 
@@ -4440,7 +4443,7 @@ class CombatmodeMixin:
                     except Exception:
                         logging.exception("Underbarrel reload failed")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
             wpn = current_weapon_state["weapon"]
 
@@ -4632,7 +4635,7 @@ class CombatmodeMixin:
                     try:
                         popup.destroy()
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                     _ed = customtkinter.CTkToplevel(self.root)
                     _ed.title('Clip Loader')
                     _ed.transient(self.root)
@@ -4746,7 +4749,7 @@ class CombatmodeMixin:
                 try:
                     popup.destroy()
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 def _open_magazine_editor():
                     import tkinter as _tk_mag
@@ -4757,7 +4760,7 @@ class CombatmodeMixin:
                             try:
                                 self._play_weapon_action_sound(wpn, 'magout', block = True)
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
 
                         editor = customtkinter.CTkToplevel(self.root)
                         editor.title('Magazine Loader')
@@ -4796,7 +4799,7 @@ class CombatmodeMixin:
                                             if _att and isinstance(_att, str) and _att.startswith('#'):
                                                 vtips[_atn] = _att
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                         _arm_cg_raw = {}
                         for _vn_a in vlist:
                             _arm_cg_raw.setdefault(arm_v2c.get(_vn_a, 'Unknown'), []).append(_vn_a)
@@ -4965,8 +4968,9 @@ class CombatmodeMixin:
                                         try:
                                             save_data['hands']['items'].pop(hi)
                                         except Exception:
-                                            pass
+                                            logging.exception("Suppressed exception")
                                 except Exception:
+                                    logging.exception("Suppressed exception")
                                     continue
                             for _sn_eq, eq_item in list(save_data.get('equipment', {}).items()):
                                 if not eq_item or not isinstance(eq_item, dict):
@@ -4989,7 +4993,7 @@ class CombatmodeMixin:
                                                 itm['quantity']= qty -1
                                                 return {k:v for k, v in itm.items()if k !='quantity'}
                                     except Exception:
-                                        pass
+                                        logging.exception("Suppressed exception")
                             return None
 
                         def _play_insert():
@@ -4998,7 +5002,7 @@ class CombatmodeMixin:
                                 ls['stoggle']= 1 -ls['stoggle']
                                 self._play_weapon_action_sound(wpn, sn, block = False)
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
 
                         def _do_insert_data(vname):
                             if len(existing)>=cap:
@@ -5171,7 +5175,7 @@ class CombatmodeMixin:
                                 try:
                                     _reloader_state['channel'].stop()
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                                 _reloader_state['channel'] = None
 
                         def _start_reloader_loop():
@@ -5185,7 +5189,7 @@ class CombatmodeMixin:
                                         _reloader_state['channel'] = ch
                                         _reloader_state['sound'] = snd
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
 
                         def _play_reloader_insert():
                             try:
@@ -5197,7 +5201,7 @@ class CombatmodeMixin:
                                         ch.play(snd)
                                         return int(snd.get_length() * 1000)
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                             return 0
 
                         def _reloader_auto_fill(vname):
@@ -5209,7 +5213,7 @@ class CombatmodeMixin:
                                 try:
                                     _reloader_state['btn'].configure(state = 'disabled')
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
 
                             insert_dur = _play_reloader_insert()
 
@@ -5229,7 +5233,7 @@ class CombatmodeMixin:
                                     try:
                                         _reloader_state['unhook_btn'].configure(state = 'normal')
                                     except Exception:
-                                        pass
+                                        logging.exception("Suppressed exception")
                                 return
                             r = _take_round(vname)
                             if r is None:
@@ -5241,7 +5245,7 @@ class CombatmodeMixin:
                                     try:
                                         _reloader_state['unhook_btn'].configure(state = 'normal')
                                     except Exception:
-                                        pass
+                                        logging.exception("Suppressed exception")
                                 return
                             existing.insert(0, r)
                             ls['added'] += 1
@@ -5262,12 +5266,12 @@ class CombatmodeMixin:
                                 try:
                                     _reloader_state['btn'].configure(state = 'normal')
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                             if _reloader_state.get('unhook_btn'):
                                 try:
                                     _reloader_state['unhook_btn'].configure(state = 'disabled')
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                             _play_reloader_insert()
 
                         def _use_reloader():
@@ -5350,14 +5354,14 @@ class CombatmodeMixin:
                                     try:
                                         self._play_weapon_action_sound(wpn, 'magin', block = True)
                                     except Exception:
-                                        pass
+                                        logging.exception("Suppressed exception")
 
                                     if _was_chamber_empty and existing:
                                         if bool(wpn.get('bolt_catch')):
                                             try:
                                                 self._play_weapon_action_sound(wpn, 'boltforward')
                                             except Exception:
-                                                pass
+                                                logging.exception("Suppressed exception")
                                         else:
                                             _released = False
                                             try:
@@ -5368,11 +5372,11 @@ class CombatmodeMixin:
                                                 try:
                                                     self._play_weapon_action_sound(wpn, 'boltback', block = True)
                                                 except Exception:
-                                                    pass
+                                                    logging.exception("Suppressed exception")
                                                 try:
                                                     self._play_weapon_action_sound(wpn, 'boltforward')
                                                 except Exception:
-                                                    pass
+                                                    logging.exception("Suppressed exception")
 
                             editor.destroy()
                             update_weapon_view()
@@ -5514,7 +5518,7 @@ class CombatmodeMixin:
         try:
             current_weapon_state['reload_mag_btn_ref']= reload_mag_btn
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
         def unload_magazine():
             try:
@@ -5536,7 +5540,7 @@ class CombatmodeMixin:
         try:
             current_weapon_state['unload_mag_btn_ref']= unload_btn
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
         def remove_magazine():
             try:
@@ -5556,25 +5560,25 @@ class CombatmodeMixin:
                     if not is_belt:
                         self._play_weapon_action_sound(wpn, 'magout')
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
                 try:
                     time.sleep(_rand.uniform(1, 1.25))
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
                 try:
                     self._safe_sound_play("", "sounds/firearms/universal/pouchin.wav")
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 try:
                     save_data.setdefault('hands', {}).setdefault('items', []).append(loaded)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 try:
                     wpn['loaded']= None
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 mag_name = loaded.get('name', 'magazine')if isinstance(loaded, dict)else str(loaded)
                 self._popup_show_info('Remove Magazine', f'Removed {mag_name} to hands')
@@ -5588,9 +5592,9 @@ class CombatmodeMixin:
             try:
                 current_weapon_state['remove_mag_btn_ref']= remove_btn
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
         def _show_magazine_popup():
             try:
@@ -5615,7 +5619,7 @@ class CombatmodeMixin:
                     if _mag_next_variant:
                         customtkinter.CTkLabel(popup, text = f'Next round: {_mag_next_variant}', font = customtkinter.CTkFont(size = 12)).pack(pady = 2)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 try:
                     load_into_weapon_var = customtkinter.BooleanVar(value = True)
@@ -5688,6 +5692,7 @@ class CombatmodeMixin:
                                         if itm.get('caliber'):
                                             return True
                                     except Exception:
+                                        logging.exception("Suppressed exception")
                                         continue
                                 return False
 
@@ -5709,9 +5714,9 @@ class CombatmodeMixin:
                                                     if check_container_items([itm]):
                                                         return True
                                         except Exception:
-                                            pass
+                                            logging.exception("Suppressed exception")
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
 
                             return False
                         except Exception:
@@ -5739,7 +5744,7 @@ class CombatmodeMixin:
                                     if check_nonfull_mag(itm):
                                         return True
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
 
                             for slot_name, eq_item in save_data.get('equipment', {}).items():
                                 try:
@@ -5750,7 +5755,7 @@ class CombatmodeMixin:
                                             if check_nonfull_mag(itm):
                                                 return True
                                         except Exception:
-                                            pass
+                                            logging.exception("Suppressed exception")
                                     for sub in eq_item.get('subslots', [])or[]:
                                         try:
                                             curr = sub.get('current')
@@ -5760,11 +5765,11 @@ class CombatmodeMixin:
                                                         if check_nonfull_mag(itm):
                                                             return True
                                                     except Exception:
-                                                        pass
+                                                        logging.exception("Suppressed exception")
                                         except Exception:
-                                            pass
+                                            logging.exception("Suppressed exception")
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
 
                             loaded_mag = wpn_local.get('loaded')
                             if check_nonfull_mag(loaded_mag):
@@ -5806,9 +5811,9 @@ class CombatmodeMixin:
                                                     if check_mag(itm):
                                                         return True
                                         except Exception:
-                                            pass
+                                            logging.exception("Suppressed exception")
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
 
                             loaded_mag_local = wpn_local.get('loaded')
                             if check_mag(loaded_mag_local):
@@ -5828,7 +5833,7 @@ class CombatmodeMixin:
                     try:
                         popup.destroy()
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
                     wpn = current_weapon_state.get('weapon')or {}
 
@@ -5931,7 +5936,7 @@ class CombatmodeMixin:
                         try:
                             unload_popup.destroy()
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
 
                         is_loaded = (location == "loaded")
                         _open_unload_magazine_editor(mag_item, is_loaded, wpn if is_loaded else None)
@@ -5974,7 +5979,7 @@ class CombatmodeMixin:
                                                 vtips_unl[_atn] = _att
                                         break
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
 
                             def _utip(vn):
                                 return vtips_unl.get(vn, '#e0c060')
@@ -6057,7 +6062,7 @@ class CombatmodeMixin:
                                         if ch:
                                             ch.play(snd)
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
 
                             def _remove_round_at(idx):
                                 if idx < 0 or idx >= len(existing) or uls['animating']:
@@ -6133,7 +6138,7 @@ class CombatmodeMixin:
                                     try:
                                         _unl_reloader['ch'].stop()
                                     except Exception:
-                                        pass
+                                        logging.exception("Suppressed exception")
                                     _unl_reloader['ch'] = None
 
                             def _start_unl_reloader_loop():
@@ -6146,7 +6151,7 @@ class CombatmodeMixin:
                                             ch.play(snd, loops = -1)
                                             _unl_reloader['ch'] = ch # type: ignore
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
 
                             def _reloader_unload_all():
                                 if uls['animating'] or not existing:
@@ -6157,7 +6162,7 @@ class CombatmodeMixin:
                                     try:
                                         _unl_reloader['btn'].configure(state = 'disabled')
                                     except Exception:
-                                        pass
+                                        logging.exception("Suppressed exception")
                                 try:
                                     rpath = os.path.join('sounds', 'firearms', 'universal', 'reloaderroundinsert.ogg')
                                     if os.path.exists(rpath):
@@ -6166,7 +6171,7 @@ class CombatmodeMixin:
                                         if ch:
                                             ch.play(snd)
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                                 def _start_loop():
                                     _start_unl_reloader_loop()
                                     _reloader_unload_step()
@@ -6182,7 +6187,7 @@ class CombatmodeMixin:
                                         try:
                                             _unl_reloader['unhook_btn'].configure(state = 'normal')
                                         except Exception:
-                                            pass
+                                            logging.exception("Suppressed exception")
                                     return
                                 removed = existing.pop(0)
                                 uls['removed'] += 1
@@ -6201,12 +6206,12 @@ class CombatmodeMixin:
                                     try:
                                         _unl_reloader['btn'].configure(state = 'normal')
                                     except Exception:
-                                        pass
+                                        logging.exception("Suppressed exception")
                                 if _unl_reloader.get('unhook_btn'):
                                     try:
                                         _unl_reloader['unhook_btn'].configure(state = 'disabled')
                                     except Exception:
-                                        pass
+                                        logging.exception("Suppressed exception")
                                 try:
                                     rpath = os.path.join('sounds', 'firearms', 'universal', 'reloaderroundinsert.ogg')
                                     if os.path.exists(rpath):
@@ -6215,7 +6220,7 @@ class CombatmodeMixin:
                                         if ch:
                                             ch.play(snd)
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
 
                             if _has_reloader_unl:
                                 _unl_reloader['btn'] = customtkinter.CTkButton(side_unl, text = '\u2699 Reloader Unload All', command = _reloader_unload_all, width = 160, height = 30, font = customtkinter.CTkFont(size = 11), fg_color = '#2a6a2a', hover_color = '#3a7a3a') # type: ignore
@@ -6291,7 +6296,7 @@ class CombatmodeMixin:
                         try:
                             popup.destroy()
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                         reload_magazine()
 
                     reload_btn = self._create_sound_button(popup, text = 'Reload Magazine', command = reload_and_close, width = 240, height = 40, font = customtkinter.CTkFont(size = 12), fg_color = '#1a4d1a')
@@ -6299,9 +6304,9 @@ class CombatmodeMixin:
                     try:
                         reload_btn.configure(state = 'normal'if can_reload else 'disabled')
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 try:
                     unload_btn_popup = self._create_sound_button(popup, text = 'Unload Magazine', command = unload_magazine_rounds, width = 240, height = 40, font = customtkinter.CTkFont(size = 12), fg_color = '#444444')
@@ -6309,9 +6314,9 @@ class CombatmodeMixin:
                     try:
                         unload_btn_popup.configure(state = 'normal'if can_unload else 'disabled')
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 try:
                     _mark_mag = (current_weapon_state.get('weapon') or {}).get('loaded')
@@ -6320,12 +6325,12 @@ class CombatmodeMixin:
                             try:
                                 popup.destroy()
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                             self._open_magazine_marking_dialog(_mark_mag, current_weapon_state.get('weapon') or {}, save_data, update_callback=update_weapon_view)
                         mark_btn = self._create_sound_button(popup, text='Mark Magazine', command=_open_marking, width=240, height=40, font=customtkinter.CTkFont(size=12), fg_color='#4a3080', hover_color='#6040a0')
                         mark_btn.pack(pady=6)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 # ── Clip Management Buttons ──────────────────────────────
                 try:
@@ -6361,14 +6366,14 @@ class CombatmodeMixin:
                         try:
                             popup.destroy()
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                         _open_clip_management_editor(all_clips, mode = 'load')
 
                     def _open_clip_unloader():
                         try:
                             popup.destroy()
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                         _open_clip_management_editor(all_clips, mode = 'unload')
 
                     if clips_not_full:
@@ -6381,21 +6386,21 @@ class CombatmodeMixin:
                         width = 240, height = 40, font = customtkinter.CTkFont(size = 12), fg_color = '#6d4a1a', hover_color = '#8d5a2a')
                         unload_clip_btn.pack(pady = 6)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 try:
                     customtkinter.CTkButton(popup, text = 'Close', command = popup.destroy, width = 140).pack(pady = 8)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 try:
                     popup.grab_set()
                     popup.lift()
                     self._safe_focus(popup)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         def _open_clip_management_editor(all_clips, mode = 'load'):
             import tkinter as _tk_clip
@@ -6577,6 +6582,7 @@ class CombatmodeMixin:
                                         itm['quantity'] = qty - 1
                                         return {k: v for k, v in itm.items() if k != 'quantity'}
                             except Exception:
+                                logging.exception("Suppressed exception")
                                 continue
                         for _sn, eq_item in list(save_data.get('equipment', {}).items()):
                             if not eq_item or not isinstance(eq_item, dict):
@@ -6601,7 +6607,7 @@ class CombatmodeMixin:
                                             itm['quantity'] = qty - 1
                                             return {k: v for k, v in itm.items() if k != 'quantity'}
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                         return None
 
                     def _draw_clip_chips():
@@ -6662,7 +6668,7 @@ class CombatmodeMixin:
                             _ins_toggle['v'] = 1 - _ins_toggle['v']
                             self._play_weapon_action_sound(wpn, sn, block=False)
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
 
                     def _clip_on_press(event):
                         if len(clip_rounds) >= clip_cap:
@@ -7173,7 +7179,7 @@ class CombatmodeMixin:
                 self._play_weapon_action_sound(wpn, 'boltforward', block = False)
                 update_weapon_view()
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         def _open_internal_box_editor(wpn, available_by_variant, caliber, filter_calibers, is_infinite = False, available_clips = None, is_en_bloc = False):
             import tkinter as _tk_ib
@@ -7193,12 +7199,12 @@ class CombatmodeMixin:
                     try:
                         self._play_weapon_action_sound(wpn, 'pumpback', block = True)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                 elif _ibe_is_bolt:
                     try:
                         self._play_weapon_action_sound(wpn, 'boltactionback', block = True)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
                 editor = customtkinter.CTkToplevel(self.root)
                 editor.title('En Bloc Loader' if is_en_bloc else 'Internal Magazine Loader')
@@ -7215,7 +7221,7 @@ class CombatmodeMixin:
                         if isinstance(wpn.get('loaded'), dict):
                             _cap_candidates.append(int(wpn['loaded'].get('capacity', 0) or 0))
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                     for _clip_entry in _clip_list:
                         try:
                             _clip_obj = _clip_entry.get('clip', {})
@@ -7224,7 +7230,7 @@ class CombatmodeMixin:
                             if isinstance(_clip_rounds, list):
                                 _cap_candidates.append(len(_clip_rounds))
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                     cap = max([c for c in _cap_candidates if c > 0], default = (8 if is_en_bloc else 10))
 
                 SLOT_H = 28
@@ -7253,7 +7259,7 @@ class CombatmodeMixin:
                                     vtips[_atn]= _att
                             break
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 def _tip_for(vn):
                     return vtips.get(vn, '#e0c060')
@@ -7458,8 +7464,9 @@ class CombatmodeMixin:
                                 try:
                                     save_data['hands']['items'].pop(hi)
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                         except Exception:
+                            logging.exception("Suppressed exception")
                             continue
                     for _sn_eq, eq_item in list(save_data.get('equipment', {}).items()):
                         if not eq_item or not isinstance(eq_item, dict):
@@ -7482,7 +7489,7 @@ class CombatmodeMixin:
                                         itm['quantity']= qty -1
                                         return {k:v for k, v in itm.items()if k !='quantity'}
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                     return None
 
                 def _play_insert():
@@ -7491,7 +7498,7 @@ class CombatmodeMixin:
                         ls['stoggle']= 1 -ls['stoggle']
                         self._play_weapon_action_sound(wpn, sn, block = False)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
                 def _do_insert_data(vname):
                     if len(existing)>=cap:
@@ -7941,11 +7948,11 @@ class CombatmodeMixin:
                                     try:
                                         self._play_weapon_action_sound(wpn, 'boltback', block = True)
                                     except Exception:
-                                        pass
+                                        logging.exception("Suppressed exception")
                                 try:
                                     self._play_weapon_action_sound(wpn, 'clipinsert', block = True)
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                                 if _garand_hold_open_reload:
                                     _garand_thumb_result = self._maybe_apply_garand_thumb(wpn, save_data)
                                 wpn['chambered'] = existing.pop(0)
@@ -7953,12 +7960,12 @@ class CombatmodeMixin:
                                 try:
                                     self._play_weapon_action_sound(wpn, 'boltforward')
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                             else:
                                 try:
                                     self._play_weapon_action_sound(wpn, 'clipinsert', block = True)
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                         elif not wpn.get('chambered')and existing:
                             _rt_mag_type = str(wpn.get('magazinetype', '')or '').lower()
                             _rt_plat_raw = wpn.get('platform', '')or ''
@@ -7972,7 +7979,7 @@ class CombatmodeMixin:
                                 try:
                                     self._play_weapon_action_sound(wpn, 'pumpforward')
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                                 _bolt_closed = True
                             elif _is_manual_bolt:
                                 wpn['chambered']= existing.pop(0)
@@ -7980,25 +7987,25 @@ class CombatmodeMixin:
                                 try:
                                     self._play_weapon_action_sound(wpn, 'boltactionforward')
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                                 _bolt_closed = True
                             else:
                                 if not wpn.get('bolt_catch'):
                                     try:
                                         self._play_weapon_action_sound(wpn, 'boltback', block = True)
                                     except Exception:
-                                        pass
+                                        logging.exception("Suppressed exception")
                                 wpn['chambered']= existing.pop(0)
                                 wpn['rounds']= existing
                                 try:
                                     self._play_weapon_action_sound(wpn, 'boltforward')
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                     if _is_manual_bolt and not _bolt_closed:
                         try:
                             self._play_weapon_action_sound(wpn, 'boltactionforward')
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                     editor.destroy()
                     update_weapon_view()
                     if ls['added']>0:
@@ -8079,7 +8086,7 @@ class CombatmodeMixin:
                                     vtips[_atn] = _att
                             break
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 def _tip_for(vn):
                     return vtips.get(vn, '#e0c060')
@@ -8337,8 +8344,9 @@ class CombatmodeMixin:
                                 try:
                                     save_data['hands']['items'].pop(hi)
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                         except Exception:
+                            logging.exception("Suppressed exception")
                             continue
                     for _sn_eq, eq_item in list(save_data.get('equipment', {}).items()):
                         if not eq_item or not isinstance(eq_item, dict):
@@ -8361,7 +8369,7 @@ class CombatmodeMixin:
                                         itm['quantity'] = qty - 1
                                         return {k: v for k, v in itm.items() if k != 'quantity'}
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                     return None
 
                 def _play_insert():
@@ -8370,7 +8378,7 @@ class CombatmodeMixin:
                         ls['stoggle'] = 1 - ls['stoggle']
                         self._play_cylinder_sound(wpn, sn, block = False)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
                 def _find_empty_chamber():
                     for i in range(cap):
@@ -8419,7 +8427,7 @@ class CombatmodeMixin:
                             daemon = True
                         ).start()
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
                 def _check_chamber_pass(prev_ang, new_ang):
                     step_ang = _chamber_step_angle()
@@ -8436,7 +8444,7 @@ class CombatmodeMixin:
                         try:
                             editor.after_cancel(job)
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                     ls['_spin_job'] = None
 
                 def _stop_spin_motion(snap_to_chamber = False):
@@ -8695,7 +8703,7 @@ class CombatmodeMixin:
                     try:
                         self._play_cylinder_sound(wpn, 'cylinderopen', block = False)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                     target = 80 if is_topbreak else -80
                     steps = 12
 
@@ -8730,7 +8738,7 @@ class CombatmodeMixin:
                     try:
                         self._play_cylinder_sound(wpn, 'cylinderclose', block = False)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                     start_off = ls['break_offset'] if is_topbreak else ls['slide_offset']
                     steps = 10
 
@@ -8766,7 +8774,7 @@ class CombatmodeMixin:
                     try:
                         self._play_cylinder_sound(wpn, 'cylinderrelease', block = False)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
                     shells_to_drop = []
                     off = ls['slide_offset']
@@ -8837,7 +8845,7 @@ class CombatmodeMixin:
                             try:
                                 self._play_cylinder_sound(wpn, 'hammerdown', block = False)
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
 
                         try:
                             sd_ref = save_data if isinstance(save_data, dict) else globals().get('save_data') or getattr(self, '_current_save_data', None)
@@ -8851,13 +8859,13 @@ class CombatmodeMixin:
                                     try:
                                         bh.append({'weapon_id': str(wpn.get('id', 'unknown')), 'count': added, 'time': time.time()})
                                     except Exception:
-                                        pass
+                                        logging.exception("Suppressed exception")
                         except Exception:
                             logging.exception('Failed updating tracked_stats after cylinder reload')
                         try:
                             self._update_session_reload_stats(save_data, int(ls['added']))
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
 
                         editor.destroy()
                         update_weapon_view()
@@ -8872,7 +8880,7 @@ class CombatmodeMixin:
                     try:
                         self._play_cylinder_sound(wpn, 'cylinderspinonce', block = False)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                     import random as _rnd_cy
                     if cap <= 1:
                         return
@@ -8923,7 +8931,7 @@ class CombatmodeMixin:
                             try:
                                 self._play_cylinder_sound(wpn, 'hammerdown', block = False)
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
 
                         try:
                             sd_ref = save_data if isinstance(save_data, dict) else globals().get('save_data') or getattr(self, '_current_save_data', None)
@@ -8937,13 +8945,13 @@ class CombatmodeMixin:
                                     try:
                                         bh.append({'weapon_id': str(wpn.get('id', 'unknown')), 'count': added, 'time': time.time()})
                                     except Exception:
-                                        pass
+                                        logging.exception("Suppressed exception")
                         except Exception:
                             logging.exception('Failed updating tracked_stats after cylinder reload')
                         try:
                             self._update_session_reload_stats(save_data, int(ls['added']))
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
 
                         editor.destroy()
                         update_weapon_view()
@@ -9021,7 +9029,7 @@ class CombatmodeMixin:
                                     vtips[_atn] = _att
                             break
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 def _tip_for(vn):
                     return vtips.get(vn, '#e0c060')
@@ -9141,8 +9149,9 @@ class CombatmodeMixin:
                                 try:
                                     save_data['hands']['items'].pop(hi)
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                         except Exception:
+                            logging.exception("Suppressed exception")
                             continue
                     for _sn_eq, eq_item in list(save_data.get('equipment', {}).items()):
                         if not eq_item or not isinstance(eq_item, dict):
@@ -9165,7 +9174,7 @@ class CombatmodeMixin:
                                         itm['quantity'] = qty - 1
                                         return {k: v for k, v in itm.items() if k != 'quantity'}
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                     return None
 
                 def _play_insert():
@@ -9174,7 +9183,7 @@ class CombatmodeMixin:
                         ls['stoggle'] = 1 - ls['stoggle']
                         self._play_cylinder_sound(wpn, sn, block = False)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
                 def _get_chamber_center(idx):
                     base_rot = (GATE_PORT_ANGLE + (_math_lg.pi / 2)) - ((2 * _math_lg.pi * ls['chamber_idx'] / cap) if cap > 0 else 0.0)
@@ -9372,7 +9381,7 @@ class CombatmodeMixin:
                     try:
                         self._play_cylinder_sound(wpn, 'hammer', block = False)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                     steps = 8
 
                     def _step(s):
@@ -9394,7 +9403,7 @@ class CombatmodeMixin:
                     try:
                         self._play_cylinder_sound(wpn, 'cylinderopen' if opening else 'cylinderclose', block = False)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                     steps = 10
                     start = ls['gate_slide']
                     target = 1.0 if opening else 0.0
@@ -9421,7 +9430,7 @@ class CombatmodeMixin:
                     try:
                         self._play_cylinder_sound(wpn, 'cylinderspinonce', block = False)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
                     delta = STEP_ANGLE if direction >= 0 else -STEP_ANGLE
                     steps = 12
@@ -9454,7 +9463,7 @@ class CombatmodeMixin:
                     try:
                         self._play_cylinder_sound(wpn, 'cylinderrelease', block = False)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
                     steps = 12
 
@@ -9698,13 +9707,13 @@ class CombatmodeMixin:
                         try:
                             self._play_cylinder_sound(wpn, 'cylinderclose', block = False)
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
 
                     if ls['hammer_half_cock']:
                         try:
                             self._play_cylinder_sound(wpn, 'hammerdown', block = False)
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                         hammer_restored = True
                         ls['hammer_half_cock'] = False
 
@@ -9722,7 +9731,7 @@ class CombatmodeMixin:
                         try:
                             self._play_cylinder_sound(wpn, 'hammerdown', block = False)
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
 
                     try:
                         sd_ref = save_data if isinstance(save_data, dict) else globals().get('save_data') or getattr(self, '_current_save_data', None)
@@ -9736,13 +9745,13 @@ class CombatmodeMixin:
                                 try:
                                     bh.append({'weapon_id': str(wpn.get('id', 'unknown')), 'count': added, 'time': time.time()})
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                     except Exception:
                         logging.exception('Failed updating tracked_stats after loading gate reload')
                     try:
                         self._update_session_reload_stats(save_data, int(ls['added']))
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
                     editor.destroy()
                     update_weapon_view()
@@ -9810,7 +9819,7 @@ class CombatmodeMixin:
                                     vtips[_atn]= _att
                             break
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 def _tip_for(vn):
                     return vtips.get(vn, '#e0c060')
@@ -9948,8 +9957,9 @@ class CombatmodeMixin:
                                 try:
                                     save_data['hands']['items'].pop(hi)
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                         except Exception:
+                            logging.exception("Suppressed exception")
                             continue
                     for _sn_eq, eq_item in list(save_data.get('equipment', {}).items()):
                         if not eq_item or not isinstance(eq_item, dict):
@@ -9972,14 +9982,14 @@ class CombatmodeMixin:
                                         itm['quantity']= qty -1
                                         return {k:v for k, v in itm.items()if k !='quantity'}
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                     return None
 
                 def _play_insert():
                     try:
                         self._play_weapon_action_sound(wpn, 'tubeinsert', block = False)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
                 def _do_insert_data(vname):
                     if len(existing)>=cap:
@@ -10159,19 +10169,19 @@ class CombatmodeMixin:
                                 try:
                                     self._play_weapon_action_sound(wpn, 'pumpforward')
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                             else:
                                 if not wpn.get('bolt_catch'):
                                     try:
                                         self._play_weapon_action_sound(wpn, 'boltback', block = True)
                                     except Exception:
-                                        pass
+                                        logging.exception("Suppressed exception")
                                 wpn['chambered']= existing.pop(0)
                                 wpn['rounds']= existing
                                 try:
                                     self._play_weapon_action_sound(wpn, 'boltforward')
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                     editor.destroy()
                     update_weapon_view()
                     if ls['added']>0:
@@ -10267,7 +10277,7 @@ class CombatmodeMixin:
                                     vtips[_atn] = _att
                             break
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 def _tip_for(vn):
                     return vtips.get(vn, '#e0c060')
@@ -10497,7 +10507,7 @@ class CombatmodeMixin:
                             if ch:
                                 ch.play(snd)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
                 def _play_insert():
                     try:
@@ -10510,7 +10520,7 @@ class CombatmodeMixin:
                             if ch:
                                 ch.play(snd)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
                 def _take_round(vname):
                     if is_infinite:
@@ -10536,9 +10546,10 @@ class CombatmodeMixin:
                                 try:
                                     save_data['hands']['items'].pop(hi)
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                                 return itm
                         except Exception:
+                            logging.exception("Suppressed exception")
                             continue
                     for _sn_eq, eq_item in list(save_data.get('equipment', {}).items()):
                         if not eq_item or not isinstance(eq_item, dict):
@@ -10561,7 +10572,7 @@ class CombatmodeMixin:
                                         itm['quantity'] = qty - 1
                                         return {k: v for k, v in itm.items() if k != 'quantity'}
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                     return None
 
                 def _find_empty_barrel():
@@ -10820,13 +10831,13 @@ class CombatmodeMixin:
                                     try:
                                         bh.append({'weapon_id': str(wpn.get('id', 'unknown')), 'count': added, 'time': time.time()})
                                     except Exception:
-                                        pass
+                                        logging.exception("Suppressed exception")
                         except Exception:
                             logging.exception('Failed updating tracked_stats after break action reload')
                         try:
                             self._update_session_reload_stats(save_data, int(ls['added']))
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
 
                         editor.destroy()
                         update_weapon_view()
@@ -10856,13 +10867,13 @@ class CombatmodeMixin:
                                     try:
                                         bh.append({'weapon_id': str(wpn.get('id', 'unknown')), 'count': added, 'time': time.time()})
                                     except Exception:
-                                        pass
+                                        logging.exception("Suppressed exception")
                         except Exception:
                             logging.exception('Failed updating tracked_stats after break action reload')
                         try:
                             self._update_session_reload_stats(save_data, int(ls['added']))
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
 
                         editor.destroy()
                         update_weapon_view()
@@ -10903,7 +10914,7 @@ class CombatmodeMixin:
                     if itm and isinstance(itm, dict)and str(itm.get('type', '')).lower()in('fragmentation', 'smoke', 'stun', '9-bang', '9bang', '9_bang'):
                         items.append(('hands', itm))
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
             for slot_name, eq_item in save_data.get('equipment', {}).items():
                 try:
@@ -10915,7 +10926,7 @@ class CombatmodeMixin:
                                 if itm and isinstance(itm, dict)and str(itm.get('type', '')).lower()in('fragmentation', 'smoke', 'stun', '9-bang', '9bang', '9_bang'):
                                     items.append(('equipment', itm))
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                     if 'subslots'in eq_item:
                         for sub in eq_item.get('subslots', []):
                             try:
@@ -10926,11 +10937,11 @@ class CombatmodeMixin:
                                             if itm and isinstance(itm, dict)and str(itm.get('type', '')).lower()in('fragmentation', 'smoke', 'stun', '9-bang', '9bang', '9_bang'):
                                                 items.append(('equipment', itm))
                                         except Exception:
-                                            pass
+                                            logging.exception("Suppressed exception")
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
             return items
 
         def _find_consumables_in_inventory():
@@ -10960,7 +10971,7 @@ class CombatmodeMixin:
                             if itm and isinstance(itm, dict)and itm.get('ear_protection'):
                                 return True
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                     for sub in eq.get('subslots', [])or[]:
                         try:
                             curr = sub.get('current')
@@ -10972,9 +10983,9 @@ class CombatmodeMixin:
                                         if itm and isinstance(itm, dict)and itm.get('ear_protection'):
                                             return True
                                     except Exception:
-                                        pass
+                                        logging.exception("Suppressed exception")
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                 return False
             except Exception:
                 return False
@@ -10991,7 +11002,7 @@ class CombatmodeMixin:
                             if itm and isinstance(itm, dict)and itm.get('flashbang_goggle'):
                                 return True
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                     for sub in eq.get('subslots', [])or[]:
                         try:
                             curr = sub.get('current')
@@ -11003,9 +11014,9 @@ class CombatmodeMixin:
                                         if itm and isinstance(itm, dict)and itm.get('flashbang_goggle'):
                                             return True
                                     except Exception:
-                                        pass
+                                        logging.exception("Suppressed exception")
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                 return False
             except Exception:
                 return False
@@ -11021,7 +11032,7 @@ class CombatmodeMixin:
                         self._flashbang_mute = True
                         self._flashbang_volume = 0.0
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
                     try:
                         def _play_ring():
@@ -11042,9 +11053,9 @@ class CombatmodeMixin:
                                 try:
                                     self._flashbang_fade_cancel.set()
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
 
                         fade_cancel = threading.Event()
                         self._flashbang_fade_cancel = fade_cancel
@@ -11083,23 +11094,23 @@ class CombatmodeMixin:
                                             try:
                                                 ssound.set_volume(1.0)
                                             except Exception:
-                                                pass
+                                                logging.exception("Suppressed exception")
                                     except Exception:
-                                        pass
+                                        logging.exception("Suppressed exception")
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                             except Exception:
                                 try:
                                     self._flashbang_mute = False
                                     self._flashbang_volume = 1.0
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
 
                         t = threading.Thread(target = _fade_in_after_delay, daemon = True)
                         t.start()
                         self._flashbang_fade_thread = t
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                 else:
 
                     try:
@@ -11113,9 +11124,9 @@ class CombatmodeMixin:
                                 try:
                                     prev.cancel()
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
 
                         try:
                             mt = threading.Timer(5.0, lambda:setattr(self, '_bang_muffle', False))
@@ -11123,9 +11134,9 @@ class CombatmodeMixin:
                             mt.start()
                             self._bang_muffle_timer = mt
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
                 if not has_gog:
                     def _create_overlay():
@@ -11137,18 +11148,18 @@ class CombatmodeMixin:
                             try:
                                 ov.attributes('-topmost', True)
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                             try:
                                 ov.attributes('-alpha', 1.0)
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                             try:
                                 ov.configure(fg_color = 'white')
                             except Exception:
                                 try:
                                     ov.configure(bg = 'white')
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                             return ov
                         except Exception:
                             return None
@@ -11165,7 +11176,7 @@ class CombatmodeMixin:
                                     try:
                                         self._flashbang_overlay = overlay
                                     except Exception:
-                                        pass
+                                        logging.exception("Suppressed exception")
                                 else:
                                     try:
 
@@ -11173,13 +11184,13 @@ class CombatmodeMixin:
                                             try:
                                                 overlay.after_cancel(existing_after)
                                             except Exception:
-                                                pass
+                                                logging.exception("Suppressed exception")
                                     except Exception:
-                                        pass
+                                        logging.exception("Suppressed exception")
                                     try:
                                         overlay.attributes('-alpha', 1.0)
                                     except Exception:
-                                        pass
+                                        logging.exception("Suppressed exception")
 
                                 delay = int(random.uniform(7000, 8000))
                                 def _fade_step(count = 0, steps = None):
@@ -11190,7 +11201,7 @@ class CombatmodeMixin:
                                                     self._flashbang_overlay = None
                                                     self._flashbang_overlay_after_id = None
                                             except Exception:
-                                                pass
+                                                logging.exception("Suppressed exception")
                                             return
 
                                         dur = 3.0
@@ -11216,50 +11227,50 @@ class CombatmodeMixin:
                                         try:
                                             overlay.attributes('-alpha', alpha)
                                         except Exception:
-                                            pass
+                                            logging.exception("Suppressed exception")
 
                                         if count <steps:
                                             aid = overlay.after(int(interval_ms), lambda:_fade_step(count +1, steps))
                                             try:
                                                 self._flashbang_overlay_after_id = aid
                                             except Exception:
-                                                pass
+                                                logging.exception("Suppressed exception")
                                         else:
                                             try:
                                                 overlay.destroy()
                                             except Exception:
-                                                pass
+                                                logging.exception("Suppressed exception")
                                             try:
                                                 if getattr(self, '_flashbang_overlay', None)is overlay:
                                                     self._flashbang_overlay = None
                                                     self._flashbang_overlay_after_id = None
                                             except Exception:
-                                                pass
+                                                logging.exception("Suppressed exception")
                                     except Exception:
                                         try:
                                             if overlay:
                                                 overlay.destroy()
                                         except Exception:
-                                            pass
+                                            logging.exception("Suppressed exception")
 
                                 try:
                                     aid = overlay.after(delay, lambda:_fade_step(0))
                                     try:
                                         self._flashbang_overlay_after_id = aid
                                     except Exception:
-                                        pass
+                                        logging.exception("Suppressed exception")
                                 except Exception:
                                     try:
 
                                         _fade_step(0)
                                     except Exception:
-                                        pass
+                                        logging.exception("Suppressed exception")
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
 
                         self.root.after(0, _make_and_fade)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
                 return True
             except Exception:
@@ -11281,18 +11292,18 @@ class CombatmodeMixin:
                         try:
                             ov.attributes('-topmost', True)
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                         try:
                             ov.attributes('-alpha', 1.0)
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                         try:
                             ov.configure(fg_color = 'white')
                         except Exception:
                             try:
                                 ov.configure(bg = 'white')
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
 
                         def _quick_fade(step = 0, steps = None):
                             try:
@@ -11319,7 +11330,7 @@ class CombatmodeMixin:
                                 try:
                                     ov.attributes('-alpha', alpha)
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
 
                                 if step <steps:
                                     ov.after(int(interval_ms), lambda:_quick_fade(step +1, steps))
@@ -11327,12 +11338,12 @@ class CombatmodeMixin:
                                     try:
                                         ov.destroy()
                                     except Exception:
-                                        pass
+                                        logging.exception("Suppressed exception")
                             except Exception:
                                 try:
                                     ov.destroy()
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
 
                         ov.after(int(random.uniform(10, 30)), lambda:_quick_fade(1, None))
                         return ov
@@ -11351,19 +11362,19 @@ class CombatmodeMixin:
                                     try:
                                         prev.cancel()
                                     except Exception:
-                                        pass
+                                        logging.exception("Suppressed exception")
                                 mt = threading.Timer(3.0, lambda:setattr(self, '_bang_muffle', False))
                                 mt.daemon = True
                                 mt.start()
                                 self._bang_muffle_timer = mt
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
                     self.root.after(0, _create_quick_flash)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
                 return True
             except Exception:
                 return False
@@ -11384,19 +11395,19 @@ class CombatmodeMixin:
                         try:
                             ov.attributes('-topmost', True)
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
 
                         try:
                             ov.attributes('-alpha', 0.8)
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                         try:
                             ov.configure(fg_color = 'black')
                         except Exception:
                             try:
                                 ov.configure(bg = 'black')
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
 
                         def _quick_fade(step = 0, steps = None):
                             try:
@@ -11423,7 +11434,7 @@ class CombatmodeMixin:
                                 try:
                                     ov.attributes('-alpha', alpha)
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
 
                                 if step <steps:
                                     ov.after(int(interval_ms), lambda:_quick_fade(step +1, steps))
@@ -11431,12 +11442,12 @@ class CombatmodeMixin:
                                     try:
                                         ov.destroy()
                                     except Exception:
-                                        pass
+                                        logging.exception("Suppressed exception")
                             except Exception:
                                 try:
                                     ov.destroy()
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
 
                         ov.after(int(random.uniform(10, 30)), lambda:_quick_fade(1, None))
                         return ov
@@ -11446,7 +11457,7 @@ class CombatmodeMixin:
                 try:
                     self.root.after(0, _create_quick_dark)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
                 return True
             except Exception:
                 return False
@@ -11467,16 +11478,16 @@ class CombatmodeMixin:
                                                 it['quantity']= int(qty)-1
                                                 return True
                                             except Exception:
-                                                pass
+                                                logging.exception("Suppressed exception")
                                         else:
                                             try:
                                                 lst.pop(i)
                                                 return True
                                             except Exception:
-                                                pass
+                                                logging.exception("Suppressed exception")
                                     return False
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                         return False
 
                     if location =='hands':
@@ -11497,29 +11508,29 @@ class CombatmodeMixin:
                                             if _consume_throwable_from_list(curr['items'], throwable_item):
                                                 break
                                     except Exception:
-                                        pass
+                                        logging.exception("Suppressed exception")
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 try:
                     self._save_file(save_data)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 try:
                     self._safe_sound_play('', 'sounds/misc/throwable/pin.ogg')
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
                 time.sleep(random.uniform(0.2, 0.5))
                 try:
                     self._safe_sound_play('', 'sounds/misc/throwable/throw.ogg')
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
                 time.sleep(random.uniform(0.2, 0.3))
                 try:
                     self._safe_sound_play('', 'sounds/misc/throwable/spoon.ogg')
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 fuse = float(throwable_item.get('fuse_time')or throwable_item.get('fuse', 3))
                 start_t = time.time()
@@ -11530,7 +11541,7 @@ class CombatmodeMixin:
                     idx = random.randint(0, 3)
                     self._safe_sound_play('', f'sounds/misc/throwable/bounce{idx}.ogg')
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 extra = random.randint(0, 3)
                 for bi in range(extra):
@@ -11547,7 +11558,7 @@ class CombatmodeMixin:
                         idx = random.randint(0, 3)
                         self._safe_sound_play('', f'sounds/misc/throwable/bounce{idx}.ogg')
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
                 typ = str(throwable_item.get('type', '')).lower()
 
@@ -11561,24 +11572,24 @@ class CombatmodeMixin:
                         try:
                             _handle_fragmentation_flash_effects()
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
 
                         try:
                             if _has_flash_goggles():
                                 try:
                                     _handle_goggle_dark_flash_effects()
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                         self._safe_sound_play('', 'sounds/misc/throwable/explosion.ogg')
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                 elif typ =='smoke':
                     try:
                         self._safe_sound_play('', 'sounds/misc/throwable/smoke.ogg')
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                 elif typ in('stun', 'flashbang', 'flash'):
 
                     try:
@@ -11590,11 +11601,11 @@ class CombatmodeMixin:
                                 try:
                                     _handle_goggle_dark_flash_effects()
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                 elif typ in('9-bang', '9bang', '9_bang'):
                     try:
                         _handle_flashbang_effects(bang_count = 9)
@@ -11607,20 +11618,20 @@ class CombatmodeMixin:
                                         try:
                                             _handle_goggle_dark_flash_effects()
                                         except Exception:
-                                            pass
+                                            logging.exception("Suppressed exception")
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                             if i <8:
                                 time.sleep(random.uniform(0.3, 0.5))
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
                 try:
                     update_weapon_view()
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
             except Exception:
                 logging.exception('Throwable sequence failed')
 
@@ -11672,7 +11683,7 @@ class CombatmodeMixin:
                 popup.lift()
                 self._safe_focus(popup)
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         def use_consumable():
 
@@ -11725,7 +11736,7 @@ class CombatmodeMixin:
                     try:
                         update_weapon_view()
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
                 self._consume_item(itm, loc, save_data, on_complete = on_consume_complete)
 
@@ -11739,7 +11750,7 @@ class CombatmodeMixin:
                 popup.lift()
                 self._safe_focus(popup)
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         def _view_parts():
             import copy as _copy_parts
@@ -11761,7 +11772,7 @@ class CombatmodeMixin:
                         if isinstance(_it, dict) and 'id' in _it:
                             id_to_item_parts[_it['id']] = _it
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
             def _resolve_part_current(p):
                 cur = p.get('current')
@@ -11939,7 +11950,7 @@ class CombatmodeMixin:
                                 if chosen_item in hands_items:
                                     hands_items.remove(chosen_item)
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                             try:
                                 for slot_name_eq, eq_item in save_data.get("equipment", {}).items():
                                     if eq_item and isinstance(eq_item, dict) and isinstance(eq_item.get("items"), list):
@@ -11947,9 +11958,9 @@ class CombatmodeMixin:
                                             while chosen_item in eq_item["items"]:
                                                 eq_item["items"].remove(chosen_item)
                                         except Exception:
-                                            pass
+                                            logging.exception("Suppressed exception")
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                         new_installed = _copy_parts.deepcopy(chosen_item) if isinstance(chosen_item, dict) else chosen_item
                         part_ref['current'] = new_installed
 
@@ -11979,7 +11990,7 @@ class CombatmodeMixin:
                 try:
                     self._center_popup_on_window(popup, 440, 400)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
         def _show_more_actions():
             try:
@@ -11998,22 +12009,22 @@ class CombatmodeMixin:
                             try:
                                 cmd()
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                             try:
                                 popup.destroy()
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
 
                         btn = self._create_sound_button(frame, text = name, command = _wrap, width = width, height = height, font = customtkinter.CTkFont(size = 12))
                         if fg:
                             try:
                                 btn.configure(fg_color = fg)
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                         btn.pack(pady = 6)
                         return btn
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                     return None
 
                 if check_clean_btn is not None:
@@ -12024,7 +12035,7 @@ class CombatmodeMixin:
                 try:
                     _add('Cycle Action', cycle_bolt)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
                 if throw_btn is not None:
                     _add('Throw', throw_throwable)
                 if manage_attach_btn is not None:
@@ -12046,11 +12057,11 @@ class CombatmodeMixin:
                                 try:
                                     bs_btn.configure(state = 'disabled')
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 try:
                     vp_btn = _add('Manage Parts', _view_parts)
@@ -12062,9 +12073,9 @@ class CombatmodeMixin:
                             try:
                                 vp_btn.configure(state = 'disabled')
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 try:
                     has_consumables = len(_find_consumables_in_inventory())>0
@@ -12073,18 +12084,18 @@ class CombatmodeMixin:
                         try:
                             use_consumable()
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                         try:
                             popup.destroy()
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
 
                     consume_btn = self._create_sound_button(frame, text = 'Use Consumable', command = _wrap_consume, width = 200, height = 44, font = customtkinter.CTkFont(size = 12))
                     if not has_consumables:
                         consume_btn.configure(state = 'disabled')
                     consume_btn.pack(pady = 6)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 try:
                     w_gas = current_weapon_state.get('weapon') if isinstance(current_weapon_state, dict) else None
@@ -12213,7 +12224,7 @@ class CombatmodeMixin:
                             try:
                                 self._safe_sound_play('firearms/universal', 'fireselector')
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
                             _draw_gas_dial()
 
                         gas_canvas.bind('<Button-1>', _gas_mouse_down)
@@ -12222,27 +12233,27 @@ class CombatmodeMixin:
 
                         _draw_gas_dial()
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 try:
                     b = customtkinter.CTkButton(popup, text = 'Close', command = popup.destroy, width = 120)
                     b.pack(pady = 6)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 try:
                     popup.grab_set()
                     popup.lift()
                     self._safe_focus(popup)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         try:
             self._create_sound_button(actions_frame, text = 'More Actions', command = _show_more_actions, width = 150, height = 50, font = customtkinter.CTkFont(size = 14)).pack(side = 'left', padx = 10, pady = 10)
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
         try:
             throw_btn = self._create_sound_button(actions_frame, text = 'Throw', command = throw_throwable, width = 150, height = 50, font = customtkinter.CTkFont(size = 14), fg_color = '#333333', hover_color = '#444444')
@@ -12319,7 +12330,7 @@ class CombatmodeMixin:
                                                             acc = it ;break
                                                     if acc:break
                                     except Exception:
-                                        pass
+                                        logging.exception("Suppressed exception")
                         if acc and isinstance(acc, dict):
                             raw_cal2 = acc.get("caliber")
                             if isinstance(raw_cal2, (list, tuple)):
@@ -12337,7 +12348,7 @@ class CombatmodeMixin:
                             cal = sel
                             selected_caliber = str(sel)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 ammo_tables = table_data.get("tables", {}).get("ammunition", [])if table_data else[]
                 for ammo in ammo_tables:
@@ -12368,7 +12379,7 @@ class CombatmodeMixin:
                                 if vname and vname not in choices:
                                     choices.append(vname)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                 return choices or["Ball"]
 
             variant_var = customtkinter.StringVar(value = get_variant_choices()[0])
@@ -12411,11 +12422,11 @@ class CombatmodeMixin:
                                     if variant_var.get()not in new_choices:
                                         variant_var.set(new_choices[0])
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
                 calib_vals_for_widget = calib_values if calib_values else["None"]
                 caliber_menu = customtkinter.CTkOptionMenu(devmode_frame, values = calib_vals_for_widget, variable = caliber_var, command = _on_caliber_change, width = 140)
@@ -12424,7 +12435,7 @@ class CombatmodeMixin:
                     try:
                         caliber_menu.configure(state = "disabled")
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                 current_weapon_state["dev_caliber_menu_ref"]= caliber_menu
                 current_weapon_state["dev_caliber_var"]= caliber_var
             except Exception:
@@ -12466,7 +12477,7 @@ class CombatmodeMixin:
                                 ammo_entry = ammo
                                 break
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
 
                     dummy_round = {
                     "name":f"{caliber_name} | {variant_name}",
@@ -12523,7 +12534,7 @@ class CombatmodeMixin:
                             elif w_sounds and(ammo.get("sounds")==w_sounds or ammo.get("ammo_type")==w_sounds):
                                 matches.append(ammo.get("name"))
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
 
                     msg = f"Weapon: {wpn.get('name')}\ncaliber: {cal_val}\nsounds: {w_sounds}\nMatched ammo: {matches}"
                     self._popup_show_info("DevMode Debug", msg)
@@ -12551,9 +12562,9 @@ class CombatmodeMixin:
                                         item_copy = add_subslots_to_item(item_copy)
                                         found.append(item_copy)
                                 except Exception:
-                                    pass
+                                    logging.exception("Suppressed exception")
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
 
                     if not found:
 
@@ -12595,7 +12606,7 @@ class CombatmodeMixin:
                             try:
                                 globals()['save_data']= sd
                             except Exception:
-                                pass
+                                logging.exception("Suppressed exception")
 
                             try:
                                 self._save_file(sd)
@@ -12668,7 +12679,7 @@ class CombatmodeMixin:
                     try:
                         update_weapon_view()
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                 except Exception as e:
                     logging.exception('Failed to add throwables: %s', e)
                     self._popup_show_info('DevMode Error', str(e), sound = 'error')
@@ -12735,6 +12746,7 @@ class CombatmodeMixin:
                                 if not selected_caliber:
                                     ammo_def = a ;break
                         except Exception:
+                            logging.exception("Suppressed exception")
                             continue
 
                     if not ammo_def:
@@ -12845,6 +12857,7 @@ class CombatmodeMixin:
                                     if not selected_caliber:
                                         ammo_def = a ;break
                             except Exception:
+                                logging.exception("Suppressed exception")
                                 continue
 
                         if ammo_def:
@@ -12871,7 +12884,7 @@ class CombatmodeMixin:
 
                             rounds =[dict(single_round)for _ in range(capacity)]
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
                     new_mag = {
                     'name':mag_template.get('name'),
@@ -12997,7 +13010,7 @@ class CombatmodeMixin:
                 try:
                     self._play_firearm_sound(w_item, "equip")
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
                 combat_state["current_weapon_index"]= w_idx
                 refresh_weapon_display()
 
@@ -13090,7 +13103,7 @@ class CombatmodeMixin:
                 _dot = 3 * sc
                 canvas.create_oval(cx - _dot, cy - _dot, cx + _dot, cy + _dot, fill = "#202020", outline = "#202020")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
         def update_watch_display():
 
@@ -13107,7 +13120,7 @@ class CombatmodeMixin:
                         if _widget and _widget.winfo_exists():
                             active_watch_rows.append(_row)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
 
                 if not active_watch_rows:
                     watch_cancel = None
@@ -13255,7 +13268,7 @@ class CombatmodeMixin:
                             if _wt in ("rain", "hard_rain", "thunderstorm", "thunder_hard_rain", "snowstorm", "thundersnow") and not combat_state.get("indoors"):
                                 k *= 1.5
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                         new_temp = ambient +(current_temp -ambient)*math.exp(-k *elapsed)
                         low = min(ambient, current_temp)
                         high = max(ambient, current_temp)
@@ -13299,7 +13312,7 @@ class CombatmodeMixin:
 
                                             self._play_firearm_sound(wpn, "fire")
                                         except Exception:
-                                            pass
+                                            logging.exception("Suppressed exception")
 
                                         try:
                                             temp_gain = float(wpn.get("temp_gain_per_shot", wpn.get("temp_gain", 7)))
@@ -13332,36 +13345,36 @@ class CombatmodeMixin:
                 try:
                     self.root.after_cancel(poll_cancel)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
             try:
                 if watch_cancel:
                     try:
                         self.root.after_cancel(watch_cancel)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                     watch_cancel = None
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
             try:
                 if reload_pending_id and reload_pending_id[0]:
                     try:
                         self.root.after_cancel(reload_pending_id[0])
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                     reload_pending_id[0]= None
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
             try:
                 for k in("<Left>", "<Right>", "<space>", "r", "R", "b", "B", "n", "N", "g", "G", "a", "A", "p", "P"):
                     try:
                         self.root.unbind(k)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
             try:
                 if weather_sound_state.get("channel"):
@@ -13372,10 +13385,10 @@ class CombatmodeMixin:
                     try:
                         self.root.after_cancel(weather_sound_state["thunder_after_id"]) # type: ignore
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                     weather_sound_state["thunder_after_id"] = None
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
             self._save_combat_state(save_data)
 
@@ -13385,9 +13398,9 @@ class CombatmodeMixin:
                     try:
                         self.root.tk.call('tk', 'scaling', float(prev))
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
             except Exception:
-                pass
+                logging.exception("Suppressed exception")
 
             try:
                 tbl_addl = globals().get('table_data', {}).get('additional_settings', {})
@@ -13441,11 +13454,11 @@ class CombatmodeMixin:
                 try:
                     current_weapon_state['prev_tk_scaling']= prev_scale
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
                 try:
                     self.root.tk.call('tk', 'scaling', new_scale)
                     main_frame.update_idletasks()
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
         except Exception:
-            pass
+            logging.exception("Suppressed exception")

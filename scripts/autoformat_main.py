@@ -17,6 +17,7 @@ import tokenize
 import sys
 from typing import Set
 from pathlib import Path
+import logging
 
 
 def find_main_files(root: str) -> list[str]:
@@ -224,7 +225,7 @@ def main(argv=None):
             if script_parent.name == 'scripts':
                 args.root = str(script_parent.parent)
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
     mains = find_main_files(args.root)
     if not mains:

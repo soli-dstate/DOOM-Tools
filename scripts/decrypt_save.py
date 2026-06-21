@@ -23,6 +23,7 @@ import hmac
 import json
 import os
 import sys
+import logging
 
 # Mirror main.py's portable transfer key (used for *.sldenlt / loot transfer files).
 PORTABLE_KEY = hashlib.sha256(b"DOOM-Tools-portable-transfer-signing-key-v1").digest()
@@ -148,7 +149,7 @@ def main(argv=None):
         try:
             stream.reconfigure(encoding="utf-8", errors="replace")
         except Exception:
-            pass
+            logging.exception("Suppressed exception")
 
     ap = argparse.ArgumentParser(description="Decode DOOM-Tools signed saves / dump save keys.")
     ap.add_argument("file", help="Path to a .sldsv/.sldenlt save, or a .save_key file")

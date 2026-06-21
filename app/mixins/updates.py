@@ -1,5 +1,6 @@
 """UpdatesMixin — App methods for the "updates" feature area."""
 from app.foundation import *
+import logging
 
 
 class UpdatesMixin:
@@ -34,7 +35,7 @@ class UpdatesMixin:
                             else:
                                 label.configure(text_color = None)
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                         self._title_easter_active = False
                         return
                     color = colors[i %len(colors)]
@@ -44,7 +45,7 @@ class UpdatesMixin:
                         try:
                             label.configure(fg_color = color)
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                     self.root.after(interval, lambda:_cycle(i +1, remaining -1))
                 except Exception:
                     self._title_easter_active = False
@@ -98,44 +99,44 @@ class UpdatesMixin:
                     try:
                         label.configure(text_color = 'cyan')
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
                 try:
                     logging.warning("Running pre-release version, do not report any issues to GitHub")
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
                 try:
                     self._update_available = False
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
             elif lp <rp:
                 try:
                     label.configure(text = f"Version: {local_ver}[UPDATE AVAILABLE]")
                     try:
                         label.configure(text_color = 'red')
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
                 try:
                     logging.warning("A newer version of DOOM Tools is available.Please visit the GitHub page to download the latest version.")
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
                 try:
                     self._update_available = True
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
 
                 try:
                     self._start_version_flash(label)
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
             else:
                 try:
                     self._update_available = False
                 except Exception:
-                    pass
+                    logging.exception("Suppressed exception")
         except Exception:
             logging.exception('Remote version check failed')
 
@@ -158,7 +159,7 @@ class UpdatesMixin:
                             else:
                                 label.configure(text_color = None)
                         except Exception:
-                            pass
+                            logging.exception("Suppressed exception")
                         return
                     try:
                         cur = label.cget('text_color')
@@ -168,7 +169,7 @@ class UpdatesMixin:
                         next_color = 'red'if cur !='red'else(orig or 'black')
                         label.configure(text_color = next_color)
                     except Exception:
-                        pass
+                        logging.exception("Suppressed exception")
                     self.root.after(400, _step)
                 except Exception:
                     self._version_flash_active = False
