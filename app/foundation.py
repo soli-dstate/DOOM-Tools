@@ -1,4 +1,4 @@
-version = "2.0.13"
+version = "2.0.14"
 current_resource_links = [
     "https://files.catbox.moe/gtbtty.001",
     "https://files.catbox.moe/r3ic2z.002",
