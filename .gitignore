@@ -80,6 +80,7 @@ Thumbs.db
 # Downloaded tools (ffmpeg, etc.)
 /scripts/tools/
 /scripts/ffmpeg_bin/
+/scripts/weather_cache.json
 /node_modules/
 
 # automatically added by program

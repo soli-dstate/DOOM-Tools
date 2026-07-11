@@ -26,6 +26,78 @@ from app.mixins.weapons import WeaponsMixin
 import logging
 
 
+class _ToastLogHandler(logging.Handler):
+    """Pops a small dismissible toast for ERROR/CRITICAL log records, so an
+    error is visible without having to look at the (now Textual-owned)
+    terminal at all. Anchored to the single root window, so it shows up
+    correctly regardless of which screen the app is currently displaying."""
+
+    _COLORS = {"ERROR": ("#3a1a1a", "#e05a4a"), "CRITICAL": ("#3a0f0f", "#ff3b3b")}
+    _MAX_VISIBLE = 4
+    _DISMISS_AFTER_MS = 8000
+
+    def __init__(self, root):
+        super().__init__(level = logging.ERROR)
+        self.root = root
+        self._toasts = []
+
+    def emit(self, record):
+        try:
+            message = record.getMessage()
+        except Exception:
+            return
+        # logging fires from ANY thread (workers, audio, the log-view's own
+        # thread) — never touch Tk state directly here, only ever schedule
+        # it onto the main thread.
+        try:
+            self.root.after(0, lambda: self._show_toast(record.levelname, message))
+        except Exception:
+            pass
+
+    def _show_toast(self, level, message):
+        if not self.root.winfo_exists():
+            return
+        bg, border = self._COLORS.get(level, self._COLORS["ERROR"])
+        frame = customtkinter.CTkFrame(self.root, fg_color = bg, border_color = border, border_width = 1, corner_radius = 8, width = 320)
+        header = customtkinter.CTkFrame(frame, fg_color = "transparent")
+        header.pack(fill = "x", padx = 8, pady = (6, 0))
+        customtkinter.CTkLabel(header, text = level, text_color = border, font = ("", 12, "bold")).pack(side = "left")
+        customtkinter.CTkButton(header, text = "✕", width = 20, height = 20, fg_color = "transparent", hover_color = bg, command = lambda: self._dismiss(frame)).pack(side = "right")
+        customtkinter.CTkLabel(frame, text = message, wraplength = 300, justify = "left", anchor = "w").pack(fill = "x", padx = 8, pady = (2, 8))
+
+        self._toasts.append(frame)
+        while len(self._toasts) > self._MAX_VISIBLE:
+            self._dismiss(self._toasts[0])
+        self._reflow()
+        try:
+            self.root.after(self._DISMISS_AFTER_MS, lambda: self._dismiss(frame))
+        except Exception:
+            pass
+
+    def _dismiss(self, frame):
+        try:
+            if frame in self._toasts:
+                self._toasts.remove(frame)
+            if frame.winfo_exists():
+                frame.place_forget()
+                frame.destroy()
+        except Exception:
+            pass
+        self._reflow()
+
+    def _reflow(self):
+        y = 16
+        for t in list(self._toasts):
+            try:
+                if not t.winfo_exists():
+                    continue
+                t.place(relx = 1.0, rely = 0.0, anchor = "ne", x = -16, y = y)
+                t.update_idletasks()
+                y += t.winfo_reqheight() + 10
+            except Exception:
+                continue
+
+
 class App(BugreportMixin, CasinoMixin, CharactersMixin, CloudMixin, CombatMixin, CombatmodeMixin, DevMixin, DmtoolsMixin, GameplayMixin, InspectMixin, InventoryMixin, ItemsMixin, LootMixin, MarkingMixin, PopupsMixin, ReportsMixin, SavesMixin, SettingsMixin, SoundMixin, StoreMixin, UiMixin, UpdatesMixin, WeaponsMixin):
 
     PLATFORM_DEFAULTS = {
@@ -115,6 +187,11 @@ class App(BugreportMixin, CasinoMixin, CharactersMixin, CloudMixin, CombatMixin,
         self.root.title("DOOM Tools")
         self.root.geometry(appearance_settings["resolution"])
         self.root.resizable(False, False)
+
+        try:
+            logging.getLogger().addHandler(_ToastLogHandler(self.root))
+        except Exception:
+            logging.exception("Failed to install error-toast log handler")
 
         # Multi-monitor support: auto-place every popup on the main window's
         # monitor. Patch CTkToplevel once so any dialog that defaults to the
@@ -233,9 +310,9 @@ class App(BugreportMixin, CasinoMixin, CharactersMixin, CloudMixin, CombatMixin,
         try:
             if global_variables.get("devmode", {}).get("value"):
                 try:
-                    self._create_dev_toolbar()
+                    self._start_dev_stats_worker()
                 except Exception:
-                    logging.exception("Failed to initialize dev toolbar")
+                    logging.exception("Failed to initialize dev stats worker")
         except Exception:
             logging.exception("Suppressed exception")
         try:
@@ -272,6 +349,23 @@ class App(BugreportMixin, CasinoMixin, CharactersMixin, CloudMixin, CombatMixin,
         except Exception:
             logging.exception('Failed to start background paycheck worker')
         self.root.after(500, self._setup_drag_drop)
+
+        # If the user quits the log view itself (ctrl+q in the terminal),
+        # there's no console left to fall back to, so close the GUI too.
+        # Route through _safe_exit() (not a bare root.destroy()) so autosave
+        # and persistent-data saving still happen on that exit path.
+        try:
+            _logview_shutdown_event = globals().get('LOGVIEW_SHUTDOWN_EVENT')
+            if _logview_shutdown_event is not None:
+                def _poll_logview_shutdown():
+                    if _logview_shutdown_event.is_set():
+                        self._safe_exit()
+                    else:
+                        self.root.after(200, _poll_logview_shutdown)
+                self.root.after(200, _poll_logview_shutdown)
+        except Exception:
+            logging.exception("Suppressed exception")
+
         self.root.mainloop()
         # mainloop() returned — either _safe_exit() already called os._exit(0),
         # or something caused mainloop to exit without it.  In either case, skip

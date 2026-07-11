@@ -396,6 +396,16 @@ class StoreMixin:
 
                 def _update_marquee():
                     try:
+                        # The screen can be torn down (navigated away from,
+                        # _clear_window()'d) while this is still scheduled via
+                        # root.after() or a background metadata-fetch callback;
+                        # without this the destroyed label throws TclError on
+                        # every future tick forever instead of just stopping.
+                        if not marquee_label.winfo_exists():
+                            return
+                    except Exception:
+                        return
+                    try:
                         current = getattr(self, "_current_business_music", music_channel) or music_channel
                         track_path = (current or {}).get("track")
                         if track_path != prev_track[0]:
@@ -1412,6 +1422,16 @@ class StoreMixin:
                         return "0:00"
 
                 def _update_marquee():
+                    try:
+                        # The screen can be torn down (navigated away from,
+                        # _clear_window()'d) while this is still scheduled via
+                        # root.after() or a background metadata-fetch callback;
+                        # without this the destroyed label throws TclError on
+                        # every future tick forever instead of just stopping.
+                        if not marquee_label.winfo_exists():
+                            return
+                    except Exception:
+                        return
                     try:
 
                         current = getattr(self, "_current_business_music", music_channel)
@@ -3698,6 +3718,16 @@ class StoreMixin:
 
                 def _update_marquee():
                     try:
+                        # The screen can be torn down (navigated away from,
+                        # _clear_window()'d) while this is still scheduled via
+                        # root.after() or a background metadata-fetch callback;
+                        # without this the destroyed label throws TclError on
+                        # every future tick forever instead of just stopping.
+                        if not marquee_label.winfo_exists():
+                            return
+                    except Exception:
+                        return
+                    try:
 
                         current = getattr(self, "_current_business_music", music_channel)
                         meta_info = None
@@ -5606,6 +5636,16 @@ class StoreMixin:
                         return "0:00"
 
                 def _update_marquee():
+                    try:
+                        # The screen can be torn down (navigated away from,
+                        # _clear_window()'d) while this is still scheduled via
+                        # root.after() or a background metadata-fetch callback;
+                        # without this the destroyed label throws TclError on
+                        # every future tick forever instead of just stopping.
+                        if not marquee_label.winfo_exists():
+                            return
+                    except Exception:
+                        return
                     try:
                         current = getattr(self, "_current_business_music", music_channel)
                         meta_info = None

@@ -91,7 +91,7 @@ class SettingsMixin:
 
                 for w in list(self.root.winfo_children()):
                     try:
-                        if getattr(w, 'grab_release', None):
+                        if w.winfo_exists()and getattr(w, 'grab_release', None):
                             w.grab_release()
                     except Exception:
                         logging.exception("Suppressed exception")
@@ -120,9 +120,19 @@ class SettingsMixin:
                 logging.exception("Suppressed exception")
             try:
 
+                # root.update() above can run pending after()/idle callbacks that
+                # close widgets (e.g. self-dismissing popups), so re-check
+                # existence right before destroying -- winfo_children() was
+                # captured before those callbacks ran.
                 for w in list(self.root.winfo_children()):
                     try:
-                        w.destroy()
+                        if w.winfo_exists():
+                            w.destroy()
+                    except _tk.TclError:
+                        # Benign: an after()/idle callback (run by the update()
+                        # above) already tore down this widget's Tcl command
+                        # between the winfo_exists() check and destroy() here.
+                        pass
                     except Exception:
                         logging.exception("Suppressed exception")
             except Exception:
@@ -146,6 +156,15 @@ class SettingsMixin:
         except Exception:
             logging.exception("Suppressed exception")
 
+        # Tear down the Textual log view before the hard exit below, otherwise
+        # the real terminal is left stuck in alt-screen/raw mode forever (the
+        # daemon thread owning it gets killed at the OS level with no chance
+        # to restore it). Must happen before os._exit(0), not after.
+        try:
+            stop_log_view()
+        except Exception:
+            logging.exception("Suppressed exception")
+
         # In free-threaded Python 3.13 (no-GIL build), any daemon thread blocked
         # in a C call (time.sleep, input, network IO) will crash the interpreter
         # with PyEval_RestoreThread(NULL) the moment Python tries to finalize it.
@@ -154,64 +173,6 @@ class SettingsMixin:
         # This must come BEFORE root.destroy()/quit() so no thread finalization runs.
         try:
             os._exit(0)
-        except Exception:
-            logging.exception("Suppressed exception")
-
-        try:
-
-            try:
-
-                for w in list(self.root.winfo_children()):
-                    try:
-                        if getattr(w, 'grab_release', None):
-                            w.grab_release()
-                    except Exception:
-                        logging.exception("Suppressed exception")
-            except Exception:
-                logging.exception("Suppressed exception")
-
-            try:
-                def _cancel_all_after(widget):
-                    try:
-                        for after_id in widget.tk.eval('after info').split():
-                            try:
-                                widget.after_cancel(after_id)
-                            except Exception:
-                                logging.exception("Suppressed exception")
-                    except Exception:
-                        logging.exception("Suppressed exception")
-                _cancel_all_after(self.root)
-            except Exception:
-                logging.exception("Suppressed exception")
-
-            self.root.quit()
-            try:
-
-                self.root.update()
-            except Exception:
-                logging.exception("Suppressed exception")
-            try:
-
-                for w in list(self.root.winfo_children()):
-                    try:
-                        w.destroy()
-                    except Exception:
-                        logging.exception("Suppressed exception")
-            except Exception:
-                logging.exception("Suppressed exception")
-            try:
-                self.root.destroy()
-            except Exception:
-                logging.exception("Suppressed exception")
-        except Exception:
-            try:
-                self.root.destroy()
-            except Exception:
-                logging.exception("Suppressed exception")
-
-        try:
-            import os as _os, sys as _sys
-            _os._exit(0)
         except Exception:
             logging.exception("Suppressed exception")
 

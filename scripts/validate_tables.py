@@ -1142,13 +1142,80 @@ class ValidatorApp(customtkinter.CTk):
                 text_color="#50c878")
 
 
+def run_cli(secondary_platform=None):
+    """Run validation headless and print results to stdout. Returns an exit code."""
+    active_errors, disabled_errors, warnings = validate_tables(secondary_platform=secondary_platform)
+
+    print("Tables scanned")
+    if os.path.isdir(TABLES_DIR):
+        table_files = [f for f in os.listdir(TABLES_DIR) if f.endswith(".sldtbl") or f.endswith(".disabled")]
+        for files, marker, tag in (
+            ([f for f in table_files if not f.endswith(".disabled")], "v", ""),
+            ([f for f in table_files if f.endswith(".disabled")], "o", " [DISABLED]"),
+        ):
+            grouped = {}
+            for f in files:
+                grouped.setdefault(_logical_table_key(f), []).append(f)
+            for gk in sorted(grouped.keys()):
+                files_in_group = sorted(grouped[gk])
+                try:
+                    owner = next((x for x in files_in_group if not _is_working_table_filename(x)), files_in_group[0])
+                    pretty = load_table(os.path.join(TABLES_DIR, owner)).get("prettyname", owner)
+                    max_id = 0
+                    for gf in files_in_group:
+                        for items in (load_table(os.path.join(TABLES_DIR, gf)).get("tables") or {}).values():
+                            if isinstance(items, list):
+                                for it in items:
+                                    if isinstance(it, dict) and "id" in it:
+                                        max_id = max(max_id, it["id"])
+                    suffix = f"  next ID: {max_id + 1}"
+                except Exception:
+                    pretty = ", ".join(files_in_group)
+                    suffix = ""
+                print(f"  {marker} {pretty} ({', '.join(files_in_group)}){tag}{suffix}")
+
+    def _print_grouped(title, items):
+        print(f"\n{title} ({len(items)})")
+        groups = {}
+        for cat, msg in items:
+            groups.setdefault(cat, []).append(msg)
+        n = 1
+        for cat in ALL_CATEGORIES:
+            if cat not in groups:
+                continue
+            print(f"\n  [{cat}]")
+            for msg in groups[cat]:
+                print(f"    {n}. {msg}")
+                n += 1
+
+    if active_errors:
+        _print_grouped("Errors", active_errors)
+    else:
+        print("\nErrors\n  None — all checks passed!")
+
+    if disabled_errors:
+        _print_grouped("Disabled table errors", disabled_errors)
+    if warnings:
+        _print_grouped("Warnings", warnings)
+
+    if active_errors:
+        print(f"\n{len(active_errors)} error(s) total — would block main.py startup.")
+        return 1
+    print("\nTables are valid — main.py would start without issues.")
+    return 0
+
+
 def main():
-    customtkinter.set_appearance_mode("dark")
-    customtkinter.set_default_color_theme("dark-blue")
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument('--secondary-platform', help='Optional secondary platform to allow when checking part compatibility', default=None)
+    parser.add_argument('--cli', action='store_true', help='Run headless and print results to stdout instead of opening the GUI')
     args, _ = parser.parse_known_args()
 
+    if args.cli:
+        sys.exit(run_cli(secondary_platform=args.secondary_platform))
+
+    customtkinter.set_appearance_mode("dark")
+    customtkinter.set_default_color_theme("dark-blue")
     app = ValidatorApp(secondary_platform=args.secondary_platform)
     app.mainloop()
 

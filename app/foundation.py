@@ -940,18 +940,12 @@ log_number = len(existing_logs)+1
 
 log_filename = f"logs/log_{log_number}_{datetime.now().strftime('%A_%B_%d_%Y_%H_%M_%S_%f')[:-3]}.log"
 
-file_formatter = logging.Formatter('%(asctime)s | %(levelname)s | %(message)s')
-console_formatter = ColoredFormatter('%(asctime)s | %(levelname)s | %(message)s')
-
 file_handler = logging.FileHandler(log_filename)
 file_handler.setFormatter(StripAnsiFormatter('%(asctime)s | %(levelname)s | %(message)s'))
 
-console_handler = logging.StreamHandler()
-console_handler.setFormatter(console_formatter)
-
 logging.basicConfig(
 level = logging.INFO,
-handlers =[file_handler, console_handler]
+handlers =[file_handler]
 )
 
 # Dump native (C-level) crash tracebacks into the session log so hard crashes
@@ -1084,13 +1078,6 @@ class ConsoleFilter(logging.Filter):
     def filter(self, record:logging.LogRecord)->bool:
         return not getattr(record, 'suppress_console', False)
 
-try:
-    console_handler.addFilter(ConsoleFilter())
-except Exception as e:
-    if global_variables["devmode"]["value"]:
-        logging.exception("An error occurred: %s", e)
-    else:
-        pass
 import warnings
 
 logging.captureWarnings(True)
@@ -1127,6 +1114,33 @@ except Exception:
     logging.exception("Suppressed exception")
 
 os.system('cls'if os.name =='nt'else 'clear')  # nosec B605 - hardcoded literal, no shell injection possible
+
+def _dev_console_dispatch(cmd):
+    # `run_dev_console_command` is defined further down this module (next to
+    # dm_users); looked up by name here since the log view starts before that
+    # point in the file and the function may not exist yet at import time.
+    fn = globals().get('run_dev_console_command')
+    if fn:
+        fn(cmd)
+    else:
+        logging.warning("Dev console isn't ready yet.")
+
+LOGVIEW_SHUTDOWN_EVENT = None
+stop_log_view = lambda:None
+set_devtools_provider = lambda provider:None
+open_inspector_screen = lambda entries_provider, strings_provider:None
+try:
+    from app.logview import install as _install_logview
+    LOGVIEW_SHUTDOWN_EVENT, stop_log_view, set_devtools_provider, open_inspector_screen = _install_logview(file_handler, command_handler = _dev_console_dispatch)
+except Exception:
+    logging.exception("Failed to start the Textual log viewer; falling back to plain console output")
+    try:
+        console_handler = logging.StreamHandler()
+        console_handler.setFormatter(ColoredFormatter('%(asctime)s | %(levelname)s | %(message)s'))
+        console_handler.addFilter(ConsoleFilter())
+        logging.getLogger().addHandler(console_handler)
+    except Exception:
+        logging.exception("Suppressed exception")
 
 logging.info(f"DOOM Tools, version {version}")
 try:
@@ -3417,400 +3431,401 @@ for user in dm_users:
     else:
         logging.debug(f"Current login '{_current_login}' does not match DM user '{user}'.")
 
-        def _console_command_loop():
-            try:
-                log_console_colored(logging.getLogger(), logging.INFO, "Console command thread started.Type 'help' for commands.", 'cyan')
-            except Exception:
-                logging.exception("Suppressed exception")
+def run_dev_console_command(cmd):
+    # Executes one dev-console command string. Used to be a background thread
+    # blocked on input() reading the raw terminal directly; now the Textual
+    # log-view (app/logview.py) owns the terminal, so this is called from its
+    # command box instead — one call per submitted line, no loop needed.
+    try:
+        import ast
+        import copy
 
-            import ast
-            import copy
+        ALLOWED_FUNCS = {
+        'len':len, 'str':str, 'int':int, 'float':float, 'bool':bool,
+        'sum':sum, 'min':min, 'max':max, 'sorted':sorted, 'repr':repr,
+        }
 
-            ALLOWED_FUNCS = {
-            'len':len, 'str':str, 'int':int, 'float':float, 'bool':bool,
-            'sum':sum, 'min':min, 'max':max, 'sorted':sorted, 'repr':repr,
-            }
+        SAFE_ATTRS = frozenset({'get', 'keys', 'values', 'items', 'copy', 'count', 'index', 'upper', 'lower', 'strip', 'split', 'join', 'startswith', 'endswith', 'replace', 'format'})
 
-            SAFE_ATTRS = frozenset({'get', 'keys', 'values', 'items', 'copy', 'count', 'index', 'upper', 'lower', 'strip', 'split', 'join', 'startswith', 'endswith', 'replace', 'format'})
+        ALLOWED_NAMES = {
+        'dm_users':list(dm_users),
+        'global_variables':copy.deepcopy(global_variables),
+        }
 
-            ALLOWED_NAMES = {
-            'dm_users':list(dm_users),
-            'global_variables':copy.deepcopy(global_variables),
-            }
+        ALLOWED_NODE_TYPES =(
+        ast.Expression, ast.Tuple, ast.List, ast.Dict, ast.Set,
+        ast.Load, ast.Constant, ast.BinOp, ast.UnaryOp, ast.BoolOp,
+        ast.Compare, ast.IfExp, ast.Subscript, ast.Slice, ast.Index,
+        ast.Name, ast.Call, ast.Attribute, ast.ListComp, ast.DictComp,
+        ast.comprehension
+        )
 
-            ALLOWED_NODE_TYPES =(
-            ast.Expression, ast.Tuple, ast.List, ast.Dict, ast.Set,
-            ast.Load, ast.Constant, ast.BinOp, ast.UnaryOp, ast.BoolOp,
-            ast.Compare, ast.IfExp, ast.Subscript, ast.Slice, ast.Index,
-            ast.Name, ast.Call, ast.Attribute, ast.ListComp, ast.DictComp,
-            ast.comprehension
-            )
+        def _is_ast_safe(node):
 
-            def _is_ast_safe(node):
-
-                if not isinstance(node, ALLOWED_NODE_TYPES):
+            if not isinstance(node, ALLOWED_NODE_TYPES):
+                return False
+            if isinstance(node, ast.Attribute):
+                if node.attr not in SAFE_ATTRS:
                     return False
-                if isinstance(node, ast.Attribute):
-                    if node.attr not in SAFE_ATTRS:
+                if node.attr.startswith('_'):
+                    return False
+            for child in ast.iter_child_nodes(node):
+                if isinstance(child, ast.Name):
+                    if child.id in('True', 'False', 'None'):
+                        continue
+                    if child.id not in ALLOWED_NAMES and child.id not in ALLOWED_FUNCS:
                         return False
-                    if node.attr.startswith('_'):
-                        return False
-                for child in ast.iter_child_nodes(node):
-                    if isinstance(child, ast.Name):
-                        if child.id in('True', 'False', 'None'):
-                            continue
-                        if child.id not in ALLOWED_NAMES and child.id not in ALLOWED_FUNCS:
+                if isinstance(child, ast.Call):
+
+                    func = child.func
+                    if isinstance(func, ast.Name):
+                        if func.id not in ALLOWED_FUNCS:
                             return False
-                    if isinstance(child, ast.Call):
+                    elif isinstance(func, ast.Attribute):
 
-                        func = child.func
-                        if isinstance(func, ast.Name):
-                            if func.id not in ALLOWED_FUNCS:
-                                return False
-                        elif isinstance(func, ast.Attribute):
-
-                            value = func.value
-                            if not(isinstance(value, ast.Name)and value.id in ALLOWED_FUNCS):
-                                return False
-                        else:
+                        value = func.value
+                        if not(isinstance(value, ast.Name)and value.id in ALLOWED_FUNCS):
                             return False
-                    if not _is_ast_safe(child):
+                    else:
                         return False
-                return True
+                if not _is_ast_safe(child):
+                    return False
+            return True
 
-            def safe_eval(expr:str):
-                try:
-                    parsed = ast.parse(expr, mode = 'eval')
-                except Exception as e:
-                    raise ValueError(f"Invalid expression: {e}")
-                if not _is_ast_safe(parsed):
-                    raise ValueError("Expression contains disallowed operations or names")
-                env = {}
-                env.update(ALLOWED_FUNCS)
-                env.update(ALLOWED_NAMES)
-                return eval(compile(parsed, '<safe_eval>', 'eval'), {'__builtins__':{}}, env)  # nosec B307 - AST-validated above against an allowlist, not raw eval
+        def safe_eval(expr:str):
+            try:
+                parsed = ast.parse(expr, mode = 'eval')
+            except Exception as e:
+                raise ValueError(f"Invalid expression: {e}")
+            if not _is_ast_safe(parsed):
+                raise ValueError("Expression contains disallowed operations or names")
+            env = {}
+            env.update(ALLOWED_FUNCS)
+            env.update(ALLOWED_NAMES)
+            return eval(compile(parsed, '<safe_eval>', 'eval'), {'__builtins__':{}}, env)  # nosec B307 - AST-validated above against an allowlist, not raw eval
 
-            while True:
-                try:
+        if not cmd:
+            return
+        cmd = cmd.strip()
+        dev_ok = bool(global_variables.get('devmode', {}).get('value'))or bool(global_variables.get('devmode', {}).get('forced'))
+        if not dev_ok:
+            log_console_colored(logging.getLogger(), logging.WARNING, "Console commands are disabled(devmode off).", 'yellow')
+            return
+
+        lower = cmd.lower()
+        if lower in('help', '?'):
+            out = "Commands: help, print dm users, print globals, print global <key>, print inventory value, inspect, gil, exit, pause <secs>, eval <expr>, crash"
+            log_console_colored(logging.getLogger(), logging.INFO, out, 'green')
+            return
+
+        if lower in('crash', 'force crash', 'test crash'):
+            log_console_colored(logging.getLogger(), logging.WARNING, "Forcing a hard crash now(skipping clean shutdown) to test crash reporting...", 'red')
+            os._exit(1)
+
+        if lower in('inspect', 'inspect tables', 'inspect tables/strings'):
+            try:
+                app_obj = globals().get('app')
+                if app_obj and hasattr(app_obj, '_dev_inspect_entries'):
+                    # Runs entirely on the log-view's own thread (see
+                    # app/logview.py InspectScreen) -- no Tk interpreter
+                    # involved, unlike the old CTkToplevel version.
+                    open_inspector_screen(app_obj._dev_inspect_entries, app_obj._dev_collect_strings)
+                    log_console_colored(logging.getLogger(), logging.INFO, "Opening tables/strings inspector(press 's' for strings, esc to close)...", 'green')
+                else:
+                    log_console_colored(logging.getLogger(), logging.WARNING, "Inspector unavailable(no running app).", 'yellow')
+            except Exception:
+                logging.exception('Failed to open tables/strings inspector')
+            return
+
+        if lower in('print dm users', 'print dm_users', 'print dmusers'):
+            try:
+                log_console_colored(logging.getLogger(), logging.INFO, f"dm_users(decoded): {dm_users}", 'cyan')
+            except Exception:
+                logging.exception('Failed to print dm_users')
+            return
+
+        if lower in('print globals', 'print global_variables'):
+            try:
+                safe = json.dumps(global_variables, indent = 2, default = str)
+                log_console_colored(logging.getLogger(), logging.INFO, safe, 'cyan')
+            except Exception:
+                logging.exception('Failed to print global_variables')
+            return
+
+        if lower =='gil':
+            try:
+                is_gil_fn = getattr(sys, '_is_gil_enabled', None)# type: ignore
+                if callable(is_gil_fn):
                     try:
-
-                        prompt = f"{os.getlogin()}:~ "
-                        try:
-                            cmd = input(prompt)
-                        except EOFError:
-                            # Use Event.wait not time.sleep — safer in Python 3.13t
-                            threading.Event().wait(0.25)
-                            continue
-                        except Exception:
-                            logging.exception('Console input error')
-                            continue
+                        gil_enabled = bool(is_gil_fn())
+                        if gil_enabled:
+                            log_console_colored(logging.getLogger(), logging.INFO, "GIL is enabled(sys._is_gil_enabled() returned True)", 'cyan')
+                        else:
+                            log_console_colored(logging.getLogger(), logging.INFO, "GIL is disabled(sys._is_gil_enabled() returned False)", 'yellow')
                     except Exception:
-                        logging.exception('Console prompt error')
-                    if not cmd:
-                        continue
-                    cmd = cmd.strip()
-                    dev_ok = bool(global_variables.get('devmode', {}).get('value'))or bool(global_variables.get('devmode', {}).get('forced'))
-                    if not dev_ok:
-                        log_console_colored(logging.getLogger(), logging.WARNING, "Console commands are disabled(devmode off).", 'yellow')
-                        continue
+                        logging.exception('sys._is_gil_enabled() raised an exception')
+                else:
 
-                    lower = cmd.lower()
-                    if lower in('help', '?'):
-                        out = "Commands: help, print dm users, print globals, print global <key>, print inventory value, gil, exit, pause <secs>, eval <expr>, crash"
-                        log_console_colored(logging.getLogger(), logging.INFO, out, 'green')
-                        continue
+                    impl = platform.python_implementation()
+                    gil_enabled =(impl =='CPython')
+                    if gil_enabled:
+                        log_console_colored(logging.getLogger(), logging.INFO, f"GIL is likely enabled(implementation: {impl})", 'cyan')
+                    else:
+                        log_console_colored(logging.getLogger(), logging.INFO, f"GIL is likely not present(implementation: {impl})", 'yellow')
+            except Exception:
+                logging.exception('Failed to check GIL')
+            return
 
-                    if lower in('crash', 'force crash', 'test crash'):
-                        log_console_colored(logging.getLogger(), logging.WARNING, "Forcing a hard crash now(skipping clean shutdown) to test crash reporting...", 'red')
-                        os._exit(1)
+        if lower.startswith('print global '):
+            key = cmd[len('print global '):].strip()
+            try:
+                val = global_variables.get(key)
+                log_console_colored(logging.getLogger(), logging.INFO, f"global {key}: {val}", 'cyan')
+            except Exception:
+                logging.exception('Failed to print global %s', key)
+            return
 
-                    if lower in('print dm users', 'print dm_users', 'print dmusers'):
+        if lower in('print inventory value', 'print inv value', 'inventory value', 'inv value'):
+            try:
+                app_obj = globals().get('app')
+                if not app_obj or not getattr(app_obj, 'currentsave', None):
+                    log_console_colored(logging.getLogger(), logging.WARNING, "No character/save is currently loaded.", 'yellow')
+                    return
+                save_data = app_obj._load_file((app_obj.currentsave or "")+".sldsv")
+                if not isinstance(save_data, dict):
+                    log_console_colored(logging.getLogger(), logging.WARNING, "Failed to load the current save data.", 'yellow')
+                    return
+
+                seen_nodes = set()
+
+                def _sum_item_value(node):
+                    # Recursively sum base value * quantity for an item and
+                    # everything installed/stored inside it (items, subslots,
+                    # accessories, parts), counting each node only once.
+                    if not isinstance(node, dict):
+                        return 0.0
+                    nid = id(node)
+                    if nid in seen_nodes:
+                        return 0.0
+                    seen_nodes.add(nid)
+                    try:
+                        qty = max(1, int(node.get("quantity", 1) or 1))
+                    except Exception:
+                        qty = 1
+                    try:
+                        base = float(node.get("value", 0) or 0)
+                    except Exception:
+                        base = 0.0
+                    total = base * qty
+                    for child in node.get("items", []) or []:
+                        total += _sum_item_value(child)
+                    for field in("subslots", "accessories", "parts"):
+                        for entry in node.get(field, []) or []:
+                            if isinstance(entry, dict):
+                                total += _sum_item_value(entry.get("current"))
+                    return total
+
+                carried_value = 0.0
+                hands = save_data.get("hands", {})
+                if isinstance(hands, dict):
+                    for it in hands.get("items", []) or []:
+                        carried_value += _sum_item_value(it)
+                for _slot, eq_item in(save_data.get("equipment", {}) or {}).items():
+                    if isinstance(eq_item, dict):
+                        carried_value += _sum_item_value(eq_item)
+                    elif isinstance(eq_item, list):
+                        for it in eq_item:
+                            carried_value += _sum_item_value(it)
+
+                storage_value = 0.0
+                for st_item in save_data.get("storage", []) or []:
+                    storage_value += _sum_item_value(st_item)
+
+                try:
+                    money = float(save_data.get("money", 0) or 0)
+                except Exception:
+                    money = 0.0
+
+                # Best-store depreciated sale value: what the player would
+                # actually receive selling their sellable items to whichever
+                # regular store buys at the highest rate, after wear/rarity
+                # depreciation and live market demand.
+                table_data_obj = globals().get('table_data') or {}
+                best_buy_mult = 0.0
+                best_store_name = None
+                try:
+                    for store in((table_data_obj.get("tables", {}) or {}).get("stores", []) or []):
+                        if not isinstance(store, dict):
+                            continue
+                        if store.get("type") != "store" or not store.get("display_in_program", True):
+                            continue
                         try:
-                            log_console_colored(logging.getLogger(), logging.INFO, f"dm_users(decoded): {dm_users}", 'cyan')
+                            bm = float((store.get("prices", {}) or {}).get("buy", 1.0) or 0.0)
                         except Exception:
-                            logging.exception('Failed to print dm_users')
-                        continue
+                            bm = 0.0
+                        if bm > best_buy_mult:
+                            best_buy_mult = bm
+                            best_store_name = store.get("name", "Unknown Store")
+                except Exception:
+                    logging.exception('Failed to resolve best buying store')
 
-                    if lower in('print globals', 'print global_variables'):
-                        try:
-                            safe = json.dumps(global_variables, indent = 2, default = str)
-                            log_console_colored(logging.getLogger(), logging.INFO, safe, 'cyan')
-                        except Exception:
-                            logging.exception('Failed to print global_variables')
-                        continue
+                sale_value = 0.0
+                if best_buy_mult > 0:
+                    try:
+                        market_demand = _get_market_demand()
+                    except Exception:
+                        market_demand = {}
 
-                    if lower =='gil':
-                        try:
-                            is_gil_fn = getattr(sys, '_is_gil_enabled', None)# type: ignore
-                            if callable(is_gil_fn):
-                                try:
-                                    gil_enabled = bool(is_gil_fn())
-                                    if gil_enabled:
-                                        log_console_colored(logging.getLogger(), logging.INFO, "GIL is enabled(sys._is_gil_enabled() returned True)", 'cyan')
-                                    else:
-                                        log_console_colored(logging.getLogger(), logging.INFO, "GIL is disabled(sys._is_gil_enabled() returned False)", 'yellow')
-                                except Exception:
-                                    logging.exception('sys._is_gil_enabled() raised an exception')
-                            else:
-
-                                impl = platform.python_implementation()
-                                gil_enabled =(impl =='CPython')
-                                if gil_enabled:
-                                    log_console_colored(logging.getLogger(), logging.INFO, f"GIL is likely enabled(implementation: {impl})", 'cyan')
-                                else:
-                                    log_console_colored(logging.getLogger(), logging.INFO, f"GIL is likely not present(implementation: {impl})", 'yellow')
-                        except Exception:
-                            logging.exception('Failed to check GIL')
-                        continue
-
-                    if lower.startswith('print global '):
-                        key = cmd[len('print global '):].strip()
-                        try:
-                            val = global_variables.get(key)
-                            log_console_colored(logging.getLogger(), logging.INFO, f"global {key}: {val}", 'cyan')
-                        except Exception:
-                            logging.exception('Failed to print global %s', key)
-                        continue
-
-                    if lower in('print inventory value', 'print inv value', 'inventory value', 'inv value'):
-                        try:
-                            app_obj = globals().get('app')
-                            if not app_obj or not getattr(app_obj, 'currentsave', None):
-                                log_console_colored(logging.getLogger(), logging.WARNING, "No character/save is currently loaded.", 'yellow')
-                                continue
-                            save_data = app_obj._load_file((app_obj.currentsave or "")+".sldsv")
-                            if not isinstance(save_data, dict):
-                                log_console_colored(logging.getLogger(), logging.WARNING, "Failed to load the current save data.", 'yellow')
-                                continue
-
-                            seen_nodes = set()
-
-                            def _sum_item_value(node):
-                                # Recursively sum base value * quantity for an item and
-                                # everything installed/stored inside it (items, subslots,
-                                # accessories, parts), counting each node only once.
-                                if not isinstance(node, dict):
-                                    return 0.0
-                                nid = id(node)
-                                if nid in seen_nodes:
-                                    return 0.0
-                                seen_nodes.add(nid)
-                                try:
-                                    qty = max(1, int(node.get("quantity", 1) or 1))
-                                except Exception:
-                                    qty = 1
-                                try:
-                                    base = float(node.get("value", 0) or 0)
-                                except Exception:
-                                    base = 0.0
-                                total = base * qty
-                                for child in node.get("items", []) or []:
-                                    total += _sum_item_value(child)
-                                for field in("subslots", "accessories", "parts"):
-                                    for entry in node.get(field, []) or []:
-                                        if isinstance(entry, dict):
-                                            total += _sum_item_value(entry.get("current"))
-                                return total
-
-                            carried_value = 0.0
-                            hands = save_data.get("hands", {})
-                            if isinstance(hands, dict):
-                                for it in hands.get("items", []) or []:
-                                    carried_value += _sum_item_value(it)
-                            for _slot, eq_item in(save_data.get("equipment", {}) or {}).items():
-                                if isinstance(eq_item, dict):
-                                    carried_value += _sum_item_value(eq_item)
-                                elif isinstance(eq_item, list):
-                                    for it in eq_item:
-                                        carried_value += _sum_item_value(it)
-
-                            storage_value = 0.0
-                            for st_item in save_data.get("storage", []) or []:
-                                storage_value += _sum_item_value(st_item)
-
-                            try:
-                                money = float(save_data.get("money", 0) or 0)
-                            except Exception:
-                                money = 0.0
-
-                            # Best-store depreciated sale value: what the player would
-                            # actually receive selling their sellable items to whichever
-                            # regular store buys at the highest rate, after wear/rarity
-                            # depreciation and live market demand.
-                            table_data_obj = globals().get('table_data') or {}
-                            best_buy_mult = 0.0
-                            best_store_name = None
-                            try:
-                                for store in((table_data_obj.get("tables", {}) or {}).get("stores", []) or []):
-                                    if not isinstance(store, dict):
-                                        continue
-                                    if store.get("type") != "store" or not store.get("display_in_program", True):
-                                        continue
-                                    try:
-                                        bm = float((store.get("prices", {}) or {}).get("buy", 1.0) or 0.0)
-                                    except Exception:
-                                        bm = 0.0
-                                    if bm > best_buy_mult:
-                                        best_buy_mult = bm
-                                        best_store_name = store.get("name", "Unknown Store")
-                            except Exception:
-                                logging.exception('Failed to resolve best buying store')
-
-                            sale_value = 0.0
-                            if best_buy_mult > 0:
-                                try:
-                                    market_demand = _get_market_demand()
-                                except Exception:
-                                    market_demand = {}
-
-                                def _iter_sellable(sd):
-                                    # Mirror the store sell tab's get_all_player_items: only
-                                    # the top-level items inside containers are sellable; their
-                                    # installed components are folded into each item's value.
-                                    out = []
-                                    h = sd.get("hands", {})
-                                    if isinstance(h, dict):
-                                        for it in h.get("items", []) or []:
+                    def _iter_sellable(sd):
+                        # Mirror the store sell tab's get_all_player_items: only
+                        # the top-level items inside containers are sellable; their
+                        # installed components are folded into each item's value.
+                        out = []
+                        h = sd.get("hands", {})
+                        if isinstance(h, dict):
+                            for it in h.get("items", []) or []:
+                                if isinstance(it, dict):
+                                    out.append(it)
+                        for _sn, eq in(sd.get("equipment", {}) or {}).items():
+                            slot_items = eq if isinstance(eq, list) else [eq]
+                            for slot_item in slot_items:
+                                if not isinstance(slot_item, dict):
+                                    continue
+                                if "items" in slot_item and "capacity" in slot_item:
+                                    for it in slot_item.get("items", []) or []:
+                                        if isinstance(it, dict):
+                                            out.append(it)
+                                for sub in slot_item.get("subslots", []) or []:
+                                    sub_cur = sub.get("current") if isinstance(sub, dict) else None
+                                    if isinstance(sub_cur, dict) and "items" in sub_cur:
+                                        for it in sub_cur.get("items", []) or []:
                                             if isinstance(it, dict):
                                                 out.append(it)
-                                    for _sn, eq in(sd.get("equipment", {}) or {}).items():
-                                        slot_items = eq if isinstance(eq, list) else [eq]
-                                        for slot_item in slot_items:
-                                            if not isinstance(slot_item, dict):
-                                                continue
-                                            if "items" in slot_item and "capacity" in slot_item:
-                                                for it in slot_item.get("items", []) or []:
-                                                    if isinstance(it, dict):
-                                                        out.append(it)
-                                            for sub in slot_item.get("subslots", []) or []:
-                                                sub_cur = sub.get("current") if isinstance(sub, dict) else None
-                                                if isinstance(sub_cur, dict) and "items" in sub_cur:
-                                                    for it in sub_cur.get("items", []) or []:
-                                                        if isinstance(it, dict):
-                                                            out.append(it)
-                                    return out
+                        return out
 
-                                for item in _iter_sellable(save_data):
-                                    if item.get("_from_armory"):
-                                        continue
-                                    try:
-                                        base_value = app_obj._compute_item_value_with_installed_components(item)
-                                        effective_value = _apply_sale_modifiers(base_value, item, table_data_obj)
-                                        price = effective_value * best_buy_mult * _get_item_market_multiplier(item, market_demand)
-                                        if item.get("firearm") and float(item.get("rounds_fired", 0) or 0) > 0:
-                                            price = max(100, price)
-                                        sale_value += price
-                                    except Exception:
-                                        logging.exception("Suppressed exception")
-                                        continue
-
-                            grand_total = carried_value + storage_value + money
-                            item_count = len(seen_nodes)
-                            if best_buy_mult > 0:
-                                sale_repr = f"{format_price(round(sale_value, 2))} (sold to '{best_store_name}' @ {best_buy_mult}x)"
-                            else:
-                                sale_repr = "n/a (no buying store in table)"
-                            log_console_colored(
-                                logging.getLogger(), logging.INFO,
-                                f"Inventory value for '{app_obj.currentsave}' ({item_count} item(s)): "
-                                f"carried {format_price(round(carried_value, 2))} | "
-                                f"storage {format_price(round(storage_value, 2))} | "
-                                f"money {format_price(round(money, 2))} | "
-                                f"total {format_price(round(grand_total, 2))} | "
-                                f"best sale value {sale_repr}",
-                                'green'
-                            )
-                        except Exception:
-                            logging.exception('Failed to compute inventory value')
-                        continue
-
-                    if lower in('exit', 'quit'):
+                    for item in _iter_sellable(save_data):
+                        if item.get("_from_armory"):
+                            continue
                         try:
-                            log_console_colored(logging.getLogger(), logging.INFO, 'Exit requested from console — attempting graceful shutdown', 'green')
+                            base_value = app_obj._compute_item_value_with_installed_components(item)
+                            effective_value = _apply_sale_modifiers(base_value, item, table_data_obj)
+                            price = effective_value * best_buy_mult * _get_item_market_multiplier(item, market_demand)
+                            if item.get("firearm") and float(item.get("rounds_fired", 0) or 0) > 0:
+                                price = max(100, price)
+                            sale_value += price
                         except Exception:
                             logging.exception("Suppressed exception")
-                        try:
+                            continue
 
-                            app_obj = globals().get('app')
-                            if app_obj and hasattr(app_obj, '_safe_exit'):
-                                try:
-                                    app_obj._safe_exit()
-                                except Exception:
-                                    logging.exception('App._safe_exit() raised an exception')
+                grand_total = carried_value + storage_value + money
+                item_count = len(seen_nodes)
+                if best_buy_mult > 0:
+                    sale_repr = f"{format_price(round(sale_value, 2))} (sold to '{best_store_name}' @ {best_buy_mult}x)"
+                else:
+                    sale_repr = "n/a (no buying store in table)"
+                log_console_colored(
+                    logging.getLogger(), logging.INFO,
+                    f"Inventory value for '{app_obj.currentsave}' ({item_count} item(s)): "
+                    f"carried {format_price(round(carried_value, 2))} | "
+                    f"storage {format_price(round(storage_value, 2))} | "
+                    f"money {format_price(round(money, 2))} | "
+                    f"total {format_price(round(grand_total, 2))} | "
+                    f"best sale value {sale_repr}",
+                    'green'
+                )
+            except Exception:
+                logging.exception('Failed to compute inventory value')
+            return
 
-                                time.sleep(0.25)
-                                if 'os'in globals():
-                                    globals()['os']._exit(0)
-                                else:
-                                    import os as _os
-                                    _os._exit(0)
-                            else:
+        if lower in('exit', 'quit'):
+            try:
+                log_console_colored(logging.getLogger(), logging.INFO, 'Exit requested from console — attempting graceful shutdown', 'green')
+            except Exception:
+                logging.exception("Suppressed exception")
+            try:
 
-                                safe_fn = globals().get('safe_exit')or globals().get('_safe_exit')
-                                if callable(safe_fn):
-                                    try:
-                                        safe_fn()
-                                    except Exception:
-                                        logging.exception('Module-level safe exit raised an exception')
-                                    time.sleep(0.25)
-                                    if 'os'in globals():
-                                        globals()['os']._exit(0)
-                                    else:
-                                        import os as _os
-                                        _os._exit(0)
-                                else:
-
-                                    if 'os'in globals():
-                                        globals()['os']._exit(0)
-                                    else:
-                                        import os as _os
-                                        _os._exit(0)
-                        except Exception:
-                            try:
-                                import sys
-                                sys.exit(0)
-                            except Exception:
-                                return
-
-                    if lower.startswith('pause ')or lower.startswith('sleep '):
-                        try:
-                            parts = cmd.split()
-                            secs = float(parts[1])if len(parts)>1 else 1.0
-                            log_console_colored(logging.getLogger(), logging.INFO, f'Pausing for {secs} seconds', 'green')
-                            time.sleep(max(0.0, secs))
-                        except Exception:
-                            log_console_colored(logging.getLogger(), logging.WARNING, 'Usage: pause <seconds>', 'yellow')
-                        continue
-
-                    if lower.startswith('eval '):
-                        expr = cmd[len('eval '):].strip()
-                        try:
-                            res = safe_eval(expr)
-                            log_console_colored(logging.getLogger(), logging.INFO, f"=> {repr(res)}", 'cyan')
-                        except Exception as e:
-                            log_console_colored(logging.getLogger(), logging.WARNING, f"Eval error: {e}", 'yellow')
-                        continue
-
+                app_obj = globals().get('app')
+                if app_obj and hasattr(app_obj, '_safe_exit'):
+                    # _safe_exit() makes raw Tcl calls (root.quit(),
+                    # widget.tk.eval, ...) which only the thread that owns the
+                    # Tk interpreter may call. This is called from the
+                    # log-view's own thread, so hand off via root.after()
+                    # instead of calling it directly. _safe_exit() already
+                    # ends in its own os._exit(0) once it (and the log view's
+                    # own shutdown inside it) finishes -- do NOT also force an
+                    # exit here after a short sleep: that raced ahead of
+                    # _safe_exit() finishing stop_log_view()'s terminal
+                    # restore, killing the process mid-cleanup and leaving the
+                    # real terminal stuck with mouse-tracking still enabled.
                     try:
-                        res = safe_eval(cmd)
-                        log_console_colored(logging.getLogger(), logging.INFO, f"=> {repr(res)}", 'cyan')
-                        continue
+                        root = getattr(app_obj, 'root', None)
+                        if root is not None:
+                            root.after(0, app_obj._safe_exit)
+                        else:
+                            app_obj._safe_exit()
                     except Exception:
-                        logging.exception("Suppressed exception")
+                        logging.exception('App._safe_exit() raised an exception')
+                else:
 
-                    log_console_colored(logging.getLogger(), logging.WARNING, f"Unknown or disallowed command: {cmd}", 'yellow')
+                    safe_fn = globals().get('safe_exit')or globals().get('_safe_exit')
+                    if callable(safe_fn):
+                        try:
+                            safe_fn()
+                        except Exception:
+                            logging.exception('Module-level safe exit raised an exception')
+                        time.sleep(0.25)
+                        if 'os'in globals():
+                            globals()['os']._exit(0)
+                        else:
+                            import os as _os
+                            _os._exit(0)
+                    else:
 
+                        if 'os'in globals():
+                            globals()['os']._exit(0)
+                        else:
+                            import os as _os
+                            _os._exit(0)
+            except Exception:
+                try:
+                    import sys
+                    sys.exit(0)
                 except Exception:
-                    try:
-                        logging.exception('Console command loop error')
-                    except Exception:
-                        logging.exception("Suppressed exception")
+                    return
+
+        if lower.startswith('pause ')or lower.startswith('sleep '):
+            try:
+                parts = cmd.split()
+                secs = float(parts[1])if len(parts)>1 else 1.0
+                log_console_colored(logging.getLogger(), logging.INFO, f'Pausing for {secs} seconds', 'green')
+                time.sleep(max(0.0, secs))
+            except Exception:
+                log_console_colored(logging.getLogger(), logging.WARNING, 'Usage: pause <seconds>', 'yellow')
+            return
+
+        if lower.startswith('eval '):
+            expr = cmd[len('eval '):].strip()
+            try:
+                res = safe_eval(expr)
+                log_console_colored(logging.getLogger(), logging.INFO, f"=> {repr(res)}", 'cyan')
+            except Exception as e:
+                log_console_colored(logging.getLogger(), logging.WARNING, f"Eval error: {e}", 'yellow')
+            return
 
         try:
-            t = threading.Thread(target = _console_command_loop, daemon = True)
-            t.start()
+            res = safe_eval(cmd)
+            log_console_colored(logging.getLogger(), logging.INFO, f"=> {repr(res)}", 'cyan')
+            return
         except Exception:
-            logging.exception('Failed to start console command thread')
+            logging.exception("Suppressed exception")
+
+        log_console_colored(logging.getLogger(), logging.WARNING, f"Unknown or disallowed command: {cmd}", 'yellow')
+
+    except Exception:
+        try:
+            logging.exception('Dev console command error')
+        except Exception:
+            logging.exception("Suppressed exception")
 
 def send_windows_notification(title:str, message:str):
 

@@ -2388,10 +2388,11 @@ class CombatmodeMixin:
                     attach_mode_var.set(mode_names[vis_index]if mode_names else "")
                 except Exception:
                     attach_mode_var.set(mode_names[0]if mode_names else "")
-                try:
-                    attach_mode_frame.mode_slider.set(vis_index)
-                except Exception:
-                    logging.exception("Suppressed exception")
+                if hasattr(attach_mode_frame, 'mode_slider')and attach_mode_frame.mode_slider:
+                    try:
+                        attach_mode_frame.mode_slider.set(vis_index)
+                    except Exception:
+                        logging.exception("Suppressed exception")
 
             attach_mode_frame._visible_modes = visible_modes
             attach_mode_frame._mode_index_map = mode_index_map
