@@ -4,7 +4,7 @@ This file is intentionally thin; see app/foundation.py and app/mixins/.
 """
 from app.foundation import *
 from app.core import App
-import logging
+import logging  
 
 
 if __name__ =="__main__":
