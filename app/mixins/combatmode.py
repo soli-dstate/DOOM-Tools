@@ -1993,7 +1993,8 @@ class CombatmodeMixin:
         "Bolt":315,
         "Single":135,
         "Double":225,
-        "Pump":45
+        "Pump":45,
+        "Slam-fire": 65
         }
 
         firemode_var = customtkinter.StringVar(value = initial_mode)

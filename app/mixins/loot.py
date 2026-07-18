@@ -674,12 +674,44 @@ class LootMixin:
                     self._popup_show_info("Error", f"Failed to open loot crate: {e}", sound = "error")
 
             if lootcrates:
+                crate_section_frame = customtkinter.CTkFrame(scroll_frame, fg_color = "transparent")
+                crate_section_frame.pack(fill = "x", pady =(10, 10), padx = 10)
+
                 crate_section_label = customtkinter.CTkLabel(
-                scroll_frame,
+                crate_section_frame,
                 text = "Loot Crates",
                 font = customtkinter.CTkFont(size = 18, weight = "bold")
                 )
-                crate_section_label.pack(pady =(10, 10), anchor = "w", padx = 10)
+                crate_section_label.pack(side = "left")
+
+                def _delete_all_opened_crates():
+                    def _do_delete_all(confirmed):
+                        if not confirmed:
+                            return
+                        deleted = 0
+                        for c in lootcrates:
+                            f = c.get("_file_path")
+                            if f and c.get("generated_items") and os.path.exists(f):
+                                try:
+                                    os.remove(f)
+                                    deleted += 1
+                                except Exception as e:
+                                    logging.error(f"Failed to delete loot crate file {f}: {e}")
+                        logging.info(f"Deleted {deleted} opened loot crate file(s)")
+                        self._open_loot_tool()
+                    self._popup_confirm("Delete Opened Crates", "Delete all opened crates? This cannot be undone.", _do_delete_all)
+
+                delete_all_button = self._create_sound_button(
+                crate_section_frame,
+                "Delete All Opened",
+                lambda:_delete_all_opened_crates(),
+                width = 160,
+                height = 28,
+                fg_color = "#8b2020",
+                hover_color = "#a83232",
+                font = customtkinter.CTkFont(size = 11)
+                )
+                delete_all_button.pack(side = "right")
 
             for crate in lootcrates:
                 crate_frame = customtkinter.CTkFrame(scroll_frame)
@@ -741,7 +773,38 @@ class LootMixin:
                 height = 40,
                 font = customtkinter.CTkFont(size = 12)
                 )
-                loot_button.grid(row = 3, column = 0, columnspan = 2, sticky = "ew", padx = 10, pady = 10)
+
+                if crate_file:
+                    def _delete_crate_file(f = crate_file, name = crate.get("name", "this crate")):
+                        def _do_delete(confirmed):
+                            if not confirmed:
+                                return
+                            try:
+                                os.remove(f)
+                                logging.info(f"Manually deleted loot crate file: {f}")
+                            except Exception as e:
+                                logging.error(f"Failed to delete loot crate file {f}: {e}")
+                                self._popup_show_info("Error", f"Failed to delete crate: {e}", sound = "error")
+                                return
+                            self._open_loot_tool()
+                        self._popup_confirm("Delete Crate", f"Delete '{name}'? This cannot be undone.", _do_delete)
+
+                    delete_button = self._create_sound_button(
+                    crate_frame,
+                    "X",
+                    _delete_crate_file,
+                    width = 40,
+                    height = 40,
+                    fg_color = "#8b2020",
+                    hover_color = "#a83232",
+                    font = customtkinter.CTkFont(size = 12, weight = "bold")
+                    )
+                    crate_frame.grid_columnconfigure(0, weight = 1)
+                    crate_frame.grid_columnconfigure(1, weight = 0)
+                    loot_button.grid(row = 3, column = 0, sticky = "ew", padx =(10, 5), pady = 10)
+                    delete_button.grid(row = 3, column = 1, sticky = "e", padx =(5, 10), pady = 10)
+                else:
+                    loot_button.grid(row = 3, column = 0, columnspan = 2, sticky = "ew", padx = 10, pady = 10)
 
             if enemyloots:
                 enemy_section_label = customtkinter.CTkLabel(
