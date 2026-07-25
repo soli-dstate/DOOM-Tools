@@ -87,10 +87,15 @@ class CombatMixin:
             except Exception:
                 logging.exception("Suppressed exception")
 
-    def _scan_belt_available_variants(self, weapon):
+    def _scan_belt_available_variants(self, weapon, save_data=None):
         """Scan inventory for loose rounds compatible with a belt-fed weapon. Returns {variant_name: count}."""
         try:
-            save_data = globals().get('save_data')or {}
+            # save_data must come from the caller's live combat session, not the
+            # process-wide global: _save_file() repoints globals()['save_data'] to
+            # whatever character was *last saved* (e.g. by an unrelated DM/multi-
+            # character panel), which can silently point this scan at the wrong
+            # character's inventory.
+            save_data = save_data if isinstance(save_data, dict) else(globals().get('save_data')or {})
             calibers = []
             try:
                 c = weapon.get('caliber')or weapon.get('calibers')or[]
@@ -151,10 +156,11 @@ class CombatMixin:
             logging.exception('_scan_belt_available_variants error')
             return {}
 
-    def _show_belt_variant_selection(self, weapon, quick=False):
+    def _show_belt_variant_selection(self, weapon, quick=False, save_data=None):
         """Show variant selection popup for belt-fed reload, or auto-select if quick/only one variant."""
         try:
-            variants = self._scan_belt_available_variants(weapon)
+            save_data = save_data if isinstance(save_data, dict) else(globals().get('save_data')or {})
+            variants = self._scan_belt_available_variants(weapon, save_data)
             if not variants:
                 self._popup_show_info('Reload Belt', 'No compatible loose rounds available to load belt')
                 return
@@ -164,7 +170,7 @@ class CombatMixin:
                 t = threading.Thread(
                     target=self._perform_belt_reload_sequence,
                     args=(weapon,),
-                    kwargs={'quick': quick, 'selected_variant': best},
+                    kwargs={'quick': quick, 'selected_variant': best, 'save_data': save_data},
                     daemon=True
                 )
                 t.start()
@@ -220,7 +226,7 @@ class CombatMixin:
                 t = threading.Thread(
                     target=self._perform_belt_reload_sequence,
                     args=(weapon,),
-                    kwargs={'quick': False, 'selected_variant': chosen},
+                    kwargs={'quick': False, 'selected_variant': chosen, 'save_data': save_data},
                     daemon=True
                 )
                 t.start()
@@ -251,9 +257,9 @@ class CombatMixin:
         except Exception:
             logging.exception('_show_belt_variant_selection error')
 
-    def _perform_belt_reload_sequence(self, weapon, quick=False, selected_variant=None):
+    def _perform_belt_reload_sequence(self, weapon, quick=False, selected_variant=None, save_data=None):
         try:
-            save_data = globals().get('save_data')or {}
+            save_data = save_data if isinstance(save_data, dict) else(globals().get('save_data')or {})
 
             if weapon.get("dualfeed") and isinstance(weapon.get("loaded"), dict):
                 ejected_mag = weapon.get("loaded")
@@ -553,12 +559,13 @@ class CombatMixin:
         except Exception:
             logging.exception('_perform_belt_reload_sequence error')
 
-    def _perform_dualfeed_belt_reload_sequence(self, weapon, quick=False):
+    def _perform_dualfeed_belt_reload_sequence(self, weapon, quick=False, save_data=None):
         try:
+            save_data = save_data if isinstance(save_data, dict) else(globals().get('save_data')or {})
             sub_mag_system = weapon.get("submagazinesystem")
             sub_mag_type = weapon.get("submagazinetype")
             if not sub_mag_system and not sub_mag_type:
-                self._show_belt_variant_selection(weapon, quick=quick)
+                self._show_belt_variant_selection(weapon, quick=quick, save_data=save_data)
                 return
 
             popup = customtkinter.CTkToplevel(self.root)
@@ -580,14 +587,13 @@ class CombatMixin:
             def choose_belt():
                 popup.destroy()
                 try:
-                    self._show_belt_variant_selection(weapon, quick=quick)
+                    self._show_belt_variant_selection(weapon, quick=quick, save_data=save_data)
                 except Exception:
                     logging.exception("dualfeed belt reload error")
 
             def choose_magazine():
                 popup.destroy()
                 try:
-                    save_data = globals().get('save_data') or {}
                     table_data = globals().get('table_data') or {}
                     current_weapon_state = globals().get('current_weapon_state') or {}
                     update_cb = globals().get('update_weapon_view') or (lambda: None)
@@ -2579,9 +2585,9 @@ class CombatMixin:
                         is_belt_rt =(("belt"in mag_type_rt)or("belt"in plat_rt)or("m249"in plat_rt)) and not _dualfeed_has_mag_jc
                         if is_belt_rt:
                             if weapon.get("dualfeed")and(weapon.get("submagazinesystem")or weapon.get("submagazinetype")):
-                                self._perform_dualfeed_belt_reload_sequence(weapon)
+                                self._perform_dualfeed_belt_reload_sequence(weapon, save_data=save_data)
                             else:
-                                self._perform_belt_reload_sequence(weapon)
+                                self._perform_belt_reload_sequence(weapon, save_data=save_data)
                         else:
                             self._play_weapon_action_sound(weapon, "magout")
                     except Exception:
@@ -2646,9 +2652,9 @@ class CombatMixin:
                         is_belt_rt =(("belt"in mag_type_rt)or("belt"in plat_rt)or("m249"in plat_rt)) and not _dualfeed_has_mag_jc2
                         if is_belt_rt:
                             if weapon.get("dualfeed")and(weapon.get("submagazinesystem")or weapon.get("submagazinetype")):
-                                self._perform_dualfeed_belt_reload_sequence(weapon)
+                                self._perform_dualfeed_belt_reload_sequence(weapon, save_data=save_data)
                             else:
-                                self._perform_belt_reload_sequence(weapon)
+                                self._perform_belt_reload_sequence(weapon, save_data=save_data)
                         else:
                             self._play_weapon_action_sound(weapon, "magin")
                     except Exception:
@@ -5325,9 +5331,9 @@ class CombatMixin:
 
                 try:
                     if weapon.get("dualfeed") and (weapon.get("submagazinesystem") or weapon.get("submagazinetype")):
-                        self._perform_dualfeed_belt_reload_sequence(weapon)
+                        self._perform_dualfeed_belt_reload_sequence(weapon, save_data=save_data)
                     else:
-                        self._show_belt_variant_selection(weapon, quick=False)
+                        self._show_belt_variant_selection(weapon, quick=False, save_data=save_data)
                     return
                 except Exception:
                     try:

@@ -2892,9 +2892,9 @@ class CombatmodeMixin:
 
             if "belt"in magazine_type or "belt"in(wpn.get("platform", "")or "").lower():
                 if wpn.get("dualfeed")and(wpn.get("submagazinesystem")or wpn.get("submagazinetype")):
-                    self._perform_dualfeed_belt_reload_sequence(wpn, quick=False)
+                    self._perform_dualfeed_belt_reload_sequence(wpn, quick=False, save_data=save_data)
                 else:
-                    self._show_belt_variant_selection(wpn, quick=False)
+                    self._show_belt_variant_selection(wpn, quick=False, save_data=save_data)
                 return
 
             if not magazine_system:
@@ -3166,12 +3166,12 @@ class CombatmodeMixin:
 
                     if wpn.get("dualfeed")and(wpn.get("submagazinesystem")or wpn.get("submagazinetype")):
                         try:
-                            self._perform_dualfeed_belt_reload_sequence(wpn, quick=True)
+                            self._perform_dualfeed_belt_reload_sequence(wpn, quick=True, save_data=save_data)
                         except Exception:
                             logging.exception("Suppressed exception")
                     else:
                         try:
-                            self._show_belt_variant_selection(wpn, quick=True)
+                            self._show_belt_variant_selection(wpn, quick=True, save_data=save_data)
                         except Exception:
                             logging.exception("Suppressed exception")
                     handled_belt = True
