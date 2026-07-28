@@ -45,7 +45,13 @@ GITHUB_BRANCH_ZIP = f"https://api.github.com/repos/{OWNER}/{REPO}/zipball/{{ref}
 # foundation first and falls back to main.py for older refs.
 GITHUB_RAW_FILE = f"https://raw.githubusercontent.com/{OWNER}/{REPO}/{{ref}}/{{path}}"
 GITHUB_RAW_MAIN = GITHUB_RAW_FILE.format(ref=DEFAULT_BRANCH, path="main.py")
+GITHUB_RAW_VERSION_JSON = GITHUB_RAW_FILE.format(ref=DEFAULT_BRANCH, path="remotedata/version.json")
 RESOURCE_LINK_FILES = ("app/foundation.py", "main.py")
+
+# Bumped to match the "launcher" key in remotedata/version.json on release.
+# The launcher compares this to the latest published value and self-updates
+# when they diverge (see self_update_if_available()).
+LAUNCHER_VERSION = "1.0.10"
 
 APP_NAME = "DOOM-Tools Launcher"
 EXE_NAME = "DOOM-Tools.exe"
@@ -58,6 +64,7 @@ STATE_FILE_NAME = "state.json"
 LAUNCH_SETTINGS_FILE_NAME = "launcher_settings.json"
 BUILDER_DIR_NAME = "builder_toolchain"
 BUILDER_ASSET_NAME = "DOOM-Tools-python-builder-windows.zip"
+LAUNCHER_ASSET_NAME = "DOOM-Tools-Launcher.exe"
 
 DEFAULT_LAUNCH_SETTINGS = {
     "devmode": False,
@@ -73,7 +80,7 @@ DEFAULT_LAUNCH_SETTINGS = {
     "suppress_source_prompt": False,
 }
 
-SOURCE_COPY_DIRS = ("tables", "themes", "fonts")
+SOURCE_COPY_DIRS = ("tables", "themes", "fonts", "remotedata")
 RESOURCE_DIRS = ("sounds", "images")
 FONT_SUFFIXES = (".ttf", ".otf")
 FONT_INSTALL_VERSION = 2
@@ -417,6 +424,92 @@ def fetch_latest_release(include_prerelease: bool = False) -> dict:
     if not tag or not zipball_url:
         raise LauncherError("Latest release response missing tag_name or zipball_url")
     return {"tag": tag, "zipball_url": zipball_url, "assets": assets}
+
+
+def fetch_remote_versions() -> dict:
+    """Return the {"application": ..., "launcher": ...} dict from remotedata/version.json.
+
+    Used as a startup pre-flight check, so failures should surface quickly
+    rather than exhausting the full retry budget used for actual downloads.
+    """
+    with _request_with_retry(GITHUB_RAW_VERSION_JSON, timeout=8, attempts=2) as response:
+        data = response.json()
+    if not isinstance(data, dict):
+        raise LauncherError("remotedata/version.json response was not an object")
+    return data
+
+
+def _parse_version_tuple(value: str) -> tuple[int, ...]:
+    return tuple(int(p) for p in re.findall(r"\d+", str(value)))
+
+
+def find_launcher_asset(release: dict) -> dict:
+    assets = release.get("assets", [])
+    if not isinstance(assets, list):
+        assets = []
+    for asset in assets:
+        if str(asset.get("name", "")) == LAUNCHER_ASSET_NAME and asset.get("browser_download_url"):
+            return asset
+    raise LauncherError(
+        f"No launcher asset found in latest release. Expected an asset named {LAUNCHER_ASSET_NAME}."
+    )
+
+
+def self_update_if_available(logger, mutex_handle: int | None = None) -> bool:
+    """Replace the running launcher exe if a newer one was published, then relaunch.
+
+    Only meaningful for a frozen (PyInstaller) Windows build -- running via
+    `python launcher.py` has no exe to replace, so that case is skipped. Any
+    failure here is logged and swallowed: a failed self-update should never
+    block the user from continuing to use the current launcher. On success the
+    single-instance mutex is released before the new process is spawned, so
+    the relaunched instance doesn't see itself as "already running".
+    """
+    if not getattr(sys, "frozen", False) or os.name != "nt":
+        return False
+
+    try:
+        remote_versions = fetch_remote_versions()
+        remote_launcher_version = str(remote_versions.get("launcher", "")).strip()
+        if not remote_launcher_version:
+            return False
+        if _parse_version_tuple(remote_launcher_version) <= _parse_version_tuple(LAUNCHER_VERSION):
+            return False
+
+        logger(f"Launcher update available: {LAUNCHER_VERSION} -> {remote_launcher_version}")
+        release = fetch_latest_release()
+        asset = find_launcher_asset(release)
+        asset_url = str(asset.get("browser_download_url", ""))
+        if not asset_url:
+            raise LauncherError(f"Launcher asset {LAUNCHER_ASSET_NAME} has no download URL")
+
+        current_exe = Path(sys.executable)
+        new_exe = current_exe.with_name(current_exe.stem + ".new" + current_exe.suffix)
+        old_exe = current_exe.with_name(current_exe.stem + ".old" + current_exe.suffix)
+        download_file(asset_url, new_exe)
+
+        old_exe.unlink(missing_ok=True)
+        current_exe.rename(old_exe)  # frees the original path; Windows allows renaming a running exe
+        new_exe.rename(current_exe)
+
+        logger(f"Launcher updated to {remote_launcher_version}. Restarting...")
+        release_single_instance_lock(mutex_handle)
+        subprocess.Popen([str(current_exe)] + sys.argv[1:], cwd=str(current_exe.parent))
+        return True
+    except Exception:
+        logging.exception("Launcher self-update failed; continuing with current version")
+        return False
+
+
+def _cleanup_old_launcher_backup() -> None:
+    if not getattr(sys, "frozen", False) or os.name != "nt":
+        return
+    try:
+        current_exe = Path(sys.executable)
+        old_exe = current_exe.with_name(current_exe.stem + ".old" + current_exe.suffix)
+        old_exe.unlink(missing_ok=True)
+    except Exception:
+        logging.exception("Suppressed exception")
 
 
 def _parse_resource_links(text: str) -> list[str]:
@@ -2136,9 +2229,13 @@ class LauncherUI:
 
 def main() -> int:
     hide_console_window()
+    _cleanup_old_launcher_backup()
     mutex = acquire_single_instance_lock()
     if os.name == "nt" and mutex == 0:
         messagebox.showinfo(APP_NAME, "DOOM-Tools Launcher is already running.")
+        return 0
+
+    if self_update_if_available(logging.info, mutex):
         return 0
 
     try:

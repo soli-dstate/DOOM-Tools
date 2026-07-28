@@ -1,6 +1,5 @@
 import logging
 import os
-import re
 import shutil
 import subprocess
 import sys
@@ -40,22 +39,19 @@ console_handler.setFormatter(console_formatter)
 logging.basicConfig(level=logging.INFO, handlers=[console_handler])
 
 ROOT = Path(__file__).resolve().parents[1]
-MAIN_PY = ROOT / "main.py"
 LAUNCHER_PY = ROOT / "launcher.py"
+VERSION_JSON = ROOT / "remotedata" / "version.json"   # source of truth for versions
 BUILD_DIR = ROOT / "build"
 DIST_DIR = ROOT / "dist"
 ICON_PATH = ROOT / "images_local" / "Bitcrushed_Sanya.png"
 
 
 def get_version_from_main():
-    if not MAIN_PY.exists():
+    if not VERSION_JSON.exists():
         return "0.0.0"
-    with open(MAIN_PY, "r", encoding="utf-8") as f:
-        first_line = f.readline().strip()
-    match = re.match(r"version\s*=\s*[\"\']([^\"\']+)[\"\']", first_line)
-    if match:
-        return match.group(1)
-    return "0.0.0"
+    import json
+    with open(VERSION_JSON, "r", encoding="utf-8") as f:
+        return json.load(f).get("launcher", "0.0.0")
 
 
 def run(cmd, **kwargs):

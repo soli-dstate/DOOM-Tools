@@ -17,6 +17,7 @@ env:
   ENTRY_PATH:  main.py
   APP_NAME: DOOM-Tools
   PYTHON_VERSION: "3.13.11"
+  LAUNCHER_ASSET_NAME: DOOM-Tools-Launcher.exe
 
 jobs:
   build-windows:
@@ -111,10 +112,85 @@ jobs:
           name: ${{ env.APP_NAME }}-linux
           path: dist/${{ env. APP_NAME }}
 
+  build-launcher-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read launcher version from remotedata/version.json
+        id: version
+        shell: bash
+        run: |
+          ver=$(python -c "import json; print(json.load(open('remotedata/version.json'))['launcher'])")
+          echo "Launcher version: $ver"
+          echo "version=$ver" >> "$GITHUB_OUTPUT"
+
+      # If the launcher's version hasn't moved since the last stable release,
+      # its exe is byte-identical to what that release already published --
+      # reuse it instead of spending a build. Any failure here (no previous
+      # release, network hiccup, asset missing) just falls through to a build.
+      - name: Check previous release for a reusable launcher build
+        id: reuse
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          reused=false
+          prev_tag=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name 2>/dev/null || true)
+          if [ -n "$prev_tag" ]; then
+            echo "Previous release: $prev_tag"
+            prev_ver=$(curl -fsSL "https://raw.githubusercontent.com/$GITHUB_REPOSITORY/$prev_tag/remotedata/version.json" | python -c "import json,sys; print(json.load(sys.stdin).get('launcher',''))" 2>/dev/null || true)
+            echo "Previous launcher version: $prev_ver"
+            if [ -n "$prev_ver" ] && [ "$prev_ver" = "${{ steps.version.outputs.version }}" ]; then
+              if gh release download "$prev_tag" --repo "$GITHUB_REPOSITORY" --pattern "$LAUNCHER_ASSET_NAME" --dir reused --clobber; then
+                reused=true
+              fi
+            fi
+          fi
+          echo "reused=$reused" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Python
+        if: steps.reuse.outputs.reused != 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        if: steps.reuse.outputs.reused != 'true'
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          pip install pyinstaller
+
+      - name: Build launcher exe with PyInstaller
+        if: steps.reuse.outputs.reused != 'true'
+        shell: bash
+        run: python scripts/build_launcher.py
+
+      - name: Stage launcher exe for release
+        shell: bash
+        run: |
+          mkdir -p launcher-out
+          if [ "${{ steps.reuse.outputs.reused }}" = "true" ]; then
+            echo "Reusing launcher exe from previous release (unchanged version)"
+            cp "reused/$LAUNCHER_ASSET_NAME" "launcher-out/$LAUNCHER_ASSET_NAME"
+          else
+            cp dist/launcher.exe "launcher-out/$LAUNCHER_ASSET_NAME"
+          fi
+
+      - name: Upload launcher artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: launcher-windows
+          path: launcher-out/${{ env.LAUNCHER_ASSET_NAME }}
+
   release:
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
-    needs: [build-windows, build-linux]
+    needs: [build-windows, build-linux, build-launcher-windows]
     steps:
       - name: Download windows artifact
         uses: actions/download-artifact@v4
@@ -127,6 +203,12 @@ jobs:
         with:
           name: ${{ env.APP_NAME }}-linux
           path: ./release-assets/linux
+
+      - name: Download launcher artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: launcher-windows
+          path: ./release-assets/launcher
 
       - name: Prepare release zips
         run: |
@@ -159,6 +241,7 @@ jobs:
           files: |
             ${{ env.APP_NAME }}-windows.zip
             ${{ env.APP_NAME }}-linux.zip
+            release-assets/launcher/${{ env.LAUNCHER_ASSET_NAME }}
           draft: false
           prerelease: ${{ steps.check-prerelease.outputs.is_prerelease }}
         env:

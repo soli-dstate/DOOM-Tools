@@ -1,9 +1,22 @@
-version = "2.0.15"
+import os
+import json
+
+
+def _load_local_app_version(default="0.0.0"):
+    # Source of truth is remotedata/version.json ("application" key), bumped
+    # to match the latest stable git release when a release is cut.
+    try:
+        with open(os.path.join("remotedata", "version.json"), "r", encoding="utf-8") as f:
+            return json.load(f).get("application", default)
+    except Exception:
+        return default
+
+
+version = _load_local_app_version()
 current_resource_links = [
     "https://files.catbox.moe/gtbtty.001",
     "https://files.catbox.moe/r3ic2z.002",
 ]
-import os
 import logging
 import re
 from datetime import datetime

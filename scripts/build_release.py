@@ -44,7 +44,7 @@ handlers =[console_handler]
 )
 ROOT = Path(__file__).resolve().parents[1]
 MAIN_PY = ROOT / 'main.py'
-FOUNDATION_PY = ROOT / 'app' / 'foundation.py'   # `version` lives here post-refactor
+VERSION_JSON = ROOT / 'remotedata' / 'version.json'   # source of truth for versions
 SOUNDS_DIR = ROOT / 'sounds'
 TABLES_DIR = ROOT / 'tables'
 BUILD_DIR = ROOT / 'build'
@@ -52,17 +52,11 @@ DIST_DIR = ROOT / 'dist'
 FONTS_DIR = ROOT / 'fonts'
 IMAGES_DIR = ROOT / 'images'
 def get_version_from_main():
-    # `version` moved out of main.py into app/foundation.py during the package
-    # refactor; scan that file for it, falling back to main.py for older trees.
-    for src in (FOUNDATION_PY, MAIN_PY):
-        if not src.exists():
-            continue
-        with open(src, 'r', encoding='utf-8') as f:
-            for line in f:
-                match = re.match(r'version\s*=\s*["\']([^"\']+)["\']', line.strip())
-                if match:
-                    return match.group(1)
-    return '0.0.0'
+    if not VERSION_JSON.exists():
+        return '0.0.0'
+    import json
+    with open(VERSION_JSON, 'r', encoding='utf-8') as f:
+        return json.load(f).get('application', '0.0.0')
 def run(cmd, **kwargs):
     logging.info('Running: %s', ' '.join(cmd))
     res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, **kwargs)
@@ -149,6 +143,10 @@ def make_release_zip(exe_path: Path, out_dir: Path, version: str = '0.0.0', incl
         if FONTS_DIR.exists():
             dest_fonts = tmpdir / 'fonts'
             shutil.copytree(FONTS_DIR, dest_fonts)
+        if VERSION_JSON.exists():
+            dest_version_json = tmpdir / 'remotedata' / 'version.json'
+            dest_version_json.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(VERSION_JSON, dest_version_json)
         with zipfile.ZipFile(zip_name, 'w', compression=zipfile.ZIP_DEFLATED) as zf:
             for root, dirs, files in os.walk(tmpdir):
                 for f in files:
