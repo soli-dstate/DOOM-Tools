@@ -1,5 +1,6 @@
 """CombatmodeMixin — App methods for the "combatmode" feature area."""
 from app.foundation import *
+from app import fonts as _app_fonts
 import logging
 
 
@@ -1224,6 +1225,14 @@ class CombatmodeMixin:
                     th = int(size * 1.4)
                 return size, tw + _s(pad_x), th + _s(pad_y)
 
+            # Ask the platform what these faces are actually called rather than
+            # hardcoding one spelling: GDI reports the full name
+            # ("DSEG7 Modern-Regular"), fontconfig the family ("DSEG7 Modern"),
+            # so the old literal silently fell back to a proportional font off
+            # Windows. Falls back to the literal if nothing resolves.
+            _seg_family = _app_fonts.resolve_family(_app_fonts.SEVEN_SEGMENT, root = self.root) or "DSEG7 Modern-Regular"
+            _wx_family = _app_fonts.resolve_family(_app_fonts.WEATHER_ICONS, root = self.root) or "DSEG Weather"
+
             watch_frame_local = customtkinter.CTkFrame(parent_frame, corner_radius = _s(6))
             watch_frame_local.place(relx = 0.0, y = _s(4), anchor = "nw", x = _s(4))
             watch_beep_mute_map = combat_state.get("watch_hourly_beep_muted")
@@ -1318,7 +1327,7 @@ class CombatmodeMixin:
 
                     # Each segment canvas is measured to hug its content so there is
                     # no dead space, and a shared row height keeps them aligned.
-                    time_size, time_w, row_h = _seg_dims("88:88:88", "DSEG7 Modern-Regular", 22)
+                    time_size, time_w, row_h = _seg_dims("88:88:88", _seg_family, 22)
                     cy = row_h // 2
 
                     time_stack = customtkinter.CTkFrame(info_row, fg_color = "transparent", width = time_w, height = row_h)
@@ -1326,8 +1335,8 @@ class CombatmodeMixin:
                     time_stack.pack_propagate(False)
                     time_canvas = customtkinter.CTkCanvas(time_stack, width = time_w, height = row_h, bg = "#313B21", highlightthickness = 0)
                     time_canvas.pack(fill = "both", expand = True)
-                    time_ghost_item = time_canvas.create_text(time_w - _s(4), cy, text = "88:88:88", fill = "#4F6338", font = ("DSEG7 Modern-Regular", time_size), anchor = "e")
-                    time_live_item = time_canvas.create_text(time_w - _s(4), cy, text = "00:00", fill = "#C7F089", font = ("DSEG7 Modern-Regular", time_size), anchor = "e")
+                    time_ghost_item = time_canvas.create_text(time_w - _s(4), cy, text = "88:88:88", fill = "#4F6338", font = (_seg_family, time_size), anchor = "e")
+                    time_live_item = time_canvas.create_text(time_w - _s(4), cy, text = "00:00", fill = "#C7F089", font = (_seg_family, time_size), anchor = "e")
 
                     ampm_w = _seg_dims("PM", None, 10, pad_x = 6)[1]
                     ampm_frame = customtkinter.CTkFrame(info_row, fg_color = "transparent", width = ampm_w, height = row_h)
@@ -1348,20 +1357,20 @@ class CombatmodeMixin:
                     )
                     am_label.place(relx = 0.5, rely = 0.77, anchor = "center")
 
-                    wx_size, wx_w, _wx_h = _seg_dims("8", "DSEG Weather", 28, pad_x = 10, pad_y = 8)
+                    wx_size, wx_w, _wx_h = _seg_dims("8", _wx_family, 28, pad_x = 10, pad_y = 8)
                     weather_stack = customtkinter.CTkFrame(info_row, fg_color = "transparent", width = wx_w, height = row_h)
                     weather_stack.pack(side = "left", padx =(_s(2), _s(6)), pady = _s(4))
                     weather_stack.pack_propagate(False)
                     weather_canvas = customtkinter.CTkCanvas(weather_stack, width = wx_w, height = row_h, bg = "#313B21", highlightthickness = 0)
                     weather_canvas.pack(fill = "both", expand = True)
-                    weather_ghost_item = weather_canvas.create_text(wx_w // 2, cy, text = "0", fill = "#4F6338", font = ("DSEG Weather", wx_size), anchor = "center")
-                    weather_live_item = weather_canvas.create_text(wx_w // 2, cy, text = _watch_weather_icon_code(weather_state.get("weather", "clear")), fill = "#C7F089", font = ("DSEG Weather", wx_size), anchor = "center")
+                    weather_ghost_item = weather_canvas.create_text(wx_w // 2, cy, text = "0", fill = "#4F6338", font = (_wx_family, wx_size), anchor = "center")
+                    weather_live_item = weather_canvas.create_text(wx_w // 2, cy, text = _watch_weather_icon_code(weather_state.get("weather", "clear")), fill = "#C7F089", font = (_wx_family, wx_size), anchor = "center")
 
                     # Temperature: size to the widest reading the formatter can emit
                     # ("888°F"/"-88°F") and the ghost ("8888") so nothing clips.
                     temp_size = max(7, int(round(22 * watch_scale)))
                     try:
-                        _temp_fo = _tkfont.Font(family = "DSEG7 Modern-Regular", size = temp_size)
+                        _temp_fo = _tkfont.Font(family = _seg_family, size = temp_size)
                         temp_text_w = max(_temp_fo.measure(_t) for _t in ("8888", "888°F", "-88°F"))
                     except Exception:
                         temp_text_w = int(5 * temp_size * 0.7)
@@ -1371,8 +1380,8 @@ class CombatmodeMixin:
                     temp_stack.pack_propagate(False)
                     temp_canvas = customtkinter.CTkCanvas(temp_stack, width = temp_w, height = row_h, bg = "#313B21", highlightthickness = 0)
                     temp_canvas.pack(fill = "both", expand = True)
-                    temp_ghost_item = temp_canvas.create_text(temp_w - _s(4), cy, text = _watch_temperature_ghost_text(), fill = "#4F6338", font = ("DSEG7 Modern-Regular", temp_size), anchor = "e")
-                    temp_live_item = temp_canvas.create_text(temp_w - _s(4), cy, text = _watch_temperature_text(weather_state.get("temperature_f", combat_state.get("ambient_temperature", 70))), fill = "#C7F089", font = ("DSEG7 Modern-Regular", temp_size), anchor = "e")
+                    temp_ghost_item = temp_canvas.create_text(temp_w - _s(4), cy, text = _watch_temperature_ghost_text(), fill = "#4F6338", font = (_seg_family, temp_size), anchor = "e")
+                    temp_live_item = temp_canvas.create_text(temp_w - _s(4), cy, text = _watch_temperature_text(weather_state.get("temperature_f", combat_state.get("ambient_temperature", 70))), fill = "#C7F089", font = (_seg_family, temp_size), anchor = "e")
 
                     beep_toggle_btn = self._create_sound_button(
                         info_row,

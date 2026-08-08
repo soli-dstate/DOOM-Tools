@@ -1,5 +1,6 @@
 """CasinoMixin — App methods for the "casino" feature area."""
 from app.foundation import *
+from app import fonts as _app_fonts
 import logging
 
 
@@ -212,35 +213,7 @@ class CasinoMixin:
                         logging.exception("Suppressed exception")
                 except Exception:
                     logging.exception("Suppressed exception")
-                try:
-
-                    label_font = None
-                    try:
-                        import ctypes
-                        import tkinter.font as tkfont
-                        fp = os.path.join(os.path.dirname(__file__), "fonts", "Tims_8x5_LCD_Matrix.ttf")
-                        if os.path.exists(fp)and hasattr(ctypes, 'windll'):
-                            try:
-                                FR_PRIVATE = 0x10
-                                ctypes.windll.gdi32.AddFontResourceExW(fp, FR_PRIVATE, 0)
-                            except Exception:
-                                logging.exception("Suppressed exception")
-
-                            try:
-                                self.root.update_idletasks()
-                                fams = list(tkfont.families())
-                                for f in fams:
-                                    if any(x in f.lower()for x in("tims", "8x5", "lcd")):
-                                        label_font = customtkinter.CTkFont(size = 12, family = f)
-                                        break
-                            except Exception:
-                                logging.exception("Suppressed exception")
-                    except Exception:
-                        logging.exception("Suppressed exception")
-                    if not label_font:
-                        label_font = customtkinter.CTkFont(size = 12)
-                except Exception:
-                    label_font = customtkinter.CTkFont(size = 12)
+                label_font = _app_fonts.lcd_marquee_font(root = self.root, size = 12)
                 marquee_label = customtkinter.CTkLabel(marquee_frame, text = "", anchor = "w", font = label_font, width = 480, height = 26, text_color = "#7CFC00")
                 marquee_label.pack(anchor = "center", padx = 4)
                 try:

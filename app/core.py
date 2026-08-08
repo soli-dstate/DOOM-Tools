@@ -1,5 +1,6 @@
 """Composes the App class from its feature mixins."""
 from app.foundation import *
+from app import fonts as _app_fonts
 from app.mixins.bugreport import BugreportMixin
 from app.mixins.casino import CasinoMixin
 from app.mixins.characters import CharactersMixin
@@ -184,6 +185,14 @@ class App(BugreportMixin, CasinoMixin, CharactersMixin, CloudMixin, CombatMixin,
             logging.exception("Suppressed exception")
 
         self.root = customtkinter.CTk()
+        # Adopt the desktop's UI font before any widget is built, so bare
+        # CTkFont(size=...) calls inherit it. Linux only and best-effort: on
+        # Windows/macOS this returns immediately and CustomTkinter's own
+        # defaults stand.
+        try:
+            _app_fonts.apply_system_ui_font(root = self.root)
+        except Exception:
+            logging.exception("Failed to apply the system UI font")
         self.root.title("DOOM Tools")
         self.root.geometry(appearance_settings["resolution"])
         self.root.resizable(False, False)

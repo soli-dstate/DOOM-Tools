@@ -1,5 +1,6 @@
 """LootMixin — App methods for the "loot" feature area."""
 from app.foundation import *
+from app import fonts as _app_fonts
 import logging
 
 
@@ -171,11 +172,11 @@ class LootMixin:
                 info_frame.pack(fill = "x")
 
                 picks_label = _tk_lp.Label(info_frame, text = "", bg = "#111111",
-                                            fg = "#dddddd", font = ("Consolas", 11))
+                                            fg = "#dddddd", font = (_app_fonts.mono_family(), 11))
                 picks_label.pack(side = "left", padx = 12, pady = 6)
 
                 hint_label = _tk_lp.Label(info_frame, text = "Drag pin · Hold SPACE or button to tension",
-                                           bg = "#111111", fg = "#888888", font = ("Consolas", 10))
+                                           bg = "#111111", fg = "#888888", font = (_app_fonts.mono_family(), 10))
                 hint_label.pack(side = "left", padx = 6)
 
                 # ── sound helpers ──────────────────────────────────────────────
@@ -344,7 +345,7 @@ class LootMixin:
                                             fill = hp_col, outline = "")
                     canvas.create_text(bar_x + bar_w // 2, bar_y + bar_h + 12,
                                         text = "PIN INTEGRITY",
-                                        fill = "#666666", font = ("Consolas", 8))
+                                        fill = "#666666", font = (_app_fonts.mono_family(), 8))
 
                     # --- bobby pin ---
                     pa = _lp_state["pin_angle"]
@@ -374,7 +375,7 @@ class LootMixin:
                             _prox_tcol = "#886655"
                         canvas.create_text(LOCK_CX, LOCK_CY + LOCK_R + 52,
                                             text = _prox_text, fill = _prox_tcol,
-                                            font = ("Consolas", 10, "bold"))
+                                            font = (_app_fonts.mono_family(), 10, "bold"))
 
                     # tension wrench visual (L-shaped bracket at bottom)
                     tw_col = "#ffcc44" if _lp_state["tensioning"] else "#666666"
@@ -387,11 +388,11 @@ class LootMixin:
                     if _lp_state["unlocked"]:
                         canvas.create_text(LOCK_CX, CANVAS_H // 2 - 20,
                                             text = "UNLOCKED", fill = "#55ff55",
-                                            font = ("Consolas", 28, "bold"))
+                                            font = (_app_fonts.mono_family(), 28, "bold"))
                     elif _lp_state["failed"]:
                         canvas.create_text(LOCK_CX, CANVAS_H // 2 - 20,
                                             text = "JAMMED", fill = "#ff4444",
-                                            font = ("Consolas", 28, "bold"))
+                                            font = (_app_fonts.mono_family(), 28, "bold"))
 
                     # picks remaining
                     picks_label.config(
@@ -524,7 +525,7 @@ class LootMixin:
                     info_frame, text = "Hold: Tension Wrench",
                     width = 180,
                     fg_color = "#444400", hover_color = "#666600",
-                    font = customtkinter.CTkFont(family = "Consolas", size = 11)
+                    font = customtkinter.CTkFont(family = _app_fonts.mono_family(), size = 11)
                 )
                 tw_btn.pack(side = "right", padx = 8, pady = 4)
                 tw_btn.bind("<ButtonPress-1>",   _start_tension)
@@ -2320,7 +2321,7 @@ class LootMixin:
                 debug_text = customtkinter.CTkTextbox(
                 debug_frame,
                 height = 200,
-                font = customtkinter.CTkFont(family = "Consolas", size = 10),
+                font = customtkinter.CTkFont(family = _app_fonts.mono_family(), size = 10),
                 fg_color = "#0d0d1a",
                 text_color = "#88ff88"
                 )
@@ -2646,7 +2647,7 @@ class LootMixin:
                         insp_canvas.create_text(
                             canvas_w // 2, 12,
                             text = "\u2191 CLICK ROUND TO EJECT \u2191",
-                            fill = "#888888", font = ("Consolas", 9), tags = "mag"
+                            fill = "#888888", font = (_app_fonts.mono_family(), 9), tags = "mag"
                         )
                         insp_canvas.create_rectangle(
                             ox_m, oy, ox_m + SLOT_W, oy + cap * SLOT_H,
@@ -2676,13 +2677,13 @@ class LootMixin:
                                 insp_canvas.create_text(
                                     ox_m + SLOT_W // 2 + 10, sy + SLOT_H // 2,
                                     text = vn, fill = "#1a1a1a",
-                                    font = ("Consolas", 9, "bold"), tags = "mag"
+                                    font = (_app_fonts.mono_family(), 9, "bold"), tags = "mag"
                                 )
                             else:
                                 insp_canvas.create_text(
                                     ox_m + SLOT_W // 2, sy + SLOT_H // 2,
                                     text = "[empty]", fill = "#444444",
-                                    font = ("Consolas", 9), tags = "mag"
+                                    font = (_app_fonts.mono_family(), 9), tags = "mag"
                                 )
                         by = oy + cap * SLOT_H
                         insp_canvas.create_rectangle(
@@ -2692,7 +2693,7 @@ class LootMixin:
                         insp_canvas.create_text(
                             ox_m + SLOT_W // 2, by + SPRING_H // 2,
                             text = "\u25b2 SPRING \u25b2", fill = "#888888",
-                            font = ("Consolas", 8), tags = "mag"
+                            font = (_app_fonts.mono_family(), 8), tags = "mag"
                         )
 
                     def _play_eject_sound():
@@ -2751,7 +2752,7 @@ class LootMixin:
                         _pti = insp_canvas.create_text(
                             ox_m + SLOT_W // 2 + 10, sy + SLOT_H // 2,
                             text = vn, fill = "#1a1a1a",
-                            font = ("Consolas", 9, "bold"), tags = "popanim"
+                            font = (_app_fonts.mono_family(), 9, "bold"), tags = "popanim"
                         )
                         target_y = oy - SLOT_H - 10
                         steps = 8
@@ -3265,7 +3266,7 @@ class LootMixin:
                 debug_text = customtkinter.CTkTextbox(
                 debug_frame,
                 height = 250,
-                font = customtkinter.CTkFont(family = "Consolas", size = 10),
+                font = customtkinter.CTkFont(family = _app_fonts.mono_family(), size = 10),
                 fg_color = "#0d0d1a",
                 text_color = "#88ff88"
                 )

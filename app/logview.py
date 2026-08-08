@@ -5,6 +5,7 @@ console input() loop. Ported from world-rts's app/logview.py; see
 import json
 import logging
 import queue
+import signal
 import sys
 import threading
 import time
@@ -357,6 +358,44 @@ class InspectScreen(Screen):
         self._show_content()
 
 
+_signal_shim_installed = False
+
+
+def _allow_offthread_signal_registration():
+    """Textual's POSIX driver registers signal handlers — SIGTSTP/SIGCONT in
+    LinuxDriver.__init__, SIGTTOU/SIGTTIN/SIGWINCH in start_application_mode —
+    but CPython only permits signal.signal() from the main thread, and the main
+    thread here belongs to Tk (see install() below, which runs the app on a
+    background thread). Without this the driver dies at construction with
+    "ValueError: signal only works in main thread of the main interpreter" and
+    the whole log view silently never appears on Linux/macOS.
+
+    Make those registrations no-ops off the main thread instead of fatal. Real
+    main-thread callers still hit the genuine signal.signal unchanged, so a
+    ValueError that isn't about threads keeps propagating.
+
+    What we give up: ctrl+z suspend handling (nothing binds it — the terminal
+    is in raw mode, so ctrl+z arrives as a keypress) and SIGWINCH resize
+    notifications. Textual's in-band window resize (mode 2048) still handles
+    resizing on terminals that support it.
+    """
+    global _signal_shim_installed
+    if _signal_shim_installed or not hasattr(signal, "SIGTSTP"):
+        return  # no SIGTSTP => Windows, whose driver never registers handlers
+    real_signal = signal.signal
+
+    def _tolerant_signal(signalnum, handler):
+        try:
+            return real_signal(signalnum, handler)
+        except ValueError:
+            if threading.current_thread() is threading.main_thread():
+                raise
+            return signal.SIG_DFL
+
+    signal.signal = _tolerant_signal
+    _signal_shim_installed = True
+
+
 def install(file_handler, level=logging.INFO, command_handler=None):
     """Swap the root logger's console output for this Textual TUI, keeping
     the existing file handler untouched. Returns (shutdown_event, stop):
@@ -390,6 +429,7 @@ def install(file_handler, level=logging.INFO, command_handler=None):
 
     log_path = getattr(file_handler, "baseFilename", "")
     app = LogViewApp(line_queue, log_path, command_handler=command_handler)
+    _allow_offthread_signal_registration()
     thread = threading.Thread(target=app.run, daemon=True)
     thread.start()
 

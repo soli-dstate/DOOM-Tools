@@ -1,4 +1,3 @@
-import ctypes
 import json
 import os
 import sys
@@ -9,7 +8,6 @@ import pytz
 import requests
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-FONTS_DIR = os.path.join(REPO_ROOT, "fonts")
 CST = pytz.timezone("US/Central")
 
 REMOTE_WEATHER_URL = "https://raw.githubusercontent.com/soli-dstate/DOOM-Tools/master/remotedata/weather.json"
@@ -68,23 +66,48 @@ GHOST_COLOR = "#4F6338"
 LIVE_COLOR = "#C7F089"
 WATCH_BG = "#313B21"
 
-def _register_dseg_fonts():
-    """Best-effort, this-process-only registration of the bundled DSEG fonts.
+def _load_app_fonts():
+    """Load app/fonts.py directly by path.
 
-    DOOM-Tools' launcher normally installs these permanently for the Windows
-    user account, so this is usually a no-op; it just makes the watch render
-    correctly on a fresh checkout too. Silently does nothing off Windows.
+    This GUI ships as its own exe (weather_forecast_gui.spec) and must not pull
+    in the `app` package — importing it would run app/__init__.py and drag in
+    pygame and the whole tool. Loading the single module by file keeps the font
+    logic shared instead of duplicated, which is how the family names drifted
+    out of sync here in the first place.
     """
-    if not hasattr(ctypes, "windll"):
-        return
-    FR_PRIVATE = 0x10
-    for fname in ("DSEG7Modern-Regular.ttf", "DSEGWeather.ttf"):
-        fp = os.path.join(FONTS_DIR, fname)
-        if os.path.exists(fp):
-            try:
-                ctypes.windll.gdi32.AddFontResourceExW(fp, FR_PRIVATE, 0)
-            except Exception:
-                pass
+    import importlib.util
+    for base in (getattr(sys, "_MEIPASS", None), REPO_ROOT):
+        if not base:
+            continue
+        path = os.path.join(base, "app", "fonts.py")
+        if not os.path.exists(path):
+            continue
+        try:
+            spec = importlib.util.spec_from_file_location("_doomtools_fonts", path)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            return module
+        except Exception:
+            return None
+    return None
+
+
+_app_fonts = _load_app_fonts()
+
+
+def _watch_families():
+    """(seven-segment, weather-icon) family names Tk actually knows.
+
+    Falls back to the Windows full names, which is what the literals used to
+    be — correct under GDI, wrong under fontconfig, where the families are
+    "DSEG7 Modern" and "DSEG Weather".
+    """
+    if _app_fonts is None:
+        return "DSEG7 Modern-Regular", "DSEG Weather"
+    _app_fonts.register_bundled_fonts()
+    seg = _app_fonts.resolve_family(_app_fonts.SEVEN_SEGMENT) or "DSEG7 Modern-Regular"
+    wx = _app_fonts.resolve_family(_app_fonts.WEATHER_ICONS) or "DSEG Weather"
+    return seg, wx
 
 
 def _hour_weather(forecast, cst_dt):
@@ -111,7 +134,7 @@ class WeatherApp(customtkinter.CTk):
         self.title("DOOM-Tools Weather Forecast")
         self.geometry("560x860")
         customtkinter.set_appearance_mode("dark")
-        _register_dseg_fonts()
+        self._seg_family, self._wx_family = _watch_families()
 
         self.use_24h = customtkinter.BooleanVar(value=True)
         self._forecast = {}
@@ -151,9 +174,9 @@ class WeatherApp(customtkinter.CTk):
         self.time_canvas.pack(fill="both", expand=True)
         cy = row_h // 2
         self.time_ghost_item = self.time_canvas.create_text(166, cy, text="88:88:88", fill=GHOST_COLOR,
-                                                              font=("DSEG7 Modern-Regular", 22), anchor="e")
+                                                              font=(self._seg_family, 22), anchor="e")
         self.time_live_item = self.time_canvas.create_text(166, cy, text="00:00:00", fill=LIVE_COLOR,
-                                                             font=("DSEG7 Modern-Regular", 22), anchor="e")
+                                                             font=(self._seg_family, 22), anchor="e")
 
         ampm_frame = customtkinter.CTkFrame(info_row, fg_color="transparent", width=30, height=row_h)
         ampm_frame.pack(side="left", padx=(0, 4), pady=(1, 0))
@@ -169,9 +192,9 @@ class WeatherApp(customtkinter.CTk):
         self.weather_canvas = customtkinter.CTkCanvas(weather_stack, width=60, height=row_h, bg=WATCH_BG, highlightthickness=0)
         self.weather_canvas.pack(fill="both", expand=True)
         self.weather_ghost_item = self.weather_canvas.create_text(30, cy, text="0", fill=GHOST_COLOR,
-                                                                    font=("DSEG Weather", 28), anchor="center")
+                                                                    font=(self._wx_family, 28), anchor="center")
         self.weather_live_item = self.weather_canvas.create_text(30, cy, text="1", fill=LIVE_COLOR,
-                                                                   font=("DSEG Weather", 28), anchor="center")
+                                                                   font=(self._wx_family, 28), anchor="center")
 
         temp_stack = customtkinter.CTkFrame(info_row, fg_color="transparent", width=100, height=row_h)
         temp_stack.pack(side="left", padx=(0, 8), pady=6)
@@ -179,9 +202,9 @@ class WeatherApp(customtkinter.CTk):
         self.temp_canvas = customtkinter.CTkCanvas(temp_stack, width=100, height=row_h, bg=WATCH_BG, highlightthickness=0)
         self.temp_canvas.pack(fill="both", expand=True)
         self.temp_ghost_item = self.temp_canvas.create_text(96, cy, text="8888", fill=GHOST_COLOR,
-                                                              font=("DSEG7 Modern-Regular", 22), anchor="e")
+                                                              font=(self._seg_family, 22), anchor="e")
         self.temp_live_item = self.temp_canvas.create_text(96, cy, text="070°F", fill=LIVE_COLOR,
-                                                             font=("DSEG7 Modern-Regular", 22), anchor="e")
+                                                             font=(self._seg_family, 22), anchor="e")
 
     def _tick_watch(self):
         now_local = datetime.now()

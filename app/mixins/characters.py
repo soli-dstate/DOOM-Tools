@@ -1,5 +1,6 @@
 """CharactersMixin — App methods for the "characters" feature area."""
 from app.foundation import *
+from app import fonts as _app_fonts
 import logging
 
 
@@ -1288,14 +1289,14 @@ class CharactersMixin:
                 def _draw_chips():
                     mag_canvas.delete("chips")
                     chip_hitboxes.clear()
-                    mag_canvas.create_text(canvas_w // 2, 10, text = "AVAILABLE ROUNDS", fill = "#888888", font = ("Consolas", 9, "bold"), tags = "chips")
+                    mag_canvas.create_text(canvas_w // 2, 10, text = "AVAILABLE ROUNDS", fill = "#888888", font = (_app_fonts.mono_family(), 9, "bold"), tags = "chips")
                     if not vlist:
-                        mag_canvas.create_text(canvas_w // 2, selector_h // 2 + 10, text = "No rounds available", fill = "#555555", font = ("Consolas", 9), tags = "chips")
+                        mag_canvas.create_text(canvas_w // 2, selector_h // 2 + 10, text = "No rounds available", fill = "#555555", font = (_app_fonts.mono_family(), 9), tags = "chips")
                         return
                     cur_y = 22
                     for cal in cc_caliber_order:
                         cal_vns = cc_caliber_groups[cal]
-                        mag_canvas.create_text(6, cur_y + CC_CAL_HEADER_H // 2, text = cal, fill = "#99aacc", font = ("Consolas", 9, "bold"), anchor = "w", tags = "chips")
+                        mag_canvas.create_text(6, cur_y + CC_CAL_HEADER_H // 2, text = cal, fill = "#99aacc", font = (_app_fonts.mono_family(), 9, "bold"), anchor = "w", tags = "chips")
                         cur_y += CC_CAL_HEADER_H
                         start_x = (canvas_w - min(len(cal_vns), cols) * (CHIP_W + CHIP_PAD) + CHIP_PAD) // 2
                         for idx, vname in enumerate(cal_vns):
@@ -1310,14 +1311,14 @@ class CharactersMixin:
                             mag_canvas.create_rectangle(x1, y1, x2, y2, fill = c, outline = "#dddddd", width = 1, tags = "chips")
                             mag_canvas.create_oval(x1 + 3, y1 + 3, x1 + 19, y2 - 3, fill = _tip_for(vname), outline = _tip_ol_for(vname), tags = "chips")
                             disp = vname if len(vname) <= 16 else vname[:15] + "..."
-                            mag_canvas.create_text((x1 + x2) // 2 + 8, (y1 + y2) // 2, text = disp, fill = "#1a1a1a", font = ("Consolas", 8, "bold"), tags = "chips")
+                            mag_canvas.create_text((x1 + x2) // 2 + 8, (y1 + y2) // 2, text = disp, fill = "#1a1a1a", font = (_app_fonts.mono_family(), 8, "bold"), tags = "chips")
                         cc_rows = max(1, (len(cal_vns) + cols - 1) // cols)
                         cur_y += cc_rows * (CHIP_H + CHIP_PAD) + CC_CAL_GROUP_PAD
 
                 def _draw_mag_body():
                     mag_canvas.delete("mag")
                     oy = mag_top
-                    mag_canvas.create_text(canvas_w // 2, mag_top - 10, text = "DROP INTO MAGAZINE", fill = "#555555", font = ("Consolas", 9), tags = "mag")
+                    mag_canvas.create_text(canvas_w // 2, mag_top - 10, text = "DROP INTO MAGAZINE", fill = "#555555", font = (_app_fonts.mono_family(), 9), tags = "mag")
                     mag_canvas.create_rectangle(ox_mag, oy, ox_mag + SLOT_W, oy + cap * SLOT_H, outline = "#888888", width = 2, tags = "mag")
                     for i in range(cap):
                         sy = oy + i * SLOT_H
@@ -1329,9 +1330,9 @@ class CharactersMixin:
                             c = vcols.get(next((v for v in vcols.keys() if vn and vn in v), ""), "#c4a032")
                             mag_canvas.create_rectangle(ox_mag + 2, sy + 2, ox_mag + SLOT_W - 2, sy + SLOT_H - 2, fill = c, outline = "#222222", tags = "mag")
                             mag_canvas.create_oval(ox_mag + 4, sy + 4, ox_mag + 22, sy + SLOT_H - 4, fill = _tip_for(next((v for v in vcols.keys() if vn and vn in v), "")), outline = _tip_ol_for(next((v for v in vcols.keys() if vn and vn in v), "")), tags = "mag")
-                            mag_canvas.create_text(ox_mag + SLOT_W // 2 + 10, sy + SLOT_H // 2, text = vn or "Round", fill = "#1a1a1a", font = ("Consolas", 9, "bold"), tags = "mag")
+                            mag_canvas.create_text(ox_mag + SLOT_W // 2 + 10, sy + SLOT_H // 2, text = vn or "Round", fill = "#1a1a1a", font = (_app_fonts.mono_family(), 9, "bold"), tags = "mag")
                         else:
-                            mag_canvas.create_text(ox_mag + SLOT_W // 2, sy + SLOT_H // 2, text = "[empty]", fill = "#444444", font = ("Consolas", 9), tags = "mag")
+                            mag_canvas.create_text(ox_mag + SLOT_W // 2, sy + SLOT_H // 2, text = "[empty]", fill = "#444444", font = (_app_fonts.mono_family(), 9), tags = "mag")
                     by = oy + cap * SLOT_H
                     mag_canvas.create_rectangle(ox_mag, by, ox_mag + SLOT_W, by + spring_h, fill = "#555555", outline = "#666666", tags = "mag")
 
@@ -1369,7 +1370,7 @@ class CharactersMixin:
                     c = vcols.get(vname, "#c4a032")
                     loader_state["drag_item"] = mag_canvas.create_rectangle(ox_mag + 2, event.y - SLOT_H // 2, ox_mag + SLOT_W - 2, event.y + SLOT_H // 2, fill = c, outline = "#ffffff", width = 2, tags = "drag")
                     loader_state["drag_tip"] = mag_canvas.create_oval(ox_mag + 4, event.y - SLOT_H // 2 + 2, ox_mag + 22, event.y + SLOT_H // 2 - 2, fill = _tip_for(vname), outline = _tip_ol_for(vname), tags = "drag")
-                    loader_state["drag_text"] = mag_canvas.create_text(ox_mag + SLOT_W // 2 + 10, event.y, text = vname, fill = "#1a1a1a", font = ("Consolas", 10, "bold"), tags = "drag")
+                    loader_state["drag_text"] = mag_canvas.create_text(ox_mag + SLOT_W // 2 + 10, event.y, text = vname, fill = "#1a1a1a", font = (_app_fonts.mono_family(), 10, "bold"), tags = "drag")
 
                 def _on_move(event):
                     if not loader_state["dragging"]:

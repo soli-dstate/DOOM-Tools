@@ -1,5 +1,6 @@
 """SettingsMixin — App methods for the "settings" feature area."""
 from app.foundation import *
+from app import fonts as _app_fonts
 import logging
 
 
@@ -232,6 +233,14 @@ class SettingsMixin:
                     customtkinter.set_default_color_theme(fallback)
                 except Exception as e2:
                     logging.error(f"Fallback theme load failed: {e2}")
+
+            # Loading a theme file resets CTkFont's default family back to the
+            # theme's own value ("Roboto"), so the system font has to be
+            # re-applied or every widget built after a theme switch reverts.
+            try:
+                _app_fonts.apply_system_ui_font(root = self.root)
+            except Exception:
+                logging.exception("Failed to re-apply the system UI font after a theme change")
 
             try:
                 appearance_settings_path = os.path.join(saves_folder or "saves", "appearance_settings.sldsv")
